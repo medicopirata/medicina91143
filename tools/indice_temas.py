@@ -13,9 +13,9 @@ de cada banco, en vez de una entrada por pregunta se guardan rangos:
 donde cada rango es [primer id, último id, índice del tema]. Con eso el
 escritorio sabe de qué tema es cualquier pregunta leyendo unas decenas de KB.
 
-De paso pone al día los totales de preguntas que el escritorio tiene escritos
-en escritorio.js, para que la barra de progreso no se quede coja cuando se
-añaden apuntes.
+De paso pone al día los totales de preguntas que están escritos a mano en
+escritorio.js y en catalogo.js, para que la barra de progreso y las tarjetas
+no se queden cortas cuando se añaden apuntes.
 
 Uso:  python3 tools/indice_temas.py
 """
@@ -60,26 +60,36 @@ def comprimir(qs):
     return temas, rangos
 
 
-def actualizar_totales(base, totales):
-    """Reescribe los `total:` de ASIGNATURAS en escritorio.js."""
-    ruta = os.path.join(base, "escritorio.js")
+def reescribir(ruta, campo, busca, totales):
+    """Pone al día los contadores escritos a mano en un .js.
+
+    `busca` dice cómo localizar la línea de cada plataforma (por su clave de
+    progreso o por su archivo) y `campo` cuál es el número que hay que tocar.
+    """
     if not os.path.exists(ruta):
-        print("  falta escritorio.js, no actualizo totales"); return
+        print("  falta %s" % os.path.basename(ruta)); return
     s = open(ruta, encoding="utf-8").read()
     cambios = []
-    for clave, n in totales.items():
-        patron = re.compile(r'(clave: "%s".*?total:\s*)(\d+)' % re.escape(clave), re.S)
+    for clave, archivo in PLATAFORMAS.items():
+        aguja = clave if busca == "clave" else archivo
+        patron = re.compile(r'("%s".*?%s:\s*)(\d+)' % (re.escape(aguja), campo), re.S)
         m = patron.search(s)
         if not m:
-            print("  escritorio.js: no encuentro %s" % clave); continue
+            print("  %s: no encuentro %s" % (os.path.basename(ruta), aguja)); continue
+        n = totales[clave]
         if int(m.group(2)) != n:
             cambios.append("%s %s->%d" % (clave.split("_")[0], m.group(2), n))
             s = s[:m.start(2)] + str(n) + s[m.end(2):]
     if cambios:
         open(ruta, "w", encoding="utf-8").write(s)
-        print("  escritorio.js: %s" % ", ".join(cambios))
+        print("  %s: %s" % (os.path.basename(ruta), ", ".join(cambios)))
     else:
-        print("  escritorio.js: los totales ya estaban bien")
+        print("  %s: los contadores ya estaban bien" % os.path.basename(ruta))
+
+
+def actualizar_totales(base, totales):
+    reescribir(os.path.join(base, "escritorio.js"), "total", "clave", totales)
+    reescribir(os.path.join(base, "catalogo.js"), "n", "archivo", totales)
 
 
 def main():
