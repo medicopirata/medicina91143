@@ -87,9 +87,41 @@ def reescribir(ruta, campo, busca, totales):
         print("  %s: los contadores ya estaban bien" % os.path.basename(ruta))
 
 
+def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js")):
+    """Pone ?v=<hash> a los scripts sueltos que carga index.html.
+
+    GitHub Pages los sirve con caché de varios minutos, así que al añadir algo
+    al catálogo no aparecía hasta al rato. Con la marca de versión, cambiar el
+    archivo cambia la URL y el navegador lo vuelve a pedir.
+    """
+    import hashlib
+    ruta = os.path.join(base, "index.html")
+    if not os.path.exists(ruta):
+        print("  falta index.html, no sello versiones"); return
+    s = open(ruta, encoding="utf-8").read()
+    cambios = []
+    for archivo in archivos:
+        f = os.path.join(base, archivo)
+        if not os.path.exists(f):
+            continue
+        v = hashlib.sha256(open(f, "rb").read()).hexdigest()[:8]
+        patron = re.compile(r'(src="%s)(\?v=[0-9a-f]+)?(")' % re.escape(archivo))
+        if not patron.search(s):
+            continue
+        if (patron.search(s).group(2) or "")[3:] != v:
+            cambios.append("%s?v=%s" % (archivo, v))
+        s = patron.sub(lambda m: m.group(1) + "?v=" + v + m.group(3), s)
+    if cambios:
+        open(ruta, "w", encoding="utf-8").write(s)
+        print("  index.html: %s" % ", ".join(cambios))
+    else:
+        print("  index.html: las versiones ya estaban al día")
+
+
 def actualizar_totales(base, totales):
     reescribir(os.path.join(base, "escritorio.js"), "total", "clave", totales)
     reescribir(os.path.join(base, "catalogo.js"), "n", "archivo", totales)
+    sellar_versiones(base)
 
 
 def main():
