@@ -19,6 +19,19 @@ import json, re, sys, html
 
 RE_OPCION = re.compile(r"^([a-d])\)\s*(.+)$", re.S)
 
+# La letra del apartado (A, B, C, D) sirve para emparejar con el solucionario,
+# pero la etiqueta que ve Santi depende de lo que diga el título: un apartado
+# «De refuerzo» son preguntas mías, aunque en ese tema le toque la letra B.
+def etiqueta_de(titulo):
+    t = titulo.lower()
+    if "imagen" in t:
+        return "D"
+    if "refuerzo" in t:
+        return "C"
+    if "kahoot" in t or "avisad" in t or "plantea" in t:
+        return "A"
+    return "B"
+
 
 def plano(x):
     return html.unescape(re.sub(r"<[^>]+>", "", x)).strip()
@@ -87,10 +100,11 @@ def main():
     for m in re.finditer(r"<paragraph\b([^>]*)>(.*?)</paragraph>", xml, re.S):
         if "heading=" not in m.group(1):
             continue
-        g = re.match(r"([A-D])\.\s*(?:⭐\s*)?", plano(m.group(2)))
+        titulo = plano(m.group(2))
+        g = re.match(r"([A-D])\.\s*(?:⭐\s*)?", titulo)
         if g:
             grupo = g.group(1)
-            cabeceras.append((m.start(), grupo))
+            cabeceras.append((m.start(), grupo, etiqueta_de(titulo)))
 
     preguntas, cuenta = [], {}
     for pos, cuerpo in items(xml):
@@ -105,22 +119,22 @@ def main():
                 opciones[o.group(1)] = o.group(2).strip()
         if sorted(opciones) != ["a", "b", "c", "d"]:
             continue
-        g = None
-        for cpos, gr in cabeceras:
+        g = etiq = None
+        for cpos, gr, et in cabeceras:
             if cpos < pos:
-                g = gr
+                g, etiq = gr, et
         if not g:
             continue
         cuenta[g] = cuenta.get(g, 0) + 1
         preguntas.append({
-            "g": g, "n": cuenta[g],
+            "g": etiq, "apartado": g, "n": cuenta[g],
             "q": plano(enun.group(1)).rstrip(":") + ":",
             "options": [opciones[k] for k in "abcd"],
         })
 
     ok, sin = [], []
     for p in preguntas:
-        k = (p["g"], p["n"])
+        k = (p.pop("apartado"), p["n"])
         if k in soluciones:
             p["correct"], p["exp"] = soluciones[k]
             ok.append(p)
@@ -131,6 +145,8 @@ def main():
           % (len(preguntas), len(soluciones), len(ok)))
     if sin:
         print("SIN solución: %s" % ", ".join("%s%s" % (p["g"], p["n"]) for p in sin))
+    from collections import Counter
+    print("por etiqueta: %s" % dict(Counter(p["g"] for p in ok)))
     json.dump(ok, open("/tmp/apuntes/lista.json", "w"), ensure_ascii=False, indent=1)
     for p in ok[:3]:
         print("  %s%s %s -> %s) %s"

@@ -13,6 +13,10 @@ de cada banco, en vez de una entrada por pregunta se guardan rangos:
 donde cada rango es [primer id, último id, índice del tema]. Con eso el
 escritorio sabe de qué tema es cualquier pregunta leyendo unas decenas de KB.
 
+De paso pone al día los totales de preguntas que el escritorio tiene escritos
+en escritorio.js, para que la barra de progreso no se quede coja cuando se
+añaden apuntes.
+
 Uso:  python3 tools/indice_temas.py
 """
 import json, re, os, glob
@@ -56,9 +60,31 @@ def comprimir(qs):
     return temas, rangos
 
 
+def actualizar_totales(base, totales):
+    """Reescribe los `total:` de ASIGNATURAS en escritorio.js."""
+    ruta = os.path.join(base, "escritorio.js")
+    if not os.path.exists(ruta):
+        print("  falta escritorio.js, no actualizo totales"); return
+    s = open(ruta, encoding="utf-8").read()
+    cambios = []
+    for clave, n in totales.items():
+        patron = re.compile(r'(clave: "%s".*?total:\s*)(\d+)' % re.escape(clave), re.S)
+        m = patron.search(s)
+        if not m:
+            print("  escritorio.js: no encuentro %s" % clave); continue
+        if int(m.group(2)) != n:
+            cambios.append("%s %s->%d" % (clave.split("_")[0], m.group(2), n))
+            s = s[:m.start(2)] + str(n) + s[m.end(2):]
+    if cambios:
+        open(ruta, "w", encoding="utf-8").write(s)
+        print("  escritorio.js: %s" % ", ".join(cambios))
+    else:
+        print("  escritorio.js: los totales ya estaban bien")
+
+
 def main():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    salida, filas = {}, []
+    salida, filas, totales = {}, [], {}
     for clave, archivo in PLATAFORMAS.items():
         ruta = os.path.join(base, archivo)
         if not os.path.exists(ruta):
@@ -67,6 +93,7 @@ def main():
         temas, rangos = comprimir(qs)
         salida[clave] = {"t": temas, "r": rangos}
         filas.append((archivo, len(qs), len(temas), len(rangos)))
+        totales[clave] = len(qs)
 
     destino = os.path.join(base, "indice_temas.json")
     with open(destino, "w", encoding="utf-8") as f:
@@ -75,6 +102,7 @@ def main():
     for a, nq, nt, nr in filas:
         print("  %-32s %5d preguntas · %3d temas · %4d rangos" % (a, nq, nt, nr))
     print("  -> indice_temas.json  (%.1f KB)" % (os.path.getsize(destino) / 1024))
+    actualizar_totales(base, totales)
 
 
 if __name__ == "__main__":

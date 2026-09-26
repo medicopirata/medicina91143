@@ -9,7 +9,15 @@ en vez de duplicar preguntas. Los ids arrancan en ID_BASE para no colisionar
 nunca con los existentes, de modo que el progreso guardado no se toca.
 
 Uso:  python3 tools/add_apuntes.py <plataforma.html> <preguntas.json>
+      python3 tools/add_apuntes.py <plataforma.html> <preguntas.json> --reemplazar-todo
       python3 tools/add_apuntes.py <plataforma.html> --solo-motor
+
+Con --reemplazar-todo se borran TODOS los bancos de apuntes antes de cargar,
+no solo los que trae el JSON. Es para cuando el doc de apuntes se reorganiza y
+algún banco cambia de nombre: sin esta opción el banco viejo se quedaría ahí
+duplicando preguntas. El JSON tiene que traer entonces todos los bancos de esa
+asignatura y en el mismo orden, porque los ids se reparten por ese orden y el
+progreso guardado va por id.
 """
 import json, os, re, sys, unicodedata
 
@@ -110,9 +118,12 @@ def regenerar_indice(ruta_html):
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         raise SystemExit(__doc__)
     ruta_html, ruta_json = sys.argv[1], sys.argv[2]
+    todo = len(sys.argv) == 4
+    if todo and sys.argv[3] != "--reemplazar-todo":
+        raise SystemExit(__doc__)
 
     html = open(ruta_html, encoding="utf-8").read()
 
@@ -139,7 +150,11 @@ def main():
 
     # Fuera los bancos de apuntes que vamos a reescribir (idempotencia)
     antes = len(preguntas)
-    preguntas = [q for q in preguntas if q.get("topicBase") not in bancos_nuevos]
+    if todo:
+        fuera = lambda t: t.startswith("Apuntes:")
+    else:
+        fuera = lambda t: t in bancos_nuevos
+    preguntas = [q for q in preguntas if not fuera(q.get("topicBase", ""))]
     reemplazadas = antes - len(preguntas)
 
     # Los ids ya usados por apuntes de OTROS bancos no se deben pisar
