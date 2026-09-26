@@ -93,7 +93,9 @@ a{color:inherit}
 .fila select{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 6px;
      border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
 .fila.bien{background:var(--ok-soft);border-color:#b7ddc8}
+.fila.bien select{background:transparent;border-color:transparent;color:var(--ok);font-weight:600}
 .fila.mal{background:var(--mal-soft);border-color:#eec3bf}
+.fila.mal select{border-color:#e0a49d}
 .sol{font-size:13px;color:var(--muted);margin:2px 0 0 40px}
 .sol b{color:var(--ok)}
 .barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 0}
@@ -169,9 +171,11 @@ function pintarPortada() {
 }
 
 /* --- un ejercicio ----------------------------------------------------- */
-let actual = -1;
+let actual = -1, intento = 0, primera = null;
 function abrir(i) {
   actual = i;
+  intento = 0;
+  primera = null;
   const e = EJERCICIOS[i];
   // Las opciones son las propias etiquetas del ejercicio, en orden alfabético:
   // lo que hay que acertar es a qué número va cada una.
@@ -189,7 +193,9 @@ function abrir(i) {
     +     '<p class="pista">Toca la imagen para verla grande</p></div>'
     +   '<div><ul class="filas">' + filas + '</ul>'
     +     '<div class="barra">'
-    +       '<button class="acc corregir" onclick="corregir()">Corregir</button>'
+    +       '<button class="acc corregir" id="bt-corregir" onclick="corregir()">Corregir</button>'
+    +       '<button class="acc otra" id="bt-soluciones" onclick="rendirse()" hidden>Ver soluciones</button>'
+    +       '<button class="acc otra" onclick="abrir(actual)">Empezar de cero</button>'
     +       '<button class="acc otra" onclick="pintarPortada()">Volver</button>'
     +       '<span class="nota" id="nota"></span>'
     +     '</div>'
@@ -203,13 +209,49 @@ function abrir(i) {
 
 function corregir() {
   const e = EJERCICIOS[actual];
-  let bien = 0;
+  intento++;
+  let bien = 0, pendientes = 0;
   e.i.forEach((x, k) => {
     const sel = document.getElementById("s" + k);
     const fila = document.getElementById("f" + k);
-    const acierta = sel.value === x[1];
-    if (acierta) bien++;
-    fila.className = "fila " + (acierta ? "bien" : "mal");
+    if (fila.classList.contains("bien")) { bien++; return; }   // ya acertada
+    if (sel.value === x[1]) {
+      bien++;
+      fila.className = "fila bien";
+      sel.disabled = true;
+    } else {
+      pendientes++;
+      fila.className = "fila mal";
+      // se borra la elección para que la pienses otra vez, y no se enseña
+      // la respuesta: para eso está el botón de soluciones
+      sel.value = "";
+    }
+  });
+  const pct = Math.round(bien * 100 / e.i.length);
+  if (primera === null) { primera = pct; guardarMarca(actual, pct); }
+
+  const nota = document.getElementById("nota");
+  nota.textContent = bien + "/" + e.i.length
+    + (intento > 1 ? " · intento " + intento : "")
+    + (primera !== null && intento > 1 ? " · a la primera " + primera + "%" : "");
+
+  document.getElementById("bt-soluciones").hidden = pendientes === 0;
+  if (pendientes === 0) {
+    document.getElementById("bt-corregir").hidden = true;
+    revelar(true);
+  }
+}
+
+/* Enseña la respuesta de lo que quede sin acertar y cierra el ejercicio. */
+function rendirse() { revelar(false); }
+
+function revelar(todoBien) {
+  const e = EJERCICIOS[actual];
+  e.i.forEach((x, k) => {
+    const sel = document.getElementById("s" + k);
+    const fila = document.getElementById("f" + k);
+    const acierta = fila.classList.contains("bien");
+    if (!acierta) { sel.value = x[1]; sel.disabled = true; fila.className = "fila mal"; }
     const viejo = fila.nextElementSibling;
     if (viejo && viejo.className === "sol") viejo.remove();
     if (!acierta || x[2]) {
@@ -219,15 +261,13 @@ function corregir() {
       fila.after(p);
     }
   });
-  const pct = Math.round(bien * 100 / e.i.length);
-  document.getElementById("nota").textContent = bien + "/" + e.i.length + " · " + pct + "%";
-  guardarMarca(actual, pct);
+  document.getElementById("bt-corregir").hidden = true;
+  document.getElementById("bt-soluciones").hidden = true;
   const cola = document.getElementById("cola");
-  cola.innerHTML = e.c ? '<p class="coletilla"><b>Además:</b> ' + esc(e.c) + '</p>' : "";
-  // Tras corregir, el botón repite el ejercicio en limpio.
-  const bt = document.querySelector(".corregir");
-  bt.textContent = "Otra vez";
-  bt.onclick = () => abrir(actual);
+  cola.innerHTML = (todoBien ? '<p class="coletilla"><b>Todas.</b> '
+                      + (primera === 100 ? "Y a la primera." : "A la primera te salieron " + primera + "%.")
+                      + '</p>' : "")
+    + (e.c ? '<p class="coletilla"><b>Además:</b> ' + esc(e.c) + '</p>' : "");
 }
 
 function ampliar(src) {
