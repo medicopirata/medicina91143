@@ -14,8 +14,15 @@ Formato del doc, una clase por grupo de apartados:
     (b) Su revestimiento más superficial es: a) … · b) … · c) … · d) …
     **Soluciones D:** H1 b / b · H2 b / a · …
 
+Hay apartados sueltos que no siguen el patrón "<clase> · <letra> · …", como el
+repaso oral, donde las preguntas van numeradas R1, R2… y el solucionario pone
+"Soluciones R:". Para esos se pasa la letra con dos puntos delante:
+
+    python3 tools/extraer_clase_histo.py doc.xml ":R" "Apuntes: Repaso oral" \\
+        --titulo "Repaso oral del 28/9 · preguntas que leyó en clase (sangre y circulatorio)"
+
 Uso:  python3 tools/extraer_clase_histo.py <doc.xml> "<texto del encabezado>" \\
-          "<nombre del banco>" [prefijo-imagen]
+          "<nombre del banco>" [prefijo-imagen] [--titulo "<encabezado exacto>"]
 """
 import html, json, re, sys
 
@@ -39,10 +46,13 @@ def opciones(txt):
     return enunciado, ops
 
 
-def soluciones_simples(txt):
-    """'1 c · 2 b · 3 c (nota) · …' -> {1: ('c', 'nota')}"""
+def soluciones_simples(txt, prefijo=""):
+    """'1 c · 2 b · 3 c (nota) · …' -> {1: ('c', 'nota')}
+
+    Con prefijo ("R") acepta además 'R1 b · R2 c · …'.
+    """
     sol = {}
-    for m in re.finditer(r"(\d{1,2})\s+([a-d])\b\s*(\([^)]*\))?", txt):
+    for m in re.finditer(r"%s(\d{1,2})\s+([a-d])\b\s*(\([^)]*\))?" % re.escape(prefijo), txt):
         sol[int(m.group(1))] = (m.group(2), (m.group(3) or "").strip("()"))
     return sol
 
@@ -69,16 +79,31 @@ def seccion(xml, titulo):
 
 
 def main():
-    if len(sys.argv) not in (4, 5):
+    argv = sys.argv[1:]
+    titulo_suelto = None
+    if "--titulo" in argv:
+        i = argv.index("--titulo")
+        titulo_suelto = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    if len(argv) not in (3, 4):
         raise SystemExit(__doc__)
-    xml = open(sys.argv[1], encoding="utf-8").read()
-    cabecera, banco = sys.argv[2], sys.argv[3]
-    prefijo = sys.argv[4] if len(sys.argv) == 5 else "histo"
+    xml = open(argv[0], encoding="utf-8").read()
+    cabecera, banco = argv[1], argv[2]
+    prefijo = argv[3] if len(argv) == 4 else "histo"
+
+    # ":R" = un apartado suelto cuyas preguntas van numeradas R1, R2…
+    suelto = cabecera.startswith(":")
+    letras = [cabecera[1:]] if suelto else ["A", "B", "C", "D"]
 
     preguntas, blobs = [], {}
-    for letra, grupo in (("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")):
-        titulos = [t for t in re.findall(r"<paragraph\b[^>]*heading='3'[^>]*>(.*?)</paragraph>", xml, re.S)
-                   if plano(t).startswith("%s · %s ·" % (cabecera, letra))]
+    for letra in letras:
+        if suelto:
+            if titulo_suelto is None:
+                raise SystemExit("con ':X' hace falta --titulo")
+            titulos = [titulo_suelto]
+        else:
+            titulos = [t for t in re.findall(r"<paragraph\b[^>]*heading='3'[^>]*>(.*?)</paragraph>", xml, re.S)
+                       if plano(t).startswith("%s · %s ·" % (cabecera, letra))]
         if not titulos:
             continue
         cuerpo = seccion(xml, plano(titulos[0]))
@@ -111,12 +136,13 @@ def main():
                     preguntas.append({"g": "D", "q": enun, "options": ops,
                                       "correct": "abcd".index(letra_ok), "exp": "", "img": img})
         else:
-            sol = soluciones_simples(crudo)
+            sol = soluciones_simples(crudo, letra if suelto else "")
             # Algunas preguntas reparten enunciado, imagen y opciones en tres
             # párrafos seguidos, así que se toma todo lo que hay hasta la
             # siguiente pregunta en vez de un solo párrafo.
-            for p in re.finditer(r"<bold>(\d{1,2})\.([^<]*)</bold>(.*?)"
-                                 r"(?=<bold>\d{1,2}\.|Soluciones)", cuerpo, re.S):
+            pre = re.escape(letra) if suelto else ""
+            for p in re.finditer(r"<bold>%s(\d{1,2})\.([^<]*)</bold>(.*?)"
+                                 r"(?=<bold>%s\d{1,2}\.|Soluciones)" % (pre, pre), cuerpo, re.S):
                 n = int(p.group(1))
                 if n not in sol:
                     continue
@@ -131,7 +157,7 @@ def main():
                 if not ops:
                     raise SystemExit("no entiendo las opciones de %s%d" % (letra, n))
                 letra_ok, nota = sol[n]
-                q = {"g": letra, "q": enun, "options": ops,
+                q = {"g": "A" if suelto else letra, "q": enun, "options": ops,
                      "correct": "abcd".index(letra_ok), "exp": nota}
                 if img:
                     blobs["%s%d" % (letra, n)] = img.group(1)

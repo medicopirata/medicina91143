@@ -33,7 +33,13 @@ EJERCICIOS = [
     ("Médula espinal", "I5", "Raíces, ganglio y astas",               "M5-raices-astas"),
     ("Osteología del cráneo", "I1", "Hueso frontal, visión anterior", "O1-hueso-frontal"),
     ("Osteología del cráneo", "I2", "Hueso occipital, visión caudal", "O2-hueso-occipital"),
-    ("Tronco del encéfalo",   "I1", "Tronco del encéfalo, visión anterior", "T1-tronco-anterior"),
+    ("Tronco del encéfalo",   "I1", "Tronco del encéfalo, visión anterior",  "T1-tronco-anterior"),
+    ("Tronco del encéfalo",   "I2", "Tronco del encéfalo, visión posterior", "T2-tronco-posterior"),
+    ("Tronco del encéfalo",   "I3", "Suelo del IV ventrículo",               "T3-suelo-iv-ventriculo"),
+    ("Tronco del encéfalo",   "I4", "Corte del bulbo",                       "T4-corte-bulbo"),
+    ("Tronco del encéfalo",   "I5", "Mesencéfalo",                           "T5-mesencefalo"),
+    ("Cerebelo",              "I1", "Cerebelo, visión general",              "C1-cerebelo-general"),
+    ("Cerebelo",              "I2", "Cerebelo, corte",                       "C2-cerebelo-corte"),
 ]
 
 
@@ -87,10 +93,21 @@ def main():
                 etiqueta += " par"        # "IX" -> "IX par", como los demás
             items.append({"n": n, "etiqueta": etiqueta, "nota": nota})
 
-        repes = [x for x in [i["etiqueta"] for i in items]
-                 if [i["etiqueta"] for i in items].count(x) > 1]
+        # Dos números pueden llevar el mismo nombre (en el corte del cerebelo,
+        # el 2 y el 8 son los dos "vermis"). Si uno de ellos trae matiz, se le
+        # pega para que el desplegable los distinga.
+        cuenta = {}
+        for i in items:
+            cuenta[i["etiqueta"]] = cuenta.get(i["etiqueta"], 0) + 1
+        for i in items:
+            if cuenta[i["etiqueta"]] > 1 and i["nota"]:
+                i["etiqueta"] = "%s %s" % (i["etiqueta"], i["nota"])
+                i["nota"] = ""
+        repes = [e for e, n in
+                 {i["etiqueta"]: [x["etiqueta"] for x in items].count(i["etiqueta"])
+                  for i in items}.items() if n > 1]
         if repes:
-            print("  aviso: %s tiene etiquetas repetidas: %s" % (titulo, set(repes)),
+            print("  aviso: %s sigue con etiquetas repetidas: %s" % (titulo, repes),
                   file=sys.stderr)
 
         salida.append({"tema": tema, "titulo": titulo, "img": img,

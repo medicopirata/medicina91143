@@ -179,7 +179,7 @@ function abrir(i) {
   const e = EJERCICIOS[i];
   // Las opciones son las propias etiquetas del ejercicio, en orden alfabético:
   // lo que hay que acertar es a qué número va cada una.
-  const opciones = e.i.map(x => x[1]).sort((a, b) => a.localeCompare(b, "es"));
+  const opciones = [...new Set(e.i.map(x => x[1]))].sort((a, b) => a.localeCompare(b, "es"));
   const filas = e.i.map((x, k) => '<li class="fila" id="f' + k + '">'
       + '<span class="num">' + esc(x[0]) + '</span>'
       + '<select id="s' + k + '"><option value="">— elige —</option>'
