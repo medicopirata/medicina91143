@@ -13,16 +13,30 @@ preguntas con el mismo enunciado piden cosas distintas.
 Por defecto solo rellena las que están vacías: si la pregunta ya tiene
 explicación, se deja como está (lo normal es que la clave case también con
 preguntas parecidas de otros bancos que ya la tenían bien). Con `--ampliar`
-se añade el texto detrás del que ya hubiera, sin pisarlo.
+se añade el texto detrás del que ya hubiera, sin pisarlo, y con
+`--ampliar-hasta=N` solo detrás de las que apenas tienen explicación: las que,
+quitada la etiqueta de procedencia, no llegan a N caracteres.
 
-Uso:  python3 tools/explicaciones_html.py <plataforma.html> <explicaciones.json> [--ampliar]
+Uso:  python3 tools/explicaciones_html.py <plataforma.html> <explicaciones.json>
+                [--ampliar | --ampliar-hasta=N]
 """
 import json, re, sys
+
+# Los bancos de apuntes llevan delante la etiqueta de procedencia («🎓 Dicha en
+# clase.»), que no explica nada: con --ampliar-hasta N se amplían las que, tras
+# quitarla, no llegan a N caracteres de explicación de verdad.
+ETIQUETA = re.compile(r"^\s*(?:🎓 Dicha en clase\.|📌 Deducida de sus pistas\.|"
+                      r"🤖 Propuesta por Claude, no dicha en clase\.|"
+                      r"🖼️ Pregunta con imagen\.)\s*")
 
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     ampliar = "--ampliar" in sys.argv
+    hasta = 0
+    for a in sys.argv[1:]:
+        if a.startswith("--ampliar-hasta="):
+            hasta = int(a.split("=", 1)[1])
     if len(args) != 2:
         raise SystemExit(__doc__)
     ruta_html, ruta_exp = args
@@ -52,6 +66,9 @@ def main():
         viejo = (p.get("exp") or "").strip()
         if not viejo:
             p["exp"] = texto; puestas += 1
+        elif hasta and texto not in viejo and ETIQUETA.search(viejo) \
+                and len(ETIQUETA.sub("", viejo).strip()) < hasta:
+            p["exp"] = viejo.rstrip(".") + ". " + texto; añadidas += 1
         elif ampliar and texto not in viejo:
             p["exp"] = viejo.rstrip(".") + ". " + texto; añadidas += 1
 
