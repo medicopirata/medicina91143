@@ -57,6 +57,20 @@ def grupos_por_numero(xml):
     return mapa
 
 
+def grupos_por_encabezado(xml):
+    """Cuando no hay tabla de rangos, el grupo sale de los encabezados.
+
+    El Tema 7 los titula «Nivel A · Lo que han dicho que cae» en vez de traer
+    la tabla «Bloque | Qué son | N.º» de los demás temas.
+    """
+    cortes = []
+    for m in re.finditer(r"<paragraph\b[^>]*heading='2'[^>]*>(.*?)</paragraph>", xml, re.S):
+        g = re.match(r"(?:Nivel\s+)?([A-D])\s*[·.\-]", plano(m.group(1)))
+        if g:
+            cortes.append((m.start(), g.group(1)))
+    return cortes
+
+
 def soluciones(xml):
     """Última tabla: N.º | Resp. | Por qué."""
     sol = {}
@@ -79,6 +93,7 @@ def main():
         return
 
     grupo = grupos_por_numero(xml)
+    cabeceras = grupos_por_encabezado(xml) if not grupo else []
     sol = soluciones(xml)
 
     # Se recorre el documento en orden: las imágenes valen para lo que viene detrás
@@ -87,14 +102,19 @@ def main():
         r"|<paragraph\b[^>]*>(?:(?!</paragraph>).)*?<bold>(\d+)\.</bold>(.*?)</paragraph>"
         r"|<list\b[^>]*>.*?</list>", xml, re.S)
 
+    # La imagen puede ir antes del enunciado —y entonces vale también para las
+    # preguntas siguientes— o entre el enunciado y sus opciones, y entonces es
+    # de esa pregunta. Sin distinguirlo, cada imagen se corría una pregunta.
     imagen, pendiente, preguntas = None, None, []
     for m in trozos:
         if m.group(1):
             imagen = m.group(1)
+            if pendiente:
+                pendiente = (pendiente[0], pendiente[1], imagen, pendiente[3])
         elif m.group(2):
-            pendiente = (int(m.group(2)), plano(m.group(3)), imagen)
+            pendiente = (int(m.group(2)), plano(m.group(3)), imagen, m.start())
         elif pendiente:
-            n, enunciado, img = pendiente
+            n, enunciado, img, pos = pendiente
             pendiente = None
             opciones, letras = [], []
             for li in re.findall(r"<listItem\b.*?</listItem>", m.group(0), re.S):
@@ -109,7 +129,12 @@ def main():
             letra, porque = sol[n]
             if letra not in letras:
                 raise SystemExit("la respuesta %r de la %d no está entre sus opciones" % (letra, n))
-            p = {"g": grupo.get(n, ""), "q": enunciado, "options": opciones,
+            g = grupo.get(n, "")
+            if not g and cabeceras:
+                for cpos, gr in cabeceras:
+                    if cpos < pos:
+                        g = gr
+            p = {"g": g, "q": enunciado, "options": opciones,
                  "correct": letras.index(letra), "exp": porque}
             if img:
                 p["img"] = "apuntes_img/fisio-%s.png" % img.split("-")[0]
