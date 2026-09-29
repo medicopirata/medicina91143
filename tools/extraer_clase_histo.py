@@ -127,7 +127,12 @@ def main():
                 blobs[clave] = blob
                 img = "apuntes_img/%s-%s.jpg" % (prefijo, blob.split("-")[0])
                 for k, (marca, letra_ok) in enumerate(zip("ab", sol[clave])):
-                    p = re.search(r"\(%s\)\s*(.*?)</paragraph>" % marca, resto, re.S)
+                    # Los dos apartados pueden ir en el mismo párrafo —«(a) … d)
+                    # Manto (b) El 2 es: a) Cápsula …»—, así que el (a) se corta
+                    # al llegar al (b); si no, se lleva pegado todo el segundo.
+                    p = re.search(r"\(%s\)\s*(.*?)(?=\(%s\)|</paragraph>)"
+                                  % (marca, "b" if marca == "a" else "\uffff"),
+                                  resto, re.S)
                     if not p:
                         raise SystemExit("falta el apartado (%s) de %s" % (marca, clave))
                     enun, ops = opciones(plano(p.group(1)))
