@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Anatomía - Completo</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--bg);
+            display: flex;
+        }
+
+        /* Sidebar con índice */
+        #sidebar {
+            width: 320px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .index-title {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ffffff33;
+            padding-bottom: 10px;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .index-btn {
+            background: #34495e;
+            border: 1px solid #5d6d7e;
+            color: white;
+            padding: 8px 0;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: var(--success); }
+        .index-btn.wrong { background: var(--error); border-color: var(--error); }
+        .index-btn.marked { border: 2px solid var(--marked); color: var(--marked); font-weight: bold; }
+
+        /* Contenido Principal */
+        #content {
+            margin-left: 320px;
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .mark-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            cursor: pointer;
+        }
+
+        .question-text {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .option {
+            display: block;
+            padding: 12px 15px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .option:hover { background: #f9f9f9; }
+        .option.correct-choice { background: #d4edda !important; border-color: var(--success); color: #155724; }
+        .option.wrong-choice { background: #f8d7da !important; border-color: var(--error); color: #721c24; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+            font-style: italic;
+        }
+
+        /* Modales */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: 0.3s;
+        }
+
+        .btn-blue { background: var(--accent); color: white; }
+        .btn-finish { background: var(--error); color: white; position: fixed; bottom: 20px; right: 20px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div id="start-modal" class="modal">
+            <h2>Configuración del Quiz</h2>
+            <p>¿Cómo deseas realizar las preguntas?</p>
+            <button class="btn btn-blue" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-blue" onclick="startQuiz(true)">Mezclar Preguntas</button>
+        </div>
+
+        <div id="result-modal" class="modal hidden">
+            <h2>Cuestionario Finalizado</h2>
+            <div id="score-info"></div>
+            <div style="margin-top: 20px; display: grid; gap: 10px;">
+                <button class="btn btn-blue" onclick="restart('all')">Repetir Completo</button>
+                <button class="btn btn-blue" style="background:#e67e22" onclick="restart('failed')">Repetir solo Falladas</button>
+                <button class="btn btn-blue" style="background:var(--marked)" onclick="restart('marked')">Repetir solo Marcadas</button>
+                <button class="btn btn-blue" style="background:var(--primary)" onclick="restart('both')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="index-title">Índice</div>
+        <div id="index-grid" class="index-grid"></div>
+    </div>
+
+    <div id="content">
+        <div id="quiz-container"></div>
+        <button class="btn btn-finish" onclick="showResults()">Finalizar y Ver Opciones</button>
+    </div>
+
+    <script>
+        const allQuestions = [
+            { q: "37. Entre la musculatura de la pared anterior del abdomen, el Músculo Recto Anterior destaca sobre los músculos anchos por ser funcional y biomecánicamente un:", options: ["Potente extensor espinal puro y rotador contralateral del tórax.", "Músculo auxiliar parasimpático liso para la fase inicial del vaciamiento digestivo inferior.", "Músculo fundamentalmente compresor respiratorio y flexor puro de la columna espinal acercando el pubis y el esternón.", "Músculo estático cuya única función es mantener unidos los ligamentos de la base peritoneal subumbilical."], correct: 2, exp: "Es el antagonista directo del erector de la columna; al tensarse acorta la distancia costopúbica provocando la flexión espinal (encorvamiento)." },
+            { q: "38. La arquitectura morfológica típica del Músculo Recto Anterior se caracteriza por poseer a lo largo de su vientre contractil 3 o 4 intersecciones aponeuróticas. Estas intersecciones:", options: ["Se fusionan y adhieren sólidamente a la lámina anterior de la vaina de los rectos, fraccionando el músculo.", "Son conductos huecos para permitir el ascenso venoso epigástrico superficial.", "Conectan el vientre derecho con el vientre izquierdo perforando diagonalmente la línea alba.", "Desaparecen al llegar a la edad adulta."], correct: 0, exp: "Estos vientres seccionales evitan el desgarro de un músculo tan largo y explican los 'cuadritos' visibles o six-pack." },
+            { q: "39. En su descenso vertical, este flexor puro se va a insertar caudalmente conformando en parte el denominado 'tendón conjunto', fijándose anatómicamente en:", options: ["El margen inferior oblicuo de la duodécima costilla y su cartílago.", "La sínfisis, la espina, la cresta e incluso parte del pecten del hueso pubis.", "La cara lateral mayor del trocánter del fémur.", "El fondo del saco de Douglas."], correct: 1, exp: "El anclaje inferior duro es esencial para poder flexionar contra la inercia de las palancas de la parrilla costal alta." },
+            { q: "40. Topográficamente, el músculo Recto Anterior del abdomen presenta una relación de peligro en su tercio inferior (por debajo de la línea arqueada), ya que en esa zona posterior:", options: ["Todas las aponeurosis pasan por delante de él, dejando la cara posterior del músculo desnuda.", "Está atravesado transversalmente por el intestino grueso.", "Contiene la masa del ganglio linfático de Virchow.", "El hueso ilíaco impide su descenso normal."], correct: 0, exp: "Esta zona sin refuerzo aponeurótico posterior lo hace susceptible a ceder, además es el tramo por donde los vasos epigástricos inferiores ascienden." },
+            { q: "41. Las venas lumbares ascendentes conforman una vía venosa longitudinal retroperitoneal clave. ¿Qué conexión funcional fundamental establecen?", options: ["Comunican la circulación venosa portal profunda gástrica con el tracto esplénico.", "Reúnen la sangre ilíaca externa y la envían transversalmente a la mesentérica inferior.", "Constituyen una vía paralela a la cava que comunica las venas lumbares desde el abdomen hasta la raíz torácica del sistema ácigos.", "Vierten exclusivamente todo su caudal al conducto torácico."], correct: 2, exp: "Actúan como un sistema 'bypass' que recoge a las venas horizontales lumbares, preparándose para saltar al tórax y ser el origen de ácigos y hemiácigos." },
+            { q: "42. Topográficamente, estas venas lumbares ascendentes se localizan simétricamente situándose a los lados de la columna:", options: ["Por delante del músculo psoas mayor.", "Ocultas profundas detrás o dentro del fascículo pélvico del músculo psoas mayor, por delante de la base de las apófisis transversas.", "Intramusculares cruzando la matriz media de los cuerpos lumbares.", "Colgando intracavitariamente apoyadas sobre las raíces de las flexuras."], correct: 1, exp: "Discurren hundidas, bien pegadas al esqueleto axial a lo largo de las concavidades vertebrales laterales." },
+            { q: "43. Para poder transformarse en vena Ácigos (derecha) y Hemiácigos (izquierda), estas venas lumbares ascendentes perforan habitualmente:", options: ["El centro aponeurótico frénico medial.", "El grueso de las hojas gástricas del ligamento frenoesplénico.", "Por debajo o cruzando las fibras correspondientes al pilar diafragmático o el ligamento arqueado medial.", "Perforando la aorta torácica."], correct: 2, exp: "Emplean el resquicio de los arcos del psoas o los pilares tendinosos profundos cerca del nivel de L1." },
+            { q: "44. Si un paciente presenta una trombosis masiva de la Vena Cava Inferior, las venas lumbares ascendentes:", options: ["Colapsarán irreversiblemente induciendo un fallo cardíaco total.", "Actuarán como un canal de derivación salvavidas invirtiendo o engrosando su flujo ascendente para desviar la sangre por la ácigos hasta la Cava Superior.", "Generarán de forma inmediata varices en el plexo submucoso rectal.", "Desecarán el parénquima del tejido esplénico."], correct: 1, exp: "Forman junto con el sistema cavo-cava vertebral (plexo de Batson avalvular) la red colateral vicariante imprescindible." },
+            { q: "45. Las arterias lumbares nacen a pares de:", options: ["La cara anterior visceral de la bifurcación torácica.", "Las ramas de los troncos colaterales ilíacos comunes.", "La cara dorsal y posterolateral libre de la porción recta inferior y media de la propia Aorta abdominal.", "La bifurcación troncal mesentérica superior."], correct: 2, exp: "Nacen directamente de la aorta y discurren horizontalmente buscando los músculos anchos." },
+            { q: "46. La denominada arteria 'iliolumbar' es una colateral originada directamente desde:", options: ["El ramo pudendo externo superficial.", "La rama de división del tronco arterial posterior perteneciente a la Arteria Ilíaca Interna o Hipogástrica.", "La terminación sacra mediana.", "La raíz pura obturatriz."], correct: 1, exp: "La ilíaca interna provee esta rama ascendente que actúa como 'la quinta arteria lumbar'." },
+            { q: "47. En su recorrido transversal, las arterias lumbares discurren habitualmente:", options: ["Perforan el estuche anterior del saco recto.", "Discurren retrofascialmente pasando profundas y posteriores a través de los fascículos del Músculo Psoas Mayor.", "Acompañan por el mesenterio la red venosa periumbilical.", "Atraviesan siempre libremente el omento mayor."], correct: 1, exp: "Su curso es extremadamente profundo ancladas al hueso y los canalones músculo fasciales lumbares." },
+            { q: "48. A nivel del foramen intervertebral, todas las arterias lumbares emiten una rama crítica recurrente que vasculariza:", options: ["Los fascículos del pedículo testicular.", "Las raíces de los troncos vagales del esófago.", "El conducto vertebral dural medular raquídeo aportando las arterias radiculares vitales.", "La cúpula subhepática y base subesplénica."], correct: 2, exp: "Esta rama espinal es crucial; por ejemplo, la arteria de Adamkiewicz nace de una lumbar y salva a la médula distal." },
+            { q: "49. La Vena Cava Inferior asciende por el abdomen posterior alto:", options: ["Sube a la izquierda y entra por el hiato aórtico.", "Asciende desplazada hacia la derecha de la columna perforando el centro frénico tendinoso en T8.", "Queda encajonada en el mediastino anterior de Morgagni.", "Gira transversalmente hacia el hilio esplénico."], correct: 1, exp: "Situación derecha y perforación diafragmática en T8, vital para el retorno venoso." },
+            { q: "50. La Vena Ácigos derecha asciende entre:", options: ["El margen libre antero lateral gástrico del riñón derecho.", "El pilar muscular diafragmático medial derecho, quedando postero-lateral a la aorta en el mediastino posterior.", "Inmersa superficial intra-peritoneal.", "Dentro de la vaina del recto fascial."], correct: 1, exp: "La vena ácigos tiene un trayecto escondido muy dorsal en el 'rincón' prevertebral." },
+            { q: "51. La Vena Ácigos desemboca finalmente en:", options: ["El seno venoso coronario de Thebesio.", "La vena porta en la triada portal.", "El cayado de la Vena Cava Superior cabalgando el bronquio principal derecho.", "La vena subclavia del plexo braquiocefálico."], correct: 2, exp: "El clásico 'cayado de la ácigos' drena sobre la Cava Superior en el tórax superior." },
+            { q: "52. La pared posterior palpable del Hiato de Winslow corresponde a:", options: ["La aorta descendente.", "Vena cava inferior.", "Bazo e hilio capsular.", "Vena renal transversal."], correct: 1, exp: "La gruesa y palpable pared POSTERIOR es la Vena Cava Inferior y el pilar derecho parietal." },
+            { q: "53. El hiato esofágico del diafragma (T10) da paso a:", options: ["Conductos torácicos mediales.", "El esófago y los troncos de los nervios vagos izquierdo y derecho.", "Vasos pélvicos lumbares.", "Exclusivamente al tubo digestivo."], correct: 1, exp: "Los nervios Neumogástricos (X par) cruzan pegados a las paredes del esófago." },
+            { q: "54. El Nervio Vago IZQUIERDO se sitúa en la cara ANTERIOR del estómago debido a:", options: ["Al giro embriológico del estómago sobre su eje longitudinal que orienta su lado izquierdo en sentido ventral.", "A la compresión lateral tumoral cardíaca.", "Al cruce obligado quiasmático.", "A la ausencia del ramal gástrico."], correct: 0, exp: "Al rotar el estómago, el borde izquierdo se hace anterior, arrastrando al nervio vago izquierdo." },
+            { q: "55. El tronco vagal posterior (Vago Derecho) termina inervando principalmente:", options: ["Plexo pudendo.", "Nervio femoral.", "Plexo Celíaco (Solar) para inervar vísceras abdominales.", "Nervio suboccipital."], correct: 2, exp: "El Vago derecho se prolonga hacia los ganglios celíacos para la inervación parasimpática de las vísceras." },
+            { q: "56. Por el hiato esofágico asciende hacia el tórax:", options: ["Ramas esofágicas de la arteria coronaria gástrica izquierda.", "Arteria umbilical obliterada.", "Tronco braquiocefálico.", "Vasos intercostales dorsales."], correct: 0, exp: "Estas ramas suben al tórax inferior y forman parte del plexo de escape varicoso esofágico." },
+            { q: "57. El Ligamento gastrofrénico (suspensorio del estómago) se inserta en:", options: ["Vena mesentérica.", "Fascia y cúpula izquierda del músculo diafragma.", "Espesor hiliar portal.", "Cartílago costal."], correct: 1, exp: "Es un medio de fijación que liga el estómago al techo diafragmático." },
+            { q: "58. El músculo suspensorio del estómago está compuesto por:", options: ["Fascia pélvica.", "Un pequeño haz liso contractil derivado de la túnica muscular gástrica.", "Pilar central voluntario.", "Ramales ganglionares."], correct: 1, exp: "Suele haber fibras musculares lisas que estabilizan la posición del saco gástrico." },
+            { q: "59. El techo o límite cefálico de la transcavidad de los epiplones es:", options: ["Ligamento gastrocólico.", "Ligamento suspensorio gastrofrénico.", "Borde yugular.", "Espacio recto parietal."], correct: 1, exp: "Este ligamento cierra por arriba el fondo de saco ciego epiploico." },
+            { q: "60. El 'área desnuda gástrica' está en contacto íntimo con:", options: ["Pilares lumbares derechos.", "El pilar diafragmático izquierdo y la glándula suprarrenal izquierda.", "Útero y trompas.", "Pleura torácica."], correct: 1, exp: "Ese contacto directo sin peritoneo facilita la transmisión de inflamación entre riñón/suprarrenal y estómago." },
+            { q: "1 (Páncreas). Detrás del cuello del páncreas se produce:", options: ["Bifurcación de la aorta.", "Confluencia de la vena mesentérica superior y esplénica para formar la vena Porta.", "División del tronco celíaco.", "Desembocadura de la vena renal izquierda."], correct: 1, exp: "Relación clave en cirugía pancreática." },
+            { q: "2 (Páncreas). NO es una relación posterior directa del páncreas izquierdo:", options: ["Riñón izquierdo.", "Glándula suprarrenal izquierda.", "Pedículo renal izquierdo.", "Colon descendente."], correct: 3, exp: "El colon descendente queda inferior y lateral, no posterior directo." },
+            { q: "3 (Páncreas). Vaso en el surco posterior del cuerpo del páncreas:", options: ["Vena esplénica.", "Arteria mesentérica superior.", "Arteria gastroduodenal.", "Vena hemiácigos."], correct: 0, exp: "La vena esplénica labra un lecho longitudinal en la cara dorsal pancreática." },
+            { q: "4 (Páncreas). Estructura venosa pegada a la cara posterior de la cabeza pancreática:", options: ["Mesentérica inferior.", "Vena cava inferior.", "Ilíaca común.", "Lumbar ascendente."], correct: 1, exp: "La VCI pasa justo por detrás de la cabeza del páncreas." },
+            { q: "5 (Colédoco). El colédoco distal es:", options: ["Envuelto en epiplón menor.", "Cabalgando el cuello.", "Labra un surco profundo o se introduce en la cabeza pancreática.", "Bajo el proceso unciforme."], correct: 2, exp: "Esto explica por qué tumores de cabeza de páncreas causan ictericia precoz." },
+            { q: "6 (Colédoco). El colédoco distal se une habitualmente con:", options: ["Santorini.", "Conducto de Wirsung.", "Pancreatoduodenal superior.", "Ampolla cística."], correct: 1, exp: "Forman la ampolla de Vater." },
+            { q: "7 (Colédoco). El esfínter que regula la ampolla de Vater es:", options: ["Pilórico.", "Válvula de Kerckring.", "Esfínter de Oddi.", "Pilar del diafragma."], correct: 2, exp: "Anillo de músculo liso que controla el vaciado al duodeno." },
+            { q: "8 (Colédoco). La irrigación del colédoco distal depende de:", options: ["Hepáticas.", "Arterias pancreatoduodenales superiores e inferiores.", "Mesentérica inferior.", "Esplénica."], correct: 1, exp: "Recibe ramas de la red pericefálica pancreática." },
+            { q: "9 (Riñón). Los túbulos colectores se localizan en:", options: ["Cápsula adiposa.", "Pirámides renales (médula) y rayos medulares (corteza).", "Cálices.", "Corpúsculo renal."], correct: 1, exp: "Forman el volumen estriado de las pirámides medulares." },
+            { q: "10 (Riñón). Los conductos de Bellini vierten la orina en:", options: ["Corteza renal.", "Hilio vascular.", "Área cribosa de la papila renal.", "Base de las pirámides."], correct: 2, exp: "La papila es el punto de goteo hacia el cáliz menor." },
+            { q: "11 (Riñón). Los túbulos colectores y cálices derivan de:", options: ["Seno urogenital.", "Yema ureteral (divertículo de Wolff).", "Crestas neurales.", "Notocorda."], correct: 1, exp: "La yema ureteral forma toda la vía excretora intrínseca." },
+            { q: "12 (Riñón). El túbulo colector es sensible a:", options: ["Hormona antidiurética (ADH).", "Insulina.", "Presión de oxígeno.", "Tensión de la cápsula."], correct: 0, exp: "La ADH permite la reabsorción de agua concentrando la orina." },
+            { q: "13 (Cuadrado). Inserciones del Cuadrado Lumbar:", options: ["10ª costilla y sacro.", "12ª costilla, apófisis transversas lumbares y cresta ilíaca.", "Espinosas y isquion.", "Reborde costal y pubis."], correct: 1, exp: "Posee tres fascículos: costoilíacos, costotransversos y transversoilíacos." },
+            { q: "14 (Cuadrado). El engrosamiento fascial que cruza el cuadrado lumbar es:", options: ["Arco del psoas.", "Ligamento arqueado lateral.", "Longitudinal anterior.", "Fascia de Treitz."], correct: 1, exp: "Salta de L1 a la 12ª costilla sobre el cuadrado lumbar." },
+            { q: "15 (Cuadrado). La contracción unilateral del cuadrado lumbar produce:", options: ["Rotación.", "Flexión anterior.", "Inclinación lateral ipsilateral.", "Circunducción."], correct: 2, exp: "Pliega lateralmente la columna lumbar hacia el mismo lado." },
+            { q: "16 (Cuadrado). Órgano que descansa sobre el cuadrado lumbar:", options: ["Vejiga.", "Riñón.", "Estómago.", "Hígado."], correct: 1, exp: "Forma el lecho posterior del riñón junto con el psoas." },
+            { q: "17 (Trígono). El trígono esternocostal permite el paso de:", options: ["Epigástricos inferiores.", "Torácicos laterales.", "Epigástricos superiores.", "Intercostales posteriores."], correct: 2, exp: "Los vasos torácicos internos continúan como epigástricos superiores aquí." },
+            { q: "18 (Trígono). Linfa que drena por el trígono esternocostal:", options: ["Pelvis.", "Cara diafragmática del Hígado.", "Riñones.", "Bazo."], correct: 1, exp: "Drena hacia los ganglios paraesternales." },
+            { q: "19 (Trígono). Hernia asociada al trígono esternocostal:", options: ["Bochdalek.", "Crural.", "Hernia de Morgagni.", "Línea alba."], correct: 2, exp: "Es el sitio clásico de las hernias diafragmáticas anteriores." },
+            { q: "20 (Trígono). Límites del trígono esternocostal:", options: ["Pilares lumbares.", "Apófisis xifoides y 7º cartílago costal.", "11ª y 12ª costilla.", "Centro tendinoso."], correct: 1, exp: "Hueco entre porción esternal y costal del diafragma." },
+            { q: "21 (Pliegue). El pliegue umbilical medio contiene:", options: ["Epigástrica inferior.", "Vena umbilical.", "Uraco obliterado.", "Conducto deferente."], correct: 2, exp: "Conecta el vértice de la vejiga con el ombligo." },
+            { q: "22 (Pliegue). El uraco deriva de:", options: ["Alantoides.", "Conducto vitelino.", "Notocorda.", "Conducto de Müller."], correct: 0, exp: "Remanente fibroso del alantoides fetal." },
+            { q: "23 (Pliegue). Falla de cierre del uraco causa:", options: ["Heces por ombligo.", "Fuga de orina por el ombligo.", "Agenesia renal.", "Hernia inguinal."], correct: 1, exp: "Fístula uracal." },
+            { q: "24 (Pliegue). Los pliegues umbilicales MEDIALES contienen:", options: ["Arterias umbilicales obliteradas.", "Uréteres.", "Vasos epigástricos inferiores.", "Ligamentos redondos."], correct: 0, exp: "Situados lateralmente al pliegue medio (uraco)." },
+            { q: "25 (Pleura). Relación ANTERIOR de la cúpula pleural:", options: ["Manubrio y timo.", "Clavícula, 1ª costilla y vasos subclavios.", "ECM y yugular.", "Cricoides."], correct: 1, exp: "Los vasos subclavios pasan apoyados en la 1ª costilla." },
+            { q: "26 (Pleura). Relación MEDIAL de la cúpula derecha:", options: ["Tráquea, esófago, tronco braquiocefálico, vago y frénico.", "Simpático y aorta.", "Cava inferior y ácigos.", "Escalenos."], correct: 0, exp: "Abraza el eje aerodigestivo y grandes vasos del cuello." },
+            { q: "27 (Pleura). Ganglio sobre la cúpula pleural:", options: ["Auerbach.", "Ganglio estrellado.", "Motor ocular.", "Nodoso."], correct: 1, exp: "Tumor de Pancoast lo comprime causando S. de Horner." },
+            { q: "28 (Pleura). Relación POSTERIOR de la cúpula pleural:", options: ["Escápulas.", "Clavícula.", "T1 y músculos prevertebrales.", "Pilar derecho."], correct: 2, exp: "Choca contra el canal costovertebral de T1." },
+            { q: "29 (Mama). Permite el deslizamiento de la mama:", options: ["Costillas.", "Espacio retromamario (tejido laxo).", "Bursa sinovial.", "Ausencia de ligamentos."], correct: 1, exp: "Plano de clivaje entre fascia mamaria y pectoral." },
+            { q: "30 (Mama). Fijación de la mama al pectoral sugiere:", options: ["Embarazo.", "Invasión de carcinoma.", "Hipertrofia de Cooper.", "Mastitis."], correct: 1, exp: "Signo de malignidad avanzada que invade planos profundos." },
+            { q: "31 (Mama). Ligamentos que anclan la mama a la piel:", options: ["Ligamentos de Cooper.", "Gimbernat.", "Pectoral menor.", "Ligamentos redondos."], correct: 0, exp: "Tabiques fibrosos suspensorios; su retracción causa 'piel de naranja'." },
+            { q: "32 (Mama). La fascia pectoral continúa en la axila como:", options: ["Toracolumbar.", "Clavipectoral.", "Fascia axilar.", "Endotorácica."], correct: 2, exp: "Forma el suelo fascial de la fosa axilar." },
+            { q: "33 (Espinosas). Apófisis espinosas largas y muy oblicuas:", options: ["Cervicales.", "Torácicas medias (T5-T8).", "Lumbares.", "Sacras."], correct: 1, exp: "Caen verticalmente unas sobre otras como tejas." },
+            { q: "34 (Espinosas). Función de la oblicuidad torácica:", options: ["Rotación 180º.", "Bloquear la hiperextensión.", "Hiperflexión lumbar.", "Articular esternón."], correct: 1, exp: "El choque óseo impide doblar la espalda media hacia atrás." },
+            { q: "35 (Espinosas). Punción en tórax debe ser:", options: ["Perpendicular.", "Con angulación cefálica (hacia arriba).", "Desde el abdomen.", "Sentido caudal."], correct: 1, exp: "Hay que sortear el solapamiento de las espinosas." },
+            { q: "36 (Espinosas). Espinosas lumbares son:", options: ["Bífidas.", "Gruesas, rectangulares y horizontales.", "Ausentes.", "Articuladas con costillas."], correct: 1, exp: "Dejan amplios espacios para punciones lumbares." },
+            { q: "37 (Müller). Conductos de Müller forman en la mujer:", options: ["Ovarios.", "Riñones.", "Útero, cuello y tercio superior de vagina.", "Conductos deferentes."], correct: 2, exp: "Las partes no fusionadas forman las trompas." },
+            { q: "38 (Müller). Fracaso total de fusión de Müller:", options: ["Útero unicorne.", "Útero didelfo (doble).", "Agenesia de ovarios.", "Pene."], correct: 1, exp: "Dos cavidades, dos cuellos y a veces dos vaginas." },
+            { q: "39 (Müller). Fusión parcial con tabique persistente:", options: ["Útero bicorne o septo.", "Vejiga exstrófica.", "Canal inguinal.", "Conducto vitelino."], correct: 0, exp: "Riesgo alto de abortos repetidos." },
+            { q: "40 (Müller). Müller en el hombre:", options: ["Próstata.", "Testículos.", "Degeneran por la AMH (Sertoli).", "Uretra esponjosa."], correct: 2, exp: "Quedan remanentes como el utrículo prostático." },
+            { q: "41 (Multífidos). Dirección de los multífidos:", options: ["Ileon a costilla.", "Transversa inferior a espinosa superior.", "Cráneo a esternón.", "Articular a disco."], correct: 1, exp: "Nacen laterales abajo y terminan mediales arriba." },
+            { q: "42 (Multífidos). Salto de los multífidos:", options: ["15-20 vértebras.", "Misma vértebra.", "2 a 4 vértebras.", "Transversales."], correct: 2, exp: "Diferencia con rotadores (1-2) y semiespinosos (4-6)." },
+            { q: "43 (Multífidos). Contracción UNILATERAL de multífidos causa:", options: ["Hiperextensión.", "Rotación contralateral.", "Rotación ipsilateral.", "Flexión anterior."], correct: 1, exp: "Giran el cuerpo vertebral hacia el lado opuesto." },
+            { q: "44 (Multífidos). Mayor masa de multífidos en:", options: ["Cervical alta.", "Torácica media.", "Lumbar inferior y Sacro.", "Coccígea."], correct: 2, exp: "Vitales para estabilizar la postura erecta." },
+            { q: "1 (Epidídimo). La cabeza del epidídimo está formada por:", options: ["Rete testis.", "Conductillos eferentes.", "Seminíferos rectos.", "Deferente."], correct: 1, exp: "12 a 20 conductillos que salen del testículo." },
+            { q: "2 (Epidídimo). Conductillos eferentes conectan:", options: ["Deferente y vesícula.", "Eyaculador y uretra.", "Rete testis y conducto del epidídimo.", "Seminíferos rectos."], correct: 2, exp: "Puente entre el mediastino testicular y la vía excretora." },
+            { q: "3 (Epidídimo). Estructura que atraviesan los eferentes:", options: ["Vaginal.", "Rafe.", "Albugínea en el mediastino testicular.", "Cremáster."], correct: 2, exp: "Salen por el hilio posterior (Cuerpo de Highmore)." },
+            { q: "4 (Epidídimo). Origen de los eferentes:", options: ["Túbulos mesonéfricos (Wolff).", "Müller.", "Seno urogenital.", "Yema ureteral."], correct: 0, exp: "Túbulos excretores primitivos que persisten." },
+            { q: "5 (Ovario). En el ligamento suspensorio del ovario transcurre:", options: ["Uterina.", "Arteria y vena ovárica.", "Pudenda.", "Epigástrica."], correct: 1, exp: "Pedículo principal que baja del retroperitoneo." },
+            { q: "6 (Ovario). Origen de la arteria ovárica:", options: ["Ilíaca interna.", "Ilíaca externa.", "Aorta abdominal (L2).", "Mesentérica inferior."], correct: 2, exp: "Nace alto debido al origen embriológico de la gónada." },
+            { q: "7 (Ovario). La arteria ovárica cruza por DELANTE de:", options: ["Uréter.", "Obturador.", "Ligamento ancho.", "Vena cava."], correct: 0, exp: "Relación de riesgo quirúrgico: 'el agua corre bajo el puente'." },
+            { q: "8 (Ovario). Linfa del ovario drena en:", options: ["Ilíacos externos.", "Ganglios lumbares (paraaórticos).", "Inguinales.", "Sacros."], correct: 1, exp: "Sigue el camino inverso de la arteria hasta el origen aórtico." },
+            { q: "9 (Trígono V). El trígono vesical deriva de:", options: ["Alantoides.", "Müller.", "Conductos mesonéfricos (Wolff).", "Tabique urorrectal."], correct: 2, exp: "Parche mesodérmico absorbido por el seno urogenital." },
+            { q: "10 (Trígono V). Mucosa del trígono vesical es:", options: ["Con pliegues.", "Escamosa.", "Lisa y adherida.", "Glandular."], correct: 2, exp: "Al ser mesodérmico, es fijo e inextensible." },
+            { q: "11 (Trígono V). Vértices del trígono:", options: ["Uréteres y uretra interna.", "Uraco y eyaculadores.", "Meato y puboprostáticos.", "Meato y Cowper."], correct: 0, exp: "Define la base de la vejiga urinaria." },
+            { q: "12 (Trígono V). El pliegue interuretérico une:", options: ["Esfínteres.", "Orificios ureterales.", "Úvula.", "Detrusor."], correct: 1, exp: "Cresta transversal que marca el límite superior del trígono." },
+            { q: "13 (Basivertebral). Venas basivertebrales drenan en:", options: ["Plexo vertebral interno (epidural).", "Plexo externo.", "Cava.", "Ácigos."], correct: 0, exp: "Recogen sangre de la médula ósea de los cuerpos vertebrales." },
+            { q: "14 (Basivertebral). La basivertebral sale por:", options: ["Cara anterior.", "Cara posterior del cuerpo vertebral.", "Pedículos.", "Espinosas."], correct: 1, exp: "Foramen visible en la cara dorsal del cuerpo óseo." },
+            { q: "15 (Basivertebral). Conecta plexo interno con externo:", options: ["Lumbar ascendente.", "Radicular.", "Vena intervertebral.", "Arancio."], correct: 2, exp: "Atraviesa el agujero de conjunción." },
+            { q: "16 (Basivertebral). El plexo de Batson facilita:", options: ["Isquemia.", "Metástasis de próstata a vértebras.", "Cirrosis.", "Trombos pulmonares."], correct: 1, exp: "Sistema avalvular que permite flujo retrógrado al presionar abdomen." },
+            { q: "17 (Simpático). NO pertenecen al ganglio cervical simpático:", options: ["Fibras posganglionares.", "Ramos grises.", "Nervios raquídeos y ganglios sensitivos craneales.", "Esplácnicos."], correct: 2, exp: "La cadena simpática es autónoma e independiente de los nervios somáticos." },
+            { q: "18 (Simpático). El ganglio simpático tiene somas de:", options: ["Motoneuronas.", "Neuronas posganglionares (multipolares).", "Parasimpáticas.", "Axones de paso."], correct: 1, exp: "Es una estación de relevo motor autónomo." },
+            { q: "19 (Simpático). Ubicación de ganglios simpáticos cervicales:", options: ["Vaina carotídea.", "Platisma.", "Detrás de vaina carotídea, sobre largo del cuello.", "Canal raquídeo."], correct: 2, exp: "Bajo la fascia prevertebral, fuera de la vaina carotídea." },
+            { q: "20 (Simpático). Se conectan a nervios raquídeos mediante:", options: ["Petroso.", "Ramos blancos.", "Ramos comunicantes grises.", "Asa cervical."], correct: 2, exp: "En el cuello NO hay ramos blancos (solo T1-L2)." },
+            { q: "1 (Escalenos). Sobre los escalenos es CORRECTO:", options: ["Inervados por troncos del plexo.", "Plexo pasa tras el posterior.", "Inervados por ramos anteriores C3-C8.", "Plexo entre medio y posterior."], correct: 2, exp: "No los inerva el plexo braquial formado, sino las raíces directas." },
+            { q: "2 (Escalenos). Inserciones de escalenos:", options: ["Anterior y medio en 1ª costilla, posterior en 2ª.", "Todos en esternón.", "Anterior en clavícula.", "Medio en 2ª."], correct: 0, exp: "Anterior en tubérculo de Lisfranc, posterior salta a la 2ª." },
+            { q: "3 (Escalenos). Contracción BILATERAL causa:", options: ["Extensión.", "Inclinación.", "Flexión ventral del cuello.", "Rotación."], correct: 2, exp: "Tiran simétricamente de las costillas flexionando el cuello." },
+            { q: "4 (Escalenos). Si la columna está fija, son:", options: ["Espiradores.", "Inspiradores auxiliares.", "Compresores.", "Estáticos."], correct: 1, exp: "Elevan las primeras costillas en distrés respiratorio." },
+            { q: "5 (Laringe). Irriga el vestíbulo laríngeo:", options: ["Laríngea inferior.", "Cricotiroidea.", "Arteria laríngea superior.", "Faríngea."], correct: 2, exp: "Accede perforando la membrana tirohioidea." },
+            { q: "6 (Laringe). Origen de la laríngea superior:", options: ["Tirocervical.", "Arteria tiroidea superior.", "Carótida interna.", "Braquiocefálico."], correct: 1, exp: "Rama de la tiroidea superior (Carótida externa)." },
+            { q: "7 (Laringe). Acompaña a la laríngea superior:", options: ["Recurrente.", "Ramo externo.", "Timpánica.", "Ramo interno del laríngeo superior."], correct: 3, exp: "Nervio sensitivo que da el reflejo tusígeno." },
+            { q: "8 (Laringe). Isquemia por ligadura de laríngea superior afecta:", options: ["Infraglótico.", "Tráquea.", "Vestíbulo y epiglotis.", "Constrictores."], correct: 2, exp: "Cubre el 'piso de arriba' de la laringe." },
+            { q: "9 (Uretra). Conductos eyaculadores drenan en:", options: ["Uretra intramural.", "Uretra prostática.", "Uretra membranosa.", "Uretra esponjosa."], correct: 1, exp: "Vierten el semen tras perforar la próstata." },
+            { q: "10 (Uretra). Desembocan en el relieve llamado:", options: ["Fosa navicular.", "Esfínter externo.", "Colículo seminal (Verumontanum).", "Pliegue interuretérico."], correct: 2, exp: "Cresta en la pared posterior de la uretra prostática." },
+            { q: "11 (Uretra). El eyaculador se forma por:", options: ["Deferente y uréter.", "Eferente y recto.", "Vesícula seminal y ampolla del deferente.", "Epidídimo y rete testis."], correct: 2, exp: "Se unen en la base de la próstata." },
+            { q: "12 (Uretra). El orificio ciego central del colículo es:", options: ["Seno prostático.", "Conducto de Cowper.", "Utrículo prostático.", "Foramen cecum."], correct: 2, exp: "Vestigio de Müller, homólogo al útero." },
+            { q: "13 (Esfínter). En la eyaculación se cierra el:", options: ["Esfínter externo.", "Bulboesponjoso.", "Esfínter uretral interno (liso).", "Detrusor."], correct: 2, exp: "Evita la eyaculación retrógrada hacia la vejiga." },
+            { q: "14 (Esfínter). En la micción, el esfínter interno:", options: ["Aumenta tono.", "Se relaja.", "Invierte flujo.", "Es rítmico."], correct: 1, exp: "Abre el cuello vesical para permitir la salida." },
+            { q: "15 (Esfínter). Cierre del esfínter interno en eyaculación es por:", options: ["Parasimpático.", "Pudendo.", "Simpático (Plexo hipogástrico).", "Ilioinguinal."], correct: 2, exp: "Reflejo noradrenérgico: 'el simpático dispara'." },
+            { q: "16 (Esfínter). Esfínter externo es inervado por:", options: ["Genitofemoral.", "Celíaco.", "Nervio pudendo.", "Simpático."], correct: 2, exp: "Músculo estriado voluntario del suelo pélvico." },
+            { q: "17 (Douglas). El arco de Douglas se sitúa:", options: ["Entre ombligo y pubis.", "Xifoides.", "EIAS.", "Hiato esofágico."], correct: 0, exp: "Marca el cambio en la hoja posterior de la vaina de los rectos." },
+            { q: "18 (Douglas). Bajo la línea arqueada, las aponeurosis van:", options: ["Posteriores.", "Anillo inguinal.", "Todas por DELANTE del recto.", "Desaparecen."], correct: 2, exp: "Refuerzo anterior fuerte, pero posterior ausente." },
+            { q: "19 (Douglas). Detrás del recto bajo el arco está la:", options: ["Psoas.", "Fascia transversalis.", "Epiplón.", "Tendón conjunto."], correct: 1, exp: "Zona 'desnuda' apoyada solo en fascia y grasa." },
+            { q: "20 (Douglas). Por debajo del arco entran los vasos:", options: ["Torácicos internos.", "Subcostales.", "Circunflejos.", "Epigástricos inferiores."], correct: 3, exp: "Aprovechan el borde libre para subir tras el músculo." },
+            { q: "21 (Vaginal). Membrana que crea cavidad en el testículo:", options: ["Albugínea.", "Fascia externa.", "Túnica vaginal.", "Cremáster."], correct: 2, exp: "Serosa de doble hoja derivada del peritoneo." },
+            { q: "22 (Vaginal). Procede del:", options: ["Bolsa omental.", "Wolff.", "Proceso vaginal (peritoneo).", "Tabique urorrectal."], correct: 2, exp: "Dedo de guante de peritoneo que baja al escroto." },
+            { q: "23 (Vaginal). Líquido en la túnica vaginal es:", options: ["Varicocele.", "Hidrocele.", "Hernia.", "Espermatocele."], correct: 1, exp: "Acúmulo de líquido seroso entre las hojas." },
+            { q: "24 (Vaginal). Zona del testículo que NO cubre la vaginal:", options: ["Polo inferior.", "Borde posterior e hilio.", "Cara externa.", "Cara interna."], correct: 1, exp: "Hilio posterior donde se adosa el epidídimo." },
+            { q: "25 (Carótida). El seno carotídeo está en:", options: ["Cayado aórtico.", "Bifurcación carotídea e inicio de interna.", "Yugulosubclavia.", "Foramen magno."], correct: 1, exp: "Dilatación bulbosa al inicio de la interna." },
+            { q: "26 (Carótida). El seno carotídeo es un:", options: ["Quimiorreceptor.", "Termorreceptor.", "Barorreceptor (presión).", "Nociceptor."], correct: 2, exp: "Detecta cambios de presión arterial." },
+            { q: "27 (Carótida). Nervio del seno carotídeo (Hering) es rama del:", options: ["Facial.", "Vago.", "Hipogloso.", "Glosofaríngeo (IX)."], correct: 3, exp: "Transmite información al tronco encefálico." },
+            { q: "28 (Carótida). Masaje en el seno causa:", options: ["Taquicardia.", "Vasoconstricción.", "Hiperventilación.", "Bradicardia e hipotensión."], correct: 3, exp: "Reflejo de respuesta a 'falsa' alta presión." },
+            { q: "29 (Inguinal). El ligamento inguinal es aponeurosis del:", options: ["Oblicuo interno.", "Transverso.", "Oblicuo externo.", "Recto."], correct: 2, exp: "Porción inferior incurvada de la aponeurosis del externo." },
+            { q: "30 (Inguinal). Se tiende entre:", options: ["Pubis y 12ª costilla.", "EIAS y espina del pubis.", "Sínfisis e isquion.", "Sacro e ilion."], correct: 1, exp: "Límite inferior de la pared abdominal." },
+            { q: "31 (Inguinal). Por la laguna muscular pasa:", options: ["Pectíneo.", "Cuadrado lumbar.", "Psoas ilíaco y nervio femoral.", "Recto femoral."], correct: 2, exp: "Ocupa la cavidad lateral bajo el ligamento." },
+            { q: "32 (Inguinal). Hernia POR DEBAJO del ligamento es:", options: ["Directa.", "Indirecta.", "Crural (femoral).", "Umbilical."], correct: 2, exp: "Toda protrusión inferior al ligamento es crural." },
+            { q: "33 (Cuadrado A). Contracción UNILATERAL del cuadrado lumbar causa:", options: ["Extensión.", "Flexión ventral.", "Inclinación lateral ipsilateral.", "Rotación."], correct: 2, exp: "Pliega la columna hacia el mismo lado." },
+            { q: "34 (Cuadrado A). Contracción BILATERAL ayuda a:", options: ["Cifosis.", "Flexión ventral.", "Rotación.", "Extensión y fijar la 12ª costilla."], correct: 3, exp: "Estabiliza el tronco y ayuda al diafragma." },
+            { q: "35 (Cuadrado A). Sobre su fascia está el:", options: ["Longitudinal.", "Ligamento arqueado lateral.", "Arco del psoas.", "Fascia de Treitz."], correct: 1, exp: "Arco del diafragma sobre el cuadrado lumbar." },
+            { q: "36 (Cuadrado A). Órgano sobre el cuadrado lumbar:", options: ["Riñón.", "Colon transverso.", "Pericardio.", "Vejiga."], correct: 0, exp: "Lecho posterior renal junto al psoas." },
+            { q: "37 (Límite). INCORRECTA: Espacio subaracnoideo llega a L1:", options: ["No existe en raquis.", "La médula acaba en L1, el espacio en S2.", "Termina en C7.", "Médula llega a S2."], correct: 1, exp: "El saco dural y LCR bajan hasta S2." },
+            { q: "38 (Límite). Punción lumbar segura en:", options: ["T12-L1.", "L3-L4 o L4-L5.", "S3-S4.", "C7-T1."], correct: 1, exp: "Bajo L2 no hay médula, solo raíces." },
+            { q: "39 (Límite). Espacio bajo L2 está ocupado por:", options: ["Gasser.", "Parasimpático.", "Cauda equina (cola de caballo).", "Grasa."], correct: 2, exp: "Raíces lumbares y sacras en el LCR." },
+            { q: "40 (Límite). Hilo de piamadre de sostén:", options: ["Dentado.", "Filum terminale.", "Radicular.", "Sacroilíaco."], correct: 1, exp: "Anclado en S2 para evitar que la médula flote." },
+            { q: "41 (Estómago). Parte ovalada distal:", options: ["Fundus.", "Cuerpo.", "Cardias.", "Antro pilórico."], correct: 3, exp: "Precede al canal estrecho pilórico." },
+            { q: "42 (Estómago). El antro pilórico funciona como:", options: ["Almacén quieto.", "Bomba de trituración.", "Epitelio esofágico.", "Anclado a diafragma."], correct: 1, exp: "Amasa vigorosamente el quimo." },
+            { q: "43 (Estómago). Irriga el antro en curvatura mayor:", options: ["Gastroomental derecha.", "Gástrica izquierda.", "Esplénica.", "Mesentérica inferior."], correct: 0, exp: "Rama de la gastroduodenal." },
+            { q: "44 (Estómago). El píloro libera el alimento en:", options: ["Vater.", "Ciego.", "Bulbo duodenal.", "Trascavidad."], correct: 2, exp: "Conecta estómago con 1ª porción de duodeno." },
+            { q: "45 (Oddi). El esfínter de Oddi rodea:", options: ["Pilar diafragma.", "Ángulo de Treitz.", "Ampolla de Vater.", "Válvula Kerckring."], correct: 2, exp: "Controla papila duodenal mayor." },
+            { q: "46 (Oddi). En AYUNO, el esfínter de Oddi:", options: ["Absorbe.", "Se cierra para desviar bilis a la vesícula.", "Inyecta aire.", "Bloquea porta."], correct: 1, exp: "Fuerza el almacenamiento biliar." },
+            { q: "47 (Oddi). Al comer grasa, el esfínter:", options: ["Tetania.", "Se relaja.", "Invierte flujo.", "Desaparece."], correct: 1, exp: "Permite paso de bilis y jugo pancreático." },
+            { q: "48 (Oddi). Bloqueo de Oddi causa:", options: ["Ictericia aislada.", "Pancreatitis aguda.", "Hemorragia celíaca.", "Insuficiencia."], correct: 1, exp: "Reflujo biliar al páncreas activa enzimas." },
+            { q: "49 (Wirsung). Wirsung recorre:", options: ["Parótida.", "Hígado.", "Suprarrenal.", "Páncreas en su longitud."], correct: 3, exp: "Conducto pancreático principal." },
+            { q: "50 (Wirsung). En la cabeza se une al:", options: ["Hepático común.", "Cístico.", "Colédoco distal.", "Conducto torácico."], correct: 2, exp: "Convergen en la ampolla de Vater." },
+            { q: "51 (Wirsung). Conducto accesorio es:", options: ["Hepático.", "Santorini.", "Tirogloso.", "Wharton."], correct: 1, exp: "Drena en papila menor." },
+            { q: "52 (Wirsung). Dos conductos se deben a:", options: ["Tres rotaciones.", "Dos yemas endodérmicas (dorsal/ventral).", "Ectodermo/Mesodermo.", "Vena porta."], correct: 1, exp: "Fusión de sistemas de drenaje de ambas yemas." },
+            { q: "53 (Pedículo). Es intrapancreático:", options: ["Vena Porta.", "Colédoco distal.", "Hepática propia.", "Hepático común."], correct: 1, exp: "Se incrusta en la cabeza pancreática." },
+            { q: "54 (Pedículo). Compresión de colédoco por tumor causa:", options: ["Ictericia obstructiva.", "Diabetes.", "Hernia.", "Freno vagal."], correct: 0, exp: "Bloqueo de bilis amarillea la sangre." },
+            { q: "55 (Pedículo). Posición inicial de colédoco en tríada:", options: ["Posterior.", "Anterior y derecha.", "Medial.", "Falciforme."], correct: 1, exp: "Dentro del ligamento hepatoduodenal." },
+            { q: "56 (Pedículo). Irrigación de colédoco distal:", options: ["Mesentéricas.", "Pancreatoduodenales superior e inferior.", "Esplénica.", "Frénica."], correct: 1, exp: "Arcadas pericefálicas pancreáticas." },
+            { q: "57 (Raquis). Cifosis primarias son:", options: ["Cervical/Lumbar.", "Torácica y Sacra.", "Lumbar/Sacra.", "Cervical/Dorsal."], correct: 1, exp: "Derivan de la forma fetal." },
+            { q: "58 (Raquis). Lordosis lumbar aparece por:", options: ["Gateo.", "Bipedestación y marcha.", "Osteoporosis.", "Tumores."], correct: 1, exp: "Alinea centro de gravedad sobre la pelvis." },
+            { q: "59 (Raquis). Curvaturas proporcionan:", options: ["Debilidad.", "Resistencia de muelle (R=N^2+1).", "Ninguna ventaja.", "Capacidad cava."], correct: 1, exp: "Aumentan exponencialmente la resistencia." },
+            { q: "60 (Raquis). Giba torácica es:", options: ["Lordosis.", "Escoliosis.", "Hipercifosis.", "Listesis."], correct: 2, exp: "Encorvamiento anormal dorsal." },
+            { q: "1 (Riolano). Arcada de Riolano une:", options: ["Mesentérica/Celíaco.", "Cólica media y Cólica izquierda.", "Ileocólica/Sigmoidea.", "Gástrica/Gastroepiploica."], correct: 1, exp: "Une Mesentérica Superior e Inferior." },
+            { q: "2 (Riolano). Función de Riolano:", options: ["Esfínter.", "Vía colateral salvavidas.", "Páncreas.", "Linfa."], correct: 1, exp: "Garantiza flujo al colon si falla una mesentérica." },
+            { q: "3 (Riolano). Drummond discurre:", options: ["Curvatura mayor.", "Borde mesentérico del colon.", "Psoas.", "Cabeza páncreas."], correct: 1, exp: "Paralela al marco cólico." },
+            { q: "4 (Riolano). Punto de Sudeck está en:", options: ["Treitz.", "Transición rectosigmoidea.", "Calot.", "Winslow."], correct: 1, exp: "Anastomosis débil inferior." },
+            { q: "5 (Cecales). Origen de arterias cecales:", options: ["Mesentérica inferior.", "Arteria ileocólica.", "Cólica derecha.", "Pudenda."], correct: 1, exp: "Abrazan el ciego." },
+            { q: "6 (Cecales). Arteria apendicular nace de:", options: ["Umbilical.", "Vesical.", "Cecal posterior o Ileocólica.", "Ovárica."], correct: 2, exp: "Crucial para apendicectomías." },
+            { q: "7 (Cecales). Cecales rodean:", options: ["Unión ileocecal.", "Ligamento inguinal.", "Uréter.", "Ángulo esplénico."], correct: 0, exp: "Hacen pinza en la entrada del íleon." },
+            { q: "8 (Cecales). El ciego es susceptible a:", options: ["Bilis.", "Isquemia.", "Cálculos.", "Várices."], correct: 1, exp: "Depende de ramas terminales ileocólicas." },
+            { q: "9 (Língula). Língula descansa en:", options: ["Suprarrenal.", "Bazo.", "Ventrículo izquierdo y pericardio.", "Ácigos."], correct: 2, exp: "Envuelve la punta del corazón." },
+            { q: "10 (Língula). Bajo la:", options: ["Cava.", "Escotadura cardíaca.", "Cisura horizontal.", "Hilio."], correct: 1, exp: "Marca el borde anterior izquierdo." },
+            { q: "11 (Língula). Está en el:", options: ["Lóbulo superior.", "Lóbulo medio.", "Lóbulo inferior.", "Apical."], correct: 0, exp: "Análogo al lóbulo medio derecho." },
+            { q: "12 (Língula). Ocupa el receso:", options: ["Bochdalek.", "Costodiafragmático.", "Costomediastínico anterior izquierdo.", "Winslow."], correct: 2, exp: "Espacio pleural frente al corazón." },
+            { q: "13 (Ligamento P). El ligamento pulmonar:", options: ["Bombea.", "Estabiliza pulmón y expansión de venas.", "Frénico.", "Sella."], correct: 1, exp: "Otorga holgura al pedículo." },
+            { q: "14 (Ligamento P). Conformado por:", options: ["Músculo.", "Cartílago.", "Unión de pleura visceral y parietal.", "Vago."], correct: 2, exp: "Pliege seroso que cuelga del hilio." },
+            { q: "15 (Ligamento P). Detrás del ligamento DERECHO está la:", options: ["Cava superior.", "Aorta.", "Vena Ácigos mayor.", "Hemiácigos."], correct: 2, exp: "Labra un canal vertical profundo." },
+            { q: "16 (Ligamento P). Corte necesario para:", options: ["Lóbulo inferior.", "Tiroides.", "Timo.", "Lóbulo superior."], correct: 0, exp: "Libera la base del pulmón." },
+            { q: "17 (Pericardio). Anclan el pericardio delante:", options: ["Ligamentos esternopericárdicos.", "Vertebropericárdicos.", "Sibson.", "Longitudinal."], correct: 0, exp: "Evitan que el corazón caiga." },
+            { q: "18 (Pericardio). Suelo fusionado con:", options: ["Pilar derecho.", "Centro frénico tendinoso.", "Hiato.", "Cruz."], correct: 1, exp: "Ligamento pericardiofrénico." },
+            { q: "19 (Pericardio). Hoja visceral es el:", options: ["Endocardio.", "Miocardio.", "Epicardio.", "Fascia."], correct: 2, exp: "Serosa íntima del corazón." },
+            { q: "20 (Pericardio). Seno entre aorta/pulmonar y aurículas:", options: ["Coronario.", "Seno transverso de Theile.", "Oblicuo de Haller.", "Douglas."], correct: 1, exp: "Pasillo para pinzamiento quirúrgico." },
+            { q: "21 (Escalenos). CORRECTA sobre escalenos:", options: ["Troncos plexo.", "Frénico.", "Ramos directos C3-C8.", "Vago."], correct: 2, exp: "Nervios espinales directos." },
+            { q: "22 (Escalenos). Anterior y Medio se fijan en:", options: ["Esternón.", "1ª costilla.", "2ª costilla.", "Clavícula."], correct: 1, exp: "Abrazan la subclavia." },
+            { q: "23 (Escalenos). Posterior se fija en:", options: ["1ª costilla.", "Acromion.", "2ª costilla.", "Xifoides."], correct: 2, exp: "Salta la primera costilla." },
+            { q: "24 (Escalenos). Bilateral causa:", options: ["Extensión.", "Flexión ventral.", "Rotación.", "Inclinación."], correct: 1, exp: "Pliegan el cuello hacia delante." },
+            { q: "25 (Cuadrado B). Inserciones de cuadrado lumbar:", options: ["Sacro/Fémur.", "12ª costilla, transversas lumbares y cresta ilíaca.", "Escápula.", "Ombligo."], correct: 1, exp: "Cierra pared abdominal posterior." },
+            { q: "26 (Cuadrado B). Unilateral causa:", options: ["Flexión lateral ipsilateral.", "Rotación.", "Flexión ventral.", "Extensión."], correct: 0, exp: "Pliega tronco al mismo lado." },
+            { q: "27 (Cuadrado B). Bilateral ayuda a:", options: ["Empujar vísceras.", "Elevar cresta.", "Extensión y fijar 12ª costilla.", "Lordosis."], correct: 2, exp: "Anclaje para el diafragma." },
+            { q: "28 (Cuadrado B). Fascia cruzada por:", options: ["Arco medial.", "Treitz.", "Esofágico.", "Ligamento arqueado lateral."], correct: 3, exp: "Paso del diafragma sobre el cuadrado." }
+        ];
+
+        let currentSet = [];
+        let state = {}; 
+
+        function startQuiz(shuffle) {
+            currentSet = [...allQuestions];
+            if (shuffle) currentSet.sort(() => Math.random() - 0.5);
+            
+            // Mezclar opciones
+            currentSet.forEach(q => {
+                let optionsData = q.options.map((text, index) => ({ text, isOriginalCorrect: index === q.correct }));
+                optionsData.sort(() => Math.random() - 0.5);
+                q.shuffledOptions = optionsData;
+            });
+
+            document.getElementById('overlay').classList.add('hidden');
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            const grid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            grid.innerHTML = '';
+
+            currentSet.forEach((q, i) => {
+                // Crear botón de índice
+                const btn = document.createElement('div');
+                btn.className = 'index-btn' + (state[i]?.marked ? ' marked' : '');
+                btn.id = 'idx-' + i;
+                btn.innerText = i + 1;
+                btn.onclick = () => document.getElementById('q-' + i).scrollIntoView({ behavior: 'smooth' });
+                grid.appendChild(btn);
+
+                // Crear tarjeta de pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = 'q-' + i;
+                
+                card.innerHTML = `
+                    <div class="mark-container" onclick="toggleMark(${i})">
+                        <input type="checkbox" ${state[i]?.marked ? 'checked' : ''}> Marcar
+                    </div>
+                    <span class="question-text">${q.q}</span>
+                    <div id="options-${i}">
+                        ${q.shuffledOptions.map((opt, optIdx) => `
+                            <div class="option" id="q-${i}-opt-${optIdx}" onclick="checkAnswer(${i}, ${optIdx})">
+                                ${opt.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${i}">
+                        <strong>Explicación:</strong> ${q.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswer(qIdx, optIdx) {
+            if (state[qIdx]?.answered) return;
+
+            const question = currentSet[qIdx];
+            const isCorrect = question.shuffledOptions[optIdx].isOriginalCorrect;
+            
+            if (!state[qIdx]) state[qIdx] = {};
+            state[qIdx].answered = true;
+            state[qIdx].wasCorrect = isCorrect;
+
+            const expDiv = document.getElementById('exp-' + qIdx);
+            expDiv.style.display = 'block';
+
+            const idxBtn = document.getElementById('idx-' + qIdx);
+            
+            question.shuffledOptions.forEach((opt, index) => {
+                const el = document.getElementById(`q-${qIdx}-opt-${index}`);
+                el.classList.add('disabled');
+                if (opt.isOriginalCorrect) el.classList.add('correct-choice');
+                if (index === optIdx && !isCorrect) el.classList.add('wrong-choice');
+            });
+
+            idxBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+        }
+
+        function toggleMark(i) {
+            if (!state[i]) state[i] = {};
+            state[i].marked = !state[i].marked;
+            document.getElementById('idx-' + i).classList.toggle('marked', state[i].marked);
+        }
+
+        function showResults() {
+            let correct = 0;
+            let total = currentSet.length;
+            Object.values(state).forEach(s => { if (s.wasCorrect) correct++; });
+
+            document.getElementById('score-info').innerHTML = `
+                <p>Has acertado <strong>${correct}</strong> de <strong>${total}</strong> preguntas.</p>
+                <p>Porcentaje: ${((correct/total)*100).toFixed(1)}%</p>
+            `;
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        function restart(type) {
+            let filtered = [];
+            if (type === 'all') {
+                filtered = allQuestions;
+            } else if (type === 'failed') {
+                currentSet.forEach((q, i) => { if (state[i] && !state[i].wasCorrect) filtered.push(q); });
+            } else if (type === 'marked') {
+                currentSet.forEach((q, i) => { if (state[i]?.marked) filtered.push(q); });
+            } else if (type === 'both') {
+                currentSet.forEach((q, i) => { if (state[i] && (!state[i].wasCorrect || state[i].marked)) filtered.push(q); });
+            }
+
+            if (filtered.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            // Reiniciar estado y cargar nuevo set
+            state = {};
+            currentSet = filtered;
+            currentSet.forEach(q => {
+                let optionsData = q.options.map((text, index) => ({ text, isOriginalCorrect: index === q.correct }));
+                optionsData.sort(() => Math.random() - 0.5);
+                q.shuffledOptions = optionsData;
+            });
+
+            document.getElementById('overlay').classList.add('hidden');
+            renderQuiz();
+            window.scrollTo(0,0);
+        }
+    </script>
+</body>
+</html>

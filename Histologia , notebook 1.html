@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Histología - Epitelios y Uniones Celulares</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. ¿Cuál de las siguientes NO es una característica del tejido epitelial? a) Células muy cohesionadas. b) Alta vascularización. c) Descansan sobre una lámina basal. d) Carecen de sustancia intercelular. Respuesta correcta: b. Explicación: La profesora insiste en que los epitelios son avasculares. Si ves un vaso sanguíneo al microscopio, estás viendo tejido conjuntivo, no epitelial.
+2. ¿De qué hoja u hojas blastodérmicas derivan los tejidos epiteliales? a) Solo del ectodermo. b) Solo del endodermo y mesodermo. c) De las tres hojas blastodérmicas (ectodermo, mesodermo y endodermo). d) Solo del mesodermo. Respuesta correcta: c. Explicación: Es el único tejido que deriva de las tres hojas embrionarias, originando desde la epidermis (ectodermo) hasta los endotelios (mesodermo) y el epitelio respiratorio (endodermo).
+3. La lámina basal que separa el epitelio del tejido conjuntivo está formada por dos capas. ¿Quién sintetiza la "lámina reticular" (la capa más profunda)? a) Las células epiteliales. b) Las células del tejido conjuntivo (fibroblastos). c) Los macrófagos. d) Las células endoteliales. Respuesta correcta: b. Explicación: La lámina basal propiamente dicha la secreta el epitelio, pero la reticular (formada por fibras reticulares/colágeno III) la secretan las células del conjuntivo subyacente.
+4. En el laboratorio de prácticas, si usamos la tinción habitual de Hematoxilina-Eosina (H&E), ¿podremos visualizar claramente la lámina basal? a) Sí, se ve como una línea azul intensa. b) No, es necesario utilizar la técnica de PAS para teñirla de un color magenta/rojo. c) Sí, porque las fibras reticulares se tiñen de verde. d) No, solo se puede ver con microscopía electrónica de barrido. Respuesta correcta: b. Explicación: Trampa clásica de examen. La profesora repite constantemente que con microscopía óptica ordinaria (H&E) NO se ve la lámina basal; se requiere la técnica de PAS (ácido peryódico de Schiff).
+5. ¿Qué colágeno es el componente característico y principal de la lámina basal (en la zona en contacto con el epitelio)? a) Colágeno tipo I. b) Colágeno tipo II. c) Colágeno tipo IV. d) Colágeno tipo III. Respuesta correcta: c. Explicación: El colágeno tipo IV junto con la laminina forman la red principal de la lámina basal epitelial.
+6. ¿Qué glicoproteína de la lámina basal es fundamental para el anclaje de las integrinas de la célula epitelial? a) Fibrina. b) Queratina. c) Laminina. d) Miosina. Respuesta correcta: c. Explicación: La laminina es la molécula clave de adhesión en la lámina basal que interactúa con las integrinas celulares.
+7. Si observamos un epitelio simple donde las células son mucho más anchas que altas y sus núcleos están aplanados horizontalmente, estamos ante un: a) Epitelio cúbico. b) Epitelio escamoso (plano o pavimentoso). c) Epitelio cilíndrico. d) Epitelio de transición. Respuesta correcta: b. Explicación: La profesora lo compara con "losas del suelo" o "escamas". Su núcleo se adapta a la forma aplanada de la célula.
+8. Pista de examen de la profesora: Para medir el grosor de estructuras muy finas al microscopio (como la pared alveolar), ¿qué elemento celular usa como "regla" de medida que mide 7 micras? a) El núcleo de un macrófago. b) Un espermatozoide. c) Un hematíe (glóbulo rojo). d) Un adipocito. Respuesta correcta: c. Explicación: Menciona que el hematíe mide 7 micras y es perfecto para dimensionar los capilares y la finísima barrera alveolo-capilar.
+9. ¿Cuál es la función principal de los epitelios planos (escamosos) simples, como el de los alvéolos pulmonares o los capilares sanguíneos? a) Alta capacidad de secreción de moco. b) Protección contra traumatismos mecánicos fuertes. c) Facilitar la rápida difusión de gases y líquidos. d) Absorción de nutrientes complejos. Respuesta correcta: c. Explicación: Al ser tan finos, minimizan la distancia que deben recorrer el oxígeno y el CO2 para difundir.
+10. ¿Qué nombre recibe el epitelio escamoso simple que reviste el interior de los vasos sanguíneos? a) Mesotelio. b) Endotelio. c) Urotelio. d) Epidermis. Respuesta correcta: b. Explicación: Es el epitelio característico del sistema cardiovascular.
+11. ¿Cómo se denomina al epitelio escamoso simple que reviste las cavidades serosas como la pleura, pericardio o peritoneo? a) Endotelio. b) Urotelio. c) Mesotelio. d) Ependimario. Respuesta correcta: c. Explicación: La profesora explica que estas finas membranas (mesotelios) permiten el deslizamiento de órganos como el corazón o los pulmones sin fricción.
+12. Si observamos un epitelio de una sola capa donde las células son igual de altas que de anchas y sus núcleos son perfectamente redondos y centrales, hablamos de un: a) Epitelio pseudoestratificado. b) Epitelio cilíndrico simple. c) Epitelio cúbico simple. d) Epitelio escamoso estratificado. Respuesta correcta: c. Explicación: Corresponde a las células cúbicas. Sus núcleos redondos y centrales son la clave diagnóstica.
+13. ¿Qué regla nemotécnica menciona la profesora (atribuida a la Prof. García) para recordar visualmente el núcleo de la célula cúbica? a) Forma de "huevo frito". b) Forma de "lavadora" (cuadrado con el círculo del núcleo en medio). c) Forma de "raqueta". d) Forma de "cigarro". Respuesta correcta: b. Explicación: Pista directa de clase para ayudar a los alumnos en las prácticas a identificar el epitelio cúbico.
+14. Las células cilíndricas (o prismáticas altas) se caracterizan porque: a) Son más anchas que altas con núcleo horizontal. b) Son más altas que anchas con el núcleo ovalado situado generalmente en posición basal (vertical). c) Carecen de núcleo. d) Sus núcleos son redondos y están siempre en la zona apical. Respuesta correcta: b. Explicación: El núcleo se relega a la base porque la parte apical está llena de orgánulos para la absorción o secreción.
+15. ¿En qué órganos solemos encontrar típicamente epitelios cilíndricos simples? a) En los vasos sanguíneos capilares. b) En zonas de alta fricción como la piel. c) En zonas de absorción como el intestino. d) En la pleura pulmonar. Respuesta correcta: c. Explicación: Suelen tener microvellosidades en la zona apical para absorber nutrientes.
+16. ¿Cuál es la característica definitoria de un epitelio pseudoestratificado? a) Tiene 3 o más capas de células apiladas. b) Parece tener varias capas porque los núcleos están a distintas alturas, pero en realidad TODAS las células contactan con la lámina basal (es una sola capa). c) Solo las células superficiales contactan con la lámina basal. d) Carece de lámina basal. Respuesta correcta: b. Explicación: Concepto clave y muy preguntado. Es "pseudo" (falso) porque aunque parezca estratificado, es simple (1 sola capa).
+17. El epitelio pseudoestratificado es el epitelio característico de: a) La vejiga urinaria. b) La epidermis. c) El aparato respiratorio (tráquea, bronquios). d) El esófago. Respuesta correcta: c. Explicación: En el aparato respiratorio está formado por células ciliadas, células caliciformes (moco) y células basales.
+18. En el epitelio respiratorio, además de cilios, encontramos unas células especializadas en humidificar y atrapar partículas produciendo moco. Son las: a) Células en paraguas. b) Células de Hofbauer. c) Células caliciformes. d) Células queratinizadas. Respuesta correcta: c. Explicación: La profesora menciona que se ven "llenas de bolitas de moco" y su núcleo está aplastado en la base.
+19. En el epidídimo (aparato genital masculino) encontramos un epitelio pseudoestratificado que presenta en su superficie apical una especialización larga y sin movilidad autónoma llamada: a) Cilios. b) Microvellosidades cortas. c) Estereocilios. d) Placas densas. Respuesta correcta: c. Explicación: Los estereocilios ayudan a empujar o nutrir a los espermatozoides inmaduros que aún no pueden nadar por sí mismos.
+20. Los macrófagos alveolares pulmonares ("células basureras") a menudo se ven llenos de puntitos negros al microscopio. Según la profesora, ¿qué son esos puntos que no pueden digerir? a) Glóbulos rojos muertos. b) Restos de moco. c) Partículas de carbón/contaminación o sílice. d) Células epiteliales descamadas. Respuesta correcta: c. Explicación: Menciona a los fumadores y mineros (silicosis). Los macrófagos no pueden degradar el carbón y se quedan negros.
+21. Clínicamente, cuando un pulmón se llena de estos macrófagos con carbón/sílice, pierde su elasticidad y los alvéolos se rompen (enfisema). ¿A qué sonido clínico compara la profesora la auscultación de este pulmón? a) Al canto de un pájaro. b) Al roce de un papel de lija. c) A palomitas de maíz haciéndose (crepitantes). d) A un silbido agudo. Respuesta correcta: c. Explicación: Anécdota clínica para ilustrar la alteración de la tensión superficial alveolar.
+22. En los epitelios estratificados (más de una capa), ¿cómo se decide el nombre anatómico del epitelio? a) Por la forma de las células de la capa basal. b) Por la forma de las células de la última capa (la más superficial o externa). c) Por la capa intermedia más gruesa. d) Por la forma del núcleo celular más grande. Respuesta correcta: b. Explicación: Regla universal de nomenclatura epitelial.
+23. ¿Cuál es el propósito principal de tener un epitelio estratificado frente a uno simple? a) Mejorar la absorción de nutrientes. b) Facilitar el intercambio de gases. c) Proporcionar defensa y resistencia mecánica frente a la agresión o fricción. d) Secretar grandes cantidades de hormonas. Respuesta correcta: c. Explicación: Las múltiples capas que maduran desde la base hasta la superficie actúan como escudo protector.
+24. En un epitelio estratificado, ¿qué células conservan principalmente la capacidad de dividirse (mitosis) para regenerar el tejido? a) Las células de la capa más superficial. b) Las células basales (en contacto con la lámina basal). c) Los leucocitos infiltrados. d) Todas se dividen por igual. Respuesta correcta: b. Explicación: Las células madres (stem cells) se ubican en el estrato basal, protegidas y nutridas por el conjuntivo subyacente.
+25. El epitelio de la vagina y del esófago se clasifica como: a) Epitelio cilíndrico estratificado queratinizado. b) Epitelio escamoso (pavimentoso) estratificado NO queratinizado. c) Epitelio cúbico simple. d) Urotelio. Respuesta correcta: b. Explicación: Son zonas de roce húmedas. Tienen múltiples capas y la última es plana (escamosa), pero conservan el núcleo (no tienen capa de queratina muerta).
+26. En las preparaciones histológicas del epitelio vaginal, las células superficiales a menudo se ven "ópticamente vacías" o muy claras. Según la profesora, ¿qué sustancia se ha disuelto durante la preparación (alcoholes)? a) Queratina. b) Moco. c) Glucógeno. d) Lípidos. Respuesta correcta: c. Explicación: La célula se llena de glucógeno por influjo hormonal, y al lavarse con alcohol en la técnica histológica, deja el citoplasma blanco/vacío.
+27. ¿Qué prueba clínica de rutina obtiene un "frotis" (raspado) de las células superficiales del epitelio vaginal para analizar su estado de maduración y descartar neoplasias? a) Tinción PAS. b) Biopsia en sacabocados. c) Citología de Papanicolaou. d) Inmunofluorescencia. Respuesta correcta: c. Explicación: La profesora explica que la citología permite ver las células descamadas teñidas de rosa/azul para evaluar el estado hormonal y descartar cáncer.
+28. Cuando un epitelio estratificado pavimentoso sufre un proceso de diferenciación final en el que sus células superficiales mueren (apoptosis), pierden el núcleo y se transforman en "bolsas" secas de proteína, lo llamamos: a) Queratinización. b) Metaplasia. c) Calcificación. d) Secreción apocrina. Respuesta correcta: a. Explicación: Es el proceso exclusivo de la epidermis de la piel para impermeabilizar y proteger al máximo.
+29. Al microscopio, ¿cómo se identifica la capa de queratina en la piel (estrato córneo)? a) Como una capa de células cilíndricas gigantes. b) Como láminas rojizas u onduladas superficiales que carecen completamente de núcleos. c) Como una zona azul oscura rica en ADN. d) Como espacios ópticamente vacíos (blancos). Respuesta correcta: b. Explicación: Son células muertas ("bolsas de queratina") fuertemente teñidas con eosina (rojizas/rosas) sin núcleo visible.
+30. La patología conocida como "piel de mariposa" (Epidermólisis ampollosa) se produce por: a) Un exceso de producción de queratina. b) Un fallo genético en los mecanismos moleculares de unión (ej. hemidesmosomas), separándose la epidermis y formando ampollas. c) Una infección bacteriana crónica. d) La ausencia total de lámina basal. Respuesta correcta: b. Explicación: Trampa de patología. Las células no se anclan bien a la dermis o entre sí, provocando heridas con roces mínimos.
+31. El epitelio transicional o Urotelio es EXCLUSIVO de: a) El aparato respiratorio. b) El aparato digestivo. c) El aparato urinario (uréteres, vejiga). d) El sistema reproductor femenino. Respuesta correcta: c. Explicación: Diseñado específicamente para contener orina y soportar distensión.
+32. ¿Cuál es la propiedad fundamental del urotelio que lo hace único frente al resto de epitelios estratificados? a) No tiene lámina basal. b) Es capaz de modificar su forma y grosor (plegándose y desplegándose) adaptándose al volumen del órgano. c) Produce enormes cantidades de queratina. d) Sus células apicales tienen cilios móviles. Respuesta correcta: b. Explicación: Cuando la vejiga está llena, el epitelio se estira y parece tener menos capas (más aplanado).
+33. Las células más superficiales del urotelio, que cubren a varias células subyacentes y cambian de forma (a menudo binucleadas), se denominan clínicamente: a) Células caliciformes. b) Células de Hofbauer. c) Células en paraguas (o en sombrilla). d) Células queratinizadas. Respuesta correcta: c. Explicación: Son células grandes en forma de cúpula que "cubren" a las demás.
+34. Para protegerse de la toxicidad de la orina, las membranas apicales de las células en paraguas del urotelio presentan: a) Una gruesa capa de queratina. b) Estereocilios. c) Placas densas (uroplaquinas) rígidas que se pliegan como bisagras. d) Múltiples flagelos. Respuesta correcta: c. Explicación: Estas placas densas actúan como un escudo impermeable contra la orina.
+35. La profesora menciona que, estrictamente hablando anatómica y embriológicamente, algunos libros clasifican al urotelio dentro de los epitelios: a) Cilíndricos simples. b) Pseudoestratificados (todas tocan la lámina basal). c) Mesotelios. d) Glandulares puros. Respuesta correcta: b. Explicación: Menciona que acepta "pulpo como animal de compañía" si se le llama pseudoestratificado, pero dejando claro que es único por su capacidad de cambiar de forma al distenderse.
+36. Para mantener su función de barrera, las células epiteliales desarrollan en sus caras laterales: a) Hemidesmosomas. b) Complejos de unión intercelular. c) Microvellosidades. d) Cilios. Respuesta correcta: b. Explicación: Las caras laterales están especializadas en la unión y comunicación intercelular.
+37. La unión más apical de la célula, que sella el espacio intercelular impidiendo el paso de solutos y agua por la vía paracelular, se denomina: a) Zonula adherens. b) Zonula occludens (Unión estrecha / Tight junction). c) Macula adherens (Desmosoma). d) Nexo. Respuesta correcta: b. Explicación: Actúa como una cremallera selladora utilizando proteínas como la ocludina y claudina [Fig 1-13/11].
+38. ¿Cuáles son las dos proteínas transmembrana principales que forman la Zonula Occludens? a) Cadherinas y selectinas. b) Ocludinas y claudinas. c) Integrinas y laminina. d) Actina y miosina. Respuesta correcta: b. Explicación: Son las que fusionan las membranas externas bloqueando el espacio.
+39. Justo por debajo de la zonula occludens, encontramos una banda de unión mecánica llamada Zonula Adherens. ¿Qué ion es indispensable para que esta unión funcione? a) Sodio (Na+). b) Potasio (K+). c) Calcio (Ca++). d) Hierro (Fe++). Respuesta correcta: c. Explicación: Depende de las E-Cadherinas, que son moléculas calcio-dependientes [Fig 4-11/12, 80].
+40. En la Zonula Adherens, las E-Cadherinas interaccionan en el interior de la célula (citoesqueleto) con: a) Filamentos intermedios de queratina. b) Filamentos de actina (a través de cateninas). c) Microtúbulos. d) El núcleo. Respuesta correcta: b. Explicación: El anclaje se hace a la red de actina subcortical usando proteínas conectoras como las cateninas [9, Fig 4-11].
+41. La Macula Adherens, conocida comúnmente como DESMOSOMA, actúa como un potente "broche" mecánico puntual. ¿Con qué filamentos del citoesqueleto contacta en su interior? a) Filamentos de actina. b) Microtúbulos. c) Filamentos intermedios (ej. queratina/tonofilamentos). d) Cilios. Respuesta correcta: c. Explicación: A diferencia de la zonula adherens, el desmosoma usa proteínas (desmogleína/desmocolina) que se anclan a los fuertes filamentos intermedios de queratina [Fig 1-16/14].
+42. ¿Qué estructura une firmemente el dominio BASAL de la célula epitelial a la lámina basal subyacente? a) Zonula occludens. b) Desmosoma. c) Hemidesmosoma. d) Nexo. Respuesta correcta: c. Explicación: Es "medio desmosoma" que ancla la célula al suelo (matriz extracelular).
+43. A diferencia del desmosoma (que usa cadherinas), el hemidesmosoma utiliza principalmente unas proteínas transmembrana llamadas: a) Selectinas. b) Integrinas. c) Conexinas. d) Cateninas. Respuesta correcta: b. Explicación: Las integrinas son el componente transmembrana del hemidesmosoma que une los filamentos intermedios con la matriz (laminina/colágeno).
+44. Las uniones comunicantes o "Nexos" (Gap junctions) tienen como función principal: a) Sellar la membrana para evitar fugas de agua. b) Anclar la célula a la lámina basal. c) Permitir el paso directo de iones y pequeñas moléculas entre los citoplasmas de células vecinas (sinapsis eléctrica). d) Secretar mucina. Respuesta correcta: c. Explicación: Están formados por conexones que crean canales abiertos entre células, vitales para contracciones sincronizadas [Fig 4-14/15, 86].
+45. ¿De qué proteína están formados los "conexones" de las uniones en hendidura (nexos)? a) Conexinas. b) Cadherinas. c) Ocludinas. d) Cateninas. Respuesta correcta: a. Explicación: Seis conexinas forman un canal o conexón [Fig 4-14/15].
+46. Las moléculas de adhesión (CAMs) responsables de unir las láminas epiteliales entre sí y que actúan como "cremallera" Ca++ dependiente se llaman: a) Integrinas. b) Selectinas. c) Cadherinas. d) Inmunoglobulinas. Respuesta correcta: c. Explicación: Las E-Cadherinas son el "cemento" entre "losas", esenciales para la integridad epitelial y dependientes de Calcio.
+47. La pérdida de expresión de las E-cadherinas en un tejido epitelial clínicamente está directamente asociada con: a) Mejora en la oxigenación celular. b) Mayor adherencia celular. c) Capacidad de las células neoplásicas para invadir y dar metástasis. d) Producción excesiva de moco. Respuesta correcta: c. Explicación: Si las células epiteliales pierden su "cemento", se sueltan y pueden migrar, favoreciendo la metástasis en el cáncer.
+48. Las SELECTINAS son otro grupo de moléculas de adhesión celular Ca++ dependientes. ¿A qué estructura molecular específica se fijan? a) A lípidos de la membrana. b) A secuencias de ADN. c) A carbohidratos (glúcidos) de la membrana de otras células (dominio CRD). d) A iones de hierro. Respuesta correcta: c. Explicación: Su dominio de reconocimiento de carbohidratos (CRD) se une a azúcares específicos, actuando como puentes.
+49. ¿Cuál es la función fisiológica principal de las Selectinas en el cuerpo humano? a) Unir los músculos a los huesos. b) Facilitar el rodamiento ("homing") y la parada de los leucocitos circulantes en las zonas de inflamación. c) Secretar insulina en el páncreas. d) Formar la queratina de la piel. Respuesta correcta: b. Explicación: Reconocen a los leucocitos (glóbulos blancos) en el torrente sanguíneo y los ralentizan en el endotelio inflamado.
+50. ¿Cómo se llama el proceso de migración guiada de los leucocitos desde la sangre hacia el tejido linfoide o inflamado (mediado por selectinas e integrinas)? a) Apoptosis. b) Metástasis. c) Homing (anidamiento). d) Endocitosis. Respuesta correcta: c. Explicación: Lo menciona explícitamente como la principal función de estas CAMs en la inmunidad.
+51. Las INTEGRINAS son moléculas de adhesión muy versátiles. Una de sus características clave es que: a) Son totalmente dependientes del calcio extracelular. b) Solo existen en el cerebro. c) Son independientes de calcio (Ca++ independientes) y funcionan como un heterodímero con subunidades alfa y beta. d) Se asocian exclusivamente a las claudinas. Respuesta correcta: c. Explicación: A diferencia de cadherinas y selectinas, no necesitan calcio. Se fijan a la matriz extracelular o a otras células.
+52. Además de unir la célula a la matriz, las Integrinas pueden activarse y desactivarse mandando señales bidireccionales ("inside-out signaling"). ¿Qué enzima / molécula es capaz de bloquear o romper competitivamente esta unión? a) Disintegrinas. b) ADN polimerasa. c) Tripsina. d) Cateninas. Respuesta correcta: a. Explicación: Tienen dominio RGD y metaloproteasas que degradan matriz, facilitando, por ejemplo, que el leucocito abra una brecha en el endotelio para salir.
+53. Para que un leucocito (glóbulo blanco) salga del vaso sanguíneo hacia el tejido conectivo inflamado (diapédesis), debe abrirse un poro en el endotelio. ¿Cómo se logra esto? a) El leucocito destruye permanentemente el vaso. b) Al unirse la integrina, se activan temporalmente las disintegrinas que "abren la puerta" separando las células endoteliales. c) Entra por las uniones en hendidura (nexos). d) Atraviesa el citoplasma de la célula endotelial. Respuesta correcta: b. Explicación: Las disintegrinas aflojan temporalmente la unión para dejar pasar al leucocito y luego se vuelve a cerrar.
+54. ¿Qué es lo primero que debemos mirar al microscopio (H&E) para identificar la forma de una célula epitelial (plana, cúbica o cilíndrica)? a) El tamaño de los mitocondrias. b) El color del citoplasma. c) La forma y disposición del núcleo celular. d) La presencia de lámina basal. Respuesta correcta: c. Explicación: El núcleo oscuro (basófilo) nos da la forma (plano = horizontal, redondo = cúbico, vertical/oval = cilíndrico).
+55. Si vemos un epitelio con muchas capas celulares superpuestas (estratificado) y observamos pequeños núcleos densos dispersos entre las células basales que NO parecen epiteliales. ¿Qué son probablemente? a) Fibroblastos. b) Leucocitos (infiltrado inflamatorio) que han migrado desde el conjuntivo subyacente. c) Vasos sanguíneos mal formados. d) Artefactos de tinción. Respuesta correcta: b. Explicación: La profesora recuerda que los epitelios son la primera barrera y es normal ver "policías" (glóbulos blancos) infiltrados patrullando.
+56. ¿Qué función secundaria (aparte del revestimiento) puede tener un epitelio, dando lugar a los llamados "epitelios secretores"? a) Contracción muscular. b) Transmisión del impulso nervioso. c) Capacidad de formar glándulas (exocrinas y endocrinas) para secretar sustancias. d) Almacenamiento de calcio. Respuesta correcta: c. Explicación: Es la segunda gran división del tejido epitelial, que profundiza en el siguiente tema.
+57. Histológicamente, ¿qué indica ver un espacio "ópticamente vacío" con forma de globo en el interior de un tejido conjuntivo (como el que está debajo del epitelio)? a) Presencia de células madre. b) Un alvéolo pulmonar colapsado. c) Células adiposas (grasa), cuyo lípido se disolvió en el alcohol de la preparación. d) Un vaso sanguíneo sin sangre. Respuesta correcta: c. Explicación: Los adipocitos quedan como globos blancos vacíos tras el procesamiento histológico estándar.
+58. En el intestino (corte microscópico), el dominio apical de la célula cilíndrica simple presenta una banda muy teñida que aumenta exponencialmente su superficie de absorción. ¿Cómo se llama? a) Cilios móviles. b) Ribete en cepillo (microvellosidades). c) Queratina. d) Placa densa. Respuesta correcta: b. Explicación: Las microvellosidades en conjunto al óptico se ven como una chapa estriada o ribete en cepillo (brush border) [Fig 1-1, "Simple columnar epithelium"].
+59. A diferencia de las microvellosidades (hechas de actina y especializadas en absorción), los CILIOS del aparato respiratorio (hechos de microtúbulos): a) No tienen movimiento. b) Tienen movimiento activo para "barrer" y desplazar el moco y las partículas hacia el exterior. c) Solo sirven para conectar células. d) Absorben oxígeno directamente. Respuesta correcta: b. Explicación: El movimiento mucociliar es vital para la defensa respiratoria (explicado brevemente junto al epitelio pseudoestratificado).
+60. ¿Cuál es el colágeno característico sintetizado por los fibroblastos del tejido conjuntivo que forma la "Lámina Reticular" (la parte de abajo de la membrana basal)? a) Colágeno IV. b) Colágeno I. c) Colágeno III. d) Colágeno XVII. Respuesta correcta: c. Explicación: El colágeno III forma las fibras reticulares de soporte [Lámina Basal PDF, Fig "The basement membrane"].
+61. Una mutación genética que destruya las Conexinas provocará el fallo en: a) La barrera impermeable de la vejiga. b) El anclaje celular a la matriz extracelular. c) Las sinapsis eléctricas y la comunicación de iones entre células adyacentes. d) La formación de queratina. Respuesta correcta: c. Explicación: Las conexinas forman los nexos o gap junctions [Fig 4-14].
+62. Según la profesora, las células basales (las más profundas) en un epitelio estratificado suelen tener una morfología: a) Plana. b) Cilíndrica gigante. c) Cúbica. d) Vacía. Respuesta correcta: c. Explicación: Son pequeñas, redonditas/cúbicas y son la capa germinativa.
+63. Cuando el mesotelio (epitelio de la pleura) se rompe por un traumatismo y entra aire a la cavidad pleural colapsando el pulmón, clínicamente se conoce como: a) Enfisema. b) Neumotórax. c) Pericarditis. d) Piel de mariposa. Respuesta correcta: b. Explicación: Menciona que se sale el aire y se colapsa el pulmón.
+64. ¿Cómo se nutren los epitelios si carecen totalmente de vasos sanguíneos? a) Comiéndose a los leucocitos. b) Por fotosíntesis. c) Por difusión o imbibición de oxígeno y nutrientes desde los vasos sanguíneos del tejido conjuntivo subyacente. d) Reciben nutrientes a través del aire. Respuesta correcta: c. Explicación: Actúan como esponjas que absorben lo que filtra el conjuntivo.
+65. Si observamos un tejido bajo el microscopio y vemos capilares (vasos) entre las células, ¿podemos afirmar que es un tejido epitelial de revestimiento? a) Sí, si es pseudoestratificado. b) No, porque los epitelios son SIEMPRE avasculares. Si hay vasos, esa zona es tejido conjuntivo. c) Sí, el endotelio tiene sus propios capilares. d) Solo si está en el pulmón. Respuesta correcta: b. Explicación: Trampa de prácticas. Ver un vaso descarta automáticamente que ese punto exacto sea epitelio.
+66. La proteína L-selectina se expresa típicamente en: a) Placas densas de la vejiga. b) Leucocitos. c) Células endoteliales activadas. d) Células basales del esófago. Respuesta correcta: b. Explicación: La "L" es por Leucocito. Ayuda en el proceso de homing.
+67. ¿Qué tipo de epitelio recubre internamente el estómago y el intestino, protegiendo y a la vez absorbiendo? a) Escamoso simple. b) Cúbico estratificado. c) Cilíndrico (prismático alto) simple. d) Urotelio. Respuesta correcta: c. Explicación: Formado por células altas con núcleo en la base para albergar la maquinaria digestiva y adosado al lumen [Fig 1-1, PDF].
+68. Las células endoteliales (que forman los capilares) se clasifican por su forma en: a) Planas / Escamosas. b) Cúbicas. c) Cilíndricas ciliadas. d) Transicionales. Respuesta correcta: a. Explicación: Son la barrera de difusión óptima en sangre (junto al alveolo pulmonar) [20, Fig 1-1].
+69. ¿Por qué es tan crítico que en el epitelio alveolar (pulmón) la pared celular sea escamosa y finísima? a) Para secretar gran cantidad de moco. b) Porque favorece que la tensión superficial rompa el alvéolo. c) Porque el intercambio pasivo de O2 y CO2 requiere una mínima barrera física. d) Para evitar la entrada de macrófagos. Respuesta correcta: c. Explicación: La finura minimiza la resistencia a la difusión de gases.
+70. Una muestra quirúrgica de tejido cervical (cuello del útero) o vaginal que es congelada y cortada rápidamente mientras el paciente sigue en quirófano se denomina: a) Citología. b) Diagnóstico intraoperatorio. c) Impronta con PAS. d) Cultivo bacteriano. Respuesta correcta: b. Explicación: Permite tomar decisiones quirúrgicas en tiempo real (ej. márgenes tumorales).
+71. La queratina cumple su función de dureza y aislamiento. ¿Cómo están las células superficiales que contienen la máxima cantidad de queratina? a) Vivas y dividiéndose. b) Revestidas de cilios motores. c) Muertas (por apoptosis) y sin núcleo. d) Transparentes y llenas de glucógeno. Respuesta correcta: c. Explicación: Pasan a ser meras "bolsas de queratina" inanimadas formando una coraza.
+72. En los túbulos colectores del riñón, cuya función es conducir fluido y regular cierto nivel de reabsorción activa, el epitelio típico es: a) Urotelio. b) Cúbico simple. c) Plano estratificado. d) Cilíndrico con estereocilios. Respuesta correcta: b. Explicación: Es el clásico ejemplo para estudiar la forma de "lavadora" de las células cúbicas [Fig 1-1, PDF].
+73. El tejido conectivo (conjuntivo) que siempre se encuentra por debajo de la lámina basal de los epitelios de revestimiento mucosos y cutáneos deriva fundamentalmente de la capa embrionaria: a) Ectodermo. b) Mesodermo. c) Endodermo. d) Neuroectodermo. Respuesta correcta: b. Explicación: El mesodermo origina el esqueleto, la dermis y el tejido conjuntivo general [Esquema origen embrionario, PDF 2/3].
+74. Las uniones "Tight Junctions" (Zonulas Occludens) se caracterizan en microscopía electrónica de criofractura por verse como: a) Botones redondos aislados. b) Un sistema de crestas o cordones ramificados en forma de red (cremallera) en el dominio apical. c) Canales huecos de 2 nanómetros. d) Haces de queratina masivos. Respuesta correcta: b. Explicación: La ocludina y claudina se entrelazan formando una red selladora continua [Fig 1-13, PDF].
+75. La "Polaridad" del tejido epitelial significa que: a) Atrae metales pesados. b) Tiene carga eléctrica negativa constante. c) Sus células tienen tres dominios distintos funcional y estructuralmente: apical, lateral y basal. d) Se divide solo en un polo del órgano. Respuesta correcta: c. Explicación: La función varía (ej. apical absorbe, basal nutre y ancla) requiriendo maquinaria distribuida de forma no homogénea [PDF 4/2].
+76. ¿Qué molécula de la matriz celular (lámina basal) posee sitios de unión específicos para las integrinas, el colágeno tipo IV y los proteoglicanos? a) La Ocludina. b) La Laminina. c) La Selectina L. d) La E-cadherina. Respuesta correcta: b. Explicación: La laminina es la molécula adaptadora estrella de la lámina basal [Fig 1-20, PDF].
+77. ¿Dónde localizamos típicamente un "Mesotelio"? a) En la luz del intestino delgado. b) En el conducto del epidídimo. c) Revistiendo el pericardio, la pleura o el peritoneo. d) En la capa córnea de la epidermis. Respuesta correcta: c. Explicación: Es el nombre específico del epitelio plano que forma las membranas serosas del cuerpo.
+78. En histología, el sufijo "-otelio" (como endotelio o mesotelio) hace referencia siempre a un epitelio con morfología: a) Cilíndrica. b) Escamosa / plana simple. c) Transicional. d) Pseudoestratificada. Respuesta correcta: b. Explicación: Por definición histológica clásica enseñada en las prácticas [PDF Fig 1-1].
+79. Si el epitelio vaginal, sometido a fricción continua, no se queratiniza en condiciones normales, ¿cómo se protege frente a las agresiones y la sequedad? a) Generando placas densas como la vejiga. b) Teniendo múltiples capas celulares (estratificado) que se descaman, alimentadas por moco glandular y glucógeno protector. c) Absorbiendo agua del exterior rápidamente. d) Desarrollando cilios móviles. Respuesta correcta: b. Explicación: Su defensa es el grosor estratificado y las reservas de glucógeno (que también mantienen la flora bacteriana ácida protectora).
+80. Cuestión metodológica de la profesora: Al estudiar los epitelios, se debe aprender una secuencia lógica. ¿Cuál es el orden correcto del algoritmo diagnóstico visual que propone? a) 1º Mirar si hay queratina, 2º Mirar el tamaño de la célula basal. b) 1º Buscar la lámina basal (con o sin PAS), 2º Forma de los núcleos de las células (plano, cúbico, cilíndrico), 3º Número de capas (simple, estratificado), 4º Especializaciones apicales. c) 1º Mirar si hay macrófagos, 2º Mirar el color del citoplasma. d) 1º Evaluar el ADN, 2º Evaluar el glucógeno. Respuesta correcta: b. Explicación: A lo largo de la clase incide en este algoritmo: detectar frontera epitelio-conjuntivo, mirar núcleos para ver la forma, ver capas y buscar cilios/queratina para diagnosticar con éxito en prácticas
+</textarea>
+
+<script>
+    // Variables de Estado
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {}, // Almacena si fue correcta (true/false) por ID
+        marked: new Set() // IDs marcados
+    };
+
+    // --- Parser de Texto Literal a Array de Objetos ---
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        // Limpiamos cabeceras de bloque y saltos conflictivos
+        text = text.replace(/.*BLOQUE.*?\n/gi, '').replace(/\r\n/g, '\n');
+        
+        // Separamos por el inicio de cada respuesta
+        let blocks = text.split(/(?=Respuesta correcta:)/i);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Extraer la Respuesta y la Explicación del bloque actual
+            let ansMatch = block.match(/^Respuesta correcta:\s*([a-dA-D])\.?\s*(?:Explicación:\s*)?(.*?)(?=\n\d+\.\s|$)/is);
+            let correctLetter = ansMatch ? ansMatch[1].toUpperCase() : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            // Lo que sobra es la siguiente pregunta
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            // Parsear el texto de la pregunta actual y sus opciones
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+[aA]\)\s+(.*?)\s+[bB]\)\s+(.*?)\s+[cC]\)\s+(.*?)\s+[dD]\)\s+(.*)/is);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    // Utilidad: Mezclar Array (Fisher-Yates)
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    // Iniciar Cuestionario
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        // Copiamos el dataset proporcionado y lo mezclamos si se pide
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        
+        // Reiniciar estado de respuestas en esta vuelta (Mantenemos los "marcados" de la BD global)
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1; // Número de visualización
+            
+            // 1. Crear Botón de Índice
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            // 2. Mezclar opciones internamente
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            // 3. Crear Tarjeta de Pregunta
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                // Usamos JSON.stringify para escapar comillas si las hubiera en el texto
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    // Funciones de Interacción
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return; // Ya respondida
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        // Bloquear todas y pintar
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            // Hack para saber cuál era la correcta evaluando el string del onclick
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        // Mostrar Explicación
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    // Finalización y Repeticiones
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        // Contar cuantas marcadas hay DENTRO DEL QUIZ ACTUAL
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            // Filtrar las incorrectas o no respondidas en la vuelta actual
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            // Unimos los ids de las falladas/no respondidas (de la sesión actual) y las marcadas globalmente
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    // Arranque
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

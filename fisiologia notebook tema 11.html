@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Propiedades Pasivas y Activas</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 8px;
+        }
+
+        .index-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 0;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+
+        .mark-btn {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            transition: background 0.2s;
+        }
+
+        .mark-btn.active {
+            background: #fef08a;
+            border-color: #eab308;
+            color: #854d0e;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .option-label:hover { background: var(--bg); }
+        
+        .option-label input { margin-right: 10px; }
+
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        
+        #finish-btn-container {
+            text-align: center;
+            margin-top: 2rem;
+            padding-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario: Propiedades Pasivas y Activas</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        
+        <div id="questions-container"></div>
+
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        const dbQuestions = [
+            {
+                id: 1,
+                text: "Según el profesor, ¿qué células del organismo poseen propiedades pasivas de membrana?",
+                options: [
+                    { text: "A) Exclusivamente las neuronas y células musculares.", isCorrect: false },
+                    { text: "B) Solo las células que tienen vaina de mielina.", isCorrect: false },
+                    { text: "C) Todas las células del organismo (excitables y no excitables).", isCorrect: true },
+                    { text: "D) Solamente las células gliales.", isCorrect: false }
+                ]
+            },
+            {
+                id: 2,
+                text: "Las propiedades PASIVAS de la membrana están determinadas primariamente por el comportamiento eléctrico de:",
+                options: [
+                    { text: "A) Los canales iónicos dependientes de voltaje y las bombas ATPasa.", isCorrect: false },
+                    { text: "B) La bicapa lipídica y los canales de fuga pasivos.", isCorrect: true },
+                    { text: "C) El núcleo celular y los ribosomas.", isCorrect: false },
+                    { text: "D) Los receptores acoplados a proteína G.", isCorrect: false }
+                ]
+            },
+            {
+                id: 3,
+                text: "Por el contrario, las propiedades ACTIVAS de la membrana (responsables del potencial de acción) dependen del comportamiento de:",
+                options: [
+                    { text: "A) Los canales iónicos dependientes de voltaje.", isCorrect: true },
+                    { text: "B) La constante de espacio y de tiempo exclusivamente.", isCorrect: false },
+                    { text: "C) El grosor de la bicapa lipídica.", isCorrect: false },
+                    { text: "D) Los canales iónicos pasivos (de fuga).", isCorrect: false }
+                ]
+            },
+            {
+                id: 4,
+                text: "Cuando a una célula se le inyecta una corriente que produce un cambio en el potencial de membrana POR DEBAJO del umbral de disparo, la respuesta se denomina:",
+                options: [
+                    { text: "A) Respuesta activa o potencial de acción.", isCorrect: false },
+                    { text: "B) Respuesta pasiva, potencial electrotónico, local o graduado.", isCorrect: true },
+                    { text: "C) Periodo refractario absoluto.", isCorrect: false },
+                    { text: "D) Sumación irreversible.", isCorrect: false }
+                ]
+            },
+            {
+                id: 5,
+                text: "Fisiológicamente, ¿cuál es el equivalente in vivo de los potenciales electrotónicos (generados artificialmente) que utilizan las neuronas para comunicarse entre sí?",
+                options: [
+                    { text: "A) Los potenciales de acción exclusivamente.", isCorrect: false },
+                    { text: "B) Los potenciales sinápticos.", isCorrect: true },
+                    { text: "C) Los potenciales de placa motora en reposo absoluto.", isCorrect: false },
+                    { text: "D) La contracción muscular.", isCorrect: false }
+                ]
+            },
+            {
+                id: 6,
+                text: "¿Pueden generarse potenciales locales (electrotónicos) de forma artificial inyectando corriente en un linfocito (célula no excitable)? (Pregunta de repaso del PDF)",
+                options: [
+                    { text: "A) No, porque no tienen canales dependientes de voltaje.", isCorrect: false },
+                    { text: "B) Sí, porque poseen bicapa lipídica y canales de fuga (propiedades pasivas).", isCorrect: true },
+                    { text: "C) No, porque explotarían al instante.", isCorrect: false },
+                    { text: "D) Sí, pero se transformarían inmediatamente en potenciales de acción.", isCorrect: false }
+                ]
+            },
+            {
+                id: 7,
+                text: "¿Qué característica fundamental diferencia a la propagación pasiva (potencial local) de la propagación activa (potencial de acción)?",
+                options: [
+                    { text: "A) La pasiva se propaga sin decremento, la activa con decremento.", isCorrect: false },
+                    { text: "B) La propagación pasiva se atenúa (sufre decremento) a medida que se aleja del origen, mientras que la activa regenera la señal impidiendo su atenuación.", isCorrect: true },
+                    { text: "C) La propagación pasiva requiere canales de voltaje.", isCorrect: false },
+                    { text: "D) La propagación pasiva es exclusiva de axones mielinizados.", isCorrect: false }
+                ]
+            },
+            {
+                id: 8,
+                text: "En el experimento de inyección de corriente, si inyectamos corrientes NEGATIVAS a través de la pipeta, el potencial de membrana sufre un cambio:",
+                options: [
+                    { text: "A) Despolarizante.", isCorrect: false },
+                    { text: "B) Hiperpolarizante.", isCorrect: true },
+                    { text: "C) Nulo, no se altera.", isCorrect: false },
+                    { text: "D) Regenerativo masivo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 9,
+                text: "Al inyectar una corriente POSITIVA subumbral, la membrana experimenta:",
+                options: [
+                    { text: "A) Una hiperpolarización graduada.", isCorrect: false },
+                    { text: "B) Un potencial de acción siempre.", isCorrect: false },
+                    { text: "C) Una despolarización graduada.", isCorrect: true },
+                    { text: "D) Un bloqueo de la bomba de sodio-potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 10,
+                text: "Los potenciales locales NO tienen un \"umbral\" de generación porque:",
+                options: [
+                    { text: "A) Son de amplitud fija y dependientes de ATP.", isCorrect: false },
+                    { text: "B) Son respuestas pasivas puramente físicas que se producen ante cualquier cantidad de corriente inyectada, siendo su amplitud proporcional al estímulo.", isCorrect: true },
+                    { text: "C) Solo ocurren cuando el potencial llega a +30 mV.", isCorrect: false },
+                    { text: "D) Destruyen la membrana antes de llegar al umbral.", isCorrect: false }
+                ]
+            },
+            {
+                id: 11,
+                text: "Desde el punto de vista eléctrico, ¿cuál es el análogo de la membrana plasmática?",
+                options: [
+                    { text: "A) Un circuito con resistencias en serie.", isCorrect: false },
+                    { text: "B) Un condensador aislado puro.", isCorrect: false },
+                    { text: "C) Un circuito RC en paralelo (Resistencia y Capacitancia).", isCorrect: true },
+                    { text: "D) Una bobina de inducción simple.", isCorrect: false }
+                ]
+            },
+            {
+                id: 12,
+                text: "En este análogo eléctrico de la membrana, ¿qué elemento biológico actúa como el CONDENSADOR (Capacitador)?",
+                options: [
+                    { text: "A) Los canales iónicos de fuga.", isCorrect: false },
+                    { text: "B) El líquido intracelular.", isCorrect: false },
+                    { text: "C) La bicapa lipídica.", isCorrect: true },
+                    { text: "D) Las proteínas periféricas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 13,
+                text: "La Capacitancia de membrana (C<sub>m</sub>) se define como:",
+                options: [
+                    { text: "A) La velocidad a la que los iones cruzan los canales.", isCorrect: false },
+                    { text: "B) La capacidad de la bicapa lipídica para almacenar cargas de signo opuesto en sus dos superficies.", isCorrect: true },
+                    { text: "C) La dificultad que opone la membrana al paso de iones.", isCorrect: false },
+                    { text: "D) La cantidad de ATP consumida por segundo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 14,
+                text: "Según la fórmula mostrada en el PDF, la capacitancia de la membrana es DIRECTAMENTE proporcional a:",
+                options: [
+                    { text: "A) La distancia (grosor) de la membrana.", isCorrect: false },
+                    { text: "B) La carga eléctrica de los iones libres.", isCorrect: false },
+                    { text: "C) El área o superficie de la membrana.", isCorrect: true },
+                    { text: "D) La resistencia axial del axoplasma.", isCorrect: false }
+                ]
+            },
+            {
+                id: 15,
+                text: "La capacitancia de membrana es INVERSAMENTE proporcional a:",
+                options: [
+                    { text: "A) La superficie total de la célula.", isCorrect: false },
+                    { text: "B) El número de canales de fuga.", isCorrect: false },
+                    { text: "C) La distancia (d) entre las dos caras de la bicapa lipídica (grosor del núcleo lipídico).", isCorrect: true },
+                    { text: "D) La constante de tiempo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 16,
+                text: "En el análogo eléctrico de la membrana, ¿quién confiere la CONDUCTIVIDAD IÓNICA (actuando como resistencia)?",
+                options: [
+                    { text: "A) La bicapa de fosfolípidos.", isCorrect: false },
+                    { text: "B) Los canales iónicos de fuga (pasivos).", isCorrect: true },
+                    { text: "C) El colesterol de la membrana.", isCorrect: false },
+                    { text: "D) Las vesículas sinápticas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 17,
+                text: "La resistencia de la membrana (R<sub>m</sub>) y la conductancia (g) mantienen una relación:",
+                options: [
+                    { text: "A) Inversamente proporcional (g = 1 / R).", isCorrect: true },
+                    { text: "B) Directamente proporcional (g = R<sup>2</sup>).", isCorrect: false },
+                    { text: "C) Son exactamente lo mismo y se miden en Ohmios.", isCorrect: false },
+                    { text: "D) No guardan ninguna relación matemática.", isCorrect: false }
+                ]
+            },
+            {
+                id: 18,
+                text: "Si una célula \"A\" tiene MUY POCOS canales de fuga en su membrana en comparación con una célula \"B\", podemos afirmar que la célula \"A\" tiene:",
+                options: [
+                    { text: "A) Una conductancia muy alta y una resistencia baja.", isCorrect: false },
+                    { text: "B) Una capacitancia nula.", isCorrect: false },
+                    { text: "C) Una alta resistencia de membrana (R<sub>m</sub>) y una baja conductancia.", isCorrect: true },
+                    { text: "D) Un umbral de disparo más negativo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 19,
+                text: "El flujo de corriente a través de estos canales de fuga pasivos obedece matemáticamente a:",
+                options: [
+                    { text: "A) La Ley de Todo o Nada.", isCorrect: false },
+                    { text: "B) La Ley de Ohm (&Delta;V = I &middot; R<sub>m</sub>).", isCorrect: true },
+                    { text: "C) La Ecuación de Nernst exclusivamente.", isCorrect: false },
+                    { text: "D) La Ley de Fick.", isCorrect: false }
+                ]
+            },
+            {
+                id: 20,
+                text: "Si inyectamos pulsos de corriente de 0.5 nA, 1.0 nA y 1.5 nA, y obtenemos cambios en el Vm directamente proporcionales, al representar la relación Corriente-Voltaje (I-Vm) obtendremos:",
+                options: [
+                    { text: "A) Una curva exponencial asintótica.", isCorrect: false },
+                    { text: "B) Una recta de regresión lineal (relación lineal u óhmica).", isCorrect: true },
+                    { text: "C) Una parábola perfecta.", isCorrect: false },
+                    { text: "D) Un círculo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 21,
+                text: "(Pista de clase). Si graficamos la relación I-Vm y obtenemos una recta, ¿qué valor físico de la célula corresponde a la PENDIENTE de esa recta?",
+                options: [
+                    { text: "A) La capacitancia de membrana (C<sub>m</sub>).", isCorrect: false },
+                    { text: "B) La resistencia de la membrana (R<sub>m</sub>).", isCorrect: true },
+                    { text: "C) El potencial de equilibrio del potasio.", isCorrect: false },
+                    { text: "D) La temperatura en grados Kelvin.", isCorrect: false }
+                ]
+            },
+            {
+                id: 22,
+                text: "El profesor señala algo muy importante en las gráficas: cuando inyectamos un pulso cuadrado e instantáneo de corriente, la respuesta del potencial de membrana NO es cuadrada e instantánea. Esto se debe a:",
+                options: [
+                    { text: "A) La viscosidad del citoplasma.", isCorrect: false },
+                    { text: "B) Que el generador de corriente está estropeado.", isCorrect: false },
+                    { text: "C) La capacitancia de la membrana (C<sub>m</sub>), que \"ralentiza\" la cinética del cambio de voltaje al tener que cargar/descargar el condensador biológico.", isCorrect: true },
+                    { text: "D) La presencia de canales de calcio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 23,
+                text: "Si la membrana solo tuviera RESISTENCIA (canales) y careciera totalmente de capacitancia (sin bicapa lipídica que acumule carga), ¿cómo sería la respuesta del voltaje ante un pulso cuadrado de corriente?",
+                options: [
+                    { text: "A) Seguiría siendo exponencial lenta.", isCorrect: false },
+                    { text: "B) Sería un pulso perfectamente cuadrado e inmediato (línea 'a' en la diapositiva).", isCorrect: true },
+                    { text: "C) No habría ninguna respuesta eléctrica.", isCorrect: false },
+                    { text: "D) Sería una onda sinusoidal.", isCorrect: false }
+                ]
+            },
+            {
+                id: 24,
+                text: "El cambio del potencial de membrana a lo largo del tiempo ante un estímulo constante sigue una función matemática:",
+                options: [
+                    { text: "A) Logarítmica pura.", isCorrect: false },
+                    { text: "B) Exponencial (&Delta;V(t) = &Delta;V<sub>f</sub> &middot; (1 - e<sup>-t/&tau;</sup>)).", isCorrect: true },
+                    { text: "C) Tangencial.", isCorrect: false },
+                    { text: "D) Lineal simple.", isCorrect: false }
+                ]
+            },
+            {
+                id: 25,
+                text: "¿Cuál es la definición exacta de la Constante de Tiempo (&tau;) dada por el profesor?",
+                options: [
+                    { text: "A) El tiempo total que dura el potencial de acción.", isCorrect: false },
+                    { text: "B) El tiempo que tarda el potencial de membrana en alcanzar el 63% (o 2/3) de su cambio de amplitud máxima o final.", isCorrect: true },
+                    { text: "C) El tiempo que tarda en volver al potencial de reposo tras alcanzar el 100%.", isCorrect: false },
+                    { text: "D) La distancia que recorre el impulso eléctrico.", isCorrect: false }
+                ]
+            },
+            {
+                id: 26,
+                text: "Matemáticamente, el valor de la Constante de Tiempo (&tau;) se calcula como:",
+                options: [
+                    { text: "A) &tau; = R<sub>m</sub> / C<sub>m</sub>", isCorrect: false },
+                    { text: "B) &tau; = C<sub>m</sub> - R<sub>m</sub>", isCorrect: false },
+                    { text: "C) &tau; = R<sub>m</sub> &middot; C<sub>m</sub>", isCorrect: true },
+                    { text: "D) &tau; = I &middot; V", isCorrect: false }
+                ]
+            },
+            {
+                id: 27,
+                text: "¿La Constante de Tiempo (&tau;) es variable según la intensidad del estímulo en una célula dada?",
+                options: [
+                    { text: "A) Sí, si el estímulo es fuerte, la constante de tiempo disminuye.", isCorrect: false },
+                    { text: "B) No, su valor se considera constante y fijo para una célula en particular (aunque varía entre distintos tipos de células).", isCorrect: true },
+                    { text: "C) Sí, aumenta con la temperatura siempre.", isCorrect: false },
+                    { text: "D) Cambia dependiendo de si el estímulo es positivo o negativo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 28,
+                text: "¿Qué determina fisiológicamente la Constante de Tiempo (&tau;)?",
+                options: [
+                    { text: "A) La velocidad a la que viajan los iones por el exterior celular.", isCorrect: false },
+                    { text: "B) La rapidez (cinética o evolución temporal) con la que el Vm de una célula responde al flujo de corriente.", isCorrect: true },
+                    { text: "C) El tamaño final del axón de la neurona.", isCorrect: false },
+                    { text: "D) La cantidad de neurotransmisor liberado.", isCorrect: false }
+                ]
+            },
+            {
+                id: 29,
+                text: "Si tenemos una célula con una Constante de Tiempo (&tau;) muy CORTA (rápida), ¿qué ocurrirá cuando reciba un pulso de corriente?",
+                options: [
+                    { text: "A) Tardará muchísimo en alcanzar su Vm máximo y en repolarizarse.", isCorrect: false },
+                    { text: "B) Llegará muy rápido a su cambio de voltaje máximo y bajará también muy rápido al cesar el estímulo.", isCorrect: true },
+                    { text: "C) El voltaje no subirá en absoluto.", isCorrect: false },
+                    { text: "D) El condensador se romperá.", isCorrect: false }
+                ]
+            },
+            {
+                id: 30,
+                text: "El concepto de \"Atenuación Espacial\" se refiere a que los potenciales electrotónicos:",
+                options: [
+                    { text: "A) Aumentan de tamaño cuando pasan por el núcleo.", isCorrect: false },
+                    { text: "B) Mantienen su amplitud infinita a lo largo de todo el axón.", isCorrect: false },
+                    { text: "C) Se propagan por la membrana reduciendo su amplitud (disminuyendo el cambio de Vm) a medida que se alejan del sitio de origen.", isCorrect: true },
+                    { text: "D) Solo ocurren en el espacio intersináptico.", isCorrect: false }
+                ]
+            },
+            {
+                id: 31,
+                text: "El \"circuito equivalente\" longitudinal de un axón, según la clase, está formado por:",
+                options: [
+                    { text: "A) Muchos circuitos RC (en paralelo) separados y conectados entre sí por la resistencia del medio interno (r<sub>i</sub>).", isCorrect: true },
+                    { text: "B) Una sola resistencia gigante en el centro del axón.", isCorrect: false },
+                    { text: "C) Condensadores en serie y sin resistencias.", isCorrect: false },
+                    { text: "D) Receptores químicos exclusivamente.", isCorrect: false }
+                ]
+            },
+            {
+                id: 32,
+                text: "Al propagarse la corriente por el axoplasma (interior del axón), el potencial electrotónico decae porque:",
+                options: [
+                    { text: "A) Los iones se agotan y mueren de inanición.", isCorrect: false },
+                    { text: "B) Parte de la corriente de iones se \"fuga\" continuamente hacia el exterior a través de los canales pasivos (R<sub>m</sub>), quedando menos corriente para avanzar.", isCorrect: true },
+                    { text: "C) La bomba Na/K inyecta sodio masivamente.", isCorrect: false },
+                    { text: "D) Las vesículas sinápticas taponan el tubo axonal.", isCorrect: false }
+                ]
+            },
+            {
+                id: 33,
+                text: "La caída de la amplitud del voltaje a lo largo de la distancia en el axón (x) sigue una ecuación:",
+                options: [
+                    { text: "A) Lineal constante.", isCorrect: false },
+                    { text: "B) Exponencial de decaimiento (&Delta;V(x) = &Delta;V<sub>o</sub> &middot; e<sup>-x/&lambda;</sup>).", isCorrect: true },
+                    { text: "C) Oscilatoria armónica.", isCorrect: false },
+                    { text: "D) Estática.", isCorrect: false }
+                ]
+            },
+            {
+                id: 34,
+                text: "¿Cuál es la definición de Constante de Espacio o Longitud (&lambda;)?",
+                options: [
+                    { text: "A) La distancia a la que el potencial electrotónico desaparece por completo (0%).", isCorrect: false },
+                    { text: "B) La distancia medida desde el origen en la que la amplitud del cambio de voltaje se ha reducido EN un 63% (quedando al 37% de su valor inicial).", isCorrect: true },
+                    { text: "C) El tiempo que tarda el impulso en recorrer la neurona entera.", isCorrect: false },
+                    { text: "D) La longitud total del axón de la neurona.", isCorrect: false }
+                ]
+            },
+            {
+                id: 35,
+                text: "La fórmula que determina la constante de espacio (&lambda;) es:",
+                options: [
+                    { text: "A) &lambda; = R<sub>m</sub> &middot; C<sub>m</sub>", isCorrect: false },
+                    { text: "B) &lambda; = &radic;(R<sub>m</sub> / (r<sub>i</sub> + r<sub>o</sub>))", isCorrect: true },
+                    { text: "C) &lambda; = I &middot; R", isCorrect: false },
+                    { text: "D) &lambda; = &pi; &middot; r<sup>2</sup>", isCorrect: false }
+                ]
+            },
+            {
+                id: 36,
+                text: "(PREGUNTA CLAVE DE RAZONAMIENTO DEL PROFESOR). ¿Por qué la constante de longitud (&lambda;) es DIRECTAMENTE proporcional a la Resistencia de Membrana (R<sub>m</sub>)?",
+                options: [
+                    { text: "A) Porque a mayor R<sub>m</sub> hay más canales de fuga, y los iones se mueven más libres.", isCorrect: false },
+                    { text: "B) Porque una alta R<sub>m</sub> indica que hay pocos canales de fuga, por lo que se escapan menos iones hacia el exterior, permitiendo que la corriente interna alcance mayores distancias sin atenuarse.", isCorrect: true },
+                    { text: "C) Porque la R<sub>m</sub> empuja activamente los iones hacia adelante.", isCorrect: false },
+                    { text: "D) Porque el condensador se hace más grueso.", isCorrect: false }
+                ]
+            },
+            {
+                id: 37,
+                text: "¿Qué representan las constantes r<sub>i</sub> y r<sub>o</sub> en la fórmula de la constante de espacio?",
+                options: [
+                    { text: "A) La resistencia intracelular y extracelular al flujo longitudinal de corriente (a los iones les cuesta más o menos avanzar por el medio acuoso).", isCorrect: true },
+                    { text: "B) Los radios interno y externo del axón medidos en milímetros.", isCorrect: false },
+                    { text: "C) La rotación interna y la rotación orbital de los iones.", isCorrect: false },
+                    { text: "D) Los canales de potasio dependientes de voltaje.", isCorrect: false }
+                ]
+            },
+            {
+                id: 38,
+                text: "Si la resistencia del medio intracelular (r<sub>i</sub>) es muy alta, la constante de espacio (&lambda;) será:",
+                options: [
+                    { text: "A) Muy alta, el potencial viajará muchísima distancia.", isCorrect: false },
+                    { text: "B) Menor, el potencial se atenuará más rápido en el espacio porque a la corriente le cuesta más avanzar.", isCorrect: true },
+                    { text: "C) Exactamente de 1 milímetro independientemente del valor.", isCorrect: false },
+                    { text: "D) Se volverá negativa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 39,
+                text: "En condiciones fisiológicas (in vivo), ¿qué nombre específico reciben los potenciales electrotónicos locales que se generan en las dendritas y soma tras recibir estímulos de otras neuronas?",
+                options: [
+                    { text: "A) Potenciales de placa motora en reposo.", isCorrect: false },
+                    { text: "B) Potenciales sinápticos (Excitatorios - EPSP o Inhibitorios - IPSP).", isCorrect: true },
+                    { text: "C) Potenciales de acción retrógrados.", isCorrect: false },
+                    { text: "D) Picos de voltaje dependientes de ligando.", isCorrect: false }
+                ]
+            },
+            {
+                id: 40,
+                text: "¿Cuál de las siguientes afirmaciones sobre los potenciales sinápticos es FALSA?",
+                options: [
+                    { text: "A) Son graduados, su amplitud refleja la cantidad de neurotransmisor o fuerza del estímulo.", isCorrect: false },
+                    { text: "B) Pueden ser despolarizantes o hiperpolarizantes.", isCorrect: false },
+                    { text: "C) Se propagan a lo largo de todo el axón sin sufrir ningún decremento.", isCorrect: true },
+                    { text: "D) Están confinados a dominios de membrana relativamente próximos al lugar de generación.", isCorrect: false }
+                ]
+            },
+            {
+                id: 41,
+                text: "El fenómeno por el cual múltiples potenciales locales generados de forma consecutiva (en tiempos sucesivos muy cortos) en la MISMA región de la membrana se acumulan se denomina:",
+                options: [
+                    { text: "A) Sumación espacial.", isCorrect: false },
+                    { text: "B) Disipación pasiva.", isCorrect: false },
+                    { text: "C) Sumación temporal.", isCorrect: true },
+                    { text: "D) Inhibición postsináptica.", isCorrect: false }
+                ]
+            },
+            {
+                id: 42,
+                text: "(PISTA CLÍNICA IMPORTANTE). El profesor explicó en pizarra: ¿Qué propiedad pasiva de la célula rige o determina la probabilidad de que ocurra SUMACIÓN TEMPORAL?",
+                options: [
+                    { text: "A) La conductancia basal del cloro.", isCorrect: false },
+                    { text: "B) La constante de espacio (&lambda;).", isCorrect: false },
+                    { text: "C) La constante de tiempo (&tau;).", isCorrect: true },
+                    { text: "D) El diámetro del axón.", isCorrect: false }
+                ]
+            },
+            {
+                id: 43,
+                text: "¿Por qué una neurona con una constante de tiempo (&tau;) MAYOR (o \"más lenta\") tiene MAYOR probabilidad de sufrir sumación temporal?",
+                options: [
+                    { text: "A) Porque el potencial sináptico decae muy lentamente; al durar más la curva de \"bajada\", si llega un segundo estímulo, se sumará sobre la despolarización residual del primero.", isCorrect: true },
+                    { text: "B) Porque rechaza automáticamente el primer estímulo.", isCorrect: false },
+                    { text: "C) Porque bloquea la acción de la mielina en las dendritas.", isCorrect: false },
+                    { text: "D) Porque baja el umbral del potencial de acción.", isCorrect: false }
+                ]
+            },
+            {
+                id: 44,
+                text: "El fenómeno por el cual varios potenciales sinápticos generados SIMULTÁNEAMENTE en DISTINTAS regiones de la membrana dendrítica se combinan al propagarse hacia el soma se llama:",
+                options: [
+                    { text: "A) Sumación temporal.", isCorrect: false },
+                    { text: "B) Interferencia destructiva obligatoria.", isCorrect: false },
+                    { text: "C) Sumación espacial.", isCorrect: true },
+                    { text: "D) Transcripción génica sináptica.", isCorrect: false }
+                ]
+            },
+            {
+                id: 45,
+                text: "La probabilidad de que ocurra SUMACIÓN ESPACIAL está fundamentalmente determinada por:",
+                options: [
+                    { text: "A) La constante de tiempo (&tau;).", isCorrect: false },
+                    { text: "B) La constante de espacio o longitud (&lambda;).", isCorrect: true },
+                    { text: "C) La temperatura ambiente de la sinapsis.", isCorrect: false },
+                    { text: "D) Exclusivamente por la bomba de sodio-potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 46,
+                text: "Según el profesor, ¿por qué una constante de espacio (&lambda;) ALTA aumenta la probabilidad de sumación espacial?",
+                options: [
+                    { text: "A) Porque el impulso viaja hacia atrás a la sinapsis originaria.", isCorrect: false },
+                    { text: "B) Porque los potenciales se atenúan MENOS al viajar por la membrana, teniendo mayor probabilidad de encontrarse y sumarse con otros potenciales lejanos antes de desaparecer.", isCorrect: true },
+                    { text: "C) Porque los canales de fuga se cierran permanentemente, y el potencial no decae nunca.", isCorrect: false },
+                    { text: "D) Porque la célula se encoge físicamente acercando las sinapsis.", isCorrect: false }
+                ]
+            },
+            {
+                id: 47,
+                text: "(PISTA CLÍNICA DEL PROFESOR). El profesor avisa que entender las constantes de tiempo y espacio no es solo física abstracta. Menciona que los cambios patológicos en estos parámetros provocan que la neurona sume demasiados estímulos (sobreexcitación), lo que es la base fisiopatológica de:",
+                options: [
+                    { text: "A) El resfriado común.", isCorrect: false },
+                    { text: "B) Muchas enfermedades neurodegenerativas (muerte neuronal por excitotoxicidad).", isCorrect: true },
+                    { text: "C) Las úlceras gástricas.", isCorrect: false },
+                    { text: "D) La calvicie de patrón masculino.", isCorrect: false }
+                ]
+            },
+            {
+                id: 48,
+                text: "En la sumación espacial, si una neurona recibe simultáneamente un potencial sináptico excitador (EPSP) de +15 mV y un potencial sináptico inhibidor (IPSP) de -10 mV en dendritas cercanas, la despolarización resultante al llegar al segmento inicial (asumiendo atenuación nula teórica) sería aproximadamente de:",
+                options: [
+                    { text: "A) +25 mV.", isCorrect: false },
+                    { text: "B) +5 mV.", isCorrect: true },
+                    { text: "C) -25 mV.", isCorrect: false },
+                    { text: "D) 0 mV, se anulan por completo siempre.", isCorrect: false }
+                ]
+            },
+            {
+                id: 49,
+                text: "Finalmente, el objetivo fisiológico principal de sumar todos estos potenciales locales (temporales y espaciales) en el soma neuronal es:",
+                options: [
+                    { text: "A) Producir calor para el cerebro.", isCorrect: false },
+                    { text: "B) Lograr una despolarización total suficiente en el cono axónico que supere el UMBRAL y desencadene una propagación activa (potencial de acción).", isCorrect: true },
+                    { text: "C) Destruir la membrana lipídica para renovarla.", isCorrect: false },
+                    { text: "D) Detener por completo la actividad de la neurona de forma indefinida.", isCorrect: false }
+                ]
+            },
+            {
+                id: 50,
+                text: "Según las preguntas de repaso del PDF: ¿Qué componente celular determina el comportamiento análogo a una RESISTENCIA?",
+                options: [
+                    { text: "A) El colesterol de la membrana.", isCorrect: false },
+                    { text: "B) Los canales iónicos pasivos (de fuga).", isCorrect: true },
+                    { text: "C) La bicapa lipídica.", isCorrect: false },
+                    { text: "D) El líquido extracelular.", isCorrect: false }
+                ]
+            },
+            {
+                id: 51,
+                text: "Si logramos duplicar el número de canales de fuga abiertos en una célula sin alterar nada más, ¿cómo afectará esto a la amplitud de un potencial electrotónico generado por la misma intensidad de corriente?",
+                options: [
+                    { text: "A) Será del doble de tamaño.", isCorrect: false },
+                    { text: "B) Será más pequeño, porque al duplicar canales, la resistencia de membrana (R<sub>m</sub>) cae a la mitad, y por ley de Ohm (V = I &middot; R<sub>m</sub>), el cambio de voltaje será menor.", isCorrect: true },
+                    { text: "C) Permanecerá exactamente igual.", isCorrect: false },
+                    { text: "D) Se convertirá en un potencial de acción.", isCorrect: false }
+                ]
+            },
+            {
+                id: 52,
+                text: "Si una neurona aumenta su capacitancia de membrana (C<sub>m</sub>), ¿cómo se verá afectado el curso temporal (cinética) de sus potenciales sinápticos?",
+                options: [
+                    { text: "A) Se harán más lentos (su constante de tiempo &tau; aumentará, la curva de subida y bajada será más prolongada).", isCorrect: true },
+                    { text: "B) Se harán extremadamente rápidos e instantáneos.", isCorrect: false },
+                    { text: "C) La cinética no se altera, solo cambia la amplitud.", isCorrect: false },
+                    { text: "D) La neurona disparará un potencial de acción inverso.", isCorrect: false }
+                ]
+            },
+            {
+                id: 53,
+                text: "¿Qué le pasaría a la atenuación espacial de un potencial electrotónico si el líquido intracelular se volviera extremadamente viscoso, aumentando mucho su resistencia axial (r<sub>i</sub>)?",
+                options: [
+                    { text: "A) Llegaría muchísimo más lejos.", isCorrect: false },
+                    { text: "B) La constante de espacio (&lambda;) disminuiría significativamente, provocando que el potencial se atenúe y desaparezca a muy corta distancia.", isCorrect: true },
+                    { text: "C) El potencial electrotónico se transformaría en sumación temporal de inmediato.", isCorrect: false },
+                    { text: "D) No afectaría al recorrido, solo al tiempo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 54,
+                text: "¿Afecta el valor de la capacitancia (C<sub>m</sub>) al GRADO DE ATENUACIÓN en el espacio de un potencial local (es decir, a su constante de espacio &lambda;)?",
+                options: [
+                    { text: "A) Sí, es directamente proporcional a &lambda;.", isCorrect: false },
+                    { text: "B) Sí, es inversamente proporcional a &lambda;.", isCorrect: false },
+                    { text: "C) No, la atenuación en la distancia (&lambda;) depende de las resistencias (R<sub>m</sub>, r<sub>i</sub>, r<sub>o</sub>), pero no de la capacitancia (C<sub>m</sub>).", isCorrect: true },
+                    { text: "D) La capacitancia es la única que determina la atenuación.", isCorrect: false }
+                ]
+            },
+            {
+                id: 55,
+                text: "El profesor recalca que las propiedades de una membrana determinan cómo viajan las señales. Un potencial electrotónico generado en una dendrita distal:",
+                options: [
+                    { text: "A) Nunca se atenuará en el cerebro.", isCorrect: false },
+                    { text: "B) Sufrirá propagación pasiva con decremento, pudiendo desaparecer completamente antes de llegar al soma si la constante de espacio es corta.", isCorrect: true },
+                    { text: "C) Siempre se convertirá en un potencial de acción al llegar a la primera ramificación.", isCorrect: false },
+                    { text: "D) Rebotará como un eco perfecto.", isCorrect: false }
+                ]
+            },
+            {
+                id: 56,
+                text: "A modo experimental, ¿cómo se calcularía la Resistencia de Membrana (R<sub>m</sub>) de una neurona nueva en el laboratorio?",
+                options: [
+                    { text: "A) Midiento su peso molecular en una centrífuga.", isCorrect: false },
+                    { text: "B) Inyectando múltiples pulsos conocidos de corriente (I), midiendo los cambios máximos de voltaje resultantes (V<sub>m</sub>) y calculando la pendiente de la recta en una gráfica V frente a I.", isCorrect: true },
+                    { text: "C) Sumergiéndola en agua destilada hasta que explote.", isCorrect: false },
+                    { text: "D) Es físicamente imposible calcularla.", isCorrect: false }
+                ]
+            },
+            {
+                id: 57,
+                text: "¿A qué se refiere el término \"respuesta subumbral\"?",
+                options: [
+                    { text: "A) A una inyección de corriente que es demasiado débil para que el aparato de medida la registre.", isCorrect: false },
+                    { text: "B) A un estímulo que produce un cambio en el potencial de membrana sin llegar al voltaje necesario para disparar los canales voltaje dependientes de Sodio (sin generar potencial de acción).", isCorrect: true },
+                    { text: "C) A la caída post-hiperpolarizante tras un potencial de acción.", isCorrect: false },
+                    { text: "D) A un potencial de acción fallido.", isCorrect: false }
+                ]
+            },
+            {
+                id: 58,
+                text: "Si administramos un fármaco que bloquea el 80% de los canales de fuga pasivos de la membrana (es decir, aumenta enormemente la R<sub>m</sub>). ¿Cómo se comportará ahora la constante de espacio (&lambda;)?",
+                options: [
+                    { text: "A) Disminuirá drásticamente, atenuando rápido la señal.", isCorrect: false },
+                    { text: "B) Aumentará considerablemente, permitiendo que las señales eléctricas (potenciales sinápticos) viajen distancias más largas con menor atenuación.", isCorrect: true },
+                    { text: "C) Se volverá nula y el potencial no podrá viajar.", isCorrect: false },
+                    { text: "D) Causará la hiperpolarización absoluta y muerte celular.", isCorrect: false }
+                ]
+            },
+            {
+                id: 59,
+                text: "En el contexto de las propiedades pasivas, ¿qué analogía del circuito explica que la gráfica de Vm ante una inyección cuadrada de corriente comience su repolarización hacia el origen exactamente cuando cesa el pulso de corriente?",
+                options: [
+                    { text: "A) La resistencia se quema.", isCorrect: false },
+                    { text: "B) El condensador biológico (bicapa) comienza a \"descargarse\" a través de las resistencias de la membrana (canales) siguiendo una curva exponencial de decaimiento.", isCorrect: true },
+                    { text: "C) Los canales dependientes de voltaje de potasio se abren bruscamente.", isCorrect: false },
+                    { text: "D) La bomba Na/K se invierte para frenar el proceso.", isCorrect: false }
+                ]
+            },
+            {
+                id: 60,
+                text: "Para asentar el conocimiento general exigido por el profesor: La COMUNICACIÓN funcional y eficaz del sistema nervioso depende de:",
+                options: [
+                    { text: "A) Un sistema eléctrico estático y constante.", isCorrect: false },
+                    { text: "B) Exclusivamente de la propagación activa (potencial de acción) sin influencia de las propiedades pasivas.", isCorrect: false },
+                    { text: "C) Una delicada interacción: los potenciales locales pasivos y sumables (que recogen la información graduada) y, cuando se supera el umbral, la transmisión activa Todo-o-Nada a largas distancias.", isCorrect: true },
+                    { text: "D) Solo la síntesis de nuevas membranas cada milisegundo.", isCorrect: false }
+                ]
+            }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {}; // id -> isCorrect
+        let markedQuestions = new Set(); // ids
+
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría para repetir.");
+                showEndScreen();
+                return;
+            }
+
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente para este intento?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                // --- Botón del Índice ---
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                // --- Tarjeta de la Pregunta ---
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                // Cabecera de la pregunta
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.innerHTML = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.innerHTML = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                // Lista de Opciones (Mezcladas)
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    label.id = `label-${q.id}-${optIndex}`;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList);
+                    
+                    label.appendChild(input);
+                    // Usar innerHTML en la etiqueta por si hay formulas HTML
+                    const spanText = document.createElement('span');
+                    spanText.innerHTML = opt.text;
+                    label.appendChild(spanText);
+                    
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                // Caja de Corrección / Feedback
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement) {
+            // Deshabilitar todas las opciones para esta pregunta tras responder
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            // Actualizar color en el índice lateral
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Colorear opciones
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            // Mostrar el texto de feedback
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            const correctText = allOptionsData.find(o => o.isCorrect).text;
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong>`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong> La explicación/respuesta correcta es:<br><em>${correctText}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

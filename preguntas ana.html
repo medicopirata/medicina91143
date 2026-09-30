@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Biología - Versión Literal</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --light: #f8f9fa;
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); line-height: 1.5; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        .nav-index { 
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 25px; 
+            padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px;
+            position: sticky; top: 10px; z-index: 1000;
+        }
+        
+        .nav-dot {
+            width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;
+            border: 1px solid #ccc; border-radius: 5px; cursor: pointer; text-decoration: none; color: #555; font-weight: bold;
+        }
+        .nav-dot.answered { background: #e0e0e0; }
+        .nav-dot.marked { border: 2px solid var(--warning); background: #fff9c4; }
+        .nav-dot:hover { background: var(--secondary); color: white; }
+
+        .question-block { border-bottom: 2px solid #eee; padding: 25px 0; scroll-margin-top: 130px; }
+        .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-mark { padding: 5px 12px; cursor: pointer; border: 1px solid var(--warning); background: white; border-radius: 4px; }
+        .btn-mark.active { background: var(--warning); font-weight: bold; }
+
+        .options-list { display: grid; gap: 10px; margin-top: 15px; }
+        .opt-btn { 
+            text-align: left; padding: 12px 18px; border: 1px solid #ddd; border-radius: 6px; 
+            background: white; cursor: pointer; font-size: 1rem; transition: 0.2s;
+        }
+        .opt-btn:hover:not(:disabled) { background: #f0f7ff; border-color: var(--secondary); }
+        
+        .correct-opt { background: var(--success) !important; color: white; border-color: #1e8449; }
+        .wrong-opt { background: var(--danger) !important; color: white; border-color: #a93226; }
+
+        .explanation { 
+            margin-top: 15px; padding: 15px; border-radius: 6px; display: none;
+            border-left: 5px solid;
+        }
+        .expl-correct { background: #d4edda; color: #155724; border-color: #28a745; }
+        .expl-wrong { background: #f8d7da; color: #721c24; border-color: #dc3545; }
+
+        #final-screen { display: none; margin-top: 40px; text-align: center; padding: 40px; background: var(--primary); color: white; border-radius: 10px; }
+        .grid-restart { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .btn-restart { padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: var(--secondary); color: white; }
+        .btn-restart:disabled { background: #95a5a6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Cuestionario de Biología</h1>
+    <div id="nav-index" class="nav-index"></div>
+    <div id="quiz-root"></div>
+
+    <div id="final-screen">
+        <h2>Resultados Finales</h2>
+        <p id="score-text" style="font-size: 1.2rem;"></p>
+        <div class="grid-restart">
+            <button class="btn-restart" onclick="location.reload()">Volver a realizar completo</button>
+            <button class="btn-restart" id="btn-restart-failed" onclick="restartSelected('failed')">Solo las falladas</button>
+            <button class="btn-restart" id="btn-restart-marked" onclick="restartSelected('marked')">Solo las marcadas</button>
+            <button class="btn-restart" id="btn-restart-both" onclick="restartSelected('both')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const questions = [
+    {
+        q: "¿En qué fase se encuentran los cromosomas en su forma más compacta?",
+        opts: ["Durante la interfase", "Durante la mitosis", "Durante la replicación", "Durante la expresión génica"],
+        ans: 1,
+        expl: "La compactación máxima ocurre en la metafase (mitosis) para permitir el movimiento de los cromosomas."
+    },
+    {
+        q: "¿Qué aﬁrmación es cierta acerca de la asociación de proteínas histonas y ADN?",
+        opts: [
+            "Las proteínas histonas forman enlaces de hidrógeno con las bases de nucleótidos del ADN",
+            "Cada proteína histona tiene una profunda ranura en la cual una doble hélice de ADN encaja ﬁrmemente",
+            "Las proteínas histonas tienen una alta proporción de aminoácidos con carga negativa, las cuales se unen fuertemente al ADN que está cargado positivamente",
+            "Las proteínas histonas tienen una alta proporción de aminoácidos cargados positivamente, los cuales se unen fuertemente al ADN que está cargado negativamente"
+        ],
+        ans: 3,
+        expl: "Las histonas son básicas (lisina/arginina) con carga positiva, uniéndose al ADN ácido con carga negativa."
+    },
+    {
+        q: "Dónde no se encuentra de manera frecuente la heterocromatina?",
+        opts: ["Centrómeros", "Cromosoma X", "Regiones cromosómicas con ausencia de genes", "Regiones cromosómicas incluyendo genes que codiﬁcar para proteínas ribosómicas"],
+        ans: 3,
+        expl: "Los genes ribosómicos están en transcripción activa constante (eucromatina)."
+    },
+    {
+        q: "¿Qué aﬁrmación describe el ADN de las células hijas resultantes?",
+        opts: [
+            "Una célula hija recibe las cadenas de ADN que estaban originalmente en la célula madre, mientras que la otra hija recibe las cadenas recién sintetizadas",
+            "Cada hebra de ADN en las células hijas contiene una mezcla de ADN recién replicado y original",
+            "Las células hijas reciben solo ADN recién sintetizado; la célula madre conserva el ADN original",
+            "La doble hélice de cada célula hija consta de una cadena madre y una cadena recién sintetizada"
+        ],
+        ans: 3,
+        expl: "Este es el modelo semiconservativo de la replicación del ADN."
+    },
+    {
+        q: "¿Cuándo es más probable que ocurra la recombinación homóloga, que puede reparar perfectamente las roturas del ADN de doble cadena?",
+        opts: [
+            "Antes de que se replique el ADN para evitar la propagación del error",
+            "Cuando el sistema de reparación de apareamientos erróneos pasa por alto las roturas",
+            "Siempre que se detecte una rotura de doble hebra",
+            "d. Después de que el ADN de la célula se haya replicado"
+        ],
+        ans: 3,
+        expl: "Requiere la presencia de la cromátida hermana idéntica como molde, disponible tras la replicación."
+    },
+    {
+        q: "¿Qué porcentaje de errores de replicación normalmente corrige la reparación de discordancias de ADN?",
+        opts: ["1%", "50%", "99%", "100%"],
+        ans: 2,
+        expl: "Este sistema es extremadamente eficiente, corrigiendo el 99% de los errores residuales de la polimerasa."
+    },
+    {
+        q: "¿Cuál de las siguientes opciones deﬁne mejor una mutación?",
+        opts: [
+            "Cambio permanente de una secuencia de ADN",
+            "Error creado por una reparación defectuosa que no coincide",
+            "Cambio por un daño en una secuencia de ADN",
+            "Cambio en la secuencia del ADN que provoca un cambio en un aminoácido de una proteína"
+        ],
+        ans: 0,
+        expl: "Una mutación es cualquier cambio permanente y heredable en la secuencia del material genético."
+    },
+    {
+        q: "¿Qué es cierto para los ARNm eucariontes?",
+        opts: [
+            "Se sintetizan y traducen simultáneamente",
+            "Siempre deben plegarse en una forma tridimensional compleja antes de poder traducirse",
+            "Se procesan solo después de ser liberados por la polimerasa",
+            "Se traducen después de ser exportados desde el núcleo"
+        ],
+        ans: 3,
+        expl: "La traducción ocurre en el citosol tras el transporte nuclear."
+    },
+    {
+        q: "¿En qué dirección se sintetiza una cadena de ARN?",
+        opts: ["Solo de 3’ a 5’", "Depende de qué cadena de ADN actúa como plantilla", "Depende de qué ARN polimerasa realiza la transcripción", "5’ a 3’ solamente"],
+        ans: 3,
+        expl: "La polimerasa añade nucleótidos al extremo 3' libre de la cadena en crecimiento."
+    },
+    {
+        q: "En los eucariotas, ¿qué partes de un gen se transcriben en ARN?",
+        opts: ["Solo intrones", "Intrones y exones", "Solo exones", "Solo la región codiﬁcante de las proteínas"],
+        ans: 1,
+        expl: "El transcrito primario incluye ambos; los intrones se eliminan después en el splicing."
+    },
+    {
+        q: "En eucariotas, ¿a qué región del ADN se unen los reguladores de la transcripción?",
+        opts: [
+            "Solo aguas arriba de los genes que regulan",
+            "Solo en la caja TATA",
+            "Solo en el sitio de inicio de la transcripción",
+            "Aguas arriba o abajo del gen, o dentro del gen que regulan"
+        ],
+        ans: 3,
+        expl: "Los enhancers o silencers pueden estar localizados a miles de pares de bases en cualquier dirección."
+    },
+    {
+        q: "En la transcripción eucariota, la regulación de la expresión génica es altamente compleja y multifacética. ¿Qué evento, que involucra tanto la remodelación de la cromatina como el reclutamiento de la ARN polimerasa, es un paso clave en la iniciación?",
+        opts: [
+            "La unión de la proteína TBP (proteína de unión a la caja TATA) para reclutar el complejo preiniciador, seguido de una desacetilación de histonas",
+            "La acción de complejos remodeladores de la cromatina para aumentar accesibilidad, junto con la unión de FT activadores, facilitando la unión del mediador y la ARN polimerasa",
+            "La poliadenilación en el extremo 3’ y la adición del capuchón en el extremo 5’ del ARNm, lo que permite la disociación de la ARN polimerasa del complejo de transcripción"
+        ],
+        ans: 1,
+        expl: "Requiere remodelación de cromatina y mediadores para que la ARN polimerasa acceda al promotor."
+    },
+    {
+        q: "¿Qué proceso no contribuye de manera signiﬁcativa a la evolución de los genomas?",
+        opts: [
+            "Duplicación de genes que pueden adquirir una nueva función",
+            "Formación de nuevos genes a partir de DNA no codiﬁcante",
+            "Transferencia horizontal de DNA entre células de distintas especies",
+            "Mutación de genes existentes que crean nuevas funciones",
+            "Mezclado de dominios proteicos mediante reordenación"
+        ],
+        ans: 1,
+        expl: "La transferencia horizontal es fundamental en procariotas, pero menos frecuente/significativa en la evolución de genomas eucariotas multicelulares."
+    },
+    {
+        q: "Los transposones son parásitos, son perjudiciales para el organismo hospedador y lo sitúan en desventaja evolutiva",
+        opts: ["Verdadero", "Falso"],
+        ans: 1,
+        expl: "Falso. Aunque egoístas, han permitido la evolución de la complejidad genómica y nuevas funciones."
+    },
+    {
+        q: "¿Qué aﬁrmación NO es correcta acerca de las células de hígado y riñón del mismo organismo?",
+        opts: [
+            "Contienen proteínas distintas",
+            "Expresan genes distintos",
+            "Contienen toda la información necesaria para que se forme un organismo entero",
+            "Contienen genes diferentes"
+        ],
+        ans: 3,
+        expl: "Tienen exactamente los mismos genes (mismo ADN), pero difieren en su expresión."
+    },
+    {
+        q: "De los siguientes métodos cuál es el más apropiado para determinar la expresión de genes de un tipo celular",
+        opts: ["Espectroscopía de RMN", "Secuenciación de ADN", "Microscopía electrónica", "Secuenciación de ARN"],
+        ans: 3,
+        expl: "La RNA-seq permite cuantificar todos los transcriptos activos en una célula."
+    },
+    {
+        q: "¿Qué es un operón?",
+        opts: [
+            "Una secuencia corta de ADN a la que se une un regulador de la transcripción",
+            "Un conjunto de genes controlados por la unión de múltiples reguladores de la transcripción",
+            "Una secuencia de ADN que produce una variedad de ARNm",
+            "Un conjunto de genes transcritos como un solo ARNm a partir de un único promotor"
+        ],
+        ans: 3,
+        expl: "Característico de bacterias, permite regular genes de una misma vía metabólica."
+    },
+    {
+        q: "¿Qué no afecta a la expresión génica a nivel post-transcripcional?",
+        opts: [
+            "Pequeños ARN de interferencia (small interfering RNAs)",
+            "microRNAs",
+            "Secuencias de nucleótidos en las regiones no traducidas de un ARNm",
+            "Metilación del ADN"
+        ],
+        ans: 3,
+        expl: "La metilación del ADN ocurre en el material genético antes de la transcripción."
+    },
+    {
+        q: "¿Cuál de las siguientes respuestas son correctas?",
+        opts: [
+            "En bacterias, pero no en eucariotas, muchos ARNm contienen la región codiﬁcante de más de un gen",
+            "La mayoría de proteínas de unión de ADN se unen al surco mayor de la doble hélice de ADN",
+            "De los distintos puntos de control de la expresión génica el inicio de la transcripción es uno de los principales",
+            "Todas son correctas"
+        ],
+        ans: 3,
+        expl: "Todas las opciones describen correctamente procesos de regulación genética."
+    },
+    {
+        q: "¿Cuál NO es un ejemplo de herencia epigenética?",
+        opts: [
+            "La herencia de los patrones de metilación en el ADN",
+            "La herencia de los patrones de condensación de los cromosomas",
+            "La herencia de una proteína reguladora que activa su propia transcripción",
+            "La herencia de una mutación puntual en un solo gen"
+        ],
+        ans: 3,
+        expl: "Una mutación puntual es un cambio en la secuencia genética, no epigenética."
+    },
+    {
+        q: "¿Qué característica principal se usa para clasiﬁcar los virus según el sistema de Baltimore?",
+        opts: [
+            "El tamaño de la cápsida",
+            "El tipo de genoma y su estrategia de replicación",
+            "El tipo de célula que infectan",
+            "Su vía de transcripción"
+        ],
+        ans: 1,
+        expl: "Se basa en el mecanismo de producción de ARNm según el tipo de ácido nucleico."
+    },
+    {
+        q: "Los coronavirus poseen un genoma de…",
+        opts: ["ADN bicatenario", "ARN bicatenario", "ARN monocatenario", "ADN monocatenario"],
+        ans: 2,
+        expl: "Tienen ARN de polaridad positiva monocatenario."
+    },
+    {
+        q: "Los retrovirus se distinguen principalmente porque…",
+        opts: [
+            "Utilizan una ADN polimerasa dependiente de ARN",
+            "Poseen ARN bicatenario",
+            "Utilizan una transcriptasa inversa para sintetizar ADN",
+            "No requieren enzimas para replicarse"
+        ],
+        ans: 2,
+        expl: "La enzima retrotranscriptasa permite integrar su genoma en el ADN celular."
+    },
+    {
+        q: "¿Cuál es una característica funcional clave de la transcriptasa inversa?",
+        opts: [
+            "Sintetiza proteínas estructurales virales",
+            "Copia ARN a ADN",
+            "Copia ADN a ARN",
+            "Genera mutaciones espontáneas en el virus"
+        ],
+        ans: 1,
+        expl: "Realiza la transcripción inversa del genoma viral de ARN a ADN."
+    },
+    {
+        q: "¿Qué son los “obeliscos” descritos recientemente en la microbiota humana?",
+        opts: [
+            "Virus gigantes que infectan bacterias intestinales",
+            "Elementos genéticos de ARN con estructura compleja",
+            "Retrovirus endógenos reactivados",
+            "Micropatógenos celulares desconocidos"
+        ],
+        ans: 1,
+        expl: "Son nuevas entidades de ARN circulares descubiertas recientemente."
+    },
+    {
+        q: "¿Cuál de las siguientes aﬁrmaciones sobre los obeliscos es correcta?",
+        opts: [
+            "Se replican mediante ADN polimerasa del huésped",
+            "Tienen genomas lineales de ADN",
+            "Representan un posible nuevo tipo de entidad biológica basada en ARN",
+            "Son un subtipo de retrovirus"
+        ],
+        ans: 2,
+        expl: "Sus genomas de ARN son pequeños y circulares, distintos a virus conocidos."
+    },
+    {
+        q: "¿Qué característica explica la relativa baja tasa de mutación de los coronavirus en comparación con otros virus de ARN?",
+        opts: [
+            "Su genoma es muy pequeño",
+            "Poseen una ARN polimerasa dependiente de ADN",
+            "Poseen una exorribonucleasa con actividad correctora",
+            "Se integran en el genoma del huésped"
+        ],
+        ans: 2,
+        expl: "La enzima nsp14 corrige errores, lo que les permite tener genomas muy grandes."
+    },
+    {
+        q: "La menor variabilidad genética de los coronavirus se debe, entre otras razones, a que…",
+        opts: [
+            "Su replicación ocurre en el núcleo",
+            "Su ciclo replicativo inicial es corto, reduciendo la presión inmunitaria prolongada",
+            "Sus proteínas estructurales son muy inestables",
+            "Utilizan ribosomas propios para replicarse"
+        ],
+        ans: 1,
+        expl: "Al replicarse rápido y ser eficientes, acumulan menos presión selectiva en etapas tempranas."
+    },
+    {
+        q: "El VIH presenta alta variabilidad genética principalmente porque…",
+        opts: [
+            "Tiene ADN bicatenario",
+            "Usa una transcriptasa inversa muy ﬁel",
+            "Genera proteínas de reparación especializadas",
+            "Su transcriptasa inversa carece de actividad correctora"
+        ],
+        ans: 3,
+        expl: "La alta tasa de error de la TI genera una nube de variantes o cuasiespecies."
+    },
+    {
+        q: "¿Qué consecuencia tiene la alta variabilidad genética del VIH?",
+        opts: [
+            "Es más resistente a la acción del sistema inmune y a tratamientos",
+            "Su replicación es más lenta",
+            "Infecta únicamente células epiteliales",
+            "Tiene un ciclo de infección muy corto"
+        ],
+        ans: 0,
+        expl: "Permite al virus evadir fármacos y anticuerpos mediante mutaciones constantes."
+    },
+    {
+        q: "¿Qué término describe mejor a un grupo de virus relacionados que comparten ancestro reciente y características genómicas especíﬁcas?",
+        opts: ["Cepa", "Linaje", "Serogrupo", "Cuasiespecie"],
+        ans: 1,
+        expl: "Un linaje es una rama filogenética clara dentro de una especie viral."
+    },
+    {
+        q: "Una “cepa” viral se deﬁne correctamente como",
+        opts: [
+            "Una variante con diferencias genómicas mínimas pero sin cambio fenotípico",
+            "Un conjunto de virus de distintas especies que comparten un antígeno",
+            "Una variante con características biológicas o fenotípicas distintivas",
+            "Un conjunto de virus que infectan al mismo hospedador"
+        ],
+        ans: 2,
+        expl: "El término cepa implica que existe una diferencia funcional o de comportamiento biológico."
+    },
+    {
+        q: "¿Por qué el VIH está sometido a una presión inmunitaria prolongada?",
+        opts: [
+            "Porque se replica únicamente en células epiteliales",
+            "Porque establece infecciones persistentes e integra su genoma en el huésped",
+            "Porque solo infecta durante pocos días",
+            "Porque posee una exorribonucleasa propia"
+        ],
+        ans: 1,
+        expl: "La integración permite al virus persistir de por vida, enfrentando al sistema inmune constantemente."
+    },
+    {
+        q: "¿Cuál de las siguientes es una diferencia clave entre coronavirus y retrovirus en cuanto a su replicación?",
+        opts: [
+            "Los coronavirus se integran en el genoma del huésped",
+            "Los retrovirus utilizan la transcriptasa inversa y se integran en el ADN de la célula",
+            "Ambos dependen una polimerasa con actividad correctora",
+            "Los retrovirus replican exclusivamente en el citoplasma"
+        ],
+        ans: 1,
+        expl: "Los retrovirus obligatoriamente integran su genoma (fase proviral)."
+    },
+    {
+        q: "Los obeliscos, en contraste con los coronavirus y retrovirus, se caracterizan por…",
+        opts: [
+            "Tener genomas muy grandes de ADN",
+            "Carecer de proteínas propias y se completamente dependientes del huésped",
+            "Replicarse en el núcleo mediante ADN polimerasa",
+            "Ser entidades de ARN pequeñas"
+        ],
+        ans: 3,
+        expl: "Son mucho más simples que los virus, similares a viroides."
+    },
+    {
+        q: "36. ¿Qué función tiene la primasa en la replicación?",
+        opts: [
+            "Sintetizar fragmentos de Okazaki",
+            "Eliminar cebadores de ARN",
+            "Unir los fragmentos generados en la hebra líder",
+            "Crear un cebador de ARN para iniciar la síntesis de ADN"
+        ],
+        ans: 3,
+        expl: "La ADN polimerasa no puede empezar de cero y necesita el extremo 3'-OH de un cebador."
+    },
+    {
+        q: "En eucariotas, la remodelación de cromatina que facilita la transcripción suele implicar:",
+        opts: [
+            "Metilación de ADN en las islas CpG",
+            "Acetilación de histonas que relaja la estructura de la cromatina",
+            "Compactación adicional de nucleosomas",
+            "Eliminación del capuchón 5’"
+        ],
+        ans: 1,
+        expl: "La acetilación neutraliza las cargas positivas de las histonas."
+    },
+    {
+        q: "¿Cuál de los siguientes es un represor transcripcional?",
+        opts: [
+            "Una proteína que recluta desacetilasas de histonas (HDAC)",
+            "La ARN polimerasa",
+            "Las chaperonas",
+            "d. Una topoisomerasa"
+        ],
+        ans: 0,
+        expl: "Al eliminar grupos acetilo, se compacta la cromatina y se impide la expresión del gen."
+    }
+];
+
+let states = { answered: {}, marked: new Set() };
+
+function init() {
+    const root = document.getElementById('quiz-root');
+    const nav = document.getElementById('nav-index');
+    root.innerHTML = ''; nav.innerHTML = '';
+    
+    questions.forEach((q, i) => {
+        const dot = document.createElement('a');
+        dot.className = 'nav-dot'; dot.id = `dot-${i}`; dot.innerText = i + 1;
+        dot.href = `#q-block-${i}`;
+        nav.appendChild(dot);
+
+        const block = document.createElement('div');
+        block.className = 'question-block'; block.id = `q-block-${i}`;
+        block.innerHTML = `
+            <div class="q-header">
+                <h3>Pregunta ${i + 1}</h3>
+                <button class="btn-mark" id="mark-${i}" onclick="mark(${i})">Marcar 🔖</button>
+            </div>
+            <p><strong>${q.q}</strong></p>
+            <div class="options-list" id="opts-${i}">
+                ${q.opts.map((o, oi) => `<button class="opt-btn" onclick="check(${i}, ${oi})">${o}</button>`).join('')}
+            </div>
+            <div class="explanation" id="expl-${i}"></div>
+        `;
+        root.appendChild(block);
+    });
+}
+
+function mark(i) {
+    const btn = document.getElementById(`mark-${i}`);
+    const dot = document.getElementById(`dot-${i}`);
+    if(states.marked.has(i)) {
+        states.marked.delete(i); btn.classList.remove('active'); dot.classList.remove('marked');
+    } else {
+        states.marked.add(i); btn.classList.add('active'); dot.classList.add('marked');
+    }
+}
+
+function check(qIdx, oIdx) {
+    if(states.answered[qIdx] !== undefined) return;
+    
+    const correct = questions[qIdx].ans === oIdx;
+    states.answered[qIdx] = correct;
+    
+    const btns = document.getElementById(`opts-${qIdx}`).children;
+    for(let b of btns) b.disabled = true;
+    
+    btns[oIdx].classList.add(correct ? 'correct-opt' : 'wrong-opt');
+    if(!correct) btns[questions[qIdx].ans].classList.add('correct-opt');
+
+    const expl = document.getElementById(`expl-${qIdx}`);
+    expl.style.display = 'block';
+    expl.className = 'explanation ' + (correct ? 'expl-correct' : 'expl-wrong');
+    expl.innerHTML = `<strong>${correct ? 'Correcto' : 'Incorrecto'}</strong>: ${questions[qIdx].expl}`;
+    
+    document.getElementById(`dot-${qIdx}`).classList.add('answered');
+    if(Object.keys(states.answered).length === questions.length) finish();
+}
+
+function finish() {
+    const screen = document.getElementById('final-screen');
+    const correctCount = Object.values(states.answered).filter(v => v).length;
+    document.getElementById('score-text').innerText = `Aciertos: ${correctCount} / ${questions.length}`;
+    
+    const failedCount = questions.length - correctCount;
+    document.getElementById('btn-restart-failed').disabled = failedCount === 0;
+    document.getElementById('btn-restart-marked').disabled = states.marked.size === 0;
+    document.getElementById('btn-restart-both').disabled = (failedCount === 0 && states.marked.size === 0);
+    
+    screen.style.display = 'block';
+}
+
+function restartSelected(mode) {
+    let toReset = [];
+    questions.forEach((_, i) => {
+        const isFailed = !states.answered[i];
+        const isMarked = states.marked.has(i);
+        if(mode === 'failed' && isFailed) toReset.push(i);
+        else if(mode === 'marked' && isMarked) toReset.push(i);
+        else if(mode === 'both' && (isFailed || isMarked)) toReset.push(i);
+    });
+
+    toReset.forEach(i => {
+        delete states.answered[i];
+        document.getElementById(`dot-${i}`).classList.remove('answered');
+        document.getElementById(`expl-${i}`).style.display = 'none';
+        const btns = document.getElementById(`opts-${i}`).children;
+        for(let b of btns) { b.disabled = false; b.className = 'opt-btn'; }
+    });
+    
+    document.getElementById('final-screen').style.display = 'none';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+init();
+</script>
+</body>
+</html>

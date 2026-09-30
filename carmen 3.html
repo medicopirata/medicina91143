@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 3 (Artrología)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 3</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 3: Artrología de la Columna Vertebral (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Reiniciar Todo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. Es cierto que:", options: [
+            { text: "Las superficies articulares de las articulaciones cigapofisarias cambian su orientación a lo largo de la columna.", isCorrect: true, rationale: "Correcto. Pasan de una orientación más coronal en cervicales a sagital en lumbares." },
+            { text: "Los discos intervertebrales son articulaciones sinoviales.", isCorrect: false, rationale: "Son sínfisis (cartilaginosas)." },
+            { text: "El ligamento amarillo une los cuerpos vertebrales.", isCorrect: false, rationale: "Une las láminas." },
+            { text: "La médula termina en el hiato sacro.", isCorrect: false, rationale: "Termina en L1-L2." }
+        ]},
+        { id: 2, q: "2. ¿Cuál de las siguientes afirmaciones sobre la articulación atlanto-axoidea no es cierta?", options: [
+            { text: "Sus superficies articulares son planas.", isCorrect: true, rationale: "Correcto, es la falsa. Las superficies son convexas y permiten deslizamiento y rotación." },
+            { text: "Es una articulación sinovial.", isCorrect: false, rationale: "Esta afirmación es verdadera." },
+            { text: "Permite el movimiento de rotación de la cabeza.", isCorrect: false, rationale: "Esta afirmación es verdadera." },
+            { text: "Está reforzada por el ligamento transverso.", isCorrect: false, rationale: "Esta afirmación es verdadera." }
+        ]},
+        { id: 3, q: "3. Las articulaciones uncovertebrales:", options: [
+            { text: "Son articulaciones sinoviales entre los cuerpos vertebrales cervicales.", isCorrect: true, rationale: "Correcto. Se encuentran entre los procesos unciformes de C3-C6." },
+            { text: "Son sínfisis lumbares.", isCorrect: false, rationale: "Son cervicales y sinoviales." },
+            { text: "Carecen de cápsula articular.", isCorrect: false, rationale: "Como toda articulación sinovial, poseen cápsula." },
+            { text: "Unen las apófisis espinosas.", isCorrect: false, rationale: "Unen los cuerpos." }
+        ]},
+        { id: 4, q: "4. Dentro del conducto raquídeo se encuentran:", options: [
+            { text: "La vena basivertebral.", isCorrect: true, rationale: "Correcto. Drena el cuerpo vertebral hacia el plexo venoso interno." },
+            { text: "El ligamento nucal.", isCorrect: false, rationale: "Es posterior y externo." },
+            { text: "La arteria aorta.", isCorrect: false, rationale: "Es anterior a la columna." },
+            { text: "El músculo trapecio.", isCorrect: false, rationale: "Es musculatura superficial del dorso." }
+        ]},
+        { id: 5, q: "5. De los siguientes enunciados es cierto que:", options: [
+            { text: "Las articulaciones cigapofisarias son elementos limitantes del agujero de conjunción.", isCorrect: true, rationale: "Correcto. Forman el límite posterior del agujero." },
+            { text: "El disco intervertebral es el límite posterior del agujero de conjunción.", isCorrect: false, rationale: "Es el límite anterior." },
+            { text: "Los nervios espinales pasan por dentro del conducto de la arteria vertebral.", isCorrect: false, rationale: "Pasan por los agujeros de conjunción." },
+            { text: "El ligamento longitudinal anterior limita la flexión.", isCorrect: false, rationale: "Limita la extensión." }
+        ]},
+        { id: 6, q: "6. Cuál de las siguientes afirmaciones sobre la articulación atlanto-axoidea no es cierta:", options: [
+            { text: "Sus superficies articulares son planas", isCorrect: true, rationale: "Correcto, es la falsa." },
+            { text: "Presenta una porción media de tipo trocoide", isCorrect: false, rationale: "Es verdadero." },
+            { text: "Está estabilizada por el ligamento cruciforme", isCorrect: false, rationale: "Es verdadero." },
+            { text: "Participa en la rotación 'No' de la cabeza", isCorrect: false, rationale: "Es verdadero." }
+        ]},
+        { id: 7, q: "7. La articulación atlantoaxoidea es de tipo:", options: [
+            { text: "Trocoide", isCorrect: true, rationale: "Correcto. Especialmente la atlanto-axoidea media (diente del axis y arco del atlas)." },
+            { text: "Sínfisis", isCorrect: false, rationale: "No hay disco entre C1 y C2." },
+            { text: "Enartrosis", isCorrect: false, rationale: "No es una articulación de esfera." },
+            { text: "Sutura", isCorrect: false, rationale: "Es una articulación móvil." }
+        ]},
+        { id: 8, q: "8. Cuál de las siguientes estructuras es más posterior:", options: [
+            { text: "apófisis odontoides.", isCorrect: false, rationale: "Es anterior." },
+            { text: "arco anterior del atlas.", isCorrect: false, rationale: "Es el más anterior." },
+            { text: "ligamento transverso.", isCorrect: false, rationale: "Está justo detrás del diente." },
+            { text: "Membrana tectoria.", isCorrect: true, rationale: "Correcto. Es la continuación superior del ligamento longitudinal posterior y es la más dorsal de estas." },
+            { text: "Ligamento longitudinal anterior.", isCorrect: false, rationale: "Es el más anterior de todos." }
+        ]},
+        { id: 9, q: "9. La articulación atlantoaxoidea media:", options: [
+            { text: "especializada en movimientos de rotación", isCorrect: true, rationale: "Correcto. Permite el giro del atlas sobre el axis." },
+            { text: "especializada en flexión lateral", isCorrect: false, rationale: "Su función principal es la rotación." },
+            { text: "es una sínfisis", isCorrect: false, rationale: "Es sinovial trocoide." },
+            { text: "carece de ligamento transverso", isCorrect: false, rationale: "El ligamento transverso es vital para su estabilidad." }
+        ]},
+        { id: 10, q: "10. Respecto a la articulación entre vértebras es cierto que:", options: [
+            { text: "la articulación entre cuerpo vertebral son SÍNFISIS.", isCorrect: true, rationale: "Correcto. Son articulaciones cartilaginosas mediadas por el disco intervertebral." },
+            { text: "son todas diartrosis", isCorrect: false, rationale: "Los cuerpos son sínfisis, las cigapofisarias son diartrosis." },
+            { text: "no existen ligamentos de refuerzo", isCorrect: false, rationale: "Existen los ligamentos longitudinales anterior y posterior." },
+            { text: "el disco intervertebral es sinovial", isCorrect: false, rationale: "Es fibrocartílago." }
+        ]},
+        { id: 11, q: "11. Es cierto que:", options: [
+            { text: "La columna vertebral es derivada del mesodermo paraxial.", isCorrect: true, rationale: "Correcto. Proviene de los esclerotomos de los somitas." },
+            { text: "Se origina del ectodermo.", isCorrect: false, rationale: "El ectodermo da lugar al sistema nervioso." },
+            { text: "Es una estructura de origen endodérmico.", isCorrect: false, rationale: "El endodermo da lugar al epitelio digestivo." },
+            { text: "No tiene origen embrionario definido.", isCorrect: false, rationale: "Tiene un origen mesodérmico claro." }
+        ]},
+        { id: 12, q: "12. Respecto a los discos intervertebrales cuál de las siguientes afirmaciones es cierta:", options: [
+            { text: "En núcleo pulposo es una estructura avascular", isCorrect: true, rationale: "Correcto. Se nutre por difusión desde los cuerpos vertebrales." },
+            { text: "El anillo fibroso es un vestigio de la notocorda.", isCorrect: false, rationale: "El núcleo pulposo es el vestigio de la notocorda." },
+            { text: "Los discos intervertebrales torácicos son más altos en su parte anterior que posterior.", isCorrect: false, rationale: "Esto ocurre en los lumbares y cervicales para formar las lordosis." },
+            { text: "En una bipedestación prolongada el disco está más hidratado.", isCorrect: false, rationale: "Se deshidrata por la presión." }
+        ]},
+        { id: 13, q: "13. El ligamento longitudinal anterior:", options: [
+            { text: "Forma parte del canal vertebral.", isCorrect: false, rationale: "Está por fuera, en la cara anterior de los cuerpos." },
+            { text: "limita la flexión ventral del raquis.", isCorrect: false, rationale: "Limita la extensión (hiperextensión)." },
+            { text: "Forma parte de las articulaciones cigapofisarias.", isCorrect: false, rationale: "No." },
+            { text: "Une los cuerpos vertebrales", isCorrect: true, rationale: "Correcto. Se extiende por la cara anterior de los cuerpos y discos." }
+        ]},
+        { id: 14, q: "14. ¿Qué tipo de articulación se establece entre el atlas y el occipital?", options: [
+            { text: "artrodia", isCorrect: false, rationale: "No." },
+            { text: "condílea", isCorrect: true, rationale: "Correcto. Permite principalmente el movimiento de flexo-extensión ('Sí')." },
+            { text: "Tronchus.", isCorrect: false, rationale: "No." },
+            { text: "Morfológicamente es una articulación condílea funcionalmente enartrosis", isCorrect: false, rationale: "Se considera condílea pura." }
+        ]},
+        { id: 15, q: "15. El ligamento amarillo:", options: [
+            { text: "tapiza la porción posterior del canal raquídeo", isCorrect: true, rationale: "Correcto. Une las láminas de las vértebras adyacentes y cierra el canal por detrás." },
+            { text: "limita la extensión de la columna", isCorrect: false, rationale: "Limita la flexión." },
+            { text: "a nivel cervical es denominado ligamento suspensorio o nucal", isCorrect: false, rationale: "No." },
+            { text: "se encuentra en las apófisis espinosas", isCorrect: false, rationale: "Une las láminas." }
+        ]},
+        { id: 16, q: "16. ¿Cuál de estos elementos es más posterior?", options: [
+            { text: "apófisis odontoides", isCorrect: false, rationale: "Anterior." },
+            { text: "ligamento transverso", isCorrect: false, rationale: "Medio." },
+            { text: "membrana tectoria", isCorrect: true, rationale: "Correcto. Es la capa más dorsal que cubre el diente y sus ligamentos." },
+            { text: "arco anterior del atlas", isCorrect: false, rationale: "El más anterior." }
+        ]},
+        { id: 17, q: "La articulación atlantoaxoidea es de tipo:", options: [
+            { text: "trocoide", isCorrect: true, rationale: "Correcto. Especialmente la media." },
+            { text: "artrodia", isCorrect: false, rationale: "Las laterales son artrodias, pero la pregunta suele referirse al conjunto o a la media." },
+            { text: "enartrosis", isCorrect: false, rationale: "No." },
+            { text: "sínfisis", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 18, q: "Es cierto que:", options: [
+            { text: "El diente del axis tiene dos carillas articulares.", isCorrect: true, rationale: "Correcto. Una anterior para el atlas y una posterior para el ligamento transverso." },
+            { text: "La articulación atlanto-axoidea media es de tipo cóndilo.", isCorrect: false, rationale: "Es trocoide." },
+            { text: "Los ligamentos alares forman parte de la articulación atlantoaxoidea lateral.", isCorrect: false, rationale: "Unen el diente al occipital." },
+            { text: "El ligamento apical se inserta en el atlas.", isCorrect: false, rationale: "Se inserta en el occipital." }
+        ]},
+        { id: 19, q: "19. Las articulaciones entre los cuerpos vertebrales: (Natalia)", options: [
+            { text: "Son sinoviales", isCorrect: false, rationale: "Son cartilaginosas." },
+            { text: "Son sínfisis", isCorrect: true, rationale: "Correcto. Anfartrosis con disco intervertebral." },
+            { text: "Están reforzadas por los ligamentos amarillos", isCorrect: false, rationale: "Están reforzadas por los ligamentos longitudinales." },
+            { text: "Todas son ciertas", isCorrect: false, rationale: "Solo la B." }
+        ]},
+        { id: 20, q: "20. Respecto a los discos intervertebrales cuál de las siguientes afirmaciones es cierta:", options: [
+            { text: "El núcleo pulposo es un vestigio de la notocorda", isCorrect: true, rationale: "Correcto." },
+            { text: "Sólo el anillo fibroso es responsable de soportar el peso del cuerpo", isCorrect: false, rationale: "Ambos colaboran." },
+            { text: "Entre C1-C2 no hay disco", isCorrect: true, rationale: "Correcto. No existe disco entre atlas y axis." },
+            { text: "A y C son ciertas", isCorrect: true, rationale: "Correcto." }
+        ]},
+        { id: 21, q: "21. Respecto a las articulaciones entre los cuerpos vertebrales es cierto que:", options: [
+            { text: "Están reforzadas por los ligamentos amarillos", isCorrect: false, rationale: "No." },
+            { text: "Son artrodias", isCorrect: false, rationale: "No." },
+            { text: "Son sínfisis", isCorrect: true, rationale: "Correcto." },
+            { text: "Son articulaciones sinoviales", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 22, q: "22. El enderezamiento de la curvatura cervical tiene lugar:", options: [
+            { text: "Cuando flexionamos el cuello", isCorrect: false, rationale: "Aumenta la concavidad anterior." },
+            { text: "Cuando extendemos el cuello", isCorrect: true, rationale: "Correcto. La extensión acentúa o endereza la lordosis según el plano de referencia." },
+            { text: "Cuando rotamos el cuello", isCorrect: false, rationale: "No influye." },
+            { text: "Ninguna de las anteriores", isCorrect: false, rationale: "La extensión es la clave." }
+        ]},
+        { id: 23, q: "23. ¿Cuál de las siguientes estructuras limitan la extensión de la columna?", options: [
+            { text: "Ligamento longitudinal anterior", isCorrect: true, rationale: "Correcto. Es el único ligamento que se tensa en extensión." },
+            { text: "Ligamento longitudinal posterior", isCorrect: false, rationale: "Limita la flexión." },
+            { text: "Ligamento amarillo", isCorrect: false, rationale: "Limita la flexión." },
+            { text: "B y C son ciertas", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 24, q: "24. El raquis en conjunto se comporta como una articulación:", options: [
+            { text: "Condílea", isCorrect: false, rationale: "No." },
+            { text: "Plana", isCorrect: false, rationale: "No." },
+            { text: "Enartrosis", isCorrect: true, rationale: "Correcto. Funcionalmente permite movimientos en los tres ejes del espacio." },
+            { text: "Sínfisis", isCorrect: false, rationale: "Solo una parte." }
+        ]},
+        { id: 25, q: "25. La articulación atlanto-axoidea media:", options: [
+            { text: "es una articulación osteofibrosa", isCorrect: false, rationale: "Es sinovial." },
+            { text: "Está especializada en los movimientos de rotación", isCorrect: false, rationale: "Cierto." },
+            { text: "Todas son ciertas", isCorrect: true, rationale: "Correcto. Participan el diente, el arco del atlas y el ligamento transverso (anillo osteofibroso)." }
+        ]},
+        { id: 26, q: "26. - Del disco intervertebral, no es cierto que: (Natalia)", options: [
+            { text: "Sus dimensiones cambian a lo largo del raquis", isCorrect: false, rationale: "Cierto." },
+            { text: "Su espesor cambia a lo largo del día", isCorrect: false, rationale: "Cierto." },
+            { text: "El núcleo soporta mayor carga que el disco", isCorrect: false, rationale: "Cierto." },
+            { text: "El núcleo está muy vascularizado", isCorrect: true, rationale: "Correcto. Es la falsa: el núcleo es avascular." }
+        ]},
+        { id: 27, q: "27. - ¿Qué caracteriza a las articulaciones sacroiliacas? (Natalia)", options: [
+            { text: "Tienen una gran movilidad", isCorrect: false, rationale: "Tienen movilidad muy limitada." },
+            { text: "Son muy estables", isCorrect: true, rationale: "Correcto. Gracias a sus potentes ligamentos y encaje óseo." },
+            { text: "Carecen de ligamentos", isCorrect: false, rationale: "Tienen los ligamentos más potentes del cuerpo." },
+            { text: "No soportan peso", isCorrect: false, rationale: "Transmiten todo el peso a los miembros inferiores." }
+        ]},
+        { id: 28, q: "28. - ¿Cuál de los siguientes ligamentos tiene relación directa con el conducto raquídeo? (Natalia)", options: [
+            { text: "Ligamento supra espinoso", isCorrect: false, rationale: "Es externo y posterior." },
+            { text: "Ligamento amarillo", isCorrect: true, rationale: "Correcto. Forma la pared posterior del conducto." },
+            { text: "Ligamento intertransverso", isCorrect: false, rationale: "Es lateral." },
+            { text: "Ligamento longitudinal anterior", isCorrect: false, rationale: "Es anterior al cuerpo." }
+        ]},
+        { id: 29, q: "29. ¿Cuál de los siguientes ligamentos no forma parte de la articulación atlantoaxoidea media? (Natalia)", options: [
+            { text: "Apical", isCorrect: true, rationale: "Correcto. Es un ligamento que une el diente al occipital, no forma la articulación en sí." },
+            { text: "Transverso", isCorrect: false, rationale: "Es parte esencial." },
+            { text: "Alares", isCorrect: false, rationale: "Son ligamentos de refuerzo odontoccipitales." },
+            { text: "Todos forman parte", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 30, q: "30. ¿Cuál de las siguientes secuencias de anteriores a posterior es la correcta? (Natalia)", options: [
+            { text: "Ligamento longitudinal anterior - Médula espinal - Ligamento amarillo", isCorrect: true, rationale: "Correcto. Es la disposición anatómica sagital." },
+            { text: "Ligamento amarillo - Médula espinal - Ligamento interespinoso", isCorrect: false, rationale: "Orden incorrecto." },
+            { text: "Ligamento longitudinal anterior - Ligamento amarillo - Lig longitudinal posterior", isCorrect: false, rationale: "El posterior va antes que el amarillo." }
+        ]},
+        { id: 31, q: "31. Una costilla típica:", options: [
+            { text: "Incluye a las costillas de la 2 a la 10", isCorrect: true, rationale: "Correcto. Poseen cabeza, cuello, tubérculo y cuerpo." },
+            { text: "No tiene tubérculo", isCorrect: false, rationale: "Las típicas sí lo tienen." },
+            { text: "Es un hueso con escasa vascularización", isCorrect: false, rationale: "Falso." },
+            { text: "Tiene una cortical muy fina", isCorrect: false, rationale: "Inexacto." }
+        ]},
+        { id: 32, q: "32. Una visión superior de la base del sacro permite apreciar:", options: [
+            { text: "alas del sacro", isCorrect: true, rationale: "Correcto. Se ven a los lados de la base de S1." },
+            { text: "el hiato sacro", isCorrect: false, rationale: "Se ve en visión posterior e inferior." },
+            { text: "astas del sacro", isCorrect: false, rationale: "Se ven abajo." },
+            { text: "carilla auricular", isCorrect: false, rationale: "Se ve lateralmente." }
+        ]},
+        { id: 33, q: "33. Con respecto al raquis podemos afirmar que:", options: [
+            { text: "la osificación del cóccix empieza después del nacimiento", isCorrect: true, rationale: "Correcto. Es un proceso tardío." },
+            { text: "el proceso de osificación de la columna vertebral finaliza a los 18 años", isCorrect: false, rationale: "Finaliza sobre los 25." },
+            { text: "al nacimiento aparecen 5 centros de osificación secundarios", isCorrect: false, rationale: "Aparecen en la pubertad." }
+        ]},
+        { id: 34, q: "34. Respecto a los ligamentos del raquis:", options: [
+            { text: "el lig. longitudinal anterior es el único que limita los movimientos de extensión", isCorrect: true, rationale: "Correcto. Todos los demás se relajan en extensión." },
+            { text: "los ligamento amarillos ocupan la parte anterior del canal raquídeo", isCorrect: false, rationale: "Ocupan la posterior." },
+            { text: "los ligamentos interespinosos se relajan en los movimientos de flexión", isCorrect: false, rationale: "Se tensan en flexión." }
+        ]},
+        { id: 35, q: "35.-Respecto a los discos intervertebrales no es cierto que:", options: [
+            { text: "Su altura no varía a lo largo de la columna vertebral.", isCorrect: true, rationale: "Correcto. Es la falsa: los discos aumentan de tamaño de cervical a lumbar." },
+            { text: "no existen entre el atlas y el axis", isCorrect: false, rationale: "Es cierto." },
+            { text: "el núcleo pulposo carece de inervación", isCorrect: false, rationale: "Es cierto." }
+        ]},
+        { id: 36, q: "36.- Las articulaciones costovertebrales:", options: [
+            { text: "son articulaciones sinoviales", isCorrect: true, rationale: "Correcto." },
+            { text: "son denominadas también intercondrales", isCorrect: false, rationale: "No." },
+            { text: "sólo están presentes entre las 7 primeras costillas", isCorrect: false, rationale: "Están en todas las costillas." }
+        ]},
+        { id: 37, q: "133. A qué nivel respecto de la columna vertebral se encuentra la articulación manubrioesternal", options: [
+            { text: "a) T5", isCorrect: false, rationale: "Es más alto." },
+            { text: "b) T2", isCorrect: false, rationale: "Es el nivel del manubrio." },
+            { text: "c) T3", isCorrect: false, rationale: "Es la respuesta habitual para el ángulo de Louis (T4-T5 o T3 según autor)." },
+            { text: "d) T8", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 38, q: "126. Que elemento le da mayor estabilidad a la articulación atlantoaxoidea media:", options: [
+            { text: "d) Ligamento transverso", isCorrect: true, rationale: "Correcto. Sujeta el diente contra el arco del atlas." },
+            { text: "a) Ligamento alares", isCorrect: false, rationale: "Refuerzan, pero el transverso es el principal." }
+        ]},
+        { id: 39, q: "124. Las articulaciones cigapofisarias:", options: [
+            { text: "c) Son sinoviales", isCorrect: true, rationale: "Correcto. Son articulaciones sinoviales planas." },
+            { text: "d) Son sínfisis", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 40, q: "134. Los ligamentos amarillos:", options: [
+            { text: "d) Limitan la flexión del tronco", isCorrect: true, rationale: "Correcto. Se tensan al flexionar la columna." },
+            { text: "a) Unen a los cuerpos vertebrales", isCorrect: false, rationale: "Une láminas." }
+        ]},
+        { id: 41, q: "190. Cuál de las siguientes afirmaciones sobre la articulación atlanto-axoidea media no es cierta:", options: [
+            { text: "c. sus superficies articulares son planas", isCorrect: true, rationale: "Correcto, es la falsa." },
+            { text: "a. el diente del axis tiene dos carillas articulares", isCorrect: false, rationale: "Es cierto." }
+        ]},
+        { id: 42, q: "193. De los siguientes enunciados es cierto que:", options: [
+            { text: "a. las articulaciones cigapofisarias son elementos limitantes del agujero de conjunción", isCorrect: true, rationale: "Correcto." },
+            { text: "c. cifosis y lordosis son curvas compensatorias", isCorrect: false, rationale: "Solo las lordosis son compensatorias." }
+        ]},
+        { id: 43, q: "81. Es cierto que.", options: [
+            { text: "c) El ligamento longitudinal anterior es un elemento limitante de la extensión de la columna", isCorrect: true, rationale: "Correcto." },
+            { text: "d) Los movimientos de flexión son limitados por los ligamentos longitudinales anterior y posterior", isCorrect: false, rationale: "El anterior se relaja en flexión." }
+        ]},
+        { id: 44, q: "29. ¿Qué elemento evita que la apófisis odontoides se desplace hacia atrás lesionando la médula espinal?", options: [
+            { text: "b. Ligamento transverso", isCorrect: true, rationale: "Correcto. Es la 'cincha' que retiene el diente anterior a la médula." },
+            { text: "a. Ligamento longitudinal posterior", isCorrect: false, rationale: "Está por detrás de la membrana tectoria." }
+        ]},
+        { id: 45, q: "30.Las articulaciones atlanto-axoideas laterales:", options: [
+            { text: "b. son articulaciones planas", isCorrect: true, rationale: "Correcto. Son sinoviales planas (artrodias)." },
+            { text: "a. son de tipo condíleo", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 46, q: "125. Cual de las siguientes afirmaciones es correcta:", options: [
+            { text: "a) Gran parte del disco intervertebral no esta vascularizado", isCorrect: true, rationale: "Correcto. El disco adulto es la estructura avascular más grande del cuerpo." },
+            { text: "b) El anillo fibroso no soporta carga", isCorrect: false, rationale: "Falso." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            currentPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

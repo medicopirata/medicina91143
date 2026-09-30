@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Moléculas Gaseosas y Eicosanoides</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; margin: 0; height: 100vh; background: #f4f7f6; color: #333; }
+        
+        /* Pantallas de superposición (Inicio y Fin) */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .modal-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; max-width: 500px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; }
+        .btn { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 6px; background: #3498db; color: white; font-size: 16px; transition: background 0.3s; width: 100%; max-width: 300px; }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-warning { background: #e67e22; }
+        .btn-warning:hover { background: #d35400; }
+
+        /* Estructura Principal */
+        #sidebar { width: 280px; background: #2c3e50; color: white; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        #sidebar h3 { text-align: center; margin-top: 0; border-bottom: 1px solid #34495e; padding-bottom: 15px; }
+        .index-btn { width: 100%; text-align: left; padding: 10px; background: #34495e; border: none; color: white; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; font-size: 14px; }
+        .index-btn:hover { background: #415b76; }
+        .index-btn.correct { border-left: 6px solid #2ecc71; background: #27ae6033; }
+        .index-btn.incorrect { border-left: 6px solid #e74c3c; background: #c0392b33; }
+        .index-btn .mark-indicator { color: #f1c40f; font-weight: bold; font-size: 16px; display: none; }
+        .index-btn.is-marked .mark-indicator { display: inline; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 30px; position: relative; scroll-behavior: smooth; }
+        .question-container { background: white; padding: 30px; margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 20px; }
+        .question-text { font-size: 18px; font-weight: 600; margin: 0; line-height: 1.5; color: #2c3e50; }
+        
+        .mark-btn { background: none; border: 2px solid #f1c40f; color: #f1c40f; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .mark-btn:hover { background: #fef9e7; }
+        .mark-btn.marked { background: #f1c40f; color: white; }
+
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn { width: 100%; text-align: left; padding: 15px; background: #f8f9f9; border: 2px solid #d5d8dc; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; color: #333; line-height: 1.4; }
+        .option-btn:hover:not(:disabled) { background: #ebedef; border-color: #bdc3c7; }
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background: #d5f5e3; border-color: #2ecc71; color: #1e8449; font-weight: bold; }
+        .option-btn.incorrect { background: #fadbd8; border-color: #e74c3c; color: #922b21; }
+
+        .explanation { margin-top: 20px; padding: 15px 20px; background: #e8f8f5; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; font-size: 15px; line-height: 1.5; color: #0e6251; }
+        .explanation strong { color: #117a65; }
+
+        .floating-finish { position: fixed; bottom: 30px; right: 30px; z-index: 100; }
+        .floating-finish button { box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 18px; padding: 15px 30px; border-radius: 30px; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <div class="modal-box">
+            <h2>Moléculas Gaseosas y Eicosanoides</h2>
+            <p>60 Preguntas extraídas de los bloques proporcionados.</p>
+            <p>¿Cómo deseas ordenar las preguntas para esta sesión?</p>
+            <button class="btn" onclick="startQuiz('all', false)">Orden Preestablecido</button>
+            <button class="btn" onclick="startQuiz('all', true)">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <div class="modal-box">
+            <h2>Resumen del Cuestionario</h2>
+            <p id="results-text" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></p>
+            
+            <button class="btn" onclick="startQuiz('all', false)">Repetir Cuestionario Completo (Original)</button>
+            <button class="btn" onclick="startQuiz('all', true)">Repetir Cuestionario Completo (Aleatorio)</button>
+            <button class="btn btn-warning" id="btn-retry-failed" onclick="startQuiz('failed', false)">Repetir Solo Falladas</button>
+            <button class="btn btn-warning" id="btn-retry-marked" onclick="startQuiz('marked', false)">Repetir Solo Marcadas</button>
+            <button class="btn btn-warning" id="btn-retry-both" onclick="startQuiz('both', false)">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-container"></div>
+    </div>
+    
+    <div id="main-content">
+        <div id="questions-container"></div>
+    </div>
+
+    <div class="floating-finish" id="finish-btn-container" style="display: none;">
+        <button class="btn btn-warning" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <script>
+        // Datos crudos literales
+        const rawText = `Bloque 1: El Óxido Nítrico (NO) y el Experimento de Furchgott
+1. Según el profesor, ¿cuál fue el hallazgo clave del experimento clásico de Furchgott en anillos de aorta de conejo?
+A) La acetilcolina siempre produce vasoconstricción.
+B) La noradrenalina solo contrae el músculo si el endotelio está intacto.
+C) La relajación del músculo liso inducida por acetilcolina requiere obligatoriamente la presencia de un endotelio intacto.
+D) El músculo liso vascular no tiene receptores para acetilcolina.Respuesta correcta: C (Furchgott descubrió que sin endotelio, no había relajación).
+2. En el experimento de Furchgott, cuando se eliminaba (frotando) el endotelio de la arteria y se añadía Acetilcolina (ACh), ¿qué respuesta se observaba en el músculo liso vascular?
+A) Vasodilatación extrema.
+B) Contracción (vasoconstricción).
+C) Ninguna respuesta, el vaso se mantenía en tono basal.
+D) Apoptosis de las células musculares.Respuesta correcta: B (Pista del profesor: Si no hay endotelio, la ACh se une a sus receptores muscarínicos directamente en el músculo liso, causando contracción).
+3. ¿Cómo se denominó inicialmente a la molécula responsable de la relajación vascular antes de descubrir que era Óxido Nítrico?
+A) Prostaciclina.
+B) Factor relajante derivado del endotelio (EDRF).
+C) Factor de crecimiento endotelial (VEGF).
+D) GMP cíclico.Respuesta correcta: B
+4. ¿Qué característica físico-química fundamental permite al Óxido Nítrico (NO) actuar como molécula señalizadora paracrina rápida?
+A) Es una proteína de alto peso molecular.
+B) Es un gas que difunde libremente a través de las membranas celulares.
+C) Se almacena en grandes vesículas sinápticas.
+D) Requiere transportadores activos dependientes de ATP para salir de la célula.Respuesta correcta: B
+5. ¿Cuál es la vida media aproximada del Óxido Nítrico en el tejido biológico?
+A) Varias horas.
+B) Entre 2 y 30 minutos.
+C) Muy corta, entre 2 y 30 segundos.
+D) Toda la vida de la célula.Respuesta correcta: C (Enfatizado por el profesor como justificación de su acción paracrina y local).
+6. ¿Qué aminoácido actúa como sustrato exclusivo para la síntesis de Óxido Nítrico celular?
+A) L-Alanina.
+B) L-Citrulina.
+C) L-Arginina.
+D) L-Tirosina.Respuesta correcta: C
+7. En la reacción catalizada por la Óxido Nítrico Sintasa (NOS), además de NO, ¿qué otro subproducto principal se genera?
+A) Urea.
+B) L-Citrulina.
+C) Ácido úrico.
+D) Ornitina.Respuesta correcta: B
+
+Bloque 2: Isoformas de la Óxido Nítrico Sintasa (NOS)
+8. De las tres isoformas de la Óxido Nítrico Sintasa (NOS), ¿cuál tiene una expresión inducible y está relacionada principalmente con el sistema inmune?
+A) eNOS.
+B) nNOS.
+C) iNOS.
+D) mNOS.Respuesta correcta: C
+9. El profesor enfatiza una diferencia CRUCIAL en la regulación de la iNOS respecto a la eNOS y nNOS. ¿Cuál es?
+A) La iNOS se inhibe por la calmodulina.
+B) La actividad de la iNOS es independiente del Calcio ($Ca^{2+}$).
+C) La iNOS solo funciona en presencia de altos niveles de Calcio.
+D) La iNOS produce muy baja cantidad de NO.Respuesta correcta: B (Pista de examen: eNOS y nNOS necesitan el complejo calcio-calmodulina para activarse; la iNOS es independiente del calcio y produce NO masivamente).
+10. La enzima eNOS (endotelial) produce cantidades fisiológicas (bajas) de NO. Su función principal a nivel sistémico es:
+A) Destruir bacterias en el torrente sanguíneo.
+B) Mantener la homeostasis vascular, regular el flujo sanguíneo e inhibir la agregación plaquetaria.
+C) Generar plasticidad sináptica en el hipocampo.
+D) Causar inflamación severa.Respuesta correcta: B
+11. ¿En qué tipo de células se expresa predominantemente la nNOS y qué función patrocina?
+A) En macrófagos para fagocitosis.
+B) En neuronas, facilitando la neurotransmisión y neuroprotección.
+C) En células epiteliales del riñón.
+D) En cardiomiocitos para aumentar la frecuencia cardíaca.Respuesta correcta: B
+12. En un escenario de infección, los macrófagos activan la iNOS. ¿Cuál es el propósito inicial de producir niveles tan altos de NO?
+A) Vasoconstricción para evitar la diseminación del patógeno.
+B) Nutrir a las células inmunitarias vecinas.
+C) Actuar como defensa contra patógenos (agente microbicida).
+D) Reparar el ADN de las bacterias.Respuesta correcta: C
+
+Bloque 3: Mecanismo de Acción del NO (Vías Clásicas y Patológicas)
+13. En la vía de señalización "clásica", una vez que el NO difunde hacia la célula muscular lisa, ¿a qué enzima diana se une en el citoplasma?
+A) Adenilato Ciclasa.
+B) Fosfolipasa C.
+C) Guanilato Ciclasa soluble (sGC).
+D) Óxido Nítrico Sintasa.Respuesta correcta: C (Pista: el profesor insiste en la guanilato ciclasa soluble por su grupo hemo).
+14. La activación de la Guanilato Ciclasa soluble por el NO provoca inmediatamente el aumento de un segundo mensajero clave. ¿Cuál es?
+A) AMP cíclico (AMPc).
+B) Inositol trifosfato (IP3).
+C) GMP cíclico (GMPc).
+D) Calcio intracelular.Respuesta correcta: C
+15. En el músculo liso vascular, el aumento de GMPc activa a su vez a una proteína quinasa llamada:
+A) PKA (Proteína Quinasa A).
+B) PKC (Proteína Quinasa C).
+C) PKG (Proteína Quinasa G).
+D) PI3K.Respuesta correcta: C
+16. ¿Cuál es el efecto final de la vía NO/GMPc/PKG en la célula muscular lisa que explica la relajación observada en el experimento de Furchgott?
+A) Aumenta la entrada de calcio extracelular.
+B) Aumenta la fosforilación de la miosina quinasa.
+C) Disminuye la fosforilación de la cadena ligera de la miosina.
+D) Bloquea directamente los receptores adrenérgicos.Respuesta correcta: C (El profesor menciona detalladamente que disminuye la fosforilación de esta miosina, conduciendo a la relajación).
+17. Cuando el NO se produce en exceso continuo, utiliza una vía de acción alternativa uniéndose a los residuos de cisteína de ciertas proteínas. Este proceso se denomina:
+A) Fosforilación.
+B) S-nitrosilación.
+C) Ubiquitinación.
+D) Metilación.Respuesta correcta: B (Produce cambios conformacionales que afectan la actividad enzimática, y ocurre de forma más lenta que la vía clásica).
+18. En un entorno altamente oxidativo (inflamación severa), el exceso de NO reacciona con radicales libres (ión superóxido, $O_2^-$). ¿Qué molécula altamente tóxica se forma?
+A) Peróxido de hidrógeno ($H_2O_2$).
+B) Peroxinitrito ($ONOO^-$).
+C) Ácido úrico.
+D) Ácido araquidónico.Respuesta correcta: B
+19. ¿Cuál de las siguientes es una consecuencia fisiopatológica letal de la formación excesiva de peroxinitritos mencionada por el profesor?
+A) Hipertrofia muscular benigna.
+B) Activación masiva de la Guanilato Ciclasa.
+C) Daño al ADN y activación de la Caspasa-3, induciendo apoptosis o necrosis.
+D) Proliferación acelerada de células endoteliales.Respuesta correcta: C
+20. Según el profesor, ¿por qué la producción masiva de NO por la iNOS es una "arma de doble filo"?
+A) Porque gasta demasiada Arginina.
+B) Porque además de destruir patógenos, los derivados tóxicos del NO pueden dañar a las propias células sanas circundantes.
+C) Porque causa hipertensión sistémica masiva.
+D) Porque inhibe permanentemente a los macrófagos.Respuesta correcta: B
+
+Bloque 4: Fisiopatología, Fármacos e Integración Clínica
+21. El profesor menciona la utilidad clínica del NO en las angiografías coronarias. ¿Qué fármaco donador de NO se utiliza para visualizar la capacidad de vasodilatación de las coronarias?
+A) Aspirina.
+B) Nitroglicerina.
+C) Ibuprofeno.
+D) Cortisol.Respuesta correcta: B
+22. Si durante un cateterismo inyectamos Acetilcolina (ACh) en una arteria coronaria sana, ¿qué ocurre visualmente en la angiografía?
+A) Vasoconstricción (se estrecha).
+B) Vasodilatación (se ensancha) porque el endotelio sano libera NO.
+C) No hay cambios.
+D) Oclusión total.Respuesta correcta: B
+23. Si inyectamos Acetilcolina en la coronaria de un paciente con disfunción endotelial (endotelio dañado), ¿qué respuesta paradójica observaremos en la angiografía?
+A) Dilatación extrema.
+B) Ausencia total de respuesta vascular.
+C) Vasoconstricción visible (la ACh actúa directo en el músculo liso sin oposición del NO).
+D) Ruptura del vaso.Respuesta correcta: C (Clásico ejemplo clínico de integración que gusta en exámenes).
+24. ¿Qué famoso cardiólogo español fue mencionado por el profesor al mostrar los vídeos de las angiografías coronarias?
+A) Severo Ochoa.
+B) Valentín Fuster.
+C) Pedro Brugada.
+D) Josep Brugada.Respuesta correcta: B
+25. En las células endoteliales, ¿qué receptor específico de membrana es el responsable de activar la vía de señalización cuando se une la Acetilcolina para producir NO?
+A) Receptor nicotínico muscular.
+B) Receptor acoplado a proteína Gq (Receptor Muscarínico M3).
+C) Receptor tirosina quinasa.
+D) Receptor intracelular de esteroides.Respuesta correcta: B (La vía mencionada es ACh -> Gq -> IP3 -> Ca2+ -> Calmodulina -> eNOS).
+26. Además de agonistas químicos como la ACh, ¿qué otro estímulo físico activa la eNOS en las células endoteliales (vía PI3K/Akt)?
+A) La disminución de la temperatura.
+B) El "Shear stress" (fuerza de cizallamiento o fricción de la sangre).
+C) La radiación UV.
+D) El aumento de presión osmótica intracelular.Respuesta correcta: B
+27. ¿Qué efecto tiene el NO endógeno sobre las plaquetas sanguíneas?
+A) Promueve fuertemente su agregación.
+B) Destruye las plaquetas circulantes.
+C) Inhibe la agregación plaquetaria, previniendo trombos.
+D) Acelera la cascada de coagulación.Respuesta correcta: C
+28. En la cascada intracelular, el inositol trifosfato (IP3) generado en la célula endotelial viaja hasta el retículo endoplasmático para:
+A) Liberar potasio.
+B) Sintetizar proteínas.
+C) Liberar calcio ($Ca^{2+}$) al citosol.
+D) Sintetizar GTP.Respuesta correcta: C
+29. En la fisiología del óxido nítrico, ¿qué papel juega el cofactor tetrahidrobiopterina (BH4)?
+A) Inhibe a la NOS.
+B) Es un cofactor esencial para el correcto funcionamiento de la enzima NOS.
+C) Degrada el GMP cíclico.
+D) Es el receptor del NO en el músculo liso.Respuesta correcta: B
+30. En resumen de la primera parte del tema, el NO NO actúa como:
+A) Vasodilatador endógeno.
+B) Neurotransmisor / neuromodulador.
+C) Hormona peptídica de almacenamiento vesicular a largo plazo.
+D) Agente antimicrobiano y tumoricida (a altas concentraciones).Respuesta correcta: C (El NO NUNCA se almacena en vesículas, se sintetiza a demanda).
+
+Bloque 5: Comunicación por Eicosanoides (Generalidades)
+31. Los eicosanoides son una gran familia de moléculas señalizadoras lipídicas. ¿A partir de qué precursor común se sintetizan todos ellos?
+A) Colesterol.
+B) Triglicéridos de cadena corta.
+C) Ácido araquidónico (ácido graso de 20 carbonos).
+D) Esfingomielina.Respuesta correcta: C
+32. Dado que el ácido araquidónico libre no suele existir en grandes cantidades en el citosol, ¿dónde se encuentra principalmente guardado?
+A) En el interior de los lisosomas.
+B) Esterificado en los fosfolípidos de la membrana plasmática.
+C) En el núcleo celular, unido al ADN.
+D) En el retículo endoplasmático rugoso.Respuesta correcta: B
+33. ¿Qué enzima es la responsable de escindir y liberar el ácido araquidónico desde los fosfolípidos de membrana celular?
+A) Ciclooxigenasa.
+B) Lipoxigenasa.
+C) Fosfolipasa A2 (PLA2).
+D) Adenilato ciclasa.Respuesta correcta: C
+34. Al igual que el NO, una característica distintiva de los eicosanoides es que:
+A) Se secretan continuamente a la sangre formando reservas.
+B) Se almacenan en grandes gránulos de secreción.
+C) Se sintetizan "a demanda" (de novo) cuando la célula recibe un estímulo, no existiendo reservas vesiculares previas.
+D) Solo actúan en el interior de la célula que los produce.Respuesta correcta: C (El profesor subraya esto relacionándolos con el NO).
+35. La inmensa mayoría de los receptores de eicosanoides (Prostaglandinas, Leucotrienos, Tromboxanos) pertenecen estructuralmente a la familia de:
+A) Receptores tirosina-quinasa.
+B) Canales iónicos dependientes de ligando.
+C) Receptores nucleares.
+D) Receptores acoplados a proteínas G (GPCR).Respuesta correcta: D
+
+Bloque 6: Vía de la Ciclooxigenasa (COX) y Prostaglandinas
+36. Una vez liberado el ácido araquidónico, si entra en la ruta enzimática de la Ciclooxigenasa (COX), ¿qué mediadores principales se formarán?
+A) Exclusivamente leucotrienos.
+B) Prostaglandinas y Tromboxanos.
+C) Serotonina y Dopamina.
+D) Citocinas y quimiocinas.Respuesta correcta: B
+37. De las tres isoformas de la COX mencionadas en clase, ¿cuál se considera "constitutiva" y es fundamental para mantener funciones fisiológicas basales como la protección de la mucosa gástrica y la función renal?
+A) COX-1.
+B) COX-1.
+C) COX-3.
+D) iNOS.Respuesta correcta: A
+38. La isoforma COX-2, a diferencia de la COX-1, se caracteriza por tener una expresión:
+A) Constitutiva en todos los tejidos sanos.
+B) Inducible, aumentando dramáticamente su expresión en células inflamatorias y endotelio en respuesta a daño o infección.
+C) Localizada únicamente en el cerebro y corazón.
+D) Independiente del ácido araquidónico.Respuesta correcta: B
+39. ¿Cuál de los siguientes eicosanoides generados por la vía de la COX es un potente inductor de la agregación plaquetaria y vasoconstricción?
+A) Tromboxano A2 (TXA2).
+B) Prostaciclina (PGI2).
+C) Prostaglandina E2 (PGE2).
+D) Leucotrieno B4.Respuesta correcta: A
+40. De manera contraria al Tromboxano A2, el endotelio sano produce otro derivado de la COX que tiene efectos potentes como vasodilatador y antiagregante plaquetario. ¿De cuál se trata?
+A) Leucotrieno D4.
+B) Prostaglandina F2$\\alpha$.
+C) Prostaciclina (PGI2).
+D) Ácido clorhidrico.Respuesta correcta: C
+41. La Prostaglandina E2 (PGE2) es ampliamente conocida en la clínica debido a su participación directa en procesos de:
+A) Disminución de la temperatura corporal (hipotermia).
+B) Fiebre, mediación del dolor e inflamación.
+C) Crecimiento de vello corporal.
+D) Síntesis de glucógeno hepático.Respuesta correcta: B
+
+Bloque 7: Farmacología Clásica y Pistas de Examen (AINEs vs Corticoides)
+42. Los fármacos Antiinflamatorios No Esteroideos (AINEs), como el Ibuprofeno o la Aspirina, ejercen su función bloqueando la síntesis de eicosanoides mediante la inhibición de la enzima:
+A) Fosfolipasa A2.
+B) 5-Lipoxigenasa.
+C) Ciclooxigenasa (COX).
+D) Guanilato ciclasa.Respuesta correcta: C
+43. El profesor planteó un escenario clínico: ¿Por qué muchos médicos evitan mandar AINEs (como ibuprofeno) para dolores leves y prefieren usar Paracetamol?
+A) Porque el paracetamol es mucho más barato.
+B) Porque los AINEs clásicos inhiben también la COX-1 constitutiva, eliminando las prostaglandinas protectoras de la mucosa gástrica y renal, pudiendo causar úlceras o daño renal.
+C) Porque los AINEs provocan sueño irreversible.
+D) Porque el ibuprofeno induce la expresión de iNOS masivamente.Respuesta correcta: B (Pista clínica explícita dada en el audio).
+44. Si un paciente toma habitualmente Aspirina (inhibidor de la COX), ¿qué función mediada por el Tromboxano A2 (producido por COX-1) se verá disminuida, explicando el uso de aspirina en prevención cardiovascular?
+A) La respuesta inmune mediada por linfocitos T.
+B) La secreción de ácido clorhídrico en el estómago.
+C) La agregación plaquetaria (la sangre se coagula con más dificultad).
+D) La broncodilatación fisiológica.Respuesta correcta: C
+45. Los fármacos corticosteroides (ej. cortisol, dexametasona) tienen un efecto antiinflamatorio mucho más potente y generalizado que los AINEs. Según el profesor, ¿a qué nivel actúan para interrumpir la cascada lipídica?
+A) Inhiben específicamente a la COX-2 sin tocar la COX-1.
+B) Destruyen los receptores de prostaglandinas.
+C) Inhiben a la enzima Fosfolipasa A2, bloqueando la liberación inicial del ácido araquidónico.
+D) Inhiben a la Fosfodiesterasa del GMPc.Respuesta correcta: C (Al bloquear la PLA2, cortan de raíz la producción de TODOS los eicosanoides: prostaglandinas, tromboxanos y leucotrienos).
+46. Basándose en la respuesta anterior, si tratamos a un paciente inflamado con un inhibidor específico de la COX-2, ¿qué vía de los eicosanoides permanecerá metabólicamente activa y libre de inhibición?
+A) La síntesis de Tromboxano A2.
+B) La síntesis de Prostaciclina.
+C) La ruta de la Lipoxigenasa y la consiguiente producción de Leucotrienos.
+D) Ninguna ruta queda activa.Respuesta correcta: C
+47. En la clasificación de las Ciclooxigenasas, la isoforma COX-3 se encuentra localizada principalmente en:
+A) Hígado y bazo.
+B) Sistema Nervioso Central (SNC) y corazón.
+C) Músculo esquelético y cartílago articular.
+D) Mucosa gástrica exclusivamente.Respuesta correcta: B
+48. El desarrollo de úlceras gástricas por uso crónico de antiinflamatorios se debe clásicamente a la inhibición de:
+A) Lipoxigenasa.
+B) COX-2 inducible.
+C) COX-1 constitutiva.
+D) Receptores muscarínicos M3.Respuesta correcta: C
+49. ¿Por qué el asma es una enfermedad que NO suele tratarse en primera línea con inhibidores de la COX (AINEs)?
+A) Porque los AINEs causan broncodilatación extrema.
+B) Porque en el asma, el principal eicosanoide implicado es el Leucotrieno (vía LOX), que no es inhibido por los AINEs.
+C) Porque el asma es mediado exclusivamente por Óxido Nítrico.
+D) Porque los asmáticos no tienen ácido araquidónico.Respuesta correcta: B
+
+Bloque 8: Vía de la Lipoxigenasa (LOX), Leucotrienos y Asma
+50. Cuando el ácido araquidónico es procesado por la enzima 5-lipoxigenasa (5-LOX), se genera una clase diferente de mediadores inflamatorios denominados:
+A) Endorfinas.
+B) Tromboxanos.
+C) Leucotrienos.
+D) Citoquinas.Respuesta correcta: C
+51. El leucotrieno B4 ($LTB_4$) actúa fundamentalmente sobre los receptores BLT. ¿Cuál es su acción biológica más destacada en el sistema inmunitario?
+A) Potente quimiotaxis y reclutamiento de neutrófilos hacia el sitio de inflamación.
+B) Relajación del músculo liso bronquial.
+C) Inhibición de la fiebre en el hipotálamo.
+D) Formación de coágulos sanguíneos.Respuesta correcta: A
+52. Los leucotrienos C4, D4 y E4 ($LTC_4, LTD_4, LTE_4$) se unen a los receptores CysLT. Su efecto es dramático a nivel respiratorio, causando:
+A) Parálisis diafragmática.
+B) Severa broncoconstricción e hipertrofia del músculo liso bronquial (clave en la fisiopatología del asma).
+C) Broncodilatación inmediata.
+D) Inhibición de la secreción mucosa.Respuesta correcta: B
+53. A nivel del endotelio vascular (especialmente microvasculatura), la liberación local de leucotrienos causa:
+A) Disminución drástica de la permeabilidad vascular (evitan el edema).
+B) Un potente aumento de la permeabilidad vascular, favoreciendo el edema inflamatorio local.
+C) Aumento de la presión arterial sistémica sostenida.
+D) Cierre total de los capilares.Respuesta correcta: B
+54. El profesor mencionó medicamentos para el "asma o alergias primaverales" como el Montelukast o Zafirlukast. ¿Cuál es el mecanismo de acción de estos fármacos?
+A) Inhiben a la COX-1.
+B) Actúan como donadores directos de Óxido Nítrico.
+C) Son antagonistas que bloquean los receptores CysLT (receptores de cisteinil-leucotrienos).
+D) Inhiben a la Fosfolipasa A2.Respuesta correcta: C (Pista directa del audio, son los fármacos antagonistas de los receptores de leucotrienos).
+55. Existe otro fármaco en la vía de los leucotrienos llamado Zileutón. ¿A qué nivel molecular ejerce su acción terapéutica?
+A) Activa a la fosfolipasa.
+B) Inhibe específicamente a la enzima 5-lipoxigenasa, impidiendo la síntesis de todos los leucotrienos.
+C) Inhibe la degradación del GMPc.
+D) Es un anticuerpo monoclonal contra el IgE.Respuesta correcta: B
+
+Bloque 9: Integración y Repaso de Conceptos Clave (Diferenciación Final)
+56. De las siguientes moléculas de señalización celular estudiadas en este tema, ¿cuál es la ÚNICA que ejerce su efecto principal en la célula diana al unirse a una enzima citosólica (no un receptor de membrana GPCR)?
+A) Prostaglandina E2.
+B) Leucotrieno D4.
+C) Óxido Nítrico.
+D) Tromboxano A2.Respuesta correcta: C (El NO atraviesa la membrana y se une a la guanilato ciclasa soluble citosólica. Los eicosanoides usan GPCRs de membrana).
+57. Las Prostaglandinas ($PGE_2$) y la Prostaciclina ($PGI_2$) median la vasodilatación mediante la activación de receptores acoplados a proteína G. ¿Qué subunidad G es típicamente responsable de aumentar el AMPc intracelular y mediar la relajación vascular?
+A) Gq.
+B) Gi.
+C) Gs.
+D) G12/13.Respuesta correcta: C (La proteína Gs estimula a la adenilato ciclasa).
+58. Si en un paciente de la UCI se documenta un cuadro clínico de "shock séptico" (inflamación masiva sistémica y caída brutal de la presión arterial por vasodilatación). ¿Qué enzima hiperactiva justificaría estos hallazgos según lo visto en clase?
+A) Ciclooxigenasa-1 (COX-1).
+B) Óxido Nítrico Sintasa Inducible (iNOS), produciendo grandes cantidades de NO vasodilatador.
+C) 5-Lipoxigenasa.
+D) Fosfodiesterasa-5.Respuesta correcta: B (La iNOS se induce por citocinas e inflamación, y su producción masiva de NO causa vasodilatación extrema e hipotensión).
+59. La enzima Fosfolipasa A2, primer paso limitante en la síntesis de todos los eicosanoides, ejerce su acción enzimática cortando:
+A) Ácidos nucleicos del ADN.
+B) Proteínas ancladas a la membrana.
+C) El ácido araquidónico ubicado en la posición sn-2 de los fosfolípidos de la membrana.
+D) Moléculas de L-Arginina.Respuesta correcta: C
+60. Para asentar el conocimiento general del tema: Tanto el Óxido Nítrico como las Prostaglandinas comparten la característica fisiológica de que:
+A) Son gases nobles inertes.
+B) Tienen vidas medias muy largas y circulan unidos a albúmina.
+C) Funcionan como potentes mediadores locales (paracrinos/autocrinos) de corta duración, generados en el momento en que se necesitan.
+D) Se inhiben siempre mediante corticosteroides sistémicos.Respuesta correcta: C`;
+
+        let allQuestions = [];
+        let currentQuestions = [];
+        let userState = {}; 
+
+        // Procesar y parsear los datos crudos
+        function initData() {
+            let cleanText = rawText.replace(/Bloque \d+:.*?\n/g, '');
+            const blocks = cleanText.split(/\n(?=\d+\.\s)/);
+
+            blocks.forEach(block => {
+                block = block.trim();
+                if (!block) return;
+
+                const match = block.match(/^(\d+)\.\s*(.*?)\s+A\)\s*(.*?)\s+B\)\s*(.*?)\s+C\)\s*(.*?)\s+D\)\s*(.*?)\s*Respuesta correcta:\s*([A-D])(.*)/is);
+                
+                if (match) {
+                    let id = parseInt(match[1]);
+                    
+                    // Extraer explicación adicional si la hay
+                    let expText = match[8] ? match[8].trim() : "";
+                    if (expText.startsWith("(")) expText = expText.substring(1).trim();
+                    if (expText.endsWith(")")) expText = expText.substring(0, expText.length - 1).trim();
+                    
+                    if (!expText) {
+                        expText = `La opción correcta es la ${match[7].toUpperCase()}.`;
+                    } else {
+                        expText = `<strong>La opción correcta es la ${match[7].toUpperCase()}:</strong> ${expText}`;
+                    }
+
+                    // Inserción de diagramas estratégicos en preguntas introductorias de las vías
+                    if (id === 13) {
+                        expText += "<br><br>";
+                    }
+                    if (id === 31) {
+                        expText += "<br><br>";
+                    }
+
+                    allQuestions.push({
+                        originalId: id,
+                        q: match[2].trim(),
+                        options: [
+                            { text: match[3].trim(), correct: match[7].toUpperCase() === 'A', originalLetter: 'A' },
+                            { text: match[4].trim(), correct: match[7].toUpperCase() === 'B', originalLetter: 'B' },
+                            { text: match[5].trim(), correct: match[7].toUpperCase() === 'C', originalLetter: 'C' },
+                            { text: match[6].trim(), correct: match[7].toUpperCase() === 'D', originalLetter: 'D' }
+                        ],
+                        exp: expText
+                    });
+                    userState[id] = { answered: false, failed: false, marked: false };
+                }
+            });
+        }
+
+        // Algoritmo de Fisher-Yates para mezclar arrays
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startQuiz(mode, isRandom) {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('finish-btn-container').style.display = 'block';
+
+            let pool = [];
+            if (mode === 'all') {
+                pool = [...allQuestions];
+            } else if (mode === 'failed') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed);
+            } else if (mode === 'marked') {
+                pool = allQuestions.filter(q => userState[q.originalId].marked);
+            } else if (mode === 'both') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed || userState[q.originalId].marked);
+            }
+
+            if (isRandom) {
+                shuffleArray(pool);
+            }
+
+            currentQuestions = pool;
+
+            // Resetear estado de "respondido" y mezclar opciones para esta sesión
+            currentQuestions.forEach(q => {
+                userState[q.originalId].answered = false;
+                userState[q.originalId].failed = false; 
+                shuffleArray(q.options);
+            });
+
+            renderUI();
+            
+            // Scrollear arriba
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function renderUI() {
+            const indexContainer = document.getElementById('index-container');
+            const questionsContainer = document.getElementById('questions-container');
+            
+            indexContainer.innerHTML = '';
+            questionsContainer.innerHTML = '';
+
+            if (currentQuestions.length === 0) {
+                questionsContainer.innerHTML = '<h2>No hay preguntas en esta categoría.</h2>';
+                return;
+            }
+
+            currentQuestions.forEach((q, displayIndex) => {
+                let id = q.originalId;
+                let isMarked = userState[id].marked;
+                
+                // Botón del índice
+                const idxBtn = document.createElement('button');
+                idxBtn.className = `index-btn ${isMarked ? 'is-marked' : ''}`;
+                idxBtn.id = `idx-btn-${id}`;
+                idxBtn.innerHTML = `Pregunta ${id} <span class="mark-indicator">★</span>`;
+                idxBtn.onclick = () => document.getElementById(`q-container-${id}`).scrollIntoView({ behavior: 'smooth' });
+                indexContainer.appendChild(idxBtn);
+
+                // Contenedor de la pregunta
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-container';
+                qDiv.id = `q-container-${id}`;
+
+                // Header (Texto + Botón Marcar)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'question-header';
+                
+                const qText = document.createElement('h3');
+                qText.className = 'question-text';
+                qText.textContent = `${id}. ${q.q}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.id = `mark-btn-${id}`;
+                markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+                markBtn.onclick = () => toggleMark(id);
+
+                headerDiv.appendChild(qText);
+                headerDiv.appendChild(markBtn);
+                qDiv.appendChild(headerDiv);
+
+                // Opciones
+                const optsDiv = document.createElement('div');
+                optsDiv.className = 'options-list';
+                
+                q.options.forEach((opt, optIndex) => {
+                    const optBtn = document.createElement('button');
+                    optBtn.className = 'option-btn';
+                    optBtn.id = `opt-${id}-${optIndex}`;
+                    optBtn.textContent = opt.text;
+                    optBtn.onclick = () => handleAnswer(id, optIndex, opt.correct);
+                    optsDiv.appendChild(optBtn);
+                });
+                qDiv.appendChild(optsDiv);
+
+                // Explicación (oculta inicialmente)
+                const expDiv = document.createElement('div');
+                expDiv.className = 'explanation';
+                expDiv.id = `exp-${id}`;
+                expDiv.innerHTML = q.exp;
+                qDiv.appendChild(expDiv);
+
+                questionsContainer.appendChild(qDiv);
+            });
+        }
+
+        function handleAnswer(qId, optIndex, isCorrect) {
+            if (userState[qId].answered) return; 
+
+            userState[qId].answered = true;
+            userState[qId].failed = !isCorrect;
+
+            // Actualizar interfaz del índice
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Encontrar la pregunta actual para ver las opciones
+            const question = currentQuestions.find(q => q.originalId === qId);
+
+            // Actualizar botones de opciones
+            question.options.forEach((opt, i) => {
+                const btn = document.getElementById(`opt-${qId}-${i}`);
+                btn.disabled = true; 
+                if (opt.correct) {
+                    btn.classList.add('correct');
+                } else if (i === optIndex && !isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            // Mostrar explicación
+            document.getElementById(`exp-${qId}`).style.display = 'block';
+        }
+
+        function toggleMark(qId) {
+            userState[qId].marked = !userState[qId].marked;
+            const isMarked = userState[qId].marked;
+            
+            const markBtn = document.getElementById(`mark-btn-${qId}`);
+            markBtn.classList.toggle('marked', isMarked);
+            markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.toggle('is-marked', isMarked);
+        }
+
+        function finishQuiz() {
+            let correctCount = 0;
+            let failedCount = 0;
+            let unanweredCount = 0;
+
+            currentQuestions.forEach(q => {
+                if (!userState[q.originalId].answered) {
+                    unanweredCount++;
+                } else if (userState[q.originalId].failed) {
+                    failedCount++;
+                } else {
+                    correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const resText = document.getElementById('results-text');
+            resText.innerHTML = `Aciertos: <span style="color:#2ecc71">${correctCount}</span> | 
+                                 Fallos: <span style="color:#e74c3c">${failedCount}</span> | 
+                                 Sin responder: <span style="color:#f39c12">${unanweredCount}</span><br>
+                                 Total en esta sesión: ${total}`;
+
+            // Habilitar/Deshabilitar botones de repetición
+            const totalMarked = Object.values(userState).filter(st => st.marked).length;
+            const totalFailed = Object.values(userState).filter(st => st.failed).length;
+
+            document.getElementById('btn-retry-failed').disabled = totalFailed === 0;
+            document.getElementById('btn-retry-marked').disabled = totalMarked === 0;
+            document.getElementById('btn-retry-both').disabled = (totalFailed === 0 && totalMarked === 0);
+
+            document.getElementById('end-screen').style.display = 'flex';
+        }
+
+        // Inicializar datos al cargar
+        window.onload = () => {
+            initData();
+        };
+
+    </script>
+</body>
+</html>

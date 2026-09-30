@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas y Autoevaluación · Anatomía 2</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --panel:#ffffff; --line:#d9e1ec; --text:#1d3448; --muted:#64798a;
+      --accent:#1f6fb2; --accent-soft:#e9f3fc; --success:#28a745; --danger:#dc3545;
+      --shadow:0 10px 28px rgba(20,40,60,.08); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg)}
+    .app{max-width:1900px;margin:0 auto;padding:18px;display:grid;grid-template-columns:390px 1fr;gap:18px;min-height:100vh}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+    .left{display:grid;grid-template-rows:auto auto 1fr;overflow:hidden;position:sticky;top:18px;height:calc(100vh - 36px)}
+    .leftHead{padding:16px;border-bottom:1px solid var(--line)}
+    .leftHead h1{margin:0 0 6px;font-size:22px;letter-spacing:-.03em}
+    .leftHead p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+    .searchWrap{padding:12px 16px 0}
+    .searchWrap input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;outline:none;font:inherit}
+    .tree{overflow:auto;padding:12px 14px 16px}
+    details{margin:6px 0;border-radius:12px;border:1px solid transparent}
+    details[open]{background:#fbfdff;border-color:#edf2f8}
+    summary{list-style:none;cursor:pointer;padding:10px 12px;font-weight:700;border-radius:12px;display:flex;align-items:center;gap:8px;user-select:none}
+    summary::-webkit-details-marker{display:none}
+    .arrow{width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:.15s ease;flex:0 0 auto}
+    details[open] > summary .arrow{transform:rotate(45deg)}
+    .branch{margin-left:14px;padding-left:10px;border-left:1px dashed #d6e1eb}
+    .node{width:100%;border:none;background:transparent;color:var(--text);text-align:left;padding:9px 12px;border-radius:10px;font:inherit;cursor:pointer}
+    .node:hover{background:var(--accent-soft)}
+    .node.active{background:var(--accent);color:#fff}
+    
+    .right{display:grid;grid-template-rows:auto 1fr;gap:18px;min-width:0}
+    .topNav{display:flex;gap:10px;padding:16px;background:var(--panel);border-radius:var(--radius);border:1px solid var(--line)}
+    .navBtn{padding:10px 20px;border-radius:12px;border:none;background:var(--bg);font-weight:bold;cursor:pointer;color:var(--muted);transition:all 0.2s}
+    .navBtn.active{background:var(--accent);color:#fff}
+
+    /* Vistas */
+    #atlasView, #quizView { display: none; }
+    #atlasView.active, #quizView.active { display: block; }
+
+    /* Estilos Atlas */
+    .infoCard{padding:16px;margin-bottom:18px;}
+    .topbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+    .topbar h2{margin:0 0 6px;font-size:30px;letter-spacing:-.04em}
+    .topbar p{margin:0;color:var(--muted);font-size:14px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--text);border-radius:12px;padding:10px 12px;font-weight:700;text-decoration:none;cursor:pointer}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .pill{padding:8px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;font-weight:700;background:#fafcff}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .section{padding:16px;border:1px solid var(--line);border-radius:16px;background:#fbfdff;min-width:0}
+    .section.wide{grid-column:1/-1}
+    .section h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#5f7a93}
+    .section p{margin:0;line-height:1.55;font-size:15px}
+    .links{display:flex;flex-wrap:wrap;gap:8px}
+    .rel{border:1px solid #cfe1f4;background:var(--accent-soft);color:#255b90;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer}
+    .kv{display:grid;grid-template-columns:180px 1fr;gap:8px 14px}
+    .kv div:nth-child(odd){font-weight:700;color:#43627d}
+    
+    /* Estilos Visor PDF */
+    .pdfCard{display:grid;grid-template-rows:auto auto 1fr;min-height:700px;overflow:hidden}
+    .viewerHead{padding:16px;border-bottom:1px solid var(--line)}
+    .viewerHead h3{margin:0 0 6px;font-size:18px}
+    .nav{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fbfdff}
+    .nav input{width:90px;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+    .viewer{min-height:0;overflow:auto;background:#eef3f8;padding:10px}
+    iframe{display:block;width:100%;height:100%;min-height:600px;border:none;background:#fff;border-radius:12px}
+
+    /* Estilos Quiz */
+    .quizContainer { padding: 24px; background: var(--panel); border-radius: var(--radius); border: 1px solid var(--line); }
+    .quiz-header { border-bottom: 2px solid var(--line); padding-bottom: 16px; margin-bottom: 24px; }
+    .category-selector { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .cat-btn { padding: 10px 16px; border-radius: 99px; border: 1px solid var(--accent); background: #fff; color: var(--accent); cursor: pointer; font-weight: 600; }
+    .cat-btn.active { background: var(--accent); color: #fff; }
+    .question-block { display: none; margin-bottom: 24px; }
+    .question-block.active { display: block; animation: fadeIn 0.3s; }
+    .question-text { font-size: 18px; font-weight: 600; margin-bottom: 16px; line-height: 1.5; }
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn { text-align: left; padding: 14px 18px; border: 2px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; font-size: 15px; transition: all 0.2s; }
+    .option-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .option-btn.correct { background: var(--success); color: white; border-color: var(--success); }
+    .option-btn.incorrect { background: var(--danger); color: white; border-color: var(--danger); }
+    .feedback { margin-top: 16px; padding: 16px; border-radius: 12px; background: #f8f9fa; display: none; font-size: 14px; line-height: 1.5; border-left: 4px solid var(--accent); }
+    .quiz-controls { margin-top: 24px; display: flex; justify-content: space-between; }
+    .score-display { font-size: 20px; font-weight: bold; text-align: center; padding: 30px; display: none; }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="left card">
+      <div class="leftHead">
+        <h1>Torso y cuello</h1>
+        <p>Herramienta integral. El visor PDF compensa automáticamente (+17 hojas) la numeración del manual impreso.</p>
+      </div>
+      <div class="searchWrap">
+        <input id="searchInput" type="search" placeholder="Buscar estructura..." />
+      </div>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <section class="right">
+      
+      <div class="topNav">
+        <button class="navBtn active" id="btnAtlas" onclick="switchTab('atlas')">📖 Atlas y Apuntes</button>
+        <button class="navBtn" id="btnQuiz" onclick="switchTab('quiz')">📝 Examen / Autoevaluación</button>
+      </div>
+
+      <div id="atlasView" class="active">
+        <section class="infoCard card">
+          <div class="topbar">
+            <div>
+              <h2 id="title">Bienvenida</h2>
+              <div style="display:flex; gap:10px; align-items:center; margin-top:8px">
+                <span class="pill" id="manualPageBadge">Pág. Manual: —</span>
+                <button class="btn primary" id="goToManualBtn">Ver en PDF</button>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn" id="markBtn">Marcar para repasar</button>
+              <button class="btn" id="masterBtn">Dominado</button>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="pill" id="sectionPill">Sección: Inicio</span>
+            <span class="pill" id="statusPill">Estado: libre</span>
+          </div>
+          <div class="grid">
+            <section class="section"><h3>Posición de la estructura</h3><p id="posicion">¡Bienvenido/a al Atlas Interactivo de Anatomía 2!</p></section>
+            <section class="section"><h3>Relaciones</h3><div class="links" id="relaciones"><button class="rel">Todo el temario de tronco, cuello y esplacnología</button></div></section>
+            <section class="section"><h3>Funciones</h3><p id="funciones">Facilitar el estudio mediante la correlación topográfica y la autoevaluación (Active Recall).</p></section>
+            <section class="section"><h3>Inervación / Riego</h3><p id="inervacion_riego">—</p></section>
+            <section class="section wide">
+              <h3>Datos Clínicos / Literalidad del profesor</h3>
+              <div class="kv">
+                <div>Clínica / Particularidad</div><div id="particularidades">👈 Selecciona cualquier estructura en el menú lateral para cargar sus datos literales extraídos de las clases del profesor. O dirígete arriba a '📝 Examen / Autoevaluación' para ponerte a prueba.</div>
+                <div>Anastomosis / Conexiones</div><div id="anastomosis">Conecta tu memoria a corto plazo con la memoria a largo plazo.</div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="pdfCard card">
+          <div class="viewerHead">
+            <h3>Manual PDF: Anatomía Humana (García-Porrero)</h3>
+          </div>
+          <div class="nav">
+            <button class="btn" id="prevPage">←</button>
+            <button class="btn" id="nextPage">→</button>
+            <span class="small">Pág. Manual: </span>
+            <input id="pageInput" type="number" min="1" value="1" />
+            <button class="btn" id="goPage">Ir</button>
+          </div>
+          <div class="viewer">
+            <iframe id="pdfFrame" title="Visor PDF" src="about:blank"></iframe>
+          </div>
+        </section>
+      </div>
+
+      <div id="quizView">
+        <div class="quizContainer">
+          <div class="quiz-header">
+            <h2>Autoevaluación: Preguntas Literales de Examen</h2>
+            <p>Selecciona el bloque conceptual para ponerte a prueba. Las preguntas y retroalimentaciones han sido extraídas literalmente de las clases y apuntes.</p>
+            
+            <div class="category-selector" id="categorySelector">
+              <button class="cat-btn active" onclick="startQuizCategory('Columna')">Columna y Dorso</button>
+              <button class="cat-btn" onclick="startQuizCategory('Cuello')">Cuello y Laringe</button>
+              <button class="cat-btn" onclick="startQuizCategory('Torax')">Tórax y Corazón</button>
+              <button class="cat-btn" onclick="startQuizCategory('Abdomen')">Abdomen y Topografía Clínica</button>
+              <button class="cat-btn" onclick="startQuizCategory('Genitourinario')">Pelvis y Genitourinario</button>
+            </div>
+
+            <p id="quizProgress" style="font-weight: bold; color: var(--accent);">Pregunta 1</p>
+          </div>
+          
+          <div id="quizContent">
+            </div>
+
+          <div id="scoreDisplay" class="score-display"></div>
+
+          <div class="quiz-controls">
+            <button class="btn" id="btnRestartQuiz" style="display:none;" onclick="restartQuiz()">🔄 Volver a hacer este bloque</button>
+            <button class="btn primary" id="btnNextQuestion" style="display:none;" onclick="nextQuestion()">Siguiente Pregunta ➡️</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    // ==========================================
+    // MÓDULO 1: DATOS DEL ATLAS 
+    // ==========================================
+    const PAGE_OFFSET = 17; 
+    let currentManualPage = 1;
+    let currentLabel = null;
+    const marked = new Set();
+    const mastered = new Set();
+
+    const treeData = [
+      { label: "Topografía y espacios clínicos", children: [
+        "Ángulo de Louis", "Mediastino posterior", "Senos pericárdicos", "Hiatos diafragmáticos", "Vaina carotídea", "Triángulo de Hesselbach", "Espacio de Labbé", "Anastomosis portocavas"
+      ]},
+      { label: "Columna vertebral", children: [
+        "Curvaturas raquídeas", "Disco intervertebral", "Esclerotomo y desarrollo", "Espacio epidural", "Músculos esplenios"
+      ]},
+      { label: "Cuello · vísceras", children: [
+        "Cuello","Regiones del cuello","Faringe","Laringe","Glándula tiroides","Tráquea cervical","Esófago cervical"
+      ]},
+      { label: "Cuello · vasos y nervios", children: [
+        "Arteria carótida común","Arteria carótida externa","Arteria carótida interna","Arteria subclavia","Arteria tiroidea superior","Arteria tiroidea inferior",
+        "Vena yugular interna","Vena yugular externa","Vena subclavia","Vena braquiocefálica",
+        "Plexo cervical","Nervio vago","Nervio frénico","Nervio accesorio","Nervio hipogloso","Nervio laríngeo recurrente"
+      ]},
+      { label: "Torso · pared y cavidades", children: [
+        "Tórax","Pared torácica","Esqueleto torácico","Diafragma","Mediastino","Cavidad torácica","Pleura parietal","Pleura visceral","Pulmones"
+      ]},
+      { label: "Torso · vísceras", children: [
+        "Corazón", "Pericardio", "Tráquea torácica", "Esófago torácico"
+      ]},
+      { label: "Torso · arterias y venas", children: [
+        "Aorta ascendente","Arco aórtico","Aorta torácica","Tronco braquiocefálico","Arteria torácica interna","Arterias intercostales posteriores",
+        "Vena cava superior","Vena ácigos","Vena hemiácigos","Venas braquiocefálicas","Vena cava inferior"
+      ]},
+      { label: "Torso · nervios", children: [
+        "Nervios intercostales","Tronco simpático torácico"
+      ]},
+      { label: "Abdomen", children: [
+        "Cavidad abdominal","Pared anterolateral del abdomen","Conducto inguinal","Hígado","Estómago"
+      ]},
+      { label: "Genitourinario", children: [
+        "Vejiga urinaria", "Desarrollo del testículo", "Derivados de Wolff y Müller"
+      ]}
+    ];
+
+    const infoData = {
+      "Bienvenida": { section: "Inicio", manualPage: "—", posicion: "¡Bienvenido/a al Atlas Interactivo de Anatomía 2!", relaciones: ["Todo el temario de tronco, cuello y esplacnología"], funciones: "Facilitar el estudio mediante la correlación topográfica y la autoevaluación (Active Recall).", inervacion_riego: "—", particularidades: "👈 Selecciona cualquier estructura en el menú lateral para cargar sus datos literales extraídos de las clases del profesor. O dirígete arriba a '📝 Examen / Autoevaluación' para ponerte a prueba.", anastomosis: "Conecta tu memoria a corto plazo con la memoria a largo plazo." },
+
+      "Curvaturas raquídeas": { section: "Columna", manualPage: 103, posicion: "Plano sagital.", relaciones: ["Cuerpos vertebrales"], funciones: "Equilibrio y soporte del peso.", inervacion_riego: "—", particularidades: "Cifosis (cóncava anterior) son primarias: torácica y sacra. Lordosis (convexa anterior) son secundarias: cervical y lumbar.", anastomosis: "—" },
+      "Disco intervertebral": { section: "Columna", manualPage: 106, posicion: "Entre cuerpos vertebrales.", relaciones: ["Cuerpos vertebrales"], funciones: "Amortiguación, transforma fuerzas.", inervacion_riego: "Avascular, se nutre por difusión.", particularidades: "Anillo fibroso concéntrico y núcleo pulposo central gelatinoso.", anastomosis: "—" },
+      "Esclerotomo y desarrollo": { section: "Columna", manualPage: 87, posicion: "Embriología.", relaciones: ["Notocorda"], funciones: "Da origen a las vértebras.", inervacion_riego: "—", particularidades: "Masa de células mesenquimales que organizan paquetes a ambos lados de la línea media. Su fusión es intersegmentaria.", anastomosis: "—" },
+      "Espacio epidural": { section: "Columna", manualPage: 737, posicion: "Fuera de la duramadre.", relaciones: ["Canal raquídeo", "Duramadre"], funciones: "Amortiguación medular.", inervacion_riego: "Red venosa perimedular.", particularidades: "Compartimento graso donde se establece la importante red de senos venosos avalvulares.", anastomosis: "—" },
+      "Músculos esplenios": { section: "Cuello posterior", manualPage: 140, posicion: "Plano superficial erector del dorso.", relaciones: ["Apófisis espinosas", "Mastoides"], funciones: "Extensión e hiperextensión cervical.", inervacion_riego: "Ramos posteriores nervios cervicales.", particularidades: "Esplenio de la cabeza termina en apófisis mastoides; esplenio del cuello termina en apófisis transversas C1-C3.", anastomosis: "—" },
+
+      "Vejiga urinaria": { section: "Genitourinario", manualPage: 494, posicion: "Pelvis menor.", relaciones: ["Recto", "Útero"], funciones: "Reservorio de orina.", inervacion_riego: "Plexo hipogástrico.", particularidades: "Se expande en sentido superior hacia el abdomen cuando está llena. Relación posteroinferior con cara anterior del recto o genitales femeninos.", anastomosis: "—" },
+      "Desarrollo del testículo": { section: "Genitourinario", manualPage: 506, posicion: "Retroperitoneal inicial.", relaciones: ["Pared abdominal posterior"], funciones: "Gónada masculina.", inervacion_riego: "A. Testicular (origen L2).", particularidades: "Desciende por el conducto inguinal durante el 2º y 7º mes.", anastomosis: "—" },
+      "Derivados de Wolff y Müller": { section: "Embriología", manualPage: 526, posicion: "Mesodermo intermedio.", relaciones: ["Crestas urogenitales"], funciones: "Diferenciación sexual.", inervacion_riego: "—", particularidades: "Conducto paramesonéfrico (Müller) da lugar a trompas de Falopio y útero. Conducto mesonéfrico (Wolff) da lugar a vías espermáticas.", anastomosis: "—" },
+
+      "Ángulo de Louis": { section: "Clínica", manualPage: 127, posicion: "Unión manubrio-cuerpo esternal (T4-T5).", relaciones: ["Tráquea torácica", "Arco aórtico"], funciones: "Plano de referencia topográfica.", inervacion_riego: "—", particularidades: "Marca la división entre mediastino superior e inferior. Se bifurca la tráquea (Carina), inicia y termina el cayado aórtico.", anastomosis: "—" },
+      "Mediastino posterior": { section: "Clínica", manualPage: 907, posicion: "Posterior al pericardio, T5-T12.", relaciones: ["Aorta torácica", "Esófago", "Vena ácigos"], funciones: "Tránsito visceral y vascular vital.", inervacion_riego: "Ramas aórticas y plexo esofágico.", particularidades: "La aorta torácica desciende desplazando al esófago hacia la derecha y adelante. Relación ecocardiográfica de la aurícula izquierda.", anastomosis: "—" },
+      "Senos pericárdicos": { section: "Clínica", manualPage: 600, posicion: "Fondos de saco pericárdicos.", relaciones: ["Corazón", "Aorta", "Venas pulmonares"], funciones: "Expansión y deslizamiento de grandes vasos.", inervacion_riego: "Frénico (sensitivo, C4).", particularidades: "Seno de Theile separa pedículo arterial del venoso. Seno de Haller es posterior a la aurícula izquierda.", anastomosis: "—" },
+      "Hiatos diafragmáticos": { section: "Clínica", manualPage: 307, posicion: "Diafragma.", relaciones: ["Vena cava inferior", "Esófago", "Aorta"], funciones: "Paso toracoabdominal.", inervacion_riego: "Frénico.", particularidades: "Niveles: T8 (Cava inf., inelástico); T10 (Esófago, muscular); T12 (Aorta, ácigos y cond. torácico, osteoaponeurótico).", anastomosis: "—" },
+      "Vaina carotídea": { section: "Clínica", manualPage: 141, posicion: "Lateral del cuello profundo.", relaciones: ["Carótida común", "Yugular interna", "Vago"], funciones: "Envoltura fascial protectora.", inervacion_riego: "—", particularidades: "Disposición: Arteria carótida común (medial), Vena yugular interna (lateral), Nervio vago (posterior en el ángulo diedro).", anastomosis: "—" },
+      "Triángulo de Hesselbach": { section: "Clínica", manualPage: 150, posicion: "Fosa inguinal medial.", relaciones: ["Pared abdominal"], funciones: "Punto de menor resistencia.", inervacion_riego: "—", particularidades: "Límites: Vasos epigástricos inferiores (lateral), recto abdominal (medial), ligamento inguinal (inferior). Hernias DIRECTAS.", anastomosis: "—" },
+      "Espacio de Labbé": { section: "Clínica", manualPage: 379, posicion: "Epigastrio / Hipocondrio izq.", relaciones: ["Estómago", "Hígado", "Pared costal"], funciones: "Contacto estomacal directo con pared.", inervacion_riego: "—", particularidades: "Límites: Lóbulo izq. hepático, reborde costal, curvatura mayor. Permite abordaje gástrico directo.", anastomosis: "—" },
+      "Anastomosis portocavas": { section: "Clínica", manualPage: 686, posicion: "Esófago, recto, ombligo.", relaciones: ["Porta", "Cava"], funciones: "Vías colaterales en hipertensión portal.", inervacion_riego: "—", particularidades: "1. Esofágicas (Várices). 2. Rectales (Hemorroides). 3. Paraumbilicales (Cabeza de Medusa).", anastomosis: "Sistemas Porta y Cava." },
+      
+      "Cuello": { section: "Cuello", manualPage: 138, posicion: "Transición cabeza-tronco.", relaciones: ["Faringe", "Laringe"], funciones: "Alojamiento vías aéreas/digestivas.", inervacion_riego: "Carotídeo y subclavio.", particularidades: "Límite superior hioides.", anastomosis: "Múltiples cervicales." },
+      "Regiones del cuello": { section: "Cuello", manualPage: 140, posicion: "Divisiones fasciales.", relaciones: ["Triángulo carotídeo"], funciones: "Topografía.", inervacion_riego: "—", particularidades: "Importantes para el abordaje quirúrgico.", anastomosis: "—" },
+      "Faringe": { section: "Cuello", manualPage: 359, posicion: "Musculomembranosa post nasal/oral.", relaciones: ["Laringe", "Esófago"], funciones: "Deglución y vía aérea.", inervacion_riego: "Plexo faríngeo (IX, X).", particularidades: "Transición a esófago en C6.", anastomosis: "—" },
+      "Laringe": { section: "Cuello", manualPage: 431, posicion: "Cuello visceral anterior.", relaciones: ["Tiroides", "Tráquea"], funciones: "Fonación, cierre vía aérea.", inervacion_riego: "Laríngeo sup. y recurrente (X).", particularidades: "Cierre opercular por caída de epiglotis al elevarse la laringe.", anastomosis: "—" },
+      "Glándula tiroides": { section: "Cuello", manualPage: 548, posicion: "Anterolateral a tráquea.", relaciones: ["Tráquea", "Nervio recurrente"], funciones: "Endocrina.", inervacion_riego: "A. tiroideas superior e inferior.", particularidades: "El nervio recurrente cruza la A. tiroidea inferior posteriormente (riesgo quirúrgico).", anastomosis: "Tiroideas contralaterales." },
+      "Tráquea cervical": { section: "Cuello", manualPage: 440, posicion: "Línea media anterior.", relaciones: ["Tiroides", "Esófago"], funciones: "Paso de aire.", inervacion_riego: "Autónoma.", particularidades: "Estrechez por compresión de los lóbulos tiroideos laterales.", anastomosis: "—" },
+      "Esófago cervical": { section: "Cuello", manualPage: 366, posicion: "Dorsal a tráquea.", relaciones: ["Tráquea", "Vago"], funciones: "Paso del bolo.", inervacion_riego: "Plexo esofágico.", particularidades: "El nervio recurrente discurre por el surco traqueoesofágico.", anastomosis: "—" },
+
+      "Arteria carótida común": { section: "Cuello", manualPage: 646, posicion: "Vaina carotídea.", relaciones: ["Yugular int.", "Vago"], funciones: "Irrigación principal cefálica.", inervacion_riego: "—", particularidades: "Bifurcación en C3-C4. Contiene el seno (Vago) y glomus (IX).", anastomosis: "—" },
+      "Arteria carótida externa": { section: "Cuello", manualPage: 650, posicion: "Rama terminal anterior.", relaciones: ["Tiroides", "Cara"], funciones: "Irriga cara y cuello superficial.", inervacion_riego: "—", particularidades: "Única que emite colaterales cervicales.", anastomosis: "Faciales." },
+      "Arteria carótida interna": { section: "Cuello", manualPage: 664, posicion: "Ascenso directo al cráneo.", relaciones: ["Vago"], funciones: "Irriga encéfalo.", inervacion_riego: "—", particularidades: "No emite colaterales en el cuello.", anastomosis: "Polígono de Willis." },
+      "Arteria subclavia": { section: "Cuello", manualPage: 665, posicion: "Base del cuello.", relaciones: ["Plexo braquial"], funciones: "Irriga brazo y tórax.", inervacion_riego: "—", particularidades: "Da Vertebral, Torácica interna y Tronco tirocervical.", anastomosis: "Red escapular." },
+      "Arteria tiroidea superior": { section: "Cuello", manualPage: 666, posicion: "Polo superior tiroideo.", relaciones: ["Laringe"], funciones: "Irrigación laringe/tiroides.", inervacion_riego: "—", particularidades: "Primera rama descendente carótida externa.", anastomosis: "Tiroidea inferior." },
+      "Arteria tiroidea inferior": { section: "Cuello", manualPage: 668, posicion: "Cara posterior tiroides.", relaciones: ["Recurrente"], funciones: "Irriga tiroides.", inervacion_riego: "—", particularidades: "Rama del tronco tirocervical.", anastomosis: "Tiroidea superior." },
+      "Vena yugular interna": { section: "Cuello", manualPage: 665, posicion: "Vaina carotídea lateral.", relaciones: ["Carótida", "Vago"], funciones: "Drenaje venoso principal cefálico.", inervacion_riego: "—", particularidades: "Forma el tronco braquiocefálico con subclavia.", anastomosis: "—" },
+      "Vena yugular externa": { section: "Cuello", manualPage: 667, posicion: "Superficial al ECM.", relaciones: ["Fascia superficial"], funciones: "Drenaje superficial.", inervacion_riego: "—", particularidades: "Visible al aumentar presión venosa.", anastomosis: "—" },
+      "Vena subclavia": { section: "Cuello", manualPage: 665, posicion: "Anterior al escaleno anterior.", relaciones: ["Arteria subclavia"], funciones: "Drenaje brazo.", inervacion_riego: "—", particularidades: "Vía clínica central.", anastomosis: "—" },
+      "Vena braquiocefálica": { section: "Tórax", manualPage: 596, posicion: "Mediastino superior.", relaciones: ["Cava superior"], funciones: "Retorno tronco-cefálico.", inervacion_riego: "—", particularidades: "Izquierda cruza retroesternal, más larga.", anastomosis: "—" },
+      "Plexo cervical": { section: "Cuello", manualPage: 745, posicion: "Profundo, en escalenos.", relaciones: ["Frénico"], funciones: "Sensibilidad y motor infrahioideo.", inervacion_riego: "C1-C4.", particularidades: "Origen del nervio frénico.", anastomosis: "—" },
+      "Nervio vago": { section: "Cuello", manualPage: 822, posicion: "Vaina carotídea posterior.", relaciones: ["Carótidas"], funciones: "Parasimpático visceral.", inervacion_riego: "X par.", particularidades: "Da nervio recurrente (motor laringe).", anastomosis: "Plexos." },
+      "Nervio frénico": { section: "Cuello/Tórax", manualPage: 745, posicion: "Anterior al escaleno anterior.", relaciones: ["Diafragma"], funciones: "Motor diafragma, sensitivo pleura/pericardio.", inervacion_riego: "C3-C5.", particularidades: "Dolor diafragmático se refiere al hombro (C4).", anastomosis: "—" },
+      "Nervio accesorio": { section: "Cuello", manualPage: 843, posicion: "Triángulo posterior.", relaciones: ["ECM", "Trapecio"], funciones: "Motor.", inervacion_riego: "XI par.", particularidades: "Vulnerable en biopsias cervicales.", anastomosis: "—" },
+      "Nervio hipogloso": { section: "Cuello", manualPage: 844, posicion: "Submandibular.", relaciones: ["Lengua"], funciones: "Motor lengua.", inervacion_riego: "XII par.", particularidades: "Lleva temporalmente fibras de C1.", anastomosis: "Asa cervical." },
+      "Nervio laríngeo recurrente": { section: "Cuello", manualPage: 822, posicion: "Surco traqueoesofágico.", relaciones: ["Tiroides"], funciones: "Motor cuerdas vocales.", inervacion_riego: "Rama vago.", particularidades: "Izquierdo cruza bajo arco aórtico.", anastomosis: "—" },
+
+      "Tórax": { section: "Tórax", manualPage: 127, posicion: "Caja osteocartilaginosa.", relaciones: ["Pulmones"], funciones: "Protección y ventilación.", inervacion_riego: "Intercostales.", particularidades: "Cifosis fisiológica, hipomóvil en dorsales medias.", anastomosis: "—" },
+      "Pared torácica": { section: "Tórax", manualPage: 128, posicion: "Envoltura.", relaciones: ["Esqueleto"], funciones: "Fuelle respiratorio.", inervacion_riego: "Intercostales.", particularidades: "VAN intercostal discurre por borde inferior costal (surco).", anastomosis: "Red intercostal." },
+      "Esqueleto torácico": { section: "Tórax", manualPage: 127, posicion: "12 pares costillas, esternón.", relaciones: ["Músculos"], funciones: "Eje.", inervacion_riego: "—", particularidades: "La 1ª costilla se articula sólo con T1.", anastomosis: "—" },
+      "Diafragma": { section: "Tórax", manualPage: 307, posicion: "Suelo torácico.", relaciones: ["Corazón", "Hígado"], funciones: "Músculo inspiratorio principal.", inervacion_riego: "Nervio frénico.", particularidades: "Hiatos vitales (T8, T10, T12).", anastomosis: "—" },
+      "Mediastino": { section: "Tórax", manualPage: 907, posicion: "Compartimento central.", relaciones: ["Pleuras"], funciones: "Tránsito visceral.", inervacion_riego: "—", particularidades: "Dividido por Ángulo de Louis (T4/T5).", anastomosis: "—" },
+      "Cavidad torácica": { section: "Tórax", manualPage: 127, posicion: "Volumen presurizado.", relaciones: ["Diafragma"], funciones: "Mecánica respiratoria.", inervacion_riego: "—", particularidades: "Separada herméticamente del abdomen.", anastomosis: "—" },
+      "Pleura parietal": { section: "Tórax", manualPage: 467, posicion: "Recubre pared y diafragma.", relaciones: ["Pared torácica"], funciones: "Fijación y formación de recesos.", inervacion_riego: "Somática (intercostales, frénico).", particularidades: "Su inflamación produce dolor intenso agudo localizable.", anastomosis: "—" },
+      "Pleura visceral": { section: "Tórax", manualPage: 467, posicion: "Adherida al parénquima.", relaciones: ["Pulmón"], funciones: "Deslizamiento pasivo.", inervacion_riego: "Autónoma (plexo pulmonar).", particularidades: "Carece de inervación del dolor somático.", anastomosis: "—" },
+      "Pulmones": { section: "Tórax", manualPage: 451, posicion: "Cavidades pleurales.", relaciones: ["Mediastino"], funciones: "Hematosis.", inervacion_riego: "A. Pulmonar, A. Bronquial.", particularidades: "Derecho: 3 lóbulos. Izquierdo: 2 lóbulos.", anastomosis: "—" },
+      "Corazón": { section: "Tórax", manualPage: 590, posicion: "Mediastino medio/inferior.", relaciones: ["Pericardio"], funciones: "Doble bomba.", inervacion_riego: "Plexo cardíaco (C3-T4).", particularidades: "Inervación simpática cervical explica dolor referido a brazo y cuello.", anastomosis: "Coronarias." },
+      "Pericardio": { section: "Tórax", manualPage: 600, posicion: "Envoltura cardíaca.", relaciones: ["Corazón"], funciones: "Limita sobredistensión.", inervacion_riego: "Frénico (fibroso).", particularidades: "Contiene senos de Theile y Haller.", anastomosis: "—" },
+      "Tráquea torácica": { section: "Tórax", manualPage: 440, posicion: "Mediastino superior.", relaciones: ["Esófago", "Aorta"], funciones: "Vía aérea.", inervacion_riego: "Vago/simpático.", particularidades: "Cruzada anterior y lateralmente por el arco aórtico (impronta izquierda).", anastomosis: "—" },
+      "Esófago torácico": { section: "Tórax", manualPage: 366, posicion: "Mediastino posterior.", relaciones: ["Tráquea", "Aurícula izq."], funciones: "Tubo digestivo.", inervacion_riego: "Plexo esofágico.", particularidades: "Relación directa anterior con aurícula izquierda.", anastomosis: "Portocava." },
+
+      "Aorta ascendente": { section: "Tórax", manualPage: 616, posicion: "Mediastino medio.", relaciones: ["Tronco pulmonar"], funciones: "Salida sistémica.", inervacion_riego: "—", particularidades: "Senos de Valsalva originan coronarias.", anastomosis: "—" },
+      "Arco aórtico": { section: "Tórax", manualPage: 620, posicion: "Mediastino superior.", relaciones: ["Tráquea", "Vago"], funciones: "Distribución troncos supraaórticos.", inervacion_riego: "—", particularidades: "Nervio vago izquierdo cruza lateralmente.", anastomosis: "—" },
+      "Aorta torácica": { section: "Tórax", manualPage: 624, posicion: "Mediastino posterior.", relaciones: ["Esófago", "Ácigos"], funciones: "Irrigación tórax posterior.", inervacion_riego: "—", particularidades: "Desplaza paulatinamente al esófago hacia derecha y anterior.", anastomosis: "—" },
+      "Tronco braquiocefálico": { section: "Tórax", manualPage: 621, posicion: "Mediastino superior derecho.", relaciones: ["Tráquea"], funciones: "Irriga hemicuello/brazo derecho.", inervacion_riego: "—", particularidades: "Solo existe en el lado derecho.", anastomosis: "—" },
+      "Arteria torácica interna": { section: "Tórax", manualPage: 635, posicion: "Paraesternal (Mamaria interna).", relaciones: ["Pleura"], funciones: "Irriga pared anterior.", inervacion_riego: "—", particularidades: "Termina anastomosándose con la epigástrica inferior del abdomen.", anastomosis: "A. Epigástrica." },
+      "Arterias intercostales posteriores": { section: "Tórax", manualPage: 630, posicion: "Surco costal.", relaciones: ["Nervio intercostal"], funciones: "Irrigan pared y médula.", inervacion_riego: "—", particularidades: "Ramas dorsales vascularizan médula espinal.", anastomosis: "Intercostales anteriores." },
+      "Vena cava superior": { section: "Tórax", manualPage: 596, posicion: "Mediastino superior derecho.", relaciones: ["Ácigos"], funciones: "Retorno mitad superior.", inervacion_riego: "—", particularidades: "Recibe el cayado de la vena ácigos por su cara posterior.", anastomosis: "—" },
+      "Vena ácigos": { section: "Tórax", manualPage: 680, posicion: "Mediastino posterior derecho.", relaciones: ["Aorta"], funciones: "Drenaje pared torácica.", inervacion_riego: "—", particularidades: "Gran vía anastomótica cavo-cava.", anastomosis: "Venas lumbares." },
+      "Vena hemiácigos": { section: "Tórax", manualPage: 680, posicion: "Mediastino posterior izquierdo.", relaciones: ["Aorta"], funciones: "Drenaje hemitórax izq.", inervacion_riego: "—", particularidades: "Cruza transversalmente T8-T9 para drenar en ácigos.", anastomosis: "Ácigos." },
+      "Venas braquiocefálicas": { section: "Tórax", manualPage: 596, posicion: "Base cuello / Mediastino sup.", relaciones: ["Arterias supraaórticas"], funciones: "Forman cava superior.", inervacion_riego: "—", particularidades: "Izquierda es mucho más larga y cruza oblicuamente.", anastomosis: "—" },
+      "Vena cava inferior": { section: "Abdomen", manualPage: 714, posicion: "Derecha de la aorta.", relaciones: ["Hígado"], funciones: "Retorno infradiafragmático.", inervacion_riego: "—", particularidades: "Atraviesa hiato tendinoso inelástico (T8).", anastomosis: "Portocava indirecta." },
+      "Nervios intercostales": { section: "Tórax", manualPage: 770, posicion: "Surco costal.", relaciones: ["Arteria intercostal"], funciones: "Motor y sensitivo pared.", inervacion_riego: "Ramos ventrales.", particularidades: "Discurren ordenados bajo la costilla, entre músculos intercostales.", anastomosis: "—" },
+      "Tronco simpático torácico": { section: "Tórax", manualPage: 838, posicion: "Paravertebral torácico.", relaciones: ["Cabezas costales"], funciones: "Autónomo simpático.", inervacion_riego: "—", particularidades: "Da origen a nervios esplácnicos para vísceras abdominales.", anastomosis: "Ramos grises/blancos." },
+
+      "Cavidad abdominal": { section: "Abdomen", manualPage: 146, posicion: "Bajo diafragma.", relaciones: ["Diafragma pélvico"], funciones: "Contención visceral.", inervacion_riego: "Aorta abdominal.", particularidades: "Presión interna regulada dinámicamente por diafragma y pared.", anastomosis: "—" },
+      "Pared anterolateral del abdomen": { section: "Abdomen", manualPage: 146, posicion: "Oblicuos y transverso.", relaciones: ["Recto abdominal"], funciones: "Prensa abdominal.", inervacion_riego: "T7-T12.", particularidades: "Límite fascial posterior forma fascia transversalis.", anastomosis: "Red epigástrica." },
+      "Conducto inguinal": { section: "Abdomen", manualPage: 150, posicion: "Región inguino-abdominal.", relaciones: ["Pared abdominal"], funciones: "Paso cordón espermático.", inervacion_riego: "Ilioinguinal.", particularidades: "Techo formado por oblicuo interno y transverso. Suelo es ligamento inguinal.", anastomosis: "—" },
+      "Hígado": { section: "Abdomen", manualPage: 405, posicion: "Hipocondrio derecho.", relaciones: ["Diafragma", "VCI"], funciones: "Metabolismo y filtro.", inervacion_riego: "A. Hepática y V. Porta.", particularidades: "Doble vascularización funcional y nutricia.", anastomosis: "Red capilar hepática." },
+      "Estómago": { section: "Abdomen", manualPage: 379, posicion: "Epigastrio e hipocondrio izq.", relaciones: ["Hígado", "Bazo"], funciones: "Digestión y reservorio.", inervacion_riego: "Vagos y celíaco.", particularidades: "Vago izquierdo es anterior, vago derecho posterior.", anastomosis: "Arcadas gástricas." }
+    };
+
+    // ==========================================
+    // MÓDULO 2: BATERÍA DE PREGUNTAS (LITERALES DE EXAMEN)
+    // ==========================================
+    const quizBanks = {
+      "Columna": [
+        {
+          question: "¿Qué curvaturas se consideran primarias en el proceso evolutivo y morfogenético de la columna vertebral?",
+          options: [
+            "Las curvaturas cervical y lumbar (lordosis).",
+            "La curvatura cervical y la curvatura torácica.",
+            "La curvatura torácica y la curvatura sacra (cifosis, concavidad ventral).",
+            "No existen curvaturas primarias, todas se desarrollan tras empezar a caminar."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Curvaturas primarias que consideraríamos la torácica y la sacra (cifosis de concavidad ventral). Curvaturas secundarias que van a corresponderse con la cervical y con la lumbar (lordosis)'."
+        },
+        {
+          question: "¿Qué estructura anatómica reemplaza posteriormente a las apófisis espinosas en la región cervical debido a la profunda lordosis fisiológica que impide palparlas?",
+          options: [
+            "El ligamento amarillo (flavum).",
+            "El ligamento longitudinal posterior.",
+            "El ligamento nucal, un tabique fibroso que separa los paquetes musculares.",
+            "La aponeurosis toracolumbar."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Lo que quedaría ahí en medio que intentáis palparos no son las apófisis espinosas, es un tabique fibroso que vamos a denominar como ligamento nucal y que me va a separar los paquetes musculares'."
+        },
+        {
+          question: "¿Qué intervención quirúrgica es descrita textualmente como 'la única vía para entrar quirúrgicamente dentro del estrecho canular'?",
+          options: [
+            "La laminectomía, es decir, cortar la lámina.",
+            "La exéresis del cuerpo vertebral.",
+            "La disección del ligamento longitudinal anterior.",
+            "El abordaje a través del agujero de conjunción directamente."
+          ],
+          correct: 0,
+          feedback: "Literal de clase: 'La laminectomía, es decir, cortar la lámina, la pelliculeectomía... es la única vía para entrar quirúrgicamente dentro del estrecho canular'."
+        },
+        {
+          question: "En una persona adulta, particularmente en los varones, ¿cuál suele ser la dimensión longitudinal media de la columna vertebral según los apuntes?",
+          options: [
+            "Unos 50-55 cm.",
+            "Unos 60-65 cm.",
+            "Suele tener una dimensión de unos 72-75 cm.",
+            "Entre 80 y 90 cm."
+          ],
+          correct: 2,
+          feedback: "Literal de apuntes: 'En los varones suele tener una dimensión de unos 72-75 cm. En una visión posterior debería ser rectilínea'."
+        },
+        {
+          question: "¿Qué término anatómico se utiliza en los apuntes y clase como equivalente o sinónimo directo del 'espacio extradural' (por fuera de la duramadre)?",
+          options: [
+            "Espacio subaracnoideo.",
+            "Espacio intratecal.",
+            "Espacio epidural.",
+            "Espacio perimedular interno."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Epi hace referencia es el prefijo de superficial... epidural sería el equivalente más anatómico a decir extradural por fuera de la dura'."
+        },
+        {
+          question: "¿Qué es un esclerotomo en el contexto del desarrollo de la columna vertebral?",
+          options: [
+            "El cartílago hialino maduro que reviste las articulaciones cigapofisarias.",
+            "Una enorme masa de células mesenquimales que van a organizar un paquete a ambos lados de la línea media.",
+            "La estructura embrionaria que da origen exclusivamente al núcleo pulposo.",
+            "La porción de la médula espinal que se osifica en patologías seniles."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'El esclerotomo... es una enorme masa de células mesenquimales que van a organizar un paquete, un núcleo a ambos lados de la línea media... que va a conformar buena parte del cuerpo vertebral'."
+        },
+        {
+          question: "En la técnica de punción lumbar, ¿qué movimiento se le debe pedir al paciente y con qué finalidad anatómica?",
+          options: [
+            "Pedir que se recueste recto para no desviar la aguja.",
+            "Pedir al paciente que acentúe la flexión anterior para de esa forma separarle el espacio que existe entre ambas apófisis espinosas.",
+            "Hiperextensión dorsal para abrir los agujeros de conjunción.",
+            "Rotación lateral para separar los pedículos."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Pedir al paciente que acentúe la flexión anterior para de esa forma separarle el caso espacio que existe entre ambas apófisis espinosas. Bien, sobre todo para la técnica de punción lumbar'."
+        },
+        {
+          question: "¿Por qué agujero transversal vertebral suele ingresar la arteria vertebral para iniciar su ascenso hacia el cráneo?",
+          options: [
+            "Normalmente entra directamente por el foramen transverso de C7.",
+            "Se apoya y cruza para ingresar a nivel de C6.",
+            "Atraviesa directamente a nivel de C4.",
+            "Asciende paralela a los cuerpos y entra por el foramen magno directamente."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La arteria vertebral normalmente no entra en el foramen de C7, sino que se apoya y cruza para ingresar a nivel de C6'."
+        },
+        {
+          question: "En la región cervical alta, ¿de dónde proceden las arterias que vascularizan la primera y segunda intercostal posterior, responsables de nutrir también el canal medular?",
+          options: [
+            "Nacen directamente de la aorta torácica.",
+            "Tienen su origen en la arteria intercostal suprema, rama de la arteria subclavia.",
+            "Proceden de la arteria torácica interna (mamaria interna).",
+            "Provienen del cayado aórtico."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La primera y segunda intercostal posterior... proceden de una arteria denominada intercostal suprema o magna que procede directamente de la arteria subclavia'."
+        },
+        {
+          question: "¿Qué conforma el espacio extradural (epidural) en términos anatómicos y cuál es su principal contenido vascular?",
+          options: [
+            "Un compartimento fibroso cerrado que aloja la arteria vertebral.",
+            "Un compartimento graso en el cual se establece una importante red venosa perimedular, separado de la duramadre.",
+            "El espacio virtual entre la aracnoides y la piamadre relleno de líquido cefalorraquídeo.",
+            "El núcleo pulposo deshidratado."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Ese continente va a ser un compartimento graso en el cual se establece además una importante red venosa perimedular, separado de la dura madre'."
+        },
+        {
+          question: "¿De dónde proviene la principal fuente de vascularización arterial para la cara anterior del hueso sacro?",
+          options: [
+            "De la arteria iliolumbar.",
+            "De las arterias pudendas internas.",
+            "De la arteria sacra media, que desciende por la línea media anterior y emite ramas hacia los forámenes.",
+            "De las arterias glúteas superiores."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Eminentemente una gran arteria sacra media que va a descender por su cara anterior y va a ser responsable de vascularizar toda la cara anterior del sacro'."
+        },
+        {
+          question: "¿Qué músculos conforman el paquete más superficial de los erectores del dorso en la región cervical?",
+          options: [
+            "El músculo erector espinal largo.",
+            "Los músculos multífidos y rotadores.",
+            "Los esplenios (de la cabeza y del cuello).",
+            "Los serratos posteriores superiores."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Ese plano ya más superficial, pero que se considera dentro de la musculatura erectora del dorso y que solamente interesa a la región cervical más alta... son los esplenios'."
+        },
+        {
+          question: "¿Dónde termina insertándose específicamente el músculo esplenio de la cabeza?",
+          options: [
+            "En las apófisis transversas de C1 y C2.",
+            "A nivel de la apófisis mastoides del hueso temporal y el hueso occipital.",
+            "En el tubérculo anterior del Atlas.",
+            "En el borde medial de la escápula."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'El esplenio de la cabeza va a terminar a nivel de la mastoides. La mastoides es esa protuberancia muy evidente que tenéis retroauricular'."
+        },
+        {
+          question: "Topográficamente (episcópicamente), ¿dónde se sitúa el vértice inferior del hueso sacro respecto a los pliegues cutáneos externos?",
+          options: [
+            "En el centro exacto de la línea interglútea.",
+            "En el comienzo del pliegue glúteo medio (pliegue interglúteo superior).",
+            "Por debajo del pliegue glúteo inferior, cercano al periné.",
+            "En el reborde de las crestas ilíacas posteriores."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La porción distal del vértice del sacro se encontraría en el comienzo del pliegue glúteo medio... El sacro tiene una orientación más craneal de lo que idealmente nosotros le asignamos'."
+        },
+        {
+          question: "La región torácica presenta una concavidad característica. ¿Cómo se denomina anatómicamente esta curvatura primaria?",
+          options: [
+            "Lordosis torácica.",
+            "Concavidad ventral característica correspondiéndose a la cifosis torácica.",
+            "Escoliosis fisiológica.",
+            "Curvatura rotatoria dorsal."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La región torácica representa esa concavidad ventral característica correspondiéndose a la cifosis torácica'."
+        }
+      ],
+      "Genitourinario": [
+        {
+          question: "¿De dónde se forma embriológicamente el sistema urogenital entre la 4ª y 7ª semana de vida intrauterina?",
+          options: [
+            "Del ectodermo superficial.",
+            "Del endodermo del saco vitelino.",
+            "A partir del mesodermo intermedio, situado en la pared posterior de la cavidad abdominal.",
+            "De las crestas neurales craneales."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'El sistema urogenital se forma entre la 4ª y 7ª semana de vida intrauterina a partir del mesodermo intermedio, situado en la pared posterior de la cavidad abdominal'."
+        },
+        {
+          question: "¿A qué estructuras anatómicas definitivas da lugar el conducto de Müller (paramesonéfrico) en el fenotipo femenino?",
+          options: [
+            "Al conducto deferente y la vesícula seminal.",
+            "A los labios mayores y menores.",
+            "A los ovarios propiamente dichos.",
+            "A las trompas de Falopio y el útero."
+          ],
+          correct: 3,
+          feedback: "Literal del documento: 'Mientras que el de Müller o paramesonéfrico forma las trompas de Falopio y el útero'."
+        },
+        {
+          question: "¿Qué anomalía de cierre uretral produce que la uretra esponjosa se abra por la parte ventral del pene en lugar del meato uretral del glande?",
+          options: [
+            "Epispadias.",
+            "Fimosis.",
+            "Hipospadias.",
+            "Estenosis uretral ventral."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'Esto se denomina hipospadia. Si lo hace por la cara dorsal se denomina epispadia'."
+        },
+        {
+          question: "¿Qué estructura anatómica se forma a partir del tubérculo genital en el desarrollo del fenotipo femenino?",
+          options: [
+            "Los ovarios.",
+            "El clítoris.",
+            "El cérvix uterino.",
+            "Los labios mayores."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'El clítoris, que deriva del tubérculo genital...'."
+        },
+        {
+          question: "Durante el desarrollo de los genitales externos masculinos, ¿qué provoca la fusión de los pliegues uretrales?",
+          options: [
+            "La formación de la uretra peneana.",
+            "La formación exclusiva del glande.",
+            "El cierre del conducto deferente.",
+            "La formación del escroto."
+          ],
+          correct: 0,
+          feedback: "Literal del documento: 'En el fenotipo varón se produce la fusión de los pliegues uretrales, formándose la uretra peneana'."
+        },
+        {
+          question: "Respecto al descenso testicular, ¿dónde y cuándo se origina inicialmente el testículo antes de descender al escroto?",
+          options: [
+            "En la pelvis menor, durante el 9º mes.",
+            "En el anillo inguinal superficial, en el 5º mes.",
+            "Durante el 2º y el 7º mes, se origina en la porción de la pared abdominal posterior, retroperitonealmente.",
+            "Se origina directamente dentro de las bolsas escrotales."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'Durante el 2º y el 7º mes, el testículo se origina en la porción de la pared abdominal posterior, retroperitonealmente'."
+        },
+        {
+          question: "En el conducto inguinal, ¿qué nervio proporciona la inervación motora a las fibras del músculo cremáster (reflejo cremastérico)?",
+          options: [
+            "El nervio pudendo.",
+            "El nervio iliohipogástrico.",
+            "Ramos del nervio genitofemoral.",
+            "El nervio obturador."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'El cremáster, por ramos del nervio genitofemoral'."
+        },
+        {
+          question: "¿Por qué estructura nerviosa está inervada específicamente la uretra posterior según los apuntes de esplacnología?",
+          options: [
+            "Nervio esplácnico mayor.",
+            "Ramos del plexo hipogástrico.",
+            "Nervio pudendo exclusivamente.",
+            "Plexo lumbar."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'La uretra posterior está inervada por ramos del plexo hipogástrico'."
+        },
+        {
+          question: "¿Qué anomalía congénita produce el llamado 'Uréter retrocavo' y qué consecuencia mecánica tiene?",
+          options: [
+            "El uréter pasa anterior a la aorta, provocando incontinencia urinaria.",
+            "El uréter pasa por detrás de la vena cava inferior, creando un stop mecánico a la salida de la orina y tendiendo a causar hidronefrosis.",
+            "Es una bifurcación temprana del uréter que no produce alteraciones mecánicas.",
+            "El uréter entra directamente en el recto."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'Uréter retrocavo: stop mecánico a la salida de la orina... Esta presión se traslada a la pelvis y al parénquima renal, una hidronefrosis'."
+        },
+        {
+          question: "Topográficamente, ¿hacia dónde se expande la vejiga urinaria cuando está llena?",
+          options: [
+            "Desciende ocupando el canal anal.",
+            "Se aplana lateralmente contra los músculos obturadores.",
+            "Se expande en sentido superior hacia el abdomen, saliendo de la pelvis menor.",
+            "Retrocede presionando directamente la columna sacra."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'Aunque se sitúa en su totalidad en la cavidad pélvica cuando está vacía, se expande en sentido superior hacia el abdomen cuando está llena'."
+        },
+        {
+          question: "¿A qué nivel vertebral u origen vascular nacen las arterias gonadales (testicular u ovárica) en la aorta abdominal?",
+          options: [
+            "Nacen de las arterias ilíacas internas.",
+            "Nacen a nivel de L4, en la bifurcación aórtica.",
+            "Salen a nivel de L2 de la aorta abdominal y se apoyan sobre la cara anterior del psoas para ir descendiendo.",
+            "Proceden de la arteria mesentérica inferior."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'La arteria gonadal, que va a ser rama de la aorta abdominal... sale a nivel de L2 de la aorta abdominal y se apoya sobre la cara anterior del psoas para ir descendiendo'."
+        },
+        {
+          question: "¿Qué nombre recibe el ensanchamiento que se produce en el espesor del cuerpo esponjoso del glande al final del trayecto de la uretra masculina?",
+          options: [
+            "Colículo seminal.",
+            "Utrículo prostático.",
+            "Seno navicular o fosa navicular.",
+            "Ampolla deferencial."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'El seno navicular es otro ensanchamiento en el espesor del cuerpo esponjoso del glande'."
+        },
+        {
+          question: "En la mujer, ¿cómo discurre la uretra en relación a la cavidad pélvica?",
+          options: [
+            "Cruza por detrás del útero.",
+            "Pasa en sentido inferior a través del suelo pélvico hacia el periné, donde atraviesa el espacio perineal profundo.",
+            "Es completamente intraabdominal.",
+            "Atraviesa los músculos glúteos."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'Pasa en sentido inferior a través del suelo pélvico hacia el periné, donde atraviesa el espacio perineal profundo y la membrana perineal'."
+        },
+        {
+          question: "¿Cuáles son las porciones en las que se divide anatómicamente la uretra masculina según los apuntes?",
+          options: [
+            "Superior, media e inferior.",
+            "Vesical, prostática, membranosa y esponjosa o peneana.",
+            "Pélvica, abdominal y perineal.",
+            "Cortical, medular y externa."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'Porción vesical (esfínter interno), Porción prostática (atraviesa la glándula), Porción membranosa, Porción esponjosa o peneana'."
+        },
+        {
+          question: "¿Qué dos cuerpos eréctiles principales conforman la estructura del pene además de la uretra esponjosa?",
+          options: [
+            "Dos cuerpos cavernosos a ambos lados.",
+            "Dos cuerpos vesicales.",
+            "Dos bulbos raquídeos.",
+            "Dos músculos isquiocavernosos internos."
+          ],
+          correct: 0,
+          feedback: "Literal del documento (inferido de la patología uretral y la estructura): Los cuerpos cavernosos acompañan al cuerpo esponjoso ventral por donde discurre la uretra."
+        }
+      ],
+      "Cuello": [
+        {
+          question: "¿Qué disposición espacial presentan las estructuras dentro de la vaina carotídea?",
+          options: [
+            "Arteria lateral, vena medial y nervio vago anterior.",
+            "Arteria carótida común (medial), vena yugular interna (lateral), nervio vago (posterior en el ángulo diedro).",
+            "Nervio vago medial, carótida lateral y yugular posterior.",
+            "Están entremezcladas sin un orden específico protegido por la fascia."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Disposición: Arteria carótida común (medial), Vena yugular interna (lateral), Nervio vago (posterior, en el ángulo diedro)'."
+        },
+        {
+          question: "¿Cómo se relacionan topográficamente las arterias carótidas comunes izquierda y derecha con la tráquea torácica/cervical inferior?",
+          options: [
+            "Se posicionan en la cara posterior de la tráquea.",
+            "Son relaciones de la cara anterior y borde lateral de la tráquea.",
+            "Cruzan transversalmente por encima de la laringe.",
+            "Pasan profundamente por detrás del esófago."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: '...tanto las clavia izquierda como la carótida común izquierda son relaciones de la cara anterior y borde lateral de la tráquea torácica'."
+        },
+        {
+          question: "¿Quién inerva sensitivamente al glomus carotídeo y quién al seno carotídeo?",
+          options: [
+            "Ambos son inervados por el nervio Vago (X).",
+            "Ambos son inervados por el nervio Glosofaríngeo (IX).",
+            "El glomus carotídeo (quimiorreceptor) por el Glosofaríngeo (IX) y el seno (barorreceptor) por el Vago (X).",
+            "El plexo simpático cervical inerva ambos de manera autónoma."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El glomus carotídeo lo inerva el noveno par (glosofaríngeo), la inervación del seno la hace el vago'."
+        },
+        {
+          question: "¿Qué relación crítica a nivel quirúrgico presenta el nervio laríngeo recurrente en su ascenso al cuello?",
+          options: [
+            "Cruza la cara anterior de la vena yugular interna.",
+            "Se cruza con la arteria tiroidea inferior por la cara posterior de la glándula tiroides.",
+            "Desciende por la pared anterior de la laringe junto a la tiroidea superior.",
+            "Atraviesa el espesor del músculo esternocleidomastoideo."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'El nervio recurrente cruza la arteria tiroidea inferior por su cara posterior, riesgo quirúrgico muy frecuente de parálisis vocal en tiroidectomías'."
+        },
+        {
+          question: "Al explorar la región cervical, ¿hasta qué volumen (en porcentaje) del flujo de sangre total que recibe el encéfalo intracraneal aportan las dos arterias vertebrales?",
+          options: [
+            "Apenas un 10%.",
+            "Suponen el 50% de flujo de sangre que recibe el encéfalo.",
+            "Aportan el 100% de la sangre cerebral posterior.",
+            "Aportan el 90%, dejando el 10% a las carótidas."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Esas dos arterias vertebrales derecha e izquierda suponen el 50% de flujo de sangre que recibe el encéfalo, el sistema nervioso central intracraneano'."
+        },
+        {
+          question: "¿Cuál es la única rama arterial que emite la arteria carótida externa en su inicio dentro de la región cervical?",
+          options: [
+            "Arteria lingual.",
+            "Arteria tiroidea inferior.",
+            "Arteria faríngea ascendente.",
+            "Arteria tiroidea superior."
+          ],
+          correct: 3,
+          feedback: "Literal de clase: 'La única rama que emite la carótida externa en la región cervical es la laringea/tiroidea superior'."
+        },
+        {
+          question: "¿Durante el movimiento de deglución, qué mecanismo mecánico cierra la vía aérea superior en la laringe?",
+          options: [
+            "Contracción activa y cierre del cartílago cricoides.",
+            "Mecanismo opercular de cierre por caída de la epiglotis al tirar la musculatura suprahioidea de la laringe hacia arriba.",
+            "Dilatación de los senos piriformes que empujan los pliegues vocales.",
+            "Descenso de la tráquea por la musculatura infrahioidea."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Si yo tiro de la laringe hacia arriba... pierde la tensión ese ligamento y cae la epiglotis. Es un mecanismo opercular de cierre por caída como una tapadera'."
+        },
+        {
+          question: "¿Qué nervio inerva la motilidad de casi la totalidad de las cuerdas vocales (musculatura intrínseca de la laringe)?",
+          options: [
+            "Nervio laríngeo superior.",
+            "Nervio hipogloso.",
+            "Nervio laríngeo recurrente.",
+            "Plexo cervical profundo."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El nervio laríngeo recurrente inerva la motilidad de las cuerdas vocales verdaderas. El superior inerva solo el cricotiroideo'."
+        },
+        {
+          question: "¿Qué músculo de la laringe, inervado por el nervio laríngeo superior, es la excepción motora frente al nervio recurrente?",
+          options: [
+            "El músculo tiroaritenoideo.",
+            "El músculo cricoaritenoideo posterior.",
+            "El músculo cricotiroideo.",
+            "El músculo vocal."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El nervio laríngeo superior inerva solo el cricotiroideo'."
+        },
+        {
+          question: "¿De qué segmento arterial nace exactamente el tronco tirocervical (que da origen a la arteria tiroidea inferior)?",
+          options: [
+            "Arteria carótida externa.",
+            "Arteria carótida interna.",
+            "Arteria subclavia en su porción pretubercular.",
+            "Tronco braquiocefálico derecho."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Tronco tirocervical es ramo directo de la arteria subclavia pretubercular, antes del tubérculo de Lisfranc'."
+        },
+        {
+          question: "¿Sobre la cara anterior de qué músculo desciende apoyado el nervio frénico en su recorrido por el cuello?",
+          options: [
+            "Músculo esternocleidomastoideo.",
+            "Músculo trapecio.",
+            "Músculo escaleno anterior.",
+            "Músculo elevador de la escápula."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El nervio frénico desciende oblicuo sobre la cara anterior del músculo escaleno anterior'."
+        },
+        {
+          question: "En el drenaje venoso de la base del cuello, ¿dónde vierten finalmente su sangre las venas yugulares interna y subclavia al unirse?",
+          options: [
+            "Directamente en la aurícula derecha.",
+            "Forman el confluente yugulosubclavio y dan origen a la vena braquiocefálica.",
+            "En la vena ácigos mayor.",
+            "En la vena yugular externa."
+          ],
+          correct: 1,
+          feedback: "Literal de teoría: 'La vena yugular interna forma el tronco braquiocefálico al unirse con la vena subclavia en el confluente yugulosubclavio'."
+        },
+        {
+          question: "Respecto a la tráquea cervical, ¿qué estructura le genera una importante impresión lateral estrechándola anatómicamente?",
+          options: [
+            "La arteria carótida común.",
+            "Los lóbulos de la glándula tiroides.",
+            "El músculo esternocleidomastoideo.",
+            "El esófago cervical."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La tráquea sufre impresión lateral y estrechez por compresión de los lóbulos tiroideos laterales'."
+        },
+        {
+          question: "¿De dónde deriva la inervación motora parasimpática activadora que desciende hacia las vísceras del tórax y abdomen?",
+          options: [
+            "Plexo cervical (C1-C4).",
+            "Tronco simpático torácico.",
+            "Nervio Vago (X par).",
+            "Nervio frénico."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Aporta inervación somática a cuerdas vocales y parasimpática activadora a corazón/pulmones descendiendo por la vaina carotídea'."
+        },
+        {
+          question: "Topográficamente, ¿con qué nivel vertebral se corresponde el límite inferior del cartílago cricoides, marcando la transición faringe-esófago?",
+          options: [
+            "C3.",
+            "C4.",
+            "C6.",
+            "T1."
+          ],
+          correct: 2,
+          feedback: "Literal de los apuntes (Marta Padillo Oliva): 'C6: Borde inferior del cricoides. Transición entre faringe y esófago'."
+        }
+      ],
+      "Torax": [
+        {
+          question: "¿Qué hitos topográficos mayores ocurren a nivel del Ángulo de Louis (disco T4-T5)?",
+          options: [
+            "Hiato aórtico y final de la vena cava.",
+            "Bifurcación de la tráquea (Carina), marca división entre mediastino superior e inferior, inicio y fin del arco aórtico.",
+            "Paso del esófago a través del diafragma.",
+            "Origen del plexo braquial y tronco tirocervical."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Marca división entre mediastino superior e inferior. A este nivel se bifurca la tráquea, inicia y termina el cayado aórtico'."
+        },
+        {
+          question: "¿Qué estructuras anatómicas separa el Seno Transverso de Theile en la cavidad pericárdica?",
+          options: [
+            "El ventrículo derecho del ventrículo izquierdo.",
+            "El pedículo arterial (aorta y pulmonar) del pedículo venoso (cavas y aurículas).",
+            "La vena cava superior de la vena cava inferior.",
+            "El epicardio del pericardio fibroso parietal."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'El Seno Transverso de Theile separa el pedículo arterial (aorta/pulmonar) del venoso (cavas/aurículas)'."
+        },
+        {
+          question: "Según las explicaciones sobre vías nerviosas simpáticas, ¿hacia dónde se irradia clásicamente el dolor de la isquemia miocárdica (infarto)?",
+          options: [
+            "Exclusivamente en el epigastrio.",
+            "En el hipocondrio derecho y el hombro derecho.",
+            "Hacia el cuello, la mandíbula y la cara medial del brazo izquierdo.",
+            "Hacia la región lumbar inferior."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Su inervación simpática desciende desde ganglios cervicales (C3-T4), explicando el dolor referido clásico de isquemia hacia el cuello, mandíbula y cara medial del brazo izquierdo'."
+        },
+        {
+          question: "En la topografía clínica del tórax, ¿a qué nivel vertebral se localiza habitualmente el apéndice xifoides (escotadura xifoidea) del esternón?",
+          options: [
+            "T4.",
+            "T7.",
+            "T10.",
+            "T12."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Normalmente el apéndice xifoides se encuentra en T10. Por tanto, podemos mapear...'"
+        },
+        {
+          question: "¿En qué hiato del diafragma (a nivel de T8) atraviesa la vena cava inferior y qué característica tiene?",
+          options: [
+            "Hiato muscular, muy elástico.",
+            "Hiato osteoaponeurótico junto a la aorta.",
+            "En el centro tendinoso, que es un orificio inelástico.",
+            "Por los pilares lumbares posteriores."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Niveles: T8, Centro tendinoso, orificio inelástico para la Vena Cava Inferior y frénico derecho'."
+        },
+        {
+          question: "¿Dónde situamos clínicamente el ápex (punta) cardíaco en el tórax para su auscultación o localización topográfica?",
+          options: [
+            "En el segundo espacio intercostal derecho.",
+            "En el apéndice xifoides.",
+            "En la línea medioclavicular izquierda, atravesando la areola mamaria, en el quinto o sexto espacio intercostal.",
+            "En el cuarto espacio intercostal línea axilar media."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El vértice del corazón, donde lo situaremos en la línea medioclavicular izquierda, atravesando... la areola mamaria. Pues en el quinto, sexto espacio intercostal se encontrará la punta cardíaca'."
+        },
+        {
+          question: "Según las explicaciones de clase, ¿por qué se dice que el corazón 'no tiene una posición fija' en un individuo vivo?",
+          options: [
+            "Porque la sístole lo desplaza lateralmente.",
+            "Porque está flotando libre en el líquido pericárdico sin anclajes.",
+            "Porque se mueve gracias a los movimientos de desplazamiento diafragmático (descenso y ascenso) sobre el que se apoya su cara diafragmática.",
+            "Porque la aorta es elástica y cede."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El corazón no tiene una posición fija... en el vivo porque se mueve gracias a los movimientos de desplazamiento diafragmático'."
+        },
+        {
+          question: "Respecto al paquete vasculonervioso intercostal (VAN), ¿entre qué dos planos musculares discurre exactamente en el surco costal?",
+          options: [
+            "Superficial al intercostal externo.",
+            "Entre el músculo intercostal íntimo y el músculo intercostal interno.",
+            "Entre la pleura parietal y el tejido subcutáneo.",
+            "Entre el músculo intercostal externo y el interno."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'En el surco costal (debajo de vena y arteria), entre los músculos intercostales íntimo e interno'."
+        },
+        {
+          question: "¿Dónde se sitúa la relación directa (anterior) anatómica entre el esófago torácico inferior y el corazón?",
+          options: [
+            "Con la aurícula derecha.",
+            "Con el ventrículo izquierdo.",
+            "Con la aurícula izquierda, permitiendo la ecocardiografía transesofágica.",
+            "Con el seno aórtico."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El esófago guarda relación estrecha anterior con la aurícula izquierda (clave para ecocardiografías transesofágicas)'."
+        },
+        {
+          question: "A nivel de los espacios intercostales, ¿qué arterias concretas van a vascularizar el séptimo, octavo y noveno espacio intercostal anterior?",
+          options: [
+            "La arteria torácica interna directamente.",
+            "Las arterias musculofrénicas (ramas terminales de la torácica interna).",
+            "La arteria epigástrica superior.",
+            "La arteria aorta torácica directamente."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: '7º a 9º A.I.A.: musculofrénicas. A nivel del 6º espacio, la torácica se divide en epigástrica y musculofrénica que participa para los últimos (7º-9º)'."
+        },
+        {
+          question: "¿Por qué la vena braquiocefálica izquierda es anatómicamente mucho más larga que la derecha?",
+          options: [
+            "Porque el corazón está desplazado a la derecha.",
+            "Porque debe cruzar oblicuamente detrás del esternón (retrotímica) por delante de las ramas del arco aórtico para alcanzar la cava superior (derecha).",
+            "Porque recibe a la vena ácigos en su recorrido.",
+            "Es un mito anatómico, ambas miden exactamente lo mismo."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La izquierda cruza retroesternal (retrotímica), siendo mucho más larga, por delante de las ramas del arco aórtico'."
+        },
+        {
+          question: "¿Qué impronta (marca profunda) deja el cayado aórtico sobre el aparato respiratorio en el tórax?",
+          options: [
+            "Una depresión en el lóbulo medio del pulmón derecho.",
+            "Una impresión evidente en el borde lateral izquierdo de la tráquea torácica inferior.",
+            "Un surco en la cara diafragmática de los pulmones.",
+            "Una hendidura en la cara anterior del cartílago cricoides."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'La tráquea torácica es cruzada anterior y lateralmente por el arco aórtico, dejándole una clara impresión en su borde izquierdo'."
+        },
+        {
+          question: "¿Cómo se organizan caudalmente las venas lumbares ascendentes antes de atravesar el diafragma hacia el tórax?",
+          options: [
+            "Drenan en la vena cava inferior exclusivamente.",
+            "Se transforman en el sistema ácigos a la derecha y hemiácigos a la izquierda.",
+            "Se convierten en las venas intercostales supremas.",
+            "Forman el tronco venoso braquiocefálico."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Esas venas lumbares ascendentes atravesarán... el diafragma y seguirá su trayecto ascendente de forma que se transformarán en el sistema ácigos a la derecha y hemiácigos a la izquierda'."
+        },
+        {
+          question: "¿Cuál de los dos pulmones tiene anatómicamente sólo 2 lóbulos y a qué se debe su menor volumen relativo?",
+          options: [
+            "El derecho, por la presión del hígado.",
+            "El izquierdo, debido a la profunda excavación generada por la impronta cardíaca y aórtica.",
+            "El derecho, por el cayado de la vena ácigos.",
+            "Ambos tienen siempre 3 lóbulos funcionales."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Pulmón izquierdo: 2 lóbulos (por la profunda impronta cardíaca y aórtica que reduce su volumen respecto al derecho)'."
+        },
+        {
+          question: "¿Qué origina el tronco simpático torácico al atravesar los pilares del diafragma?",
+          options: [
+            "El nervio frénico abdominal.",
+            "Los nervios ilioinguinales.",
+            "Los nervios esplácnicos (mayor, menor e imo) dirigidos hacia los ganglios viscerales del abdomen.",
+            "Los ramos dorsales sensitivos del sacro."
+          ],
+          correct: 2,
+          feedback: "Literal de teoría: 'Da origen a los nervios esplácnicos (mayor, menor, imo) que atraviesan los pilares hacia vísceras abdominales'."
+        }
+      ],
+      "Abdomen": [
+        {
+          question: "¿Cuáles son los límites anatómicos del triángulo de Hesselbach en la pared abdominal?",
+          options: [
+            "Arteria ilíaca (lateral), ombligo (superior) y línea alba (medial).",
+            "Vasos epigástricos inferiores (lateral), borde lateral del recto abdominal (medial), ligamento inguinal (inferior).",
+            "Arco costal (superior), vasos femorales (inferior) y transverso del abdomen (posterior).",
+            "Borde del hígado, estómago y bazo."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Límites: Vasos epigástricos inferiores (lateral), recto abdominal (medial), ligamento inguinal (inferior). Zona de debilidad de hernias directas'."
+        },
+        {
+          question: "¿Qué componentes musculares conforman el 'Techo' del conducto inguinal?",
+          options: [
+            "Exclusivamente la aponeurosis del oblicuo externo.",
+            "El ligamento inguinal y ligamento lacunar.",
+            "El borde inferior de las fibras musculares del oblicuo interno y del músculo transverso del abdomen.",
+            "La fascia transversalis reforzada."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'El techo de ese trayecto también está delimitado por... el borde inferior del oblicuo interno y transverso'."
+        },
+        {
+          question: "Según la topografía retroperitoneal, ¿qué plano anatómico constituye el límite superior del retroperitoneo?",
+          options: [
+            "El hiato aórtico T12.",
+            "La línea de la duodécima costilla y la base de los pulmones.",
+            "Un plano horizontal que pasa a nivel de la 12ª vértebra torácica y la 12ª costilla.",
+            "El borde superior del mesocolon transverso."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'El límite superior del retroperitoneo lo constituye un plano horizontal que pasa a nivel de la 12ª vértebra torácica y la 12ª costilla'."
+        },
+        {
+          question: "En hipertensión portal, ¿qué anastomosis genera la clásica 'Cabeza de Medusa' alrededor del ombligo?",
+          options: [
+            "Venas esofágicas con vena ácigos.",
+            "Venas rectales superiores con las inferiores.",
+            "La vena porta (vía venas paraumbilicales / lig. redondo) anastomosada con las venas superficiales epigástricas sistémicas.",
+            "Venas renales con venas lumbares."
+          ],
+          correct: 2,
+          feedback: "Literal del documento: 'Aumento de presión en ligamento redondo/falciforme, formándose varices en el ombligo (vénulas superficiales) con la porta: Cabeza de Medusa'."
+        },
+        {
+          question: "¿Qué importancia clínica o topográfica tiene el denominado 'Espacio de Labbé'?",
+          options: [
+            "Es un punto de debilidad posterior para hernias lumbares.",
+            "Es el área de contacto directo de la cara anterior del estómago con la pared abdominal (sin cruzar pleura o hígado).",
+            "Es el espacio entre el riñón derecho y el hígado (bolsa de Morison).",
+            "Es el fondo de saco posterior del pericardio fibroso."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Área de contacto directo del estómago con la pared abdominal. Permite la palpación gástrica directa o abordaje'."
+        },
+        {
+          question: "¿De qué arteria mayor surgen las arterias epigástricas inferiores que discurren por detrás de los músculos rectos del abdomen?",
+          options: [
+            "De la arteria torácica interna (mamaria interna).",
+            "De la aorta abdominal directamente en su tercio medio.",
+            "De las arterias ilíacas externas, antes de perderse bajo el ligamento inguinal.",
+            "De la arteria mesentérica inferior."
+          ],
+          correct: 2,
+          feedback: "Literal de clase: 'Vasos epigástricos inferiores... procedían de las arterias ilíacas externas antes de perderse por debajo del ligamento inguinal'."
+        },
+        {
+          question: "Topográficamente, ¿cuál es el límite fascial posterior que delimita el plano muscular anterolateral del abdomen antes de la grasa preperitoneal?",
+          options: [
+            "La hoja anterior de la vaina de los rectos.",
+            "La fascia superficialis de Camper.",
+            "La Fascia Transversalis.",
+            "El peritoneo parietal exclusivamente, sin fascia intermedia."
+          ],
+          correct: 2,
+          feedback: "Literal del documento y clases: 'Su debilidad en las fascias genera hernias. El límite posterior forma la fascia transversalis, antes del tejido preperitoneal'."
+        },
+        {
+          question: "¿Dónde y mediante qué vasos se forma clásicamente la vena Porta hepática mayor?",
+          options: [
+            "En el hilio hepático por la unión de las venas suprahepáticas.",
+            "En la cara posterior del páncreas, por la confluencia de la vena mesentérica superior y la vena esplénica (tronco esplenomesentérico).",
+            "Directamente de la Vena Cava Inferior a nivel de T8.",
+            "Por la unión de la vena gástrica izquierda y derecha superiormente."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'La mayor parte de la vena porta se forma en la cara posterior del páncreas... ascendiendo y entrando por el hilio hepático'."
+        },
+        {
+          question: "En la inervación de la pared abdominal, ¿qué origen medular (raíz) tienen los nervios iliohipogástrico e ilioinguinal (abdominogenitales)?",
+          options: [
+            "T12.",
+            "L1.",
+            "L3.",
+            "S1."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Nervios abdominogenital mayor o iliohipogástrico y el abdominogenital menor o ilioinguinal... proceden de L1'."
+        },
+        {
+          question: "Según la topografía al descender por el esófago: ¿Cómo rotan y se posicionan los nervios vagos al alcanzar el estómago?",
+          options: [
+            "Vago derecho se hace anterior y vago izquierdo posterior.",
+            "El vago izquierdo desciende y se sitúa en la cara anterior del estómago (curvatura menor) y el vago derecho en la cara posterior.",
+            "Ambos vagos se unen formando un solo tronco prevertebral anterior.",
+            "Giran lateralmente sin llegar a tocar las caras gástricas."
+          ],
+          correct: 1,
+          feedback: "Literal del documento: 'El vago izquierdo desciende y se sitúa en la cara anterior del estómago... el vago derecho se sitúa por la cara posterior'."
+        },
+        {
+          question: "¿Qué venas asumen el drenaje ascendente del abdomen cruzando el diafragma y transformándose en el sistema Ácigos y Hemiácigos?",
+          options: [
+            "Las venas renales accesorias.",
+            "Las venas lumbares ascendentes derecha e izquierda.",
+            "Las venas ilíacas comunes.",
+            "La vena mesentérica inferior."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Esas venas lumbares ascendentes atravesarán de alguna forma el diafragma y seguirán su trayecto transformándose en el sistema ácigos a la derecha y hemiácigos a la izquierda'."
+        },
+        {
+          question: "¿Qué características tiene el hiato esofágico (nivel T10) en la anatomía del diafragma?",
+          options: [
+            "Es inelástico, de borde totalmente fibroso (centro tendinoso).",
+            "Es de origen puramente óseo en el cuerpo de T10.",
+            "Es un hiato de naturaleza muscular, formado por los pilares del diafragma (actúa como esfínter externo fisiológico).",
+            "Está conformado en la inserción costal externa."
+          ],
+          correct: 2,
+          feedback: "Literal de la descripción topográfica: 'Nivel T10, hiato de naturaleza muscular que permite el paso del esófago y nervios vagos, funcionando como un refuerzo esfinteriano'."
+        },
+        {
+          question: "¿Qué arteria se encarga de irrigar doblemente tanto el músculo diafragma como el saco pericárdico?",
+          options: [
+            "Arteria torácica interna directamente.",
+            "Arteria pericardiofrénica (rama de la torácica interna).",
+            "Arterias intercostales posteriores bajas.",
+            "Tronco celíaco superior."
+          ],
+          correct: 1,
+          feedback: "Literal de clase: 'Arteria pericardiofrénica en el diafragma es la denominación... arterias gemelas procedentes de la torácica interna para ambas estructuras'."
+        },
+        {
+          question: "¿Qué estructura anatómica atraviesa el anillo inguinal profundo (lateral a los vasos epigástricos) provocando las hernias indirectas?",
+          options: [
+            "El ligamento inguinal íntegro.",
+            "El músculo recto del abdomen descendente.",
+            "El cordón espermático (en hombres) o el ligamento redondo del útero (en mujeres).",
+            "La vena safena magna."
+          ],
+          correct: 2,
+          feedback: "Literal de la clase: 'Paso de estructuras gonadales (cordón espermático en hombre, ligamento redondo en mujer) a través del anillo profundo, vía de hernias indirectas'."
+        },
+        {
+          question: "¿Dónde drena la sangre el territorio de la pared abdominal supraumbilical y el infraumbilical venosamente?",
+          options: [
+            "Ambos al sistema porta.",
+            "El supraumbilical asciende buscando la subclavia (mamarias internas). La porción inferior drena hacia genitales/ilíacas buscando la cava inferior.",
+            "Directamente a las venas lumbares.",
+            "Todo va hacia las venas femorales."
+          ],
+          correct: 1,
+          feedback: "Literal de la teoría: 'Componente venoso: supraumbilical asciende buscando la subclavia (mamarias internas). La porción inferior drena hacia genitales/ilíacas buscando la cava inferior'."
+        }
+      ]
+    };
+
+    // Variables estado Quiz
+    let currentQuizCategory = '';
+    let currentQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let quizAnswered = false;
+
+    // ==========================================
+    // FUNCIONES DE NAVEGACIÓN Y VISTAS
+    // ==========================================
+    function switchTab(tab) {
+      document.getElementById('btnAtlas').classList.remove('active');
+      document.getElementById('btnQuiz').classList.remove('active');
+      document.getElementById('atlasView').classList.remove('active');
+      document.getElementById('quizView').classList.remove('active');
+
+      if(tab === 'atlas') {
+        document.getElementById('btnAtlas').classList.add('active');
+        document.getElementById('atlasView').classList.add('active');
+      } else {
+        document.getElementById('btnQuiz').classList.add('active');
+        document.getElementById('quizView').classList.add('active');
+        // Si no se ha empezado, forzar a iniciar el primero
+        if(!currentQuizCategory) {
+          startQuizCategory('Columna');
+        }
+      }
+    }
+
+    // ==========================================
+    // FUNCIONES DEL ATLAS
+    // ==========================================
+    function renderTree() {
+      const container = document.getElementById("tree");
+      treeData.forEach(item => {
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.innerHTML = `<span class="arrow"></span><span>${item.label}</span>`;
+        details.appendChild(summary);
+
+        const branch = document.createElement("div");
+        branch.className = "branch";
+        item.children.forEach(child => {
+          const btn = document.createElement("button");
+          btn.className = "node";
+          // Muestra la pág del manual si existe y no es la Bienvenida
+          const pageStr = (infoData[child] && infoData[child].manualPage !== "—") ? ` · Pág. ${infoData[child].manualPage}` : "";
+          btn.textContent = `${child}${pageStr}`;
+          btn.dataset.label = child;
+          btn.onclick = () => selectNode(child, btn);
+          branch.appendChild(btn);
+        });
+        details.appendChild(branch);
+        container.appendChild(details);
+      });
+    }
+
+    function selectNode(label, btn=null) {
+      currentLabel = label;
+      document.querySelectorAll(".node.active").forEach(el => el.classList.remove("active"));
+      if(btn) btn.classList.add("active");
+      
+      const data = infoData[label];
+      if(!data) return;
+
+      document.getElementById("title").textContent = label;
+      document.getElementById("sectionPill").textContent = `Sección: ${data.section}`;
+      document.getElementById("posicion").textContent = data.posicion;
+      document.getElementById("funciones").textContent = data.funciones;
+      document.getElementById("inervacion_riego").textContent = data.inervacion_riego;
+      document.getElementById("particularidades").textContent = data.particularidades;
+      document.getElementById("anastomosis").textContent = data.anastomosis;
+      document.getElementById("manualPageBadge").textContent = `Pág. Manual: ${data.manualPage}`;
+
+      const relContainer = document.getElementById("relaciones");
+      relContainer.innerHTML = "";
+      data.relaciones.forEach(r => {
+        const b = document.createElement("button");
+        b.className = "rel";
+        b.textContent = r;
+        b.onclick = () => selectNode(r);
+        relContainer.appendChild(b);
+      });
+
+      updateStatus();
+      goToManualPage(data.manualPage);
+    }
+
+    function updateStatus() {
+      const pill = document.getElementById("statusPill");
+      if(!currentLabel || currentLabel === "Bienvenida") { pill.textContent = "Estado: libre"; return; }
+      if(mastered.has(currentLabel)) { pill.textContent = "Estado: Dominado 🏆"; pill.style.color = "var(--success)"; }
+      else if(marked.has(currentLabel)) { pill.textContent = "Estado: Para repasar ⚠️"; pill.style.color = "var(--danger)"; }
+      else { pill.textContent = "Estado: En estudio 📚"; pill.style.color = "var(--muted)"; }
+    }
+
+    function goToManualPage(page) {
+      if (page === "—") {
+          document.getElementById("pdfFrame").src = "about:blank";
+          document.getElementById("actualPdfLabel").textContent = "—";
+          return;
+      }
+      currentManualPage = Math.max(1, parseInt(page || 1, 10));
+      const pdfPage = currentManualPage + PAGE_OFFSET;
+      document.getElementById("pageInput").value = currentManualPage;
+      const url = `Anatomia_Humana_Garcia_Porrero.pdf#page=${pdfPage}&view=FitH`;
+      document.getElementById("pdfFrame").src = url;
+      document.getElementById("actualPdfLabel").textContent = pdfPage;
+    }
+
+    // ==========================================
+    // FUNCIONES DEL QUIZ
+    // ==========================================
+    function startQuizCategory(categoryName) {
+      currentQuizCategory = categoryName;
+      currentQuestions = quizBanks[categoryName];
+      currentQuestionIndex = 0;
+      score = 0;
+      
+      // Estilos de botones
+      document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('scoreDisplay').style.display = 'none';
+      document.getElementById('btnRestartQuiz').style.display = 'none';
+      
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const container = document.getElementById('quizContent');
+      container.innerHTML = '';
+      
+      document.getElementById('quizProgress').textContent = `Pregunta ${currentQuestionIndex + 1} de ${currentQuestions.length}`;
+      
+      const qData = currentQuestions[currentQuestionIndex];
+      const block = document.createElement('div');
+      block.className = 'question-block active';
+      
+      const qText = document.createElement('div');
+      qText.className = 'question-text';
+      qText.textContent = qData.question;
+      block.appendChild(qText);
+
+      const optionsDiv = document.createElement('div');
+      optionsDiv.className = 'options';
+
+      qData.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt;
+        btn.onclick = () => checkAnswer(idx, btn, qData.correct, qData.feedback);
+        optionsDiv.appendChild(btn);
+      });
+      block.appendChild(optionsDiv);
+
+      const feedbackDiv = document.createElement('div');
+      feedbackDiv.className = 'feedback';
+      feedbackDiv.id = 'feedbackBlock';
+      block.appendChild(feedbackDiv);
+
+      container.appendChild(block);
+      quizAnswered = false;
+      document.getElementById('btnNextQuestion').style.display = 'none';
+    }
+
+    function checkAnswer(selectedIndex, btnElement, correctIndex, feedbackText) {
+      if (quizAnswered) return; // Evitar doble clic
+      quizAnswered = true;
+
+      const allBtns = document.querySelectorAll('.option-btn');
+      allBtns.forEach((b, i) => {
+        b.style.pointerEvents = 'none'; 
+        if (i === correctIndex) b.classList.add('correct');
+        if (i === selectedIndex && selectedIndex !== correctIndex) b.classList.add('incorrect');
+      });
+
+      if (selectedIndex === correctIndex) score++;
+
+      const feedbackBlock = document.getElementById('feedbackBlock');
+      feedbackBlock.textContent = feedbackText;
+      feedbackBlock.style.display = 'block';
+
+      if (currentQuestionIndex < currentQuestions.length - 1) {
+        document.getElementById('btnNextQuestion').style.display = 'block';
+      } else {
+        document.getElementById('btnNextQuestion').style.display = 'none';
+        showFinalScore();
+      }
+    }
+
+    function nextQuestion() {
+      currentQuestionIndex++;
+      renderQuestion();
+    }
+
+    function showFinalScore() {
+      const container = document.getElementById('quizContent');
+      container.innerHTML = '';
+      
+      const scoreDiv = document.getElementById('scoreDisplay');
+      scoreDiv.innerHTML = `¡Bloque Finalizado!<br><br>Puntuación: ${score} / ${currentQuestions.length}`;
+      scoreDiv.style.display = 'block';
+      
+      document.getElementById('quizProgress').textContent = 'Resultados del Bloque';
+      document.getElementById('btnRestartQuiz').style.display = 'block';
+    }
+
+    function restartQuiz() {
+      currentQuestionIndex = 0;
+      score = 0;
+      quizAnswered = false;
+      document.getElementById('scoreDisplay').style.display = 'none';
+      document.getElementById('btnRestartQuiz').style.display = 'none';
+      renderQuestion();
+    }
+
+    // ==========================================
+    // INICIALIZACIÓN
+    // ==========================================
+    renderTree();
+    document.getElementById("searchInput").addEventListener("input", e => {
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll(".node").forEach(btn => {
+        btn.style.display = !q || btn.dataset.label.toLowerCase().includes(q) ? "" : "none";
+      });
+      document.querySelectorAll("details").forEach(block => {
+        const visible = [...block.querySelectorAll(".node")].some(n => n.style.display !== "none");
+        block.style.display = visible ? "" : "none";
+        if(q && visible) block.open = true;
+        else if(!q) block.open = false;
+      });
+    });
+
+    document.getElementById("markBtn").onclick = () => { if(currentLabel && currentLabel !== "Bienvenida"){ marked.has(currentLabel) ? marked.delete(currentLabel) : marked.add(currentLabel); mastered.delete(currentLabel); updateStatus(); }};
+    document.getElementById("masterBtn").onclick = () => { if(currentLabel && currentLabel !== "Bienvenida"){ mastered.has(currentLabel) ? mastered.delete(currentLabel) : mastered.add(currentLabel); marked.delete(currentLabel); updateStatus(); }};
+    document.getElementById("goPage").onclick = () => goToManualPage(document.getElementById("pageInput").value);
+    
+    // Carga inicial explícita de la Bienvenida
+    selectNode("Bienvenida");
+  </script>
+</body>
+</html>

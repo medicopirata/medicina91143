@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIVS 4 - Quiz</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #f1c40f;
+            --success: #27ae60;
+            --error: #c0392b;
+            --text: #333;
+            --bg: #f4f6f7;
+            --sidebar-width: 160px; /* Barra ancha para agrupar */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (Índice) */
+        #sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px;
+            flex-shrink: 0;
+            z-index: 100;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            width: 100%;
+            padding-bottom: 10px;
+        }
+
+        /* Contenedor Grid para los números */
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columnas */
+            gap: 8px;
+            width: 100%;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 5px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .nav-item {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-item:hover { transform: scale(1.1); background-color: rgba(255,255,255,0.2); }
+        .nav-item.active { border-color: white; background-color: rgba(255,255,255,0.25); }
+        .nav-item.correct { background-color: var(--success); }
+        .nav-item.incorrect { background-color: var(--error); }
+        
+        .nav-mark {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            color: var(--accent);
+            font-size: 14px;
+            display: none;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
+            z-index: 2;
+        }
+        .nav-item.marked .nav-mark { display: block; }
+
+        /* MAIN CONTENT */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        /* PANTALLAS */
+        .screen {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        h1, h2 { color: var(--primary); }
+        h1 { font-size: 2.5em; margin-bottom: 0.5em; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.2s;
+            font-weight: 600;
+        }
+        .btn:hover { background-color: #2980b9; }
+        .btn-outline { background: transparent; border: 2px solid var(--secondary); color: var(--secondary); }
+        .btn-outline:hover { background: var(--secondary); color: white; }
+
+        /* TARJETA DE PREGUNTA */
+        .question-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 6px solid var(--secondary);
+            position: relative;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .q-text { font-size: 1.15em; font-weight: 600; width: 90%; line-height: 1.5; }
+        
+        .mark-toggle {
+            cursor: pointer;
+            font-size: 24px;
+            color: #ccc;
+            background: none;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .mark-toggle:hover { transform: scale(1.2); }
+        .mark-toggle.active { color: var(--accent); }
+
+        .options-list { list-style: none; padding: 0; }
+        
+        .option-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+        }
+
+        .option-item:hover:not(.disabled) { background: #e2e6ea; transform: translateX(5px); }
+
+        .option-item.correct { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option-item.wrong { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .option-item.disabled { cursor: default; pointer-events: none; opacity: 0.8; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-radius: 5px;
+            color: #0c5460;
+            display: none;
+            font-size: 0.95em;
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* BARRA FIJA DE FINALIZAR */
+        #finish-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: calc(100% - var(--sidebar-width));
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: flex-end;
+            box-sizing: border-box;
+            z-index: 90;
+        }
+        
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            :root { --sidebar-width: 0px; }
+            #sidebar { display: none; }
+            #finish-bar { width: 100%; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-title">TIVS 4</div>
+        <div id="nav-grid">
+            </div>
+    </div>
+
+    <div id="main">
+        <div class="container">
+            
+            <div id="start-screen" class="screen">
+                <h1>TIVS 4</h1>
+                <h3>Quiz: Sangre, Hígado y Metabolismo</h3>
+                <p>Selecciona el modo de ordenación:</p>
+                <button class="btn" onclick="initQuiz(false)">Orden Preestablecido</button>
+                <button class="btn" onclick="initQuiz(true)">Orden Aleatorio (Mezcladas)</button>
+            </div>
+
+            <div id="quiz-container" class="hidden">
+            </div>
+
+            <div id="results-screen" class="screen hidden">
+                <h2>Resultados TIVS 4</h2>
+                <p id="score-display" style="font-size: 1.5em; margin: 20px 0; font-weight: bold; color: var(--primary);"></p>
+                <hr>
+                <p>¿Qué deseas hacer ahora?</p>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                    <button class="btn" onclick="restartQuiz('all')">Repetir Completo</button>
+                    <button class="btn" onclick="restartQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="restartQuiz('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+                <br>
+                <button class="btn btn-outline" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="finish-bar" class="hidden">
+        <button class="btn" style="background-color: var(--error);" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+<script>
+    // Listas reutilizables para emparejar
+    const optionsCurves = ["hipérbola equilátera", "sigmoidea"];
+    const optionsHemeEnzymes = [
+        "coproporfirinógeno oxidasa", "porfobilinógeno desaminasa", 
+        "uroporfirinógeno decarboxilasa", "ácido delta aminolevulínico sintasa", 
+        "ácido delta aminolevulínico deshidratasa", "ferroquelatasa", 
+        "uroporfirinógeno III cosintasa"
+    ];
+    const optionsChains = [
+        "metilo-propionato-metilo-propionato-metilo-propionato-propionato-metilo",
+        "metilo-vinilo-metilo-vinilo-metilo-propionato-propionato-metilo",
+        "acetato-propionato-acetato-propionato-acetato-propionato-propionato-acetato"
+    ];
+
+    // BASE DE DATOS DE PREGUNTAS
+    const rawQuestions = [
+        {
+            text: "El NO es un potente vasoconstrictor",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso' (Es vasodilatador)"
+        },
+        {
+            text: "En la detoxificación hepática no se aprecia zonación",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "Para evaluar la cooperatividad en la fijación del oxígeno a las hemoproteínas, se calcula mediante la siguiente representación:",
+            options: ["representación en curva sigmoidea", "coeficiente de Hill", "representación en hipérbola equilátera"],
+            correct: "coeficiente de Hill",
+            explanation: "La respuesta correcta es: coeficiente de Hill"
+        },
+        {
+            text: "La proteína mayoritaria del proteinograma es:",
+            options: ["Macroglobulina", "Albúmina"],
+            correct: "Albúmina",
+            explanation: "La respuesta correcta es: Albúmina"
+        },
+        {
+            text: "En la detoxificación de los metabolitos apolares:",
+            options: [
+                "No necesitan citocromo p 450 para su metabolización",
+                "El citocromo p450 los transfiere a ácido glucurónico",
+                "Necesitan incrementar su polaridad por la acción de citocromo p450",
+                "Sólo necesitan conjugarse para ser eliminados"
+            ],
+            correct: "Necesitan incrementar su polaridad por la acción de citocromo p450",
+            explanation: "La respuesta correcta es: Necesitan incrementar su polaridad por la acción de citocromo p450"
+        },
+        {
+            text: "Señalar la respuesta correcta respecto al acetaminofeno:",
+            options: [
+                "Es un fármaco apolar",
+                "Nunca es oxidado por el citocromo p450, independientemente de la dosis admistrada",
+                "Es un fármaco polar"
+            ],
+            correct: "Es un fármaco polar",
+            explanation: "La respuesta correcta es: Es un fármaco polar"
+        },
+        // Emparejar curvas
+        { text: "Curva de saturación de: Mioglobina", options: optionsCurves, correct: "hipérbola equilátera", explanation: "Mioglobina → hipérbola equilátera" },
+        { text: "Curva de saturación de: Hemoglobina", options: optionsCurves, correct: "sigmoidea", explanation: "Hemoglobina → sigmoidea" },
+        
+        {
+            text: "La pO a la cual están ocupados el 50% de los sitios de unión para la hemoglobina es de",
+            options: ["50 torr", "4 torr", "26 torr", "18 torr"],
+            correct: "26 torr",
+            explanation: "La respuesta correcta es: 26 torr"
+        },
+        {
+            text: "De las siguientes especies reactivas señale la que es un radical libre",
+            options: [
+                "Anión peroxinitrito",
+                "Hidroperóxido orgánico (ROOH)",
+                "Peróxido de hidrógeno (H2O2)",
+                "Óxido Nitrico (NO)"
+            ],
+            correct: "Óxido Nitrico (NO)",
+            explanation: "La respuesta correcta es: Óxido Nitrico (NO)"
+        },
+        {
+            text: "¿Qué aminoácido se carboxila en los factores proteicos de la coagulación dependientes de la vitamina K?",
+            options: ["histidina", "tirosina", "glutamina", "lisina", "glutámico"],
+            correct: "glutámico",
+            explanation: "La respuesta correcta es: glutámico"
+        },
+        {
+            text: "La zonación hepática en los lobulillos hepáticos se debe al distinto aporte de oxígeno que reciben los hepatocitos de la zona periportal y los hepatocitos de la zona perivenosa",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "El incremento de NADH por ingesta de alcohol:",
+            options: ["Incrementa la β-oxidación de ácidos grasos", "Bloquea la β-oxidación de ácidos grasos"],
+            correct: "Bloquea la β-oxidación de ácidos grasos",
+            explanation: "La respuesta correcta es: Bloquea la β-oxidación de ácidos grasos"
+        },
+        {
+            text: "El cobre es trasportado en el plasma unido a:",
+            options: ["Ferritina", "Ceruloplasmina"],
+            correct: "Ceruloplasmina",
+            explanation: "La respuesta correcta es: Ceruloplasmina"
+        },
+        {
+            text: "Para que el grupo hemo transporte oxígeno, el hierro ha de estar en estado férrico",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso' (Debe ser ferroso)"
+        },
+        {
+            text: "La ferritina une hierro en estado ferroso",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "¿Cúal de la siguientes isoformas de la superóxido dismutasa es la que se localiza en el interior mitocondrial?",
+            options: ["SOD 2 o (Mn-SOD)", "SOD 3 (Cu/Zn-SOD)", "SOD 1 (Cu/Zn-SOD)"],
+            correct: "SOD 2 o (Mn-SOD)",
+            explanation: "La respuesta correcta es: SOD 2 o (Mn-SOD)"
+        },
+        {
+            text: "Las proteínas plasmáticas consideradas reactivos de fase aguda, ante un proceso patológico, varían su concentración en plasma",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "La haptoglobina une la hemoglobina procedente de la lisis de glóbulos rojos para impedir la pérdida de hierro vía renal",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        // Vías de coagulación
+        { text: "Secuencia de cascada: Vía común", options: ["X-trombina-fibrina", "XII-XI-IX-X", "III-VII-X"], correct: "X-trombina-fibrina", explanation: "Vía común → X-trombina-fibrina" },
+        { text: "Secuencia de cascada: Vía Extrínseca", options: ["X-trombina-fibrina", "XII-XI-IX-X", "III-VII-X"], correct: "III-VII-X", explanation: "Vía Extrínseca → III-VII-X" },
+        { text: "Secuencia de cascada: Vía Intrínseca", options: ["X-trombina-fibrina", "XII-XI-IX-X", "III-VII-X"], correct: "XII-XI-IX-X", explanation: "Vía Intrínseca → XII-XI-IX-X" },
+
+        {
+            text: "La superóxido dismutasa cataliza la siguiente reacción : H O → (H O) + (O )",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        // Emparejar Enzimas Hemo
+        { text: "Enzima que cataliza la formación de protoporfirina IX", options: optionsHemeEnzymes, correct: "protoporfirinógeno oxidasa", explanation: "protoporfirinógeno oxidasa" }, // Nota: texto original decía protoporfirinogeno oxidasa en respuesta
+        { text: "Enzima que cataliza la formación de hidroximetilbilano", options: optionsHemeEnzymes, correct: "porfobilinógeno desaminasa", explanation: "porfobilinógeno desaminasa" },
+        { text: "Enzima que cataliza la formación de coproporfirinógeno III", options: optionsHemeEnzymes, correct: "uroporfirinógeno decarboxilasa", explanation: "uroporfirinógeno decarboxilasa" },
+        { text: "Enzima que cataliza la formación de ácido delta aminolevulínico", options: optionsHemeEnzymes, correct: "ácido delta aminolevulínico sintasa", explanation: "ácido delta aminolevulínico sintasa" },
+        { text: "Enzima que cataliza la formación de porfobilinógeno", options: optionsHemeEnzymes, correct: "ácido delta aminolevulínico deshidratasa", explanation: "ácido delta aminolevulínico deshidratasa" },
+        { text: "Enzima que cataliza la formación de protoporfirinógeno IX", options: optionsHemeEnzymes, correct: "coproporfirinógeno oxidasa", explanation: "coproporfirinógeno oxidasa" },
+        { text: "Enzima que incorpora el hierro a la protoporfirina IX", options: optionsHemeEnzymes, correct: "ferroquelatasa", explanation: "ferroquelatasa" },
+        { text: "Enzima que cataliza la formación de uroporfirinógeno III", options: optionsHemeEnzymes, correct: "uroporfirinógeno III cosintasa", explanation: "uroporfirinógeno III cosintasa" },
+
+        {
+            text: "Señale la secuencia correcta de formación de especies reactivas del oxígeno",
+            options: [
+                "O → HO → H O → O → H O",
+                "O → O → HO → H O → H O",
+                "O → O → H O → HO → H O",
+                "O → HO → O → H O → H O"
+            ],
+            correct: "O → O → H O → HO → H O",
+            explanation: "La respuesta correcta es: O2 → O2-• → H2O2 → HO• → H2O"
+        },
+        // Histidinas
+        { text: "Función: unión directa al átomo pentacoordinado de Fe del grupo hemo", options: ["histidina proximal", "histidina distal"], correct: "histidina proximal", explanation: "histidina proximal" },
+        { text: "Función: estabilización del O en el grupo hemo", options: ["histidina proximal", "histidina distal"], correct: "histidina distal", explanation: "histidina distal" },
+
+        {
+            text: "La enzima ácido delta aminolevulínico sintasa produce una",
+            options: ["fosforilación", "decarboxilación", "oxidación", "desaminación"],
+            correct: "decarboxilación",
+            explanation: "La respuesta correcta es: decarboxilación"
+        },
+        // Gases
+        { text: "Valor correcto en sangre de: pO2", options: ["80-105 mm Hg", "35-45 mm Hg"], correct: "80-105 mm Hg", explanation: "pO2 → 80-105 mm Hg" },
+        { text: "Valor correcto en sangre de: pCO2", options: ["80-105 mm Hg", "35-45 mm Hg"], correct: "35-45 mm Hg", explanation: "pCO2 → 35-45 mm Hg" },
+
+        {
+            text: "La transferrina une hierro en estado ferroso",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso' (Lo une en férrico)"
+        },
+        {
+            text: "Señalar la respuesta correcta respecto al hígado y el metabolismo de ácidos grasos:",
+            options: [
+                "En los hepatocitos periportales se produce cetogénesis",
+                "En los hepatocitos perivenosos el acetil-CoA entra en el ciclo de Krebs",
+                "En hepatocitos periportales y perivenosos se produce la oxidación de ácidos rasos a acetil-CoA"
+            ],
+            correct: "En hepatocitos periportales y perivenosos se produce la oxidación de ácidos rasos a acetil-CoA",
+            explanation: "La respuesta correcta es: En hepatocitos periportales y perivenosos se produce la oxidación de ácidos rasos a acetil-CoA"
+        },
+        {
+            text: "Uno de los mecanismos de accción antioxidante del glutation es formar parte de la red de recuperación de antioxidantes",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "Señalar la respuesta incorrecta respecto al acetaldehído producido por la ingesta de alcohol:",
+            options: [
+                "Activa factores de transcripción que activan genes que codifican enzimas implicadas en la oxidación de ácidos grasos",
+                "Activa factores de transcripción que activan genes que codifican enzimas de síntesis de ácidos graso, colesterol y triglicéridos",
+                "Impiden la formación de lipoproteínas VLDL"
+            ],
+            correct: "Activa factores de transcripción que activan genes que codifican enzimas implicadas en la oxidación de ácidos grasos",
+            explanation: "La respuesta correcta es: Activa factores de transcripción que activan genes que codifican enzimas implicadas en la oxidación de ácidos grasos"
+        },
+        {
+            text: "¿Cuál de las siguientes proteínas plasmáticas inhibe proteasas?:",
+            options: ["Proteína reactiva C", "α1-antitripsina", "Haptoglobulina"],
+            correct: "α1-antitripsina",
+            explanation: "La respuesta correcta es: α1-antitripsina"
+        },
+        {
+            text: "Las teorías estocásticas del envejecimiento explican este proceso como alteraciones que ocurren de forma aleatoria y que se acumulan a lo largo de la vida.",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "Para la detoxificación de metabolitos polares sólo es necesario la fase de conjugación",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "La bilirrubina es hidrosoluble",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "La mioglobina tiene cuatro centros de fijación al oxígeno",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "¿Qué factores de la coagulación se inhiben por la acción del complejo Proteína Ca-proteína S (cofactor)?:",
+            options: ["Trombina", "Factor X", "Factor XIIa", "Factor XI", "Factores Va y VIIIa"],
+            correct: "Factores Va y VIIIa",
+            explanation: "La respuesta correcta es: Factores Va y VIIIa"
+        },
+        {
+            text: "En relación al metabolismo de carbohidratos, los hepatocitos de la zona periportal realizan:",
+            options: ["Glucolisis", "Gluconeogénesis"],
+            correct: "Gluconeogénesis",
+            explanation: "La respuesta correcta es: Gluconeogénesis"
+        },
+        // Señalización
+        { text: "Vía de señalización de: prostaciclina", options: ["aumenta el AMPc", "aumenta el GMPc"], correct: "aumenta el AMPc", explanation: "prostaciclina → aumenta el AMPc" },
+        { text: "Vía de señalización de: óxido nítrico", options: ["aumenta el AMPc", "aumenta el GMPc"], correct: "aumenta el GMPc", explanation: "óxido nítrico → aumenta el GMPc" },
+        
+        {
+            text: "La melatonina, neurohormona con una alta capacidad antioxidante, ¿a partír de qué neurotransmisor se sintetiza?",
+            options: ["Serotonina", "Acetilcolina", "Dopamina", "GABA"],
+            correct: "Serotonina",
+            explanation: "La respuesta correcta es: Serotonina"
+        },
+        // Cadenas laterales
+        { text: "Secuencia de cadenas laterales del: coproporfirinógeno III", options: optionsChains, correct: "metilo-propionato-metilo-propionato-metilo-propionato-propionato-metilo", explanation: "coproporfirinógeno III → metilo-propionato..." },
+        { text: "Secuencia de cadenas laterales de la: protoporfirina IX", options: optionsChains, correct: "metilo-vinilo-metilo-vinilo-metilo-propionato-propionato-metilo", explanation: "protoporfirina IX → metilo-vinilo..." },
+        { text: "Secuencia de cadenas laterales del: uroporfirinógeno III", options: optionsChains, correct: "acetato-propionato-acetato-propionato-acetato-propionato-propionato-acetato", explanation: "uroporfirinógeno III → acetato-propionato..." },
+
+        {
+            text: "En la formación de biliverdina se desprende monóxido de carbono",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es 'Verdadero'"
+        }
+    ];
+
+    // ESTADO DE LA APLICACIÓN
+    let currentQuestions = [];
+    let markedQuestions = new Set(); 
+    let answersStatus = {}; // { id: true/false/null }
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function initQuiz(randomOrder) {
+        rawQuestions.forEach((q, index) => { if(!q.id) q.id = index; });
+        
+        currentQuestions = [...rawQuestions];
+        
+        if (randomOrder) {
+            shuffle(currentQuestions);
+        }
+
+        markedQuestions.clear();
+        answersStatus = {};
+        
+        renderQuiz();
+    }
+
+    function restartQuiz(mode) {
+        let pool = [];
+
+        if (mode === 'all') {
+            pool = [...rawQuestions];
+        } else if (mode === 'failed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false);
+        } else if (mode === 'marked') {
+            pool = rawQuestions.filter(q => markedQuestions.has(q.id));
+        } else if (mode === 'mixed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false || markedQuestions.has(q.id));
+        }
+
+        if (pool.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        currentQuestions = shuffle(pool);
+        answersStatus = {}; 
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('results-screen').classList.add('hidden');
+        document.getElementById('quiz-container').classList.remove('hidden');
+        document.getElementById('finish-bar').classList.remove('hidden');
+
+        const container = document.getElementById('quiz-container');
+        const navGrid = document.getElementById('nav-grid'); // Usamos Grid
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            // 1. Crear Tarjeta
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${index}`;
+
+            let optionsObj = q.options.map(opt => ({ 
+                text: opt, 
+                isCorrect: opt.trim() === q.correct.trim() 
+            }));
+            shuffle(optionsObj);
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'q-header';
+            
+            const title = document.createElement('div');
+            title.className = 'q-text';
+            title.innerHTML = `${index + 1}. ${q.text}`;
+            
+            const markBtn = document.createElement('button');
+            markBtn.className = 'mark-toggle';
+            markBtn.innerHTML = '★'; 
+            markBtn.title = "Marcar para revisar luego";
+            if(markedQuestions.has(q.id)) markBtn.classList.add('active');
+            
+            markBtn.onclick = () => toggleMark(q.id, markBtn, index);
+
+            header.appendChild(title);
+            header.appendChild(markBtn);
+            card.appendChild(header);
+
+            // Opciones
+            const ul = document.createElement('ul');
+            ul.className = 'options-list';
+
+            optionsObj.forEach(opt => {
+                const li = document.createElement('li');
+                li.className = 'option-item';
+                li.innerText = opt.text;
+                li.onclick = function() {
+                    handleAnswer(q, opt.isCorrect, li, card, index);
+                };
+                ul.appendChild(li);
+            });
+            card.appendChild(ul);
+
+            // Explicación
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.innerHTML = `<strong></strong><br>${q.explanation}`;
+            expl.id = `expl-${index}`;
+            card.appendChild(expl);
+
+            container.appendChild(card);
+
+            // 2. Sidebar Grid Item
+            const nav = document.createElement('div');
+            nav.className = 'nav-item';
+            nav.innerText = index + 1;
+            nav.id = `nav-${index}`;
+            nav.onclick = () => {
+                document.getElementById(`q-card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            
+            const markInd = document.createElement('div');
+            markInd.className = 'nav-mark';
+            markInd.innerText = '★';
+            nav.appendChild(markInd);
+            
+            if(markedQuestions.has(q.id)) nav.classList.add('marked');
+
+            navGrid.appendChild(nav); // Añadimos al grid
+        });
+    }
+
+    function toggleMark(originalId, btnElement, index) {
+        if (markedQuestions.has(originalId)) {
+            markedQuestions.delete(originalId);
+            btnElement.classList.remove('active');
+            document.getElementById(`nav-${index}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(originalId);
+            btnElement.classList.add('active');
+            document.getElementById(`nav-${index}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(questionObj, isCorrect, liElement, cardElement, index) {
+        if (cardElement.classList.contains('answered')) return;
+        cardElement.classList.add('answered');
+
+        answersStatus[questionObj.id] = isCorrect;
+
+        const options = cardElement.querySelectorAll('.option-item');
+        options.forEach(opt => {
+            opt.classList.add('disabled'); 
+            if (opt.innerText.trim() === questionObj.correct.trim()) {
+                opt.classList.add('correct');
+            }
+        });
+
+        if (!isCorrect) {
+            liElement.classList.add('wrong');
+        }
+
+        const expl = document.getElementById(`expl-${index}`);
+        expl.style.display = 'block';
+        expl.style.backgroundColor = isCorrect ? '#d4edda' : '#f8d7da';
+        expl.style.color = isCorrect ? '#155724' : '#721c24';
+        expl.style.borderColor = isCorrect ? '#c3e6cb' : '#f5c6cb';
+        expl.querySelector('strong').innerText = isCorrect ? "¡Correcto!" : "Incorrecto";
+
+        const navItem = document.getElementById(`nav-${index}`);
+        navItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function finishQuiz() {
+        document.getElementById('quiz-container').classList.add('hidden');
+        document.getElementById('finish-bar').classList.add('hidden');
+        document.getElementById('results-screen').classList.remove('hidden');
+        // No limpiamos sidebar aquí
+        
+        let total = currentQuestions.length;
+        let correct = 0;
+        let answered = 0;
+
+        currentQuestions.forEach(q => {
+            if (answersStatus.hasOwnProperty(q.id)) {
+                answered++;
+                if (answersStatus[q.id]) correct++;
+            }
+        });
+
+        const scoreText = `Has acertado ${correct} de ${total} preguntas (${answered < total ? 'Cuestionario incompleto' : 'Completado'}).`;
+        document.getElementById('score-display').innerText = scoreText;
+    }
+
+</script>
+
+</body>
+</html>

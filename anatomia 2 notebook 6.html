@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Diafragma, Abdomen y Repaso General</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantallas */
+        #setup-screen, #results-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen-content {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1, h2 { color: var(--text); margin-bottom: 1.5rem; }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Contenedor principal del Quiz */
+        #quiz-layout {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar izquierdo */
+        #sidebar {
+            width: 80px;
+            min-width: 80px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 5;
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #475569;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .nav-dot:hover { transform: scale(1.1); }
+        .nav-dot.correct { background-color: var(--correct); color: white; }
+        .nav-dot.incorrect { background-color: var(--incorrect); color: white; }
+        
+        .mark-indicator {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            background-color: var(--marked);
+            border-radius: 50%;
+            display: none;
+            border: 2px solid white;
+        }
+        .nav-dot.is-marked .mark-indicator { display: block; }
+
+        /* Área de preguntas */
+        #main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            scroll-margin-top: 2rem;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0;
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+
+        .mark-btn {
+            background: none;
+            border: 2px solid var(--border);
+            color: #64748b;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        .mark-btn:hover { background-color: #f1f5f9; }
+        .mark-btn.marked {
+            border-color: var(--marked);
+            color: var(--marked);
+            background-color: #fffbeb;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .option-btn {
+            text-align: left;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            background-color: white;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background-color: #dcfce7; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2; border-color: var(--incorrect); }
+        .option-btn.missed-correct { background-color: #dcfce7; border-color: var(--correct); border-style: dashed; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+            display: none;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        #finish-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                width: 100%;
+                height: 60px;
+                min-height: 60px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0 1rem;
+                align-items: center;
+            }
+            .nav-dot { margin-bottom: 0; margin-right: 0.5rem; flex-shrink: 0; }
+            #main-content { padding: 1rem; }
+            #finish-btn { bottom: 1rem; right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="screen-content">
+            <h1>Diafragma, Abdomen y Repaso General</h1>
+            <p>Configura tu sesión de estudio:</p>
+            <div style="margin-top: 2rem;">
+                <button class="btn" onclick="startQuiz('original')">Iniciar (Orden Original)</button>
+                <button class="btn" onclick="startQuiz('random')">Iniciar (Orden Aleatorio)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-layout">
+        <div id="sidebar"></div>
+        <div id="main-content">
+            <div id="questions-container"></div>
+            <button id="finish-btn" class="btn" onclick="finishQuiz()" style="background-color: #334155;">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <div class="screen-content">
+            <h2>Resultados</h2>
+            <p id="results-summary" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 2rem;"></p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn" onclick="retakeQuiz('all')">Repetir Completo</button>
+                <button class="btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir Solo Falladas</button>
+                <button class="btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir Solo Marcadas</button>
+                <button class="btn" id="btn-retake-both" onclick="retakeQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Base de datos de 70 preguntas literales
+const db = [
+    { q: `1. El músculo diafragma presenta tres grandes orificios (hiatos) para el paso de estructuras vitales. Cumpliendo la "regla de los pares", el hiato aórtico se localiza a nivel de:`, opts: [`T8.`, `T10.`, `T12.`, `L2.`], c: 2 },
+    { q: `2. Siguiendo esta misma disposición topográfica ascendente y haciéndose cada vez más anterior, el hiato esofágico se sitúa a nivel de:`, opts: [`T8.`, `T10.`, `T12.`, `L1.`], c: 1 },
+    { q: `3. El hiato para la vena cava inferior es el más alto y anterior de los tres grandes. ¿A qué nivel se sitúa?`, opts: [`T8.`, `T10.`, `T12.`, `T6.`], c: 0 },
+    { q: `4. ¿Qué diferencia morfológica y funcional fundamental (la "trampa" que remarca Prada) tiene el hiato de la vena cava inferior respecto a los otros dos grandes orificios?`, opts: [`Está formado exclusivamente por músculo.`, `Se sitúa en la hoja izquierda del centro frénico.`, `Atraviesa el centro tendinoso (centro frénico) y no una porción muscular, por lo que la tensión del tendón durante la inspiración ABRE el orificio facilitando el retorno venoso.`, `Contiene también el conducto torácico.`], c: 2 },
+    { q: `5. El hiato esofágico no solo permite el paso del esófago a la cavidad abdominal, sino que lo acompañan dos importantes nervios parasimpáticos. Son:`, opts: [`Los nervios esplácnicos mayor y menor.`, `Los nervios frénicos derecho e izquierdo.`, `Los troncos vagales (nervios vagos o PC X).`, `Los nervios iliohipogástricos.`], c: 2 },
+    { q: `6. Curiosamente, los nervios vagos cambian de posición al pasar por el hiato esofágico: el vago izquierdo se hace anterior y el derecho se hace posterior. Según el profesor, ¿por qué ocurre esto?`, opts: [`Porque el corazón los empuja.`, `Porque durante el desarrollo embriológico, el tubo digestivo sufre una rotación anatómica, y el esófago rota arrastrando consigo a los nervios que van adheridos a él.`, `Porque el hiato es asimétrico.`, `Por un error aleatorio del desarrollo.`], c: 1 },
+    { q: `7. El hiato aórtico (T12) está delimitado por un arco fibroso que salta entre los dos pilares musculares principales del diafragma. Este es el:`, opts: [`Ligamento arqueado lateral.`, `Ligamento arqueado medial.`, `Ligamento arqueado medio.`, `Ligamento inguinal.`], c: 2 },
+    { q: `8. Si este ligamento arqueado medio se tensa en exceso o tiene una disposición muy caudal, puede comprimir un gran vaso que nace inmediatamente por debajo de él en la aorta, causando problemas digestivos severos (dispepsia crónica). Se trata de:`, opts: [`La arteria mesentérica superior.`, `Las arterias renales.`, `El tronco celíaco.`, `La arteria ilíaca.`], c: 2 },
+    { q: `9. Acompañando a la aorta por el hiato aórtico (T12) asciende hacia el tórax una estructura vital para el drenaje de líquidos del cuerpo. Es:`, opts: [`La vena ácigos.`, `La vena hemiácigos.`, `El conducto torácico (linfático).`, `El nervio vago.`], c: 2 },
+    { q: `10. La hernia de hiato es una patología frecuente provocada por la debilidad de las fibras musculares que envuelven al esófago. Estas fibras en forma de "lazada" que abrazan al esófago provienen principalmente de:`, opts: [`La porción condral del diafragma.`, `El pilar derecho del diafragma.`, `El centro frénico.`, `El ligamento arqueado lateral.`], c: 1 },
+    { q: `11. Las inserciones lumbares del diafragma forman arcos tendinosos sobre los músculos de la pared posterior del abdomen. El ligamento arqueado MEDIAL (arco del psoas) salta sobre la cara anterior del músculo:`, opts: [`Cuadrado lumbar.`, `Psoas mayor.`, `Ilíaco.`, `Transverso del abdomen.`], c: 1 },
+    { q: `12. El ligamento arqueado LATERAL (arco del cuadrado) permite que el diafragma salte sobre la cara anterior del músculo:`, opts: [`Dorsal ancho.`, `Psoas mayor.`, `Cuadrado lumbar (de los lomos).`, `Oblicuo interno.`], c: 2 },
+    { q: `13. A nivel de estos pilares y arcos, existe una pequeña dehiscencia o resquicio muscular por donde penetran desde el tórax hacia el abdomen los nervios que darán inervación SIMPÁTICA a las vísceras. Son:`, opts: [`Los nervios vagos.`, `Los nervios frénicos.`, `Los nervios esplácnicos mayor y menor.`, `Los nervios lumbares ascendentes.`], c: 2 },
+    { q: `14. Las venas lumbares ascendentes, que recogen la sangre de la pared abdominal, atraviesan el diafragma (a veces perforando los pilares o bajo el ligamento arqueado medial) para transformarse en el tórax en:`, opts: [`Vena cava inferior.`, `Vena porta.`, `Sistema de venas Ácigos (derecha) y Hemiácigos (izquierda).`, `Venas frénicas inferiores.`], c: 2 },
+    { q: `15. Entre la porción lumbar del diafragma y la porción costal se forma un triángulo de debilidad fascial por ausencia de fibras, vértice de la 12ª costilla, conocido como Triángulo Lumbocostal. ¿Qué patología aparece aquí?`, opts: [`Hernia de hiato.`, `Hernia de Bochdalek (hernia diafragmática congénita o adquirida).`, `Hernia inguinal.`, `Pericarditis.`], c: 1 },
+    { q: `16. Existe otro triángulo de debilidad en la parte anterior, entre la porción costal y la porción esternal del diafragma (Triángulo de Morgagni/Esternocostal). Por ahí atraviesan:`, opts: [`Los vasos torácicos internos (mamaria interna) que pasan a llamarse vasos epigástricos superiores.`, `La vena cava inferior.`, `El nervio frénico.`, `El uréter.`], c: 0 },
+    { q: `17. El diafragma está irrigado por su cara superior por unas arterias que nacen de la arteria mamaria interna (torácica interna) y que acompañan al nervio frénico pegadas al saco pericárdico. Se llaman:`, opts: [`Arterias frénicas inferiores.`, `Arterias pericardiofrénicas.`, `Arterias musculofrénicas.`, `Arterias intercostales.`], c: 1 },
+    { q: `18. La arteria musculofrénica, que irriga la inserción costal del diafragma, también es rama terminal de la:`, opts: [`Aorta torácica.`, `Arteria subclavia directa.`, `Arteria torácica interna (mamaria interna).`, `Arteria coronaria derecha.`], c: 2 },
+    { q: `19. El músculo diafragma y el pericardio fibroso comparten origen embriológico y están fuertemente unidos en el centro frénico. Esto explica que compartan inervación motora y sensitiva a través de:`, opts: [`Los nervios intercostales (exclusivamente).`, `El nervio vago.`, `El nervio frénico (C3-C5).`, `El plexo celíaco.`], c: 2 },
+    { q: `20. Si un paciente sufre una pericarditis aguda o una irritación química del diafragma central, el "dolor referido" se proyectará típicamente hacia:`, opts: [`La fosa ilíaca derecha.`, `La zona de los hombros y cuello (territorio sensitivo de C3-C5).`, `La cara medial del brazo izquierdo.`, `El ombligo.`], c: 1 },
+    { q: `21. La asimetría de las cúpulas diafragmáticas es evidente. La cúpula DERECHA asciende mucho más (hasta el 4º o 5º espacio intercostal) debido a que tiene debajo un órgano macizo muy voluminoso:`, opts: [`El estómago.`, `El bazo.`, `El hígado.`, `El riñón derecho.`], c: 2 },
+    { q: `22. Por el contrario, la cúpula diafragmática IZQUIERDA está más descendida porque tiene apoyado encima, en el lado torácico, a:`, opts: [`La vena cava.`, `El corazón (saco pericárdico).`, `El pulmón izquierdo.`, `El conducto torácico.`], c: 1 },
+    { q: `23. El hígado está cubierto casi totalmente por peritoneo, pero hay una zona en su cara posterior y superior que está directamente en contacto con el diafragma, sin serosa de por medio. Esta zona es:`, opts: [`El área desnuda del hígado.`, `El ligamento falciforme.`, `El hilio hepático.`, `La fosa cística.`], c: 0 },
+    { q: `24. El profesor describe a los pulmones como órganos "plásticos" (como plastilina) que se adaptan a todos los recesos de la cavidad torácica. El ángulo agudo y profundo que se forma entre la pared de las costillas y la cúpula del diafragma se denomina:`, opts: [`Receso costomediastínico.`, `Receso costodiafragmático.`, `Seno coronario.`, `Triángulo de Petit.`], c: 1 },
+    { q: `25. La importancia CRÍTICA del receso costodiafragmático en la práctica médica radica en que:`, opts: [`Ahí se localiza el corazón.`, `Es el punto anatómico más declive de la cavidad pleural y donde, por pura gravedad, se acumulan líquidos patológicos (derrames pleurales, empiemas, sangre).`, `Es la zona donde nunca hay pleura.`, `Aloja el estómago.`], c: 1 },
+    { q: `26. La capa de "pintura elástica" que tapiza las paredes de la cavidad torácica y el diafragma es continua. La porción que tapiza directamente la cara superior del diafragma se llama:`, opts: [`Pleura visceral.`, `Pleura parietal diafragmática.`, `Fascia endotorácica.`, `Pericardio seroso.`], c: 1 },
+    { q: `27. La sangre del tubo digestivo no puede volver directamente a la vena cava. Primero debe pasar por el filtro del hígado a través del:`, opts: [`Sistema venoso Ácigos.`, `Sistema venoso Porta.`, `Sistema Linfático.`, `Polígono de Willis.`], c: 1 },
+    { q: `28. En pacientes con cirrosis o daño hepático severo, el "filtro" del hígado se bloquea. ¿Qué consecuencia anatómico-clínica muy grave se produce a nivel del esófago por este tapón?`, opts: [`El paciente no puede tragar (disfagia).`, `La sangre busca vías alternativas en la anastomosis porto-cava del esófago inferior, dilatando las venas submucosas y creando varices esofágicas que pueden romperse y provocar vómitos de sangre (hematemesis).`, `El esófago se osifica.`, `La vena cava estalla.`], c: 1 },
+    { q: `29. La linfa del tubo digestivo y miembros inferiores se recolecta en el abdomen en la Cisterna del Quilo. Desde ahí, sube por el conducto torácico y desemboca en:`, opts: [`La vena cava inferior.`, `La vena porta.`, `El ángulo yugulosubclavio IZQUIERDO.`, `La aurícula derecha.`], c: 2 },
+    { q: `30. Si el profesor explica que el drenaje linfático es asimétrico y la mayoría del cuerpo drena a la izquierda, ¿qué única porción del cuerpo drena a través de la Gran Vena Linfática al ángulo yugulosubclavio DERECHO?`, opts: [`Solo la pierna derecha.`, `La mitad derecha de la cabeza, cuello, brazo derecho y mitad superior derecha del tórax.`, `El hígado exclusivamente.`, `Ambos pulmones.`], c: 1 },
+    { q: `31. La pared anterolateral del abdomen está formada por tres músculos planos y superpuestos. El más externo de ellos, cuyas fibras van hacia abajo y hacia el centro (como meter las manos en los bolsillos), es el:`, opts: [`Oblicuo menor (interno).`, `Transverso del abdomen.`, `Oblicuo mayor (externo).`, `Recto del abdomen.`], c: 2 },
+    { q: `32. El Oblicuo mayor se origina en la cara externa de las costillas y tiene un patrón de interdigitación muy claro: superiormente con el pectoral mayor, lateralmente con el serrato anterior, y dorsalmente se encuentra con:`, opts: [`El dorsal ancho.`, `El romboides.`, `El psoas.`, `El trapecio.`], c: 0 },
+    { q: `33. Al terminar en su porción inferior, la aponeurosis del Oblicuo mayor se engrosa, salta desde la espina ilíaca anterosuperior hasta la espina del pubis, y forma una estructura clave:`, opts: [`La vaina de los rectos.`, `El ligamento de Poupart o ligamento inguinal.`, `El tendón conjunto.`, `El arco de Douglas.`], c: 1 },
+    { q: `34. Por encima de la sínfisis del pubis, la aponeurosis del Oblicuo mayor se "raja" formando unos pilares para dejar la apertura anatómica del anillo inguinal SUPERFICIAL. Estos pilares son:`, opts: [`Anterior, medio y posterior.`, `Pilar externo, pilar interno y el pilar posterior (de Colles) que cruza la línea media.`, `Ligamento pectíneo y lacunar.`, `Exclusivamente un pilar central.`], c: 1 },
+    { q: `35. Para darle consistencia a este anillo y que no se desgarre, existen unas fibras aponeuróticas que cruzan transversalmente por encima de la apertura, llamadas:`, opts: [`Fibras arciformes.`, `Ligamento de Gimbernat.`, `Tendón conjunto.`, `Línea alba.`], c: 0 },
+    { q: `36. El segundo plano abdominal corresponde al músculo Oblicuo Menor (Interno). Sus fibras tienen una dirección que es:`, opts: [`Vertical perfecta.`, `Contrapuesta al oblicuo mayor, ascendiendo hacia arriba y hacia la línea media.`, `Transversal pura.`, `Descendente extrema.`], c: 1 },
+    { q: `37. El Oblicuo menor y el Transverso del abdomen se originan en el tercio lateral del ligamento inguinal. Las fibras que saltan formando un arco o techo sobre el conducto inguinal terminan insertándose juntas en el pubis formando el:`, opts: [`Ligamento lacunar.`, `Tendón conjunto (hoz inguinal).`, `Anillo profundo.`, `Ligamento pectíneo.`], c: 1 },
+    { q: `38. Todos estos músculos planos (Oblicuos y Transverso) finalizan en láminas aponeuróticas que envuelven a los músculos Rectos anteriores, formando la Vaina de los Rectos, que finalmente se funde en la línea media creando:`, opts: [`La línea arqueada.`, `La línea alba (cordón fibroso blanco y fuerte).`, `El ombligo.`, `La cicatriz gravídica.`], c: 1 },
+    { q: `39. Pregunta quirúrgica de Prada: Si tienes que hacer una incisión vertical larga en el abdomen (laparotomía), anatómicamente parece ideal cortar por la línea alba porque no hay músculo ni grandes vasos. ¿Por qué en la práctica muchos cirujanos hacen la incisión paramediana izquierda?`, opts: [`Porque la línea alba es imposible de cortar.`, `Porque a la derecha está el apéndice siempre.`, `Porque al ser un tejido fibroso avascularizado (sin sangre), su capacidad de cicatrización y curación es mucho peor que la del músculo vascularizado.`, `Porque en la línea media está la aorta.`], c: 2 },
+    { q: `40. En las mujeres embarazadas, el estímulo de la hormona estimulante de melanocitos (MSH) oscurece la línea alba, transformándola temporalmente en:`, opts: [`La línea arqueada.`, `La línea nigra.`, `Un estría atrófica.`, `El cloasma gravídico.`], c: 1 },
+    { q: `41. La constitución de la Vaina de los Rectos NO es igual en todo el abdomen. Por debajo del ombligo (Línea Arqueada de Douglas), las aponeurosis de los tres músculos pasan todas por DELANTE del recto anterior. Por tanto, la cara posterior del músculo recto queda:`, opts: [`Cubierta por hueso.`, `Envuelta por el oblicuo mayor.`, `Desnuda de aponeurosis, tapizada únicamente por la fina fascia transversalis y el peritoneo.`, `Adherida a la vejiga urinaria.`], c: 2 },
+    { q: `42. Los nervios raquídeos que van a dar inervación sensitiva a la región más baja del abdomen y los genitales (Iliohipogástrico e Ilioinguinal) salen de:`, opts: [`T1.`, `L1 (con aporte de T12).`, `L5.`, `S2.`], c: 1 },
+    { q: `43. Estos nervios (Iliohipogástrico e Ilioinguinal) emergen por el borde lateral del psoas mayor y se apoyan directamente sobre la cara anterior del músculo:`, opts: [`Cuadrado de los lomos (lumbar).`, `Diafragma.`, `Dorsal ancho.`, `Serrato anterior.`], c: 0 },
+    { q: `44. El plexo lumbar tiene la peculiaridad de formarse anatómicamente DENTRO del espesor de un músculo. Este músculo que alberga las raíces lumbares es:`, opts: [`El Cuadrado lumbar.`, `El Transverso del abdomen.`, `El Psoas Mayor.`, `El Ilíaco.`], c: 2 },
+    { q: `45. Debido a esta estrecha relación "de cautiverio", ¿qué ocurre si el músculo Psoas sufre un acortamiento, fibrosis o contractura crónica severa?`, opts: [`El paciente no puede estirar el cuello.`, `Se produce una compresión de los nervios del plexo lumbar, generando neuropatías y dolor irradiado a la pierna/ingle.`, `Los riñones dejan de filtrar.`, `El intestino se paraliza.`], c: 1 },
+    { q: `46. El riñón se aloja en un compartimento profundo, muy dorsal en el abdomen, totalmente acolchado de grasa. Ese compartimento se sitúa detrás del peritoneo parietal y se llama:`, opts: [`Saco pericárdico.`, `Mediastino posterior.`, `Espacio retroperitoneal.`, `Fondo de saco de Douglas.`], c: 2 },
+    { q: `47. La vía de salida de la orina desde el riñón hacia la vejiga es el uréter. Anatómicamente, el uréter desciende verticalmente "cabalgando" o apoyándose a lo largo de toda la cara anterior del músculo:`, opts: [`Cuadrado lumbar.`, `Psoas Mayor.`, `Recto anterior del abdomen.`, `Transverso.`], c: 1 },
+    { q: `48. En su descenso sobre el Psoas, el uréter se cruza con unos vasos muy largos que van destinados a irrigar las gónadas. Estos son:`, opts: [`Vasos epigástricos.`, `Vasos ilíacos internos.`, `Vasos testiculares/ováricos (gonadales).`, `Vasos lumbares.`], c: 2 },
+    { q: `49. La relación del uréter con el músculo psoas explica el fenómeno clínico del cólico nefrítico, donde la inflamación/dilatación del uréter por un cálculo irrita el plexo nervioso cercano apoyado en el psoas, provocando un "dolor referido" agudo hacia:`, opts: [`El hombro y el cuello.`, `El estómago.`, `La ingle, testículos o labios mayores.`, `El tobillo.`], c: 2 },
+    { q: `50. Un paciente presenta dolor agudo en la fosa ilíaca derecha. El médico le pide que intente flexionar la cadera levantando la pierna estirada mientras le opone resistencia. Si esta maniobra despierta un dolor brusco, el test clínico es positivo para:`, opts: [`Neumonía de lóbulo medio.`, `Apendicitis (Signo del Psoas positivo, el músculo roza el apéndice inflamado).`, `Rotura de bazo.`, `Cólico biliar.`], c: 1 },
+    { q: `51. El vestigio embrionario de la notocorda, vital para amortiguar las cargas porque es un gel que retiene agua (hidrofílico), se encuentra en el adulto formando:`, opts: [`El ligamento longitudinal anterior.`, `La médula ósea.`, `El núcleo pulposo del disco intervertebral.`, `El cartílago costal.`], c: 2 },
+    { q: `52. En el desarrollo embriológico ("irse atrás para entender el presente"), un cuerpo vertebral óseo se origina a partir de:`, opts: [`Un miotoma.`, `Un único esclerotoma primitivo.`, `La fusión de la mitad caudal de un esclerotoma con la mitad craneal del esclerotoma adyacente (Ley de resegmentación).`, `La placa neural.`], c: 2 },
+    { q: `53. Esta ley de resegmentación tiene una consecuencia anatómica espectacular:`, opts: [`Permite que el disco sea de hueso.`, `Permite que el nervio espinal, al desarrollarse, quede saliendo justo por el agujero de conjunción (entre dos vértebras) y no tenga que perforar el hueso para salir.`, `Impide la rotación de la columna.`, `Provoca la escoliosis.`], c: 1 },
+    { q: `54. El "Perrito de Lachapelle" se ve en una radiografía oblicua lumbar. El ojo del perro corresponde al pedículo. ¿Qué patología indica que el perrito tenga un "collar" o fractura en el cuello?`, opts: [`Hernia discal masiva.`, `Espondilolisis (rotura de la pars interarticularis o istmo).`, `Tumor medular.`, `Rotura de la apófisis espinosa.`], c: 1 },
+    { q: `55. El punto de menor resistencia de una vértebra ante fuerzas de torsión o traumatismos directos sobre la apófisis espinosa (y vía de acceso para tornillos en quirófano) es:`, opts: [`La lámina.`, `El pedículo.`, `El foramen transverso.`, `El cuerpo anterior.`], c: 1 },
+    { q: `56. La vascularización de los dos tercios inferiores de la médula espinal depende casi en exclusiva de una gran arteria que entra acompañando a una raíz toracolumbar baja (T9-L2). Si se daña en cirugía, el paciente queda parapléjico. Es la arteria:`, opts: [`De Batson.`, `De Willis.`, `De Adamkiewicz (Gran Radicular Magna).`, `Mamaria interna.`], c: 2 },
+    { q: `57. El plexo venoso vertebral interno (de Batson) se caracteriza por:`, opts: [`Tener potentes válvulas que envían sangre solo hacia el corazón.`, `Ser un sistema avalvular que permite el flujo bidireccional, lo que explica por qué el cáncer de próstata hace metástasis en la columna.`, `Drenar exclusivamente hacia las extremidades.`, `Producir líquido cefalorraquídeo.`], c: 1 },
+    { q: `58. En una Rx cervical Anteroposterior (AP), la imagen de la "cara de gato" se debe a la visualización de unas estructuras típicas y exclusivas de C3-C7 en los bordes laterales del cuerpo. Son:`, opts: [`Las apófisis mamilares.`, `Los procesos unciformes (apófisis semilunares) que hacen de "orejas".`, `El tubérculo de Lisfranc.`, `Los pedículos.`], c: 1 },
+    { q: `59. El ligamento que mantiene al Diente del Axis pegado al arco anterior del Atlas, evitando que se clave en el bulbo raquídeo, es CRÍTICO para la supervivencia (especialmente si hay laxitud como en el Sd. de Down). Se trata del:`, opts: [`Ligamento alar.`, `Ligamento amarillo.`, `Ligamento transverso del Atlas (parte del cruciforme).`, `Ligamento nucal.`], c: 2 },
+    { q: `60. La articulación atlanto-axoidea media (Diente de C2 y Atlas) permite fundamentalmente decir "NO", ya que por su morfología es una articulación tipo:`, opts: [`Plana (Artrodia).`, `Condílea.`, `Trocoide (Pivote).`, `Encaje recíproco.`], c: 2 },
+    { q: `61. El promontorio es un punto de referencia obstétrico clave que marca el límite posterior del estrecho superior de la pelvis. Anatómicamente es:`, opts: [`El borde anterosuperior del cuerpo de la primera vértebra sacra (S1).`, `El vértice del cóccix.`, `La sínfisis púbica.`, `La espina ilíaca.`], c: 0 },
+    { q: `62. La articulación sacroilíaca está diseñada para funcionar como "una tenaza". Biomecánicamente, al recibir todo el peso del tronco:`, opts: [`Se luxa y se abre.`, `Las palas ilíacas se cierran por la tensión posterior y "abrazan" apretando al sacro para bloquearlo y darle estabilidad.`, `Rota 360 grados.`, `Produce líquido para amortiguar.`], c: 1 },
+    { q: `63. Topografía torácica de oro: El "plano mágico" de Louis se traza horizontalmente desde la unión del manubrio y el cuerpo del esternón hacia atrás, marcando el inicio del cayado aórtico, la bifurcación de la tráquea y el nivel discal de:`, opts: [`T1-T2.`, `T4-T5.`, `T8-T9.`, `T12-L1.`], c: 1 },
+    { q: `64. Si una hernia discal se produce a nivel L4-L5, sale por el espacio posterolateral ("receso lateral") porque el ligamento que debería proteger ahí es muy estrecho. ¿Qué raíz nerviosa queda atrapada por esta hernia típicamente?`, opts: [`La raíz L4 (saliente).`, `La raíz L5 (transeúnte, que va buscando el agujero L5-S1 más abajo).`, `La raíz S1.`, `La cola de caballo completa.`], c: 1 },
+    { q: `65. Las arterias bronquiales NO participan en el intercambio de gases (función respiratoria), sino que nutren el tejido (parénquima) del pulmón. Mayoritariamente, ¿de dónde nacen directamente las arterias bronquiales?`, opts: [`De la arteria pulmonar.`, `De la aorta torácica descendente.`, `De las carótidas.`, `Del tronco braquiocefálico venoso.`], c: 1 },
+    { q: `66. La pleura parietal no es un órgano distinto, sino la misma "tela serosa" que tapiza todo el contenedor y cambia de "apellido". Cuando reviste la cara interna de las costillas se llama:`, opts: [`Fascia transversalis.`, `Pleura parietal mediastínica.`, `Pleura parietal costal.`, `Pleura visceral.`], c: 2 },
+    { q: `67. El drenaje venoso de los primeros espacios intercostales posteriores no va directamente a la ácigos, sino que lo recoge un tronco venoso que drena preferentemente hacia arriba (vena intercostal suprema). Esto ilustra que en el tórax y diafragma hay sangre que drena a la Cava Superior y otra a la Cava Inferior, estableciendo:`, opts: [`Anastomosis porto-cava.`, `Anastomosis Cavo-Cavas.`, `Circulación fetal.`, `Fístulas arteriovenosas.`], c: 1 },
+    { q: `68. En la región del cuello, las fascias organizan el espacio. El tubo fascial que envuelve a la arteria carótida, la vena yugular interna y el nervio vago es:`, opts: [`La fascia prevertebral.`, `La vaina carotídea.`, `La vaina visceral.`, `La fascia de Scarpa.`], c: 1 },
+    { q: `69. Si un paciente sufre una herida profunda en el cuello que secciona la vena Yugular Interna, el riesgo de muerte por "embolia gaseosa" (entrada masiva de aire al corazón) se multiplica debido a que:`, opts: [`La arteria se dilata.`, `El tendón intermedio del músculo Omohioideo está adherido a la vaina carotídea y, al estar tenso, tira de la pared de la vena y la mantiene ABIERTA como un tubo rígido (impidiendo que se colapse).`, `El nervio vago detiene el corazón.`, `El diafragma se paraliza instantáneamente.`], c: 1 },
+    { q: `70. ¿Dónde debemos auscultar típicamente si queremos escuchar el Foco Aórtico (válvula aórtica) según el mapa topográfico de Prada?`, opts: [`En el 5º espacio intercostal izquierdo, línea medioclavicular (ápex).`, `En el apéndice xifoides.`, `En el 2º espacio intercostal DERECHO, línea paraesternal.`, `En el cuello.`], c: 2 }
+];
+
+// Estado de la aplicación
+let activeQuestions = [];
+let answers = {};
+let marked = {};
+let currentOrderMode = 'original';
+
+// Utilidad para mezclar arrays
+function shuffleArray(array) {
+    let newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+// Inicia el quiz
+function startQuiz(orderMode) {
+    currentOrderMode = orderMode;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+    
+    activeQuestions = db.map((item, index) => ({
+        ...item,
+        originalId: index + 1
+    }));
+
+    if (orderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+// Lógica de repetición
+function retakeQuiz(mode) {
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+
+    let toKeep = [];
+    if (mode === 'all') {
+        toKeep = db.map((_, i) => i + 1);
+    } else if (mode === 'failed') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false).map(q => q.originalId);
+    } else if (mode === 'marked') {
+        toKeep = activeQuestions.filter(q => marked[q.originalId]).map(q => q.originalId);
+    } else if (mode === 'failed_marked') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false || marked[q.originalId]).map(q => q.originalId);
+    }
+
+    if (toKeep.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        document.getElementById('results-screen').style.display = 'flex';
+        document.getElementById('quiz-layout').style.display = 'none';
+        return;
+    }
+
+    activeQuestions = db.filter((_, i) => toKeep.includes(i + 1)).map(item => ({
+        ...item,
+        originalId: db.indexOf(item) + 1
+    }));
+
+    if (currentOrderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+function resetState() {
+    answers = {};
+}
+
+// Construcción del DOM
+function buildInterface() {
+    const sidebar = document.getElementById('sidebar');
+    const container = document.getElementById('questions-container');
+    
+    sidebar.innerHTML = '';
+    container.innerHTML = '';
+
+    activeQuestions.forEach((q, index) => {
+        // Dot del sidebar
+        const dot = document.createElement('div');
+        dot.className = `nav-dot ${marked[q.originalId] ? 'is-marked' : ''}`;
+        dot.id = `nav-${q.originalId}`;
+        dot.innerHTML = `${index + 1}<div class="mark-indicator"></div>`;
+        dot.onclick = () => {
+            document.getElementById(`q-${q.originalId}`).scrollIntoView({behavior: 'smooth'});
+        };
+        sidebar.appendChild(dot);
+
+        // Tarjeta de la pregunta
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.originalId}`;
+
+        // Mezclar opciones
+        let optionsWithIndex = q.opts.map((text, i) => ({ text, isCorrect: i === q.c }));
+        optionsWithIndex = shuffleArray(optionsWithIndex);
+
+        let optionsHTML = '';
+        optionsWithIndex.forEach((opt, optIndex) => {
+            optionsHTML += `<button class="option-btn" id="opt-${q.originalId}-${optIndex}" 
+                onclick="selectAnswer(${q.originalId}, ${opt.isCorrect}, ${optIndex}, '${opt.text.replace(/'/g, "\\'")}')">
+                ${opt.text}
+            </button>`;
+        });
+
+        const isMarked = marked[q.originalId] ? 'marked' : '';
+        const markText = marked[q.originalId] ? '★ Marcada' : '☆ Marcar';
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${index + 1}. ${q.q.replace(/^\d+\.\s*/, '')}</h3>
+                <button class="mark-btn ${isMarked}" id="mark-${q.originalId}" onclick="toggleMark(${q.originalId})">${markText}</button>
+            </div>
+            <div class="options-grid" id="grid-${q.originalId}">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.originalId}"></div>
+        `;
+
+        container.appendChild(card);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+// Acción de respuesta
+function selectAnswer(qId, isCorrect, optIndex, optText) {
+    if (answers[qId] !== undefined) return;
+
+    answers[qId] = isCorrect;
+    
+    const grid = document.getElementById(`grid-${qId}`);
+    const buttons = grid.getElementsByClassName('option-btn');
+    const feedback = document.getElementById(`feedback-${qId}`);
+    const navDot = document.getElementById(`nav-${qId}`);
+
+    for (let i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+        if (buttons[i].id === `opt-${qId}-${optIndex}`) {
+            buttons[i].classList.add(isCorrect ? 'correct' : 'incorrect');
+        } else if (buttons[i].getAttribute('onclick').includes('true')) {
+            buttons[i].classList.add('missed-correct');
+        }
+    }
+
+    navDot.classList.add(isCorrect ? 'correct' : 'incorrect');
+    feedback.style.display = 'block';
+    
+    const correctOriginalOptionText = db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).opts[db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).c];
+
+    if (isCorrect) {
+        feedback.innerHTML = `<strong>¡Correcto!</strong> La respuesta es: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--correct)';
+    } else {
+        feedback.innerHTML = `<strong>Incorrecto.</strong> La respuesta correcta era: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--incorrect)';
+    }
+}
+
+// Acción marcar
+function toggleMark(qId) {
+    marked[qId] = !marked[qId];
+    
+    const btn = document.getElementById(`mark-${qId}`);
+    const dot = document.getElementById(`nav-${qId}`);
+
+    if (marked[qId]) {
+        btn.classList.add('marked');
+        btn.innerHTML = '★ Marcada';
+        dot.classList.add('is-marked');
+    } else {
+        btn.classList.remove('marked');
+        btn.innerHTML = '☆ Marcar';
+        dot.classList.remove('is-marked');
+    }
+}
+
+// Acción finalizar
+function finishQuiz() {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unattemptedCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (answers[q.originalId] === true) correctCount++;
+        else if (answers[q.originalId] === false) incorrectCount++;
+        else unattemptedCount++;
+    });
+
+    document.getElementById('quiz-layout').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'flex';
+
+    document.getElementById('results-summary').innerHTML = `
+        Aciertos: <span style="color: var(--correct)">${correctCount}</span> | 
+        Fallos: <span style="color: var(--incorrect)">${incorrectCount}</span> | 
+        Sin responder: ${unattemptedCount}
+    `;
+
+    const totalFailed = activeQuestions.filter(q => answers[q.originalId] === false).length;
+    const totalMarked = Object.values(marked).filter(v => v).length;
+    
+    document.getElementById('btn-retake-failed').disabled = totalFailed === 0;
+    document.getElementById('btn-retake-marked').disabled = totalMarked === 0;
+    document.getElementById('btn-retake-both').disabled = (totalFailed === 0 && totalMarked === 0);
+}
+</script>
+</body>
+</html>

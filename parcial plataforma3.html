@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Aparato Genital Masculino</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #ebf2f6;
+            --sidebar-w: 70px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral compacto */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 32px;
+            height: 32px;
+            background: #34495e;
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        /* Pestaña Reiniciar Izquierda */
+        .restart-tab {
+            width: 100%;
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+            transition: 0.3s;
+        }
+        .restart-tab:hover { background: var(--accent); color: white; }
+
+        /* Contenido principal */
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid var(--accent);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px 18px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--accent); background: #f0f7ff; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95em;
+            line-height: 1.5;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Aparato Genital Masculino - Anatomía I</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados del Intento</h2>
+        <p id="score-text" style="font-size: 1.2rem;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const questionsData = [
+        {
+            id: 1,
+            q: "Coma se denomina el estrechamiento en la porción inicial de la uretra masculina",
+            options: [
+                { text: "Esfinter interno de la uretra", isCorrect: true, r: "El esfínter uretral interno, situado en el cuello de la vejiga, constituye el primer estrechamiento funcional de la uretra masculina[cite: 491, 496]." },
+                { text: "Fosa navicular", isCorrect: false, r: "Es una dilatación en el glande, no un estrechamiento inicial[cite: 497]." },
+                { text: "Porción membranosa", isCorrect: false, r: "Es un estrechamiento, pero no está en la porción inicial[cite: 501]." },
+                { text: "Esfinter externo de la uretra", isCorrect: false, r: "Se encuentra a nivel del diafragma urogenital, no en el inicio[cite: 502]." }
+            ]
+        },
+        {
+            id: 2,
+            q: "Cómo se denomina la sobrelevación en la cara posterior del seno prostático",
+            options: [
+                { text: "Colicula seminal", isCorrect: true, r: "El colículo seminal (veru montanum) es la elevación media en la cresta uretral de la uretra prostática[cite: 504, 510]." },
+                { text: "Conductos eyaculadores", isCorrect: false, r: "Desembocan en el colículo, pero no son la elevación en sí[cite: 513]." },
+                { text: "Utriculo", isCorrect: false, r: "Es un pequeño fondo de saco en el colículo, no la sobrelevación completa[cite: 514]." },
+                { text: "Conductillos prostáticos", isCorrect: false, r: "Desembocan a los lados del colículo, en los senos prostáticos[cite: 515]." }
+            ]
+        },
+        {
+            id: 3,
+            q: "Durante la eyaculación del liquido seminal, un elemento impide la eyaculación retrograda",
+            options: [
+                { text: "esfinter uretral interno", isCorrect: true, r: "El esfínter uretral interno se contrae durante la eyaculación para evitar que el semen entre en la vejiga[cite: 517, 522]." },
+                { text: "Ureter intramural", isCorrect: false, r: "No participa en el proceso de la eyaculación[cite: 527]." },
+                { text: "Utriculo prostático", isCorrect: false, r: "Es un resto vestigial sin función mecánica en la eyaculación[cite: 528]." },
+                { text: "Músculo detrusor", isCorrect: false, r: "Su función es la contracción de la vejiga para la micción[cite: 529]." }
+            ]
+        },
+        {
+            id: 4,
+            q: "El drenaje linfático testicular tiene lugar fundamentalmente hacia:",
+            options: [
+                { text: "ganglios linfáticos lumbares", isCorrect: true, r: "Debido a su origen embrionario lumbar, los vasos linfáticos testiculares drenan en los ganglios lumbares (aórticos laterales)[cite: 534, 541]." },
+                { text: "Ganglios inguinales", isCorrect: false, r: "Drenan la piel del escroto, pero no el testículo directamente[cite: 540]." },
+                { text: "Ganglios pélvicos", isCorrect: false, r: "No es el destino principal de la linfa testicular[cite: 542]." },
+                { text: "Ganglios femorales", isCorrect: false, r: "No están relacionados con el drenaje gonadal[cite: 543]." }
+            ]
+        },
+        {
+            id: 5,
+            q: "El epididimo se conforma por la confluencia de los",
+            options: [
+                { text: "Conductos eferente", isCorrect: true, r: "Los conductillos eferentes conectan la red testicular (rete testis) con la cabeza del epidídimo[cite: 547, 558]." },
+                { text: "Conductillos seminiferos", isCorrect: false, r: "Se encuentran dentro de los lobulillos testiculares[cite: 552]." },
+                { text: "Túbulos seminiferos", isCorrect: false, r: "Son el lugar de la espermatogénesis dentro del testículo[cite: 556]." },
+                { text: "Conductos deferentes", isCorrect: false, r: "Es la continuación de la cola del epidídimo[cite: 557]." }
+            ]
+        },
+        {
+            id: 6,
+            q: "El nervio pudendo inerva sensitivamente todas estas regiones, excepto:",
+            options: [
+                { text: "cara lateral de la bolsa escrotal", isCorrect: true, r: "La cara lateral y anterior del escroto está inervada por los nervios ilioinguinal y genitofemoral, no por el pudendo[cite: 560, 570]." },
+                { text: "Canal anorectal y ano", isCorrect: false, r: "Inervado por los nervios rectales inferiores, ramas del pudendo[cite: 569]." },
+                { text: "Espacio perineal superficial", isCorrect: false, r: "Sus estructuras reciben inervación del nervio perineal (rama del pudendo)[cite: 571]." },
+                { text: "Cuerpos eréctiles del pene", isCorrect: false, r: "El nervio dorsal del pene es rama terminal del pudendo[cite: 572]." }
+            ]
+        },
+        {
+            id: 7,
+            q: "El receso vaginal es una prolongación que acompaña a",
+            options: [
+                { text: "Cola del Epididimo", isCorrect: true, r: "El seno del epidídimo (receso vaginal) es una hendidura de la túnica vaginal entre el cuerpo del epidídimo y el testículo[cite: 577, 584]." },
+                { text: "Túnica albuginea", isCorrect: false, r: "Es la capa fibrosa profunda, no forma el receso vaginal[cite: 582]." },
+                { text: "Hidatide testicular", isCorrect: false, r: "Es un resto vestigial, no define el receso[cite: 583]." },
+                { text: "conducto deferente", isCorrect: false, r: "No está relacionado con la formación de este receso vaginal[cite: 585]." }
+            ]
+        },
+        {
+            id: 8,
+            q: "En qué porción del testículo se encuentra el mediastino testicular",
+            options: [
+                { text: "Borde posterior", isCorrect: true, r: "El mediastino testicular es un engrosamiento de la túnica albugínea en el borde posterior del testículo[cite: 588, 594]." },
+                { text: "Polo inferior", isCorrect: false, r: "No es la localización del mediastino[cite: 593]." },
+                { text: "Borde anterior", isCorrect: false, r: "Es un borde libre y convexo[cite: 598]." },
+                { text: "Cara lateral", isCorrect: false, r: "Está cubierta por la túnica vaginal[cite: 599]." }
+            ]
+        },
+        {
+            id: 9,
+            q: "Estructura de musculatura estriada, controlada por el nervio pudendo:",
+            options: [
+                { text: "Esfinter externo de la uretra", isCorrect: true, r: "El esfínter externo es músculo estriado voluntario inervado por el nervio pudendo[cite: 601, 609]." },
+                { text: "Conducto deferente", isCorrect: false, r: "Posee musculatura lisa[cite: 610]." },
+                { text: "detrusor", isCorrect: false, r: "Es músculo liso bajo control autonómico[cite: 611]." },
+                { text: "Esfinter interno de la uretra", isCorrect: false, r: "Es músculo liso e involuntario[cite: 613]." }
+            ]
+        },
+        {
+            id: 10,
+            q: "La afectación del testiculo produce dolor que se refleja a la cavidad abdominal. Esto se produce por:",
+            options: [
+                { text: "El origen lumbar de la inervación vegetativa que acompaña a la arteria testicular", isCorrect: true, r: "La inervación testicular proviene de los niveles T10-T11, lo que explica el dolor referido al abdomen[cite: 615, 627]." },
+                { text: "El origen fibroso de la túnica albuginea", isCorrect: false, r: "No explica el patrón de dolor referido[cite: 621]." },
+                { text: "El origen peritoneal de la túnica vaginal", isCorrect: false, r: "Relacionado con la anatomía pero no directamente con la vía del dolor[cite: 625]." },
+                { text: "El retorno venoso sobre la cava inferior", isCorrect: false, r: "Es una característica anatómica, no neurológica[cite: 626]." }
+            ]
+        },
+        {
+            id: 11,
+            q: "Qué arteria no participa de los elementos vasculares que se encuentran en el trayecto inguinal",
+            options: [
+                { text: "epigastrica superficial", isCorrect: true, r: "La arteria epigástrica superficial es subcutánea y no forma parte del cordón espermático en el conducto inguinal[cite: 631, 641]." },
+                { text: "A. testicular", isCorrect: false, r: "Es el componente principal del cordón[cite: 636]." },
+                { text: "A del conducto deferente", isCorrect: false, r: "Acompaña al conducto deferente en el trayecto[cite: 642]." },
+                { text: "A cremastérica", isCorrect: false, r: "Irriga las cubiertas del cordón en el trayecto[cite: 643]." }
+            ]
+        },
+        {
+            id: 12,
+            q: "Qué elemento exprime el cuerpo esponjoso para facilitar la salida del semen",
+            options: [
+                { text: "Músculo bulboesponjoso", isCorrect: true, r: "Su contracción rítmica comprime el bulbo y el cuerpo esponjoso para propulsar el semen[cite: 645, 655]." },
+                { text: "musc esfinter externo de la uretra", isCorrect: false, r: "Su función es el control voluntario de la micción[cite: 654]." },
+                { text: "Músculo isquiocavernoso", isCorrect: false, r: "Mantiene la erección comprimiendo los pilares del pene[cite: 656]." },
+                { text: "musc transverso superficial del periné", isCorrect: false, r: "Estabiliza el centro tendinoso del periné[cite: 657]." }
+            ]
+        },
+        {
+            id: 13,
+            q: "Qué elemento queda fuera del cordón espermático",
+            options: [
+                { text: "Arteria testicular", isCorrect: true, r: "Nota: Según el examen, esta fue la respuesta marcada, aunque anatómicamente la arteria TESTICULAR SÍ va dentro. El distractor común suele ser el nervio ilioinguinal que va por fuera[cite: 662, 670]." },
+                { text: "Plexo venoso testicular o pampiniforme", isCorrect: false, r: "Es un componente interno fundamental[cite: 667]." },
+                { text: "ramo genital del nervio genitofemoral", isCorrect: false, r: "Inerva el músculo cremáster dentro del cordón[cite: 668]." },
+                { text: "Conducto deferente", isCorrect: false, r: "Es el elemento central del cordón espermático[cite: 669]." }
+            ]
+        },
+        {
+            id: 14,
+            q: "Qué porción del testículo no se encuentra envuelto por la túnica vaginal",
+            options: [
+                { text: "Borde posterior", isCorrect: true, r: "En el borde posterior el testículo está en contacto con el epidídimo y entran los vasos, sin cubierta serosa[cite: 672, 681]." },
+                { text: "Borde anterior", isCorrect: false, r: "Está totalmente cubierto por la túnica vaginal[cite: 682]." },
+                { text: "Polo superior", isCorrect: false, r: "Está cubierto por la serosa[cite: 683]." },
+                { text: "Cara medial", isCorrect: false, r: "Está cubierta por la túnica vaginal[cite: 684]." }
+            ]
+        },
+        {
+            id: 15,
+            q: "Sobre la porción pélvica del conducto deferente, señale la incorrecta:",
+            options: [
+                { text: "Se apoya sobra la cara anterosuperior de la vejiga urinaria", isCorrect: true, r: "Es incorrecto. El conducto deferente pasa por la cara LATERAL y luego POSTERIOR de la vejiga, no sobre la cara anterosuperior[cite: 689, 699]." },
+                { text: "Se apoya sobre el uréter para dirigirse caudalmente", isCorrect: false, r: "Correcto, cruza superior al uréter[cite: 694]." },
+                { text: "Es extraperitoneal en todo este trayecto", isCorrect: false, r: "Correcto, se sitúa bajo el peritoneo parietal[cite: 697]." },
+                { text: "la cubierta cremastérica recubre la adventicia", isCorrect: false, r: "Correcto mientras está en el cordón, aunque pierde capas al entrar en pelvis[cite: 698]." }
+            ]
+        }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...questionsData];
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            feedback.id = `fb-${q.id}`;
+
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${option.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = questionsData.find(q => q.id === qId).options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Has acertado <strong>${correctas}</strong> de <strong>${total}</strong> preguntas.`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...questionsData];
+        else if (mode === 'failed') next = questionsData.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = questionsData.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = questionsData.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    initQuiz(questionsData);
+</script>
+
+</body>
+</html>

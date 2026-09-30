@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Biología Celular - Corregido</title>
+   
+</script>
+    <style>
+        :root {
+            --primary: #2c3e50; --secondary: #3498db; --success: #27ae60;
+            --danger: #e74c3c; --light: #f4f7f6; --marked: #f1c40f;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--light); color: var(--primary); padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { text-align: center; }
+        
+        /* Navegación */
+        .index-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); gap: 5px; margin-bottom: 25px; padding: 15px; background: #eee; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+        .index-item { height: 35px; display: flex; align-items: center; justify-content: center; background: white; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: 0.2s; }
+        .index-item.active { border: 2px solid var(--primary); background: #d6eaf8; font-weight: bold; }
+        .index-item.answered { background: #d4edda; border-color: var(--success); }
+        .index-item.failed { background: #f8d7da; border-color: var(--danger); }
+        .index-item.is-marked { border: 2px solid var(--marked); background: #fef9e7; }
+
+        /* Preguntas */
+        .question-card { display: none; border: 2px solid #f0f0f0; padding: 20px; border-radius: 10px; }
+        .question-card.active { display: block; animation: fadeIn 0.3s; }
+        .question-text { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; color: var(--primary); }
+        
+        .options { list-style: none; padding: 0; }
+        .option-item { padding: 12px; margin: 10px 0; background: #fff; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .option-item:hover { background: #f1f8ff; border-color: var(--secondary); }
+        .option-item.correct { background: #d4edda !important; border-color: #28a745; color: #155724; font-weight: bold; pointer-events: none; }
+        .option-item.wrong { background: #f8d7da !important; border-color: #dc3545; color: #721c24; pointer-events: none; }
+        .option-item.disabled { pointer-events: none; opacity: 0.6; }
+
+        .explanation { margin-top: 20px; padding: 15px; background: #eaf4ff; border-left: 5px solid var(--secondary); display: none; font-size: 0.95em; border-radius: 0 8px 8px 0; }
+        
+        .controls { display: flex; justify-content: space-between; margin-top: 25px; gap: 10px; }
+        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; background: var(--secondary); color: white; font-weight: bold; flex: 1; transition: 0.3s; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .mark-btn { background: var(--marked); color: #333; }
+
+        #results-screen { display: none; text-align: center; }
+        .score-display { font-size: 3rem; font-weight: bold; margin: 20px 0; color: var(--primary); }
+        .retry-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 30px; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Examen Biología Celular</h1>
+    
+    <div id="quiz-ui">
+        <div class="index-container" id="index-nav"></div>
+        <div id="questions-container"></div>
+        
+        <div class="controls">
+            <button id="prev-btn" onclick="changeQuestion(-1)">Anterior</button>
+            <button class="mark-btn" id="mark-toggle" onclick="toggleMark()">Marcar Pregunta</button>
+            <button id="next-btn" onclick="changeQuestion(1)">Siguiente</button>
+        </div>
+    </div>
+
+    <div id="results-screen">
+        <h2>Resultados Finales</h2>
+        <div class="score-display" id="score-num">0 / 0</div>
+        <p id="score-text"></p>
+        <div class="retry-options">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')" style="background:var(--danger)">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')" style="background:var(--marked); color:black">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed_marked')" style="background:var(--primary)">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Muestra de datos (Añade aquí todas tus preguntas)
+const questionsData = [
+    { q: "1. ¿Cuál de los siguientes puede describirse como la unidad viva más pequeña?", a: ["ADN", "Célula", "Orgánulo", "Proteína"], c: 1, e: "La célula es la unidad fundamental de la vida capaz de realizar todas las funciones vitales." },
+    { q: "2. Seleccione el orden de componentes y procesos bioquímicos que mejor se correlaciona con los dogmas del dogma central:", a: ["ADN [transcripción] ARN [traducción] proteína", "proteína [traducción] ARN [transcripción] ADN", "ADN [traducción] ARN [transcripción] proteína", "ARN [transcripción] proteína [traducción] ADN"], c: 0, e: "El flujo es: replicación/transcripción (ADN a ARN) y traducción (ARN a proteína)." },
+    { q: "3. Todas las proteínas diferentes en una célula están hechas de los mismos 20...", a: ["Nucleótidos", "Azúcares", "Aminoácidos", "Ácidos grasos"], c: 2, e: "Los 20 aminoácidos estándar son los bloques de construcción universales de las proteínas." },
+    { q: "4. ¿Cuál de estas afirmaciones sobre las mutaciones es FALSA?", a: ["Una mutación es un cambio en el ADN que puede generar descendencia menos apta.", "Una mutación puede ser resultado de una replicación imperfecta del ADN.", "Una mutación es un resultado de la reproducción sexual.", "Una mutación es un cambio en el ADN que puede generar descendencia tan apta como sus padres."], c: 2, e: "La mutación ocurre por errores químicos o de replicación, no es un producto directo de la reproducción sexual (que recombina genes existentes)." },
+    { q: "5. El proceso de cambio y selección a lo largo de muchas generaciones es la base de:", a: ["La mutación", "La evolución", "La herencia", "La reproducción"], c: 1, e: "La evolución se define como el cambio en las frecuencias alélicas y rasgos de una población a lo largo del tiempo." },
+    { q: "6. La evolución es un proceso que:", a: ["Puede entenderse basándose en los principios de mutación y selección.", "Resulta de ciclos repetidos de adaptación durante miles de millones de años.", "Por el cual todas las células actuales surgieron de 4 o 5 células ancestrales diferentes.", "Requiere cientos de miles de años."], c: 0, e: "Los pilares de la evolución darwiniana son la variación (mutación) y la supervivencia diferencial (selección)." },
+    { q: "7. El genoma de una célula:", a: ["Se define como todos los genes que se usan para fabricar proteínas.", "Contiene todo el ADN de una célula.", "Cambia constantemente según el entorno.", "Se altera durante el desarrollo embrionario."], c: 1, e: "El genoma es la totalidad de la información genética contenida en el ADN de un organismo." },
+    { q: "8. ¿Qué afirmación es FALSA sobre el descubrimiento de las células en el siglo XIX?", a: ["Las células pasaron a ser conocidas como la unidad básica universal.", "Las nuevas células pueden formarse espontáneamente de restos de células rotas.", "La microscopía óptica fue esencial para demostrar rasgos comunes entre tejidos.", "Las células surgen de la división de células preexistentes."], c: 1, e: "La teoría celular refutó la generación espontánea; las células solo surgen de otras células." },
+    { q: "9. ¿Qué unidad de longitud usaría generalmente para medir una célula animal típica?", a: ["Centímetros", "Nanómetros", "Milímetros", "Micrómetros"], c: 3, e: "Las células animales miden habitualmente entre 10 y 30 micrómetros (μm)." },
+    { q: "10. El poder de resolución de un microscopio fluorescente está limitado por la _______ de la luz visible.", a: ["Absorción", "Intensidad", "Filtración", "Longitud de onda"], c: 3, e: "La resolución está limitada físicamente por la longitud de onda (límite de difracción)." },
+    { q: "11. ¿Cuál es la distancia mínima que dos puntos pueden estar separados y seguir siendo resueltos por microscopía óptica?", a: ["20 nm", "0.2 μm", "2 μm", "200 μm"], c: 1, e: "El límite de resolución del microscopio óptico es de aproximadamente 200 nm o 0.2 μm." },
+    { q: "12. ¿Qué reactivo se usa para dar contraste en microscopía electrónica de transmisión?", a: ["Fluoresceína", "Formaldehído", "Tetróxido de osmio", "Azul de metileno"], c: 2, e: "Se usan metales pesados como el osmio, uranio o plomo para dispersar electrones y dar contraste." },
+    { q: "13. Las células procariotas no poseen:", a: ["Núcleo", "Maquinaria de replicación", "Ribosomas", "Bicapas membranosas"], c: 0, e: "La característica definitoria de los procariotas es la ausencia de un núcleo envuelto por membrana." },
+    { q: "14. ¿Qué tres características apoyan la rápida evolución de las poblaciones procariotas?", a: ["Microscópicas, móviles, anaeróbicas.", "Aeróbicas, móviles, crecimiento rápido.", "Sin orgánulos, pared celular, intercambio de ADN.", "Población grande, crecimiento rápido, intercambio de ADN."], c: 3, e: "Estos tres factores permiten una adaptación casi inmediata a cambios ambientales." },
+    { q: "15. ¿Qué característica distingue mejor a las arqueas de las bacterias?", a: ["Pueden metabolizar sustancias inorgánicas.", "Se encuentran en ambientes extremadamente hostiles.", "Prosperan en condiciones anaeróbicas.", "Son organismos fotosintéticos."], c: 1, e: "Aunque hay excepciones, las arqueas son famosas por ser extremófilas." },
+    { q: "16. ¿Qué característica de una arquea con genes similares a eucariotas es más relevante para entender la evolución eucariota?", a: ["Protuberancias celulares que se extienden desde el cuerpo celular.", "Nativa de respiraderos hidrotermales.", "Requiere gas metano.", "Identificada en la costa de Groenlandia."], c: 0, e: "Las protuberancias sugieren cómo una célula ancestral pudo envolver a una bacteria (endosimbiosis)." },
+    { q: "17. La _______ está formada por dos membranas concéntricas y es continua con el RE.", a: ["Membrana plasmática", "Red de Golgi", "Membrana mitocondrial", "Envoltura nuclear"], c: 3, e: "La envoltura nuclear tiene doble membrana y su capa externa se une al retículo endoplasmático." },
+    { q: "18. El núcleo confina a los _______, manteniéndolos separados de otros componentes.", a: ["Lisosomas", "Cromosomas", "Peroxisomas", "Ribosomas"], c: 1, e: "El núcleo protege y organiza el material genético en forma de cromosomas." },
+    { q: "19. ¿Cuál de estos orgánulos tiene tanto membrana externa como interna?", a: ["Retículo endoplasmático", "Mitocondria", "Lisosoma", "Peroxisoma"], c: 1, e: "Mitocondrias y cloroplastos poseen doble membrana debido a su origen endosimbiótico." },
+    { q: "20. ¿Cuál es el emparejamiento correcto de material consumido y energía producida en la respiración celular?", a: ["Grasa, ADP", "Azúcar, grasa", "Azúcar, ATP", "Grasa, proteína"], c: 2, e: "La oxidación de la glucosa (azúcar) produce ATP, la moneda energética celular." },
+    { q: "21. Las mitocondrias no pueden funcionar mucho tiempo aisladas de la célula porque son: ", a: ["Virus", "Parásitos", "Endosimbiontes", "Anaerobios"], c: 2, e: "Son antiguos simbiontes que han transferido gran parte de su ADN al núcleo celular." },
+    { q: "22. La conversión de ADP en ATP en la membrana interna mitocondrial consume:", a: ["Oxígeno", "Nitrógeno", "Azufre", "Dióxido de carbono"], c: 0, e: "El oxígeno es el aceptor final de electrones en la cadena respiratoria para formar ATP." },
+    { q: "23. ¿Dónde se localizan las moléculas de clorofila en el cloroplasto?", a: ["Membrana límite externa", "Espacio intermembrana", "Membrana límite interna", "Membrana interna (tilacoide)"], c: 3, e: "Los tilacoides son sacos aplanados donde ocurre la fase lumínica de la fotosíntesis." },
+    { q: "24. En la fotosíntesis, las plantas incorporan el carbono del CO2 en moléculas de _______ de alta energía.", a: ["Grasa", "Azúcar", "Proteína", "Fibra"], c: 1, e: "El ciclo de Calvin fija el CO2 para producir azúcares (G3P)." },
+    { q: "25. ¿Cuál es el papel del lisosoma?", a: ["Transporte al aparato de Golgi.", "Limpieza, reciclaje y eliminación de macromoléculas.", "Inactivación de toxinas vía peróxido de hidrógeno.", "Almacenamiento de macromoléculas en exceso."], c: 1, e: "Son el sistema digestivo/reciclaje celular gracias a sus hidrolasas ácidas." },
+    { q: "26. ¿Qué término describe la captura de materiales externos en vesículas para traerlos a la célula?", a: ["Degradación", "Exocitosis", "Oxidación", "Endocitosis"], c: 3, e: "La endocitosis engloba fagocitosis y pinocitosis." },
+    { q: "27. Un ejemplo de materiales liberados por exocitosis es:", a: ["Hormonas", "Ácidos nucleicos", "Azúcares", "Proteínas citosólicas"], c: 0, e: "Las glándulas secretan hormonas al torrente sanguíneo mediante exocitosis." },
+    { q: "28. Orgánulos que generan y eliminan especies reactivas de oxígeno como el peróxido de hidrógeno:", a: ["Vesículas", "Lisosomas", "Peroxisomas", "Endosomas"], c: 2, e: "Los peroxisomas usan la catalasa para descomponer el H2O2 tóxico." },
+    { q: "29. ¿Cuál de los siguientes elementos del citoesqueleto es el más grueso?", a: ["Filamentos de actina", "Microtúbulos", "Filamentos intermedios", "Todos tienen el mismo grosor."], c: 1, e: "Los microtúbulos miden unos 25 nm, la actina 7 nm y los intermedios 10 nm." },
+    { q: "30. ¿Cuál es probablemente la función más antigua del citoesqueleto?", a: ["Motilidad celular", "Transporte de vesículas", "Soporte de membrana", "División celular"], c: 3, e: "La segregación del material genético es una función ancestral presente incluso en procariotas (homólogos FtsZ)." },
+    { q: "31. Los microtúbulos ________ y son necesarios para separar cromosomas duplicados.", a: ["Generan fuerzas contráctiles.", "Tienen un grosor intermedio.", "Pueden reorganizarse rápidamente.", "Se encuentran en gran número en células musculares."], c: 2, e: "Su inestabilidad dinámica les permite formar el huso mitótico rápidamente." },
+    { q: "32. En promedio, las células eucariotas son ___ veces más largas y tienen ___ veces más volumen que las procariotas.", a: ["5; 100", "10; 200", "10; 100", "10; 1000"], c: 3, e: "La diferencia de volumen es masiva (1000 veces) debido a la compartimentación." },
+    { q: "33. Las células especializadas en la secreción de proteínas suelen tener:", a: ["Largos haces de actina/miosina.", "Pequeño volumen citoplasmático.", "Gran población de mitocondrias.", "Retículo endoplasmático agrandado."], c: 3, e: "El RER es el sitio principal de síntesis de proteínas de exportación." },
+    { q: "34. ¿Qué esperaría encontrar en una fracción citosólica de células de mamífero?", a: ["Enzimas mitocondriales", "Subunidades ribosomales", "Membranas fotosintéticas", "Proteínas lisosomales"], c: 1, e: "Muchos ribosomas están libres en el citosol sintetizando proteínas internas." },
+    { q: "35. ¿Qué característica de C. elegans fue clave para estudiar la muerte celular programada?", a: ["Es más pequeño que la mosca de la fruta.", "El 70% de sus genes tienen homólogos humanos.", "Se conocía la vía de desarrollo de cada célula en el gusano adulto.", "Su genoma estaba parcialmente secuenciado."], c: 2, e: "Su linaje celular es invariable, permitiendo rastrear cada muerte celular." },
+    { q: "36. ¿Qué características son útiles en un organismo modelo de laboratorio?", a: ["Capacidad de manipulación genética.", "Capacidad de crecer bajo condiciones controladas.", "Rápida tasa de reproducción.", "Todas las anteriores."], c: 3, e: "Todas estas características facilitan la experimentación a gran escala." },
+    { q: "37. Organismo modelo clave para el avance de la biología molecular (replicación de ADN, código genético):", a: ["E. coli", "D. melanogaster", "S. cerevisiae", "C. elegans"], c: 0, e: "E. coli fue fundamental para descifrar el dogma central." },
+    { q: "38. Arabidopsis thaliana es un modelo elegido porque:", a: ["Soporta climas extremadamente fríos.", "Se reproduce en 8-10 semanas.", "Produce millones de descendientes por planta.", "Se puede cultivar al aire libre."], c: 1, e: "Su ciclo de vida corto permite estudios genéticos rápidos en plantas." },
+    { q: "39. Drosophila melanogaster es un modelo apropiado porque es un:", a: ["Insecto", "Ave", "Anfibio", "Mamífero"], c: 0, e: "La mosca de la fruta es el modelo clásico de la genética de la herencia." },
+    { q: "40. El proceso por el cual 131 células de C. elegans son destruidas se llama:", a: ["Poda celular dirigida.", "Muerte celular programada.", "Autofagia.", "Necrosis."], c: 1, e: "Es la apoptosis regulada genéticamente durante el desarrollo." },
+    { q: "41. El pez cebra (Danio rerio) es útil en el estudio del desarrollo temprano porque sus embriones son:", a: ["Excepcionalmente grandes.", "Se desarrollan lentamente.", "Transparentes.", "Pigmentados."], c: 2, e: "La transparencia permite ver la formación de órganos en vivo." },
+    { q: "42. ¿Qué organismo es el mejor modelo para estudiar cómo las mutaciones en el metabolismo del azúcar afectan el desarrollo de los dientes?", a: ["Caballos", "Ratones", "E. coli", "Arabidopsis"], c: 1, e: "Los ratones son mamíferos y comparten casi todos los sistemas fisiológicos humanos." },
+    { q: "43. ¿Cuál de estos resultados NO se ha observado en cultivos de células humanas?", a: ["Las neuronas extienden axones que forman conexiones funcionales.", "Las células epiteliales forman capas continuas.", "Las células cambian de comportamiento ante hormonas.", "Las células embrionarias producen órganos funcionales completos para trasplante."], c: 3, e: "Todavía no podemos fabricar órganos completos y listos para trasplante in vitro." },
+    { q: "44. ¿Qué hallazgo genético sobre el SARS-CoV-2 fue responsable de los mandatos de mascarillas?", a: ["Pertenece a la familia de los coronavirus.", "Los ARNm de la proteína espiga provocan respuesta inmune.", "Las comparaciones genómicas mostraron que se propaga por portadores asintomáticos.", "Es un gran sistema modelo para partículas infecciosas."], c: 2, e: "La epidemiología genómica reveló la alta transmisión silenciosa." },
+    { q: "45. Si se usara ADN humano en lugar de ADN de levadura para rescatar un defecto de división en S. pombe:", a: ["No habría crecimiento por toxicidad.", "Habría colonias porque el ADN humano tiene un gen que puede rescatar el defecto.", "No habría colonias porque el ADN humano es demasiado diferente.", "Habría numerosas colonias de S. cerevisiae."], c: 1, e: "Esto demostró que el ciclo celular es tan conservado que los genes humanos funcionan en levaduras." },
+    { q: "46. Relacione: Escanea con láser para secciones ópticas 2D y reconstruir en 3D:", a: ["Confocal", "Fase", "Fluorescencia", "Barrido"], c: 0, e: "La microscopía confocal elimina la luz fuera de foco para cortes nítidos." },
+    { q: "47. Estructura celular animal que gestiona la modificación y empaquetado de proteínas:", a: ["Lisosomas", "Aparato de Golgi", "Citosol", "Mitocondria"], c: 1, e: "El Golgi es el centro logístico de la célula." },
+    { q: "48. Indique en qué tipos celulares se encuentran los Cloroplastos:", a: ["Animal", "Vegetal", "Bacteriana", "Animal y Vegetal"], c: 1, e: "Los cloroplastos son exclusivos de plantas y algas fotosintéticas." },
+    { q: "49. Todas las células usan los mismos 20 aminoácidos y almacenan información en el:", a: ["ARN", "ATP", "ADN", "Lípidos"], c: 2, e: "El ADN es el soporte universal de la herencia en todas las células." },
+    { q: "50. Microscopía para ver células vivas sin teñir:", a: ["Electrónica", "Contraste de fase", "Campo claro teñido", "Fluorescencia fija"], c: 1, e: "El contraste de fase permite ver células vivas transparentes." },
+    { q: "51. Células eucariotas: Casi todas tienen:", a: ["Cloroplastos", "Pared celular", "Mitocondrias", "Cápsula"], c: 2, e: "Excepto raras excepciones parásitas, las células eucariotas tienen mitocondrias." },
+    { q: "52. ¿Qué NO se puede estudiar en la levadura S. cerevisiae?", a: ["División celular", "Diferenciación de tejidos complejos", "Metabolismo", "Replicación de ADN"], c: 1, e: "La levadura es unicelular, por lo que no forma tejidos." },
+    { q: "53. Orden de evolución probable:", a: ["Eucariota > Procariota", "Procariota Anaerobio > Procariota Aerobio", "Animal > Bacterias", "ADN > Células"], c: 1, e: "Primero surgieron organismos sencillos sin oxígeno, luego la fotosíntesis liberó oxígeno permitiendo el metabolismo aerobio." },
+    { q: "54. ¿Es E. coli un buen modelo para estudiar el Retículo Endoplasmático?", a: ["Sí", "No", "Solo si se infecta", "A veces"], c: 1, e: "Las bacterias no tienen orgánulos membranosos como el RE." },
+    { q: "55. Mejor modelo para estudiar la Inmunología de mamíferos:", a: ["C. elegans", "Ratón", "E. coli", "Drosophila"], c: 1, e: "El ratón tiene un sistema inmune muy similar al humano." },
+    { q: "56. S. pombe es un modelo famoso por el estudio de:", a: ["Fotosíntesis", "División celular", "Vuelo", "Dientes"], c: 1, e: "La levadura de fisión es clave para entender el ciclo celular." },
+    { q: "57. ¿El paramecio es un microorganismo multicelular?", a: ["Verdadero", "Falso"], c: 1, e: "Es un protozoo unicelular muy complejo." },
+    { q: "58. ¿Células de una misma planta tienen ADN distinto?", a: ["Verdadero", "Falso"], c: 1, e: "Casi todas las células de un organismo tienen el mismo genoma; solo varía su expresión." },
+    { q: "59. ¿La presencia de membrana plasmática puede inferirse por el límite de la célula?", a: ["Verdadero", "Falso"], c: 0, e: "Toda célula está delimitada por una membrana biológica." },
+    { q: "60. ¿'Procariota' y 'bacteria' son exactamente lo mismo?", a: ["Verdadero", "Falso"], c: 1, e: "Los procariotas incluyen dos dominios distintos: Bacteria y Archaea." },
+    { q: "61. ¿Las mitocondrias evolucionaron de bacterias anaeróbicas?", a: ["Verdadero", "Falso"], c: 1, e: "Evolucionaron de bacterias aeróbicas que permitieron a la célula usar oxígeno." },
+    { q: "62. ¿Las plantas solo usan cloroplastos para respirar?", a: ["Verdadero", "Falso"], c: 1, e: "Las plantas tienen mitocondrias para la respiración celular; los cloroplastos son para fotosíntesis." },
+    { q: "63. ¿El aparato de Golgi participa en la secreción?", a: ["Verdadero", "Falso"], c: 0, e: "Modifica y dirige proteínas hacia la membrana para su liberación." },
+    { q: "64. ¿Los lisosomas sintetizan ácidos grasos?", a: ["Verdadero", "Falso"], c: 1, e: "Su función es degradativa, no sintética." },
+    { q: "65. ¿Las células vegetales no necesitan citoesqueleto?", a: ["Verdadero", "Falso"], c: 1, e: "Aunque tengan pared, el citoesqueleto es vital para el transporte y división." },
+    { q: "66. ¿La energía térmica causa movimiento aleatorio en el citosol?", a: ["Verdadero", "Falso"], c: 0, e: "El movimiento browniano es constante a nivel molecular." },
+    { q: "67. ¿Los protozoos pueden ser tan complejos como células multicelulares?", a: ["Verdadero", "Falso"], c: 0, e: "Sí, deben realizar todas las funciones vitales en una sola célula." },
+    { q: "68. ¿Las primeras células debieron ser aeróbicas?", a: ["Verdadero", "Falso"], c: 1, e: "La atmósfera primitiva carecía de oxígeno libre." },
+    { q: "69. ¿La variación del genoma en protozoos es mayor que en mamíferos?", a: ["Verdadero", "Falso"], c: 0, e: "Los protozoos tienen una diversidad genética asombrosa y genomas muy variables." },
+    { q: "70. ¿El genoma humano tiene casi los mismos genes que Arabidopsis?", a: ["Verdadero", "Falso"], c: 0, e: "Ambos tienen alrededor de 20.000-25.000 genes, a pesar de la diferencia de tamaño total del ADN." },
+    { q: "71. Las reacciones químicas celulares ocurren en un entorno:", a: ["Óptimo", "Orgánico", "Extracelular", "Acuoso"], c: 3, e: "El agua constituye el 70% del peso celular y es el solvente de la vida." },
+    { q: "72. ¿Qué varía entre isótopos del mismo elemento?", a: ["Electrones", "Protones", "Neutrones", "Iones"], c: 2, e: "Los isótopos tienen igual número de protones pero distinto número de neutrones." },
+    { q: "73. ¿Qué partículas contribuyen al número atómico?", a: ["Protones", "Neutrones", "Electrones", "Fotones"], c: 0, e: "El número atómico es la cantidad de protones en el núcleo." },
+    { q: "74. ¿Qué partículas contribuyen a la masa atómica?", a: ["Protones", "Protones y neutrones", "Electrones", "Solo neutrones"], c: 1, e: "La masa se concentra en el núcleo (protones + neutrones)." },
+    { q: "75. De solución 10 M a 150 mL de 3 M, ¿qué volumen de stock usa? (C1V1=C2V2)", a: ["15 mL", "35 mL", "50 mL", "45 mL"], c: 3, e: "10 * V = 3 * 150 -> V = 450/10 = 45 mL de stock." },
+    { q: "76. Masa NaOH=40. ¿Gramos para 500 mL a 10 M?", a: ["800 g", "200 g", "400 g", "160 g"], c: 1, e: "Molaridad = moles/L. 10 M en 0.5L son 5 moles. 5 * 40g = 200g." },
+    { q: "77. Isótopo 32S tiene 16p y 16n. ¿Cuántos tiene el 35S?", a: ["16p, 20n", "16p, 19n", "16p, 21n", "17p, 18n"], c: 1, e: "El número atómico (p) no cambia. 35 (masa) - 16 (p) = 19 neutrones." },
+    { q: "78. Moles en 120 g de Azufre (masa 32):", a: ["3.75", "1.75", "32", "5"], c: 0, e: "120 / 32 = 3.75 moles." },
+    { q: "79. Número atómico y peso atómico del Carbono:", a: ["6; 12", "12; 6", "6; 6", "12; 12"], c: 0, e: "Carbono: 6 protones y masa de 12 (en su forma más común)." },
+    { q: "80. El Carbono 14 tiene dos ______ adicionales respecto al Carbono 12.", a: ["Electrones", "Neutrones", "Protones", "Iones"], c: 1, e: "Tiene 8 neutrones frente a los 6 del C12." },
+    { q: "81. ¿Cuántos elementos componen el 96% de la masa de los organismos?", a: ["4", "6", "10", "20"], c: 0, e: "C, H, O y N son los elementos mayoritarios." },
+    { q: "82. Un enlace covalente se forma por:", a: ["Compartir electrones", "Perder electrones", "Transferencia de protones", "Fuerzas magnéticas"], c: 0, e: "Es el enlace más fuerte en condiciones celulares." },
+    { q: "83. Un enlace iónico se forma por:", a: ["Compartir electrones", "Pérdida/ganancia de electrones", "Atracción hidrofóbica", "Enlaces de hidrógeno"], c: 1, e: "Se basa en la atracción electrostática entre iones de carga opuesta." },
+    { q: "84. Elementos químicamente inertes:", a: ["Oxígeno", "Helio; Neón", "Sodio", "Carbono"], c: 1, e: "Los gases nobles tienen sus capas electrónicas completas." },
+    { q: "85. Elementos que forman iones +1:", a: ["Calcio", "Sodio; Potasio", "Cloro", "Hierro"], c: 1, e: "Pierden un electrón de su capa externa fácilmente." },
+    { q: "86. Elementos que forman iones +2:", a: ["Sodio", "Helio", "Magnesio; Calcio", "Nitrógeno"], c: 2, e: "Tienen dos electrones en su última capa." },
+    { q: "87. Elementos que forman gases diatómicos reactivos:", a: ["Helio", "Sodio", "Nitrógeno; Oxígeno", "Oro"], c: 2, e: "Forman moléculas N2 y O2 esenciales para la vida." },
+    { q: "88. ¿Qué factor NO influye en la longitud de un enlace covalente?", a: ["Tendencia a llenar capas", "Atracción núcleo/electrón", "Repulsión entre núcleos", "Fuerza de la gravedad"], c: 3, e: "La gravedad es insignificante a escala atómica." },
+    { q: "89. Los dobles enlaces limitan la geometría porque:", a: ["Son más largos", "Evitan la rotación", "Son menos estables", "Son iónicos"], c: 1, e: "El doble enlace es rígido y mantiene a los átomos en un mismo plano." },
+    { q: "90. ¿Qué molécula contiene enlaces polares?", a: ["Oxígeno molecular", "Metano", "Agua", "Hidrógeno"], c: 2, e: "El oxígeno atrae los electrones del hidrógeno con más fuerza." },
+    { q: "91. Comparados con enlaces simples, los dobles son:", a: ["Más largos", "Rígidos a la rotación", "Más débiles", "Flexibles"], c: 1, e: "Son más cortos y más fuertes que los simples." },
+    { q: "92. Átomos unidos por transferencia electrónica forman:", a: ["Covalentes", "Moléculas", "Sales (enlaces iónicos)", "Puentes de H"], c: 2, e: "Los compuestos iónicos suelen formar estructuras cristalinas (sales)." },
+    { q: "93. Interacción no covalente más importante para la unión específica proteína-proteína:", a: ["Covalente", "Enlaces de hidrógeno e interacciones iónicas", "Hidrofóbica", "Van der Waals"], c: 1, e: "La suma de muchos enlaces débiles crea una unión fuerte y específica." },
+    { q: "94. Cálculo del pH:", a: ["pH = -log10[H+]", "pH = log10[H+]", "pH = [H+]/10", "pH = -log[OH-]"], c: 0, e: "Es la medida de la acidez basada en la concentración de protones." },
+    { q: "95. En agua, el protón forma el ion:", a: ["Hidróxido", "Amonio", "Hidronio", "Sodio"], c: 2, e: "H+ se asocia con H2O para formar H3O+." },
+    { q: "96. La urea en agua puede formar:", a: ["Enlaces covalentes", "Enlaces de hidrógeno", "Grasa", "Cristales iónicos"], c: 1, e: "Sus grupos polares interactúan con los dipolos del agua." },
+    { q: "97. La planaridad del benceno se debe a la:", a: ["Resonancia", "Carga iónica", "Gravedad", "Fusión"], c: 0, e: "La deslocalización de electrones estabiliza la forma de anillo plano." },
+    { q: "98. Sustancia ácida común:", a: ["Jabón", "Lejía", "Café", "Agua pura"], c: 2, e: "El café es ligeramente ácido (pH ~5)." },
+    { q: "99. Función de los tampones (buffers):", a: ["Acelerar reacciones", "Mantener el pH constante", "Enfriar la célula", "Dar color"], c: 1, e: "Minimizan cambios de pH aceptando o donando protones." },
+    { q: "100. Bloque monomérico para barreras selectivas (membranas):", a: ["Azúcares", "Ácidos grasos", "Aminoácidos", "Nucleótidos"], c: 1, e: "Los ácidos grasos en los fosfolípidos forman la bicapa lipídica." }
+];
+
+let userAnswers = new Array(questionsData.length).fill(null);
+let markedQuestions = new Set();
+let filteredIndices = [];
+let currentDisplayIdx = 0;
+
+function initQuiz(mode = 'all') {
+    const container = document.getElementById('questions-container');
+    const nav = document.getElementById('index-nav');
+    container.innerHTML = '';
+    nav.innerHTML = '';
+
+    // Lógica de Filtrado corregida
+    if(mode === 'all') {
+        filteredIndices = questionsData.map((_, i) => i);
+    } else if(mode === 'failed') {
+        filteredIndices = userAnswers.map((ans, i) => (ans !== null && ans !== questionsData[i].c) ? i : -1).filter(i => i !== -1);
+    } else if(mode === 'marked') {
+        filteredIndices = Array.from(markedQuestions);
+    } else if(mode === 'failed_marked') {
+        const failed = userAnswers.map((ans, i) => (ans !== null && ans !== questionsData[i].c) ? i : -1).filter(i => i !== -1);
+        filteredIndices = Array.from(new Set([...failed, ...markedQuestions]));
+    }
+
+    if(filteredIndices.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return initQuiz('all');
+    }
+
+    // Reiniciar respuestas de las preguntas filtradas para que se puedan volver a contestar
+    filteredIndices.forEach(idx => userAnswers[idx] = null);
+
+    filteredIndices.forEach((qIdx, dIdx) => {
+        const data = questionsData[qIdx];
+        const card = document.createElement('div');
+        card.className = `question-card ${dIdx === 0 ? 'active' : ''}`;
+        card.id = `q-card-${dIdx}`;
+        card.innerHTML = `
+            <div class="question-text">${data.q}</div>
+            <ul class="options">
+                ${data.a.map((opt, i) => `<li class="option-item" onclick="checkAnswer(${qIdx}, ${dIdx}, ${i})">${opt}</li>`).join('')}
+            </ul>
+            <div class="explanation" id="exp-${dIdx}">${data.e}</div>
+        `;
+        container.appendChild(card);
+
+        const navBtn = document.createElement('div');
+        navBtn.className = `index-item ${dIdx === 0 ? 'active' : ''}`;
+        navBtn.id = `nav-${dIdx}`;
+        navBtn.innerText = qIdx + 1;
+        if(markedQuestions.has(qIdx)) navBtn.classList.add('is-marked');
+        navBtn.onclick = () => jumpTo(dIdx);
+        nav.appendChild(navBtn);
+    });
+
+    currentDisplayIdx = 0;
+    updateUI();
+    document.getElementById('quiz-ui').style.display = 'block';
+    document.getElementById('results-screen').style.display = 'none';
+}
+
+function checkAnswer(qIdx, dIdx, optIdx) {
+    if(userAnswers[qIdx] !== null) return;
+    
+    userAnswers[qIdx] = optIdx;
+    const correct = questionsData[qIdx].c;
+    const options = document.querySelectorAll(`#q-card-${dIdx} .option-item`);
+    const navBtn = document.getElementById(`nav-${dIdx}`);
+    
+    options.forEach((opt, i) => {
+        if(i === correct) opt.classList.add('correct');
+        else if(i === optIdx) opt.classList.add('wrong');
+        else opt.classList.add('disabled');
+    });
+
+    document.getElementById(`exp-${dIdx}`).style.display = 'block';
+    navBtn.classList.add(optIdx === correct ? 'answered' : 'failed');
+
+    // Comprobar si todas las preguntas del filtro actual han sido respondidas
+    const allDone = filteredIndices.every(idx => userAnswers[idx] !== null);
+    if(allDone) setTimeout(showResults, 1500);
+}
+
+function jumpTo(dIdx) {
+    document.querySelector('.question-card.active').classList.remove('active');
+    document.querySelector('.index-item.active').classList.remove('active');
+    
+    document.getElementById(`q-card-${dIdx}`).classList.add('active');
+    document.getElementById(`nav-${dIdx}`).classList.add('active');
+    currentDisplayIdx = dIdx;
+    updateUI();
+}
+
+function changeQuestion(step) {
+    const next = currentDisplayIdx + step;
+    if(next >= 0 && next < filteredIndices.length) jumpTo(next);
+}
+
+function toggleMark() {
+    const qIdx = filteredIndices[currentDisplayIdx];
+    const navBtn = document.getElementById(`nav-${currentDisplayIdx}`);
+    if(markedQuestions.has(qIdx)) {
+        markedQuestions.delete(qIdx);
+        navBtn.classList.remove('is-marked');
+    } else {
+        markedQuestions.add(qIdx);
+        navBtn.classList.add('is-marked');
+    }
+    updateUI();
+}
+
+function updateUI() {
+    document.getElementById('prev-btn').disabled = (currentDisplayIdx === 0);
+    document.getElementById('next-btn').innerText = (currentDisplayIdx === filteredIndices.length - 1) ? "Ver Resultados" : "Siguiente";
+    const qIdx = filteredIndices[currentDisplayIdx];
+    document.getElementById('mark-toggle').innerText = markedQuestions.has(qIdx) ? "Desmarcar" : "Marcar Pregunta";
+}
+
+function showResults() {
+    document.getElementById('quiz-ui').style.display = 'none';
+    const screen = document.getElementById('results-screen');
+    screen.style.display = 'block';
+
+    const correct = filteredIndices.filter(idx => userAnswers[idx] === questionsData[idx].c).length;
+    const total = filteredIndices.length;
+    
+    document.getElementById('score-num').innerText = `${correct} / ${total}`;
+    document.getElementById('score-text').innerText = (correct === total) ? "¡Perfecto! Dominas esta sección." : "Sigue repasando las falladas o marcadas.";
+}
+
+function restartQuiz(mode) {
+    if(mode === 'all') {
+        userAnswers.fill(null);
+        markedQuestions.clear();
+    }
+    initQuiz(mode);
+}
+
+// Arrancar
+initQuiz();
+</script>
+</body>
+</html>

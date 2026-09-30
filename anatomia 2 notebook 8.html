@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Anatomía Topográfica y Clínica</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--card-bg); padding: 2rem; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; width: 90%; text-align: center;
+        }
+        .modal-content h2 { margin-top: 0; color: var(--primary); }
+
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 10px 20px;
+            border-radius: 6px; cursor: pointer; font-size: 1rem; margin: 5px; transition: background 0.2s;
+        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width); background: var(--card-bg); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow-y: auto; padding: 1rem; box-sizing: border-box;
+        }
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 8px;
+        }
+        .index-btn {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+            padding: 8px 0; text-align: center; text-decoration: none; color: var(--text);
+            font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+        }
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 2rem; scroll-behavior: smooth; }
+        .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .question-title { font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1; }
+
+        .mark-btn {
+            background: transparent; border: 1px solid #cbd5e1; padding: 5px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 1rem; transition: background 0.2s;
+        }
+        .mark-btn.active { background: #fef08a; border-color: #eab308; color: #854d0e; }
+
+        .options-list { list-style: none; padding: 0; margin: 0; }
+        .option-item { margin-bottom: 0.5rem; }
+        .option-label {
+            display: flex; align-items: center; padding: 10px 15px; border: 1px solid var(--border);
+            border-radius: 6px; cursor: pointer; transition: background 0.2s;
+        }
+        .option-label:hover { background: var(--bg); }
+        .option-label input { margin-right: 10px; }
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback { margin-top: 1rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.95rem; }
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        #finish-btn-container { text-align: center; margin-top: 2rem; padding-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Cuestionario de Anatomía Clínica</h2>
+            <p>140 preguntas integradas. ¿Cómo deseas ordenarlas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Original (1-140)</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Mezclar Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        <div id="questions-container"></div>
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        // Data generada con las 140 preguntas exactas
+        const dbQuestions = [
+            { id: 1, text: "La faringe es un tubo músculo-mucoso que sirve de vía común para el aire y el alimento. Anatómicamente, su característica morfológica principal es:", options: [ { text: "a) Ser un cilindro cerrado herméticamente.", isCorrect: false }, { text: "b) Ser un cilindro incompleto al que le falta la pared anterior, abriéndose a las cavidades nasal, oral y laríngea.", isCorrect: true }, { text: "c) Estar formado exclusivamente por cartílagos.", isCorrect: false }, { text: "d) Terminar a nivel del diafragma.", isCorrect: false } ], explanation: "El profesor insiste en que la faringe no tiene pared anterior; está abierta hacia adelante comunicándose con las coanas (nasofaringe), el istmo de las fauces (orofaringe) y la entrada a la laringe." },
+            { id: 2, text: "En la nasofaringe, si un paciente presenta una hipertrofia del tejido linfoide del techo (vegetaciones), la inervación SENSITIVA que recoge las molestias de esta zona superior depende del:", options: [ { text: "a) Nervio Vago (X).", isCorrect: false }, { text: "b) Nervio Glosofaríngeo (IX).", isCorrect: false }, { text: "c) Nervio Maxilar (V2, rama del Trigémino).", isCorrect: true }, { text: "d) Nervio Facial (VII).", isCorrect: false } ], explanation: "El tercio superior de la faringe comparte sensibilidad con la cara/fosas nasales a través del trigémino (V2)." },
+            { id: 3, text: "Cuando el médico nos introduce un depresor lingual y toca la pared posterior de la orofaringe, se desencadena el reflejo nauseoso (nausea/arcada). La vía AFERENTE (sensitiva) de este reflejo viaja por el nervio:", options: [ { text: "a) Trigémino (V).", isCorrect: false }, { text: "b) Facial (VII).", isCorrect: false }, { text: "c) Glosofaríngeo (IX).", isCorrect: true }, { text: "d) Vago (X).", isCorrect: false } ], explanation: "El glosofaríngeo es el \"chivato\" sensitivo de la orofaringe." },
+            { id: 4, text: "En ese mismo reflejo nauseoso, la respuesta motora brusca que contrae la musculatura faríngea para expulsar el objeto (vía EFERENTE) es ejecutada por el nervio:", options: [ { text: "a) Glosofaríngeo (IX).", isCorrect: false }, { text: "b) Vago (X).", isCorrect: true }, { text: "c) Accesorio (XI).", isCorrect: false }, { text: "d) Hipogloso (XII).", isCorrect: false } ], explanation: "El Vago asume la inervación motora de casi todos los músculos constrictores de la faringe. Es un arco reflejo bulbar." },
+            { id: 5, text: "El músculo constrictor inferior de la faringe tiene un origen cartilaginoso. Sus fibras inferiores actúan como un esfínter funcional antes de que el bolo pase a:", options: [ { text: "a) La tráquea.", isCorrect: false }, { text: "b) El esófago.", isCorrect: true }, { text: "c) El estómago.", isCorrect: false }, { text: "d) La cavidad oral.", isCorrect: false } ], explanation: "Sus fibras más caudales abrazan la transición faringoesofágica regulando la entrada al esófago y evitando la entrada de aire al tubo digestivo." },
+            { id: 6, text: "El espacio virtual relleno de tejido conectivo laxo situado entre la pared posterior de la faringe (fascia bucofaríngea) y la fascia prevertebral se denomina:", options: [ { text: "a) Espacio pretraqueal.", isCorrect: false }, { text: "b) Vaina carotídea.", isCorrect: false }, { text: "c) Espacio retrofaríngeo.", isCorrect: true }, { text: "d) Triángulo de Sédillot.", isCorrect: false } ], explanation: "El profesor recalca que es una \"autopista\" quirúrgica exangüe y un lugar peligroso donde puede acumularse pus (absceso retrofaríngeo) desde la faringe hasta el mediastino." },
+            { id: 7, text: "Durante la deglución, para evitar que los líquidos inunden la vía aérea (laringe), resbalan por unos canales laterales situados a ambos lados de la entrada laríngea llamados:", options: [ { text: "a) Coanas.", isCorrect: false }, { text: "b) Valléculas glosoepiglóticas.", isCorrect: false }, { text: "c) Recesos piriformes.", isCorrect: true }, { text: "d) Senos maxilares.", isCorrect: false } ], explanation: "Actúan como toboganes laterales en la laringofaringe para desviar los líquidos hacia el esófago." },
+            { id: 8, text: "El espacio cóncavo situado entre la base de la lengua y la cara anterior de la epiglotis, donde la saliva puede acumularse antes de tragar, se llama:", options: [ { text: "a) Receso piriforme.", isCorrect: false }, { text: "b) Vallécula glosoepiglótica.", isCorrect: true }, { text: "c) Vestíbulo laríngeo.", isCorrect: false }, { text: "d) Glotis.", isCorrect: false } ], explanation: "Descrito en el audio como un \"valle\" o receso que desvía el contenido lejos de la línea media de la laringe." },
+            { id: 9, text: "¿Qué cartílago laríngeo tiene forma de anillo completo (sello de un anillo), siendo más estrecho por delante (arco) y más alto por detrás (lámina)?", options: [ { text: "a) Cartílago tiroides.", isCorrect: false }, { text: "b) Cartílago cricoides.", isCorrect: true }, { text: "c) Cartílago epiglótico.", isCorrect: false }, { text: "d) Cartílago aritenoides.", isCorrect: false } ], explanation: "Es la base estructural de la laringe y el único anillo cartilaginoso completo de toda la vía aérea." },
+            { id: 10, text: "La \"Nuez de Adán\" o prominencia laríngea está formada por la unión en ángulo diedro abierto hacia atrás de las dos láminas del cartílago:", options: [ { text: "a) Hioides.", isCorrect: false }, { text: "b) Cricoides.", isCorrect: false }, { text: "c) Tiroides.", isCorrect: true }, { text: "d) Corniculado.", isCorrect: false } ], explanation: "Este ángulo sirve además de inserción interior para los ligamentos vocales." },
+            { id: 11, text: "Mecanismo de cierre de la vía aérea (Concepto Prada): Al tragar, la musculatura suprahioidea tira de la laringe hacia arriba. ¿Qué le ocurre al cartílago epiglótico?", options: [ { text: "a) Se contrae muscularmente.", isCorrect: false }, { text: "b) Al ascender la laringe, el ligamento hioepiglótico pierde tensión y la epiglotis cae pasivamente como una tapadera sobre el orificio laríngeo.", isCorrect: true }, { text: "c) Se osifica instantáneamente.", isCorrect: false }, { text: "d) Se abre para dejar pasar la comida.", isCorrect: false } ], explanation: "Es un cierre mecánico y pasivo vital para no atragantarnos, explicado en detalle en el audio del 6 de marzo." },
+            { id: 12, text: "Los cartílagos aritenoides tienen forma piramidal. En su base presentan dos apófisis: una anterointerna donde se ancla el ligamento vocal, y otra posteroexterna para los músculos, llamada:", options: [ { text: "a) Apófisis unciforme.", isCorrect: false }, { text: "b) Apófisis vocal.", isCorrect: false }, { text: "c) Apófisis muscular.", isCorrect: true }, { text: "d) Tubérculo de Lisfranc.", isCorrect: false } ], explanation: "En esta apófisis muscular se insertan los músculos cricoaritenoideos que rotarán el cartílago para abrir o cerrar las cuerdas vocales." },
+            { id: 13, text: "El engrosamiento del borde superior libre del Cono Elástico (membrana fibroelástica inferior de la laringe) constituye:", options: [ { text: "a) El ligamento vestibular (cuerda vocal falsa).", isCorrect: false }, { text: "b) El ligamento vocal (cuerda vocal verdadera).", isCorrect: true }, { text: "c) La membrana tirohioidea.", isCorrect: false }, { text: "d) El ligamento cricotiroideo medio.", isCorrect: false } ], explanation: "El cono elástico cierra el espacio infraglótico y su borde libre superior vibrará para producir el sonido." },
+            { id: 14, text: "El espacio comprendido estrictamente entre los dos pliegues (cuerdas) vocales se denomina:", options: [ { text: "a) Vestíbulo.", isCorrect: false }, { text: "b) Ventrículo laríngeo.", isCorrect: false }, { text: "c) Hendidura glótica (Glotis).", isCorrect: true }, { text: "d) Espacio infraglótico.", isCorrect: false } ], explanation: "Es el espacio anatómico que se abre y se cierra para modular el paso del aire." },
+            { id: 15, text: "Todos los músculos intrínsecos de la laringe están inervados por el nervio laríngeo recurrente (rama del Vago), EXCEPTO uno que está inervado por el nervio laríngeo superior (externo):", options: [ { text: "a) Músculo cricoaritenoideo posterior.", isCorrect: false }, { text: "b) Músculo vocal.", isCorrect: false }, { text: "c) Músculo cricotiroideo.", isCorrect: true }, { text: "d) Músculo aritenoideo transverso.", isCorrect: false } ], explanation: "El cricotiroideo tensa las cuerdas vocales basculando el tiroides y es la gran excepción motora de la laringe." },
+            { id: 16, text: "¿Cuál es el único músculo intrínseco de la laringe capaz de ABDUCIR (abrir o separar) las cuerdas vocales, siendo vital para poder respirar?", options: [ { text: "a) Cricoaritenoideo lateral.", isCorrect: false }, { text: "b) Cricoaritenoideo posterior.", isCorrect: true }, { text: "c) Tiroaritenoideo.", isCorrect: false }, { text: "d) Aritenoideo oblicuo.", isCorrect: false } ], explanation: "Tira de la apófisis muscular hacia atrás, rotando la apófisis vocal hacia afuera y abriendo la glotis." },
+            { id: 17, text: "La glándula tiroides se sitúa en la parte anterior e inferior del cuello. Su istmo cruza anatómicamente por delante de:", options: [ { text: "a) El cartílago tiroides.", isCorrect: false }, { text: "b) Los anillos traqueales 2º y 3º.", isCorrect: true }, { text: "c) El hueso hioides.", isCorrect: false }, { text: "d) El esófago.", isCorrect: false } ], explanation: "Topografía clásica. Las traqueotomías de urgencia deben tener en cuenta esta vascularizada estructura." },
+            { id: 18, text: "La arteria tiroidea superior es la primera rama anterior que nace directamente de:", options: [ { text: "a) La arteria subclavia.", isCorrect: false }, { text: "b) El tronco tirocervical.", isCorrect: false }, { text: "c) La arteria carótida externa.", isCorrect: true }, { text: "d) La arteria carótida interna.", isCorrect: false } ], explanation: "Irriga el polo superior de la glándula y da la arteria laríngea superior." },
+            { id: 19, text: "La arteria tiroidea inferior tiene una íntima relación quirúrgica de peligro (se cruza con él) con un nervio fundamental para la voz. ¿Qué nervio es?", options: [ { text: "a) Nervio frénico.", isCorrect: false }, { text: "b) Nervio laríngeo superior.", isCorrect: false }, { text: "c) Nervio laríngeo recurrente.", isCorrect: true }, { text: "d) Nervio hipogloso.", isCorrect: false } ], explanation: "Al extirpar la tiroides (tiroidectomía) ligando la tiroidea inferior, es muy fácil seccionar el nervio recurrente, causando afonía." },
+            { id: 20, text: "Las glándulas paratiroides (generalmente 4) regulan el calcio y son extremadamente difíciles de localizar en cirugía porque:", options: [ { text: "a) Están dentro del hueso hioides.", isCorrect: false }, { text: "b) Se ubican en la cara anterior del tiroides.", isCorrect: false }, { text: "c) Son muy variables en posición y número, situándose en la cara posterior de los lóbulos tiroideos, dentro de su cápsula.", isCorrect: true }, { text: "d) Solo existen durante la infancia.", isCorrect: false } ], explanation: "El profesor resalta la importancia de no extirparlas accidentalmente al quitar el tiroides." },
+            { id: 21, text: "El paquete vasculonervioso del cuello está envuelto por la vaina carotídea. ¿Cuál es su contenido exacto?", options: [ { text: "a) Arteria subclavia, Vena subclavia y Plexo Braquial.", isCorrect: false }, { text: "b) Arteria Carótida (común/interna), Vena Yugular Interna y Nervio Vago (X).", isCorrect: true }, { text: "c) Arteria vertebral y Nervio simpático.", isCorrect: false }, { text: "d) Tráquea, Esófago y Tiroides.", isCorrect: false } ], explanation: "Relación topográfica vital profunda al músculo esternocleidomastoideo." },
+            { id: 22, text: "El músculo esternocleidomastoideo (ECM) es cruzado SUPERFICIALMENTE (por fuera) por una vena que a menudo se hincha al cantar o enfadarnos:", options: [ { text: "a) Vena yugular interna.", isCorrect: false }, { text: "b) Vena yugular anterior.", isCorrect: false }, { text: "c) Vena yugular externa.", isCorrect: true }, { text: "d) Vena subclavia.", isCorrect: false } ], explanation: "La yugular externa baja por encima del ECM cubierta solo por el platisma." },
+            { id: 23, text: "El Triángulo de Sédillot (Fosa supraclavicular menor) se localiza entre los haces esternal y clavicular del músculo ECM. ¿Para qué se utiliza en la clínica diaria?", options: [ { text: "a) Para hacer la traqueotomía.", isCorrect: false }, { text: "b) Como vía de acceso de elección para pinchar y canalizar la Vena Yugular Interna.", isCorrect: true }, { text: "c) Para extirpar amígdalas.", isCorrect: false }, { text: "d) Para bloquear el plexo braquial.", isCorrect: false } ], explanation: "El vértice de este triángulo es la diana ecográfica y anatómica para las vías centrales." },
+            { id: 24, text: "El trayecto inguinal existe fundamentalmente por una necesidad fisiológica del fenotipo masculino: sacar las gónadas (testículos) fuera de la cavidad abdominal. ¿Por qué deben salir?", options: [ { text: "a) Por falta de espacio en la pelvis.", isCorrect: false }, { text: "b) Porque la espermatogénesis necesita una temperatura inferior a la de la cavidad abdominal para madurar correctamente.", isCorrect: true }, { text: "c) Porque el conducto deferente es demasiado corto.", isCorrect: false }, { text: "d) Para producir testosterona.", isCorrect: false } ], explanation: "El testículo migra desde L2 hasta la bolsa escrotal en busca de menor temperatura." },
+            { id: 25, text: "El ligamento inguinal (Arco de Poupart), que forma el suelo o \"canaleta\" del trayecto inguinal, es en realidad el borde inferior engrosado de la aponeurosis del músculo:", options: [ { text: "a) Oblicuo menor (interno).", isCorrect: false }, { text: "b) Transverso del abdomen.", isCorrect: false }, { text: "c) Oblicuo mayor (externo).", isCorrect: true }, { text: "d) Recto del abdomen.", isCorrect: false } ], explanation: "Esta aponeurosis salta desde la espina ilíaca anterosuperior hasta el pubis." },
+            { id: 26, text: "El pilar posterior del anillo inguinal superficial (Ligamento de Colles) tiene una peculiaridad anatómica para dar fuerza a la salida:", options: [ { text: "a) Se fusiona con el fémur.", isCorrect: false }, { text: "b) Cruza la línea media para reforzar el pilar interno del lado contralateral.", isCorrect: true }, { text: "c) Desciende hasta la rodilla.", isCorrect: false }, { text: "d) Es de tejido óseo.", isCorrect: false } ], explanation: "Este cruzamiento asegura que la presión no desgarre el anillo superficial por el centro." },
+            { id: 27, text: "El techo del trayecto inguinal está formado por las fibras musculares que saltan en arco (fibras arciformes) pertenecientes a los músculos:", options: [ { text: "a) Psoas y Cuadrado lumbar.", isCorrect: false }, { text: "b) Oblicuo mayor y Recto anterior.", isCorrect: false }, { text: "c) Oblicuo menor (interno) y Transverso del abdomen.", isCorrect: true }, { text: "d) Piramidal y Pectíneo.", isCorrect: false } ], explanation: "Al fusionarse mediamente, formarán el Tendón Conjunto en la pared posterior." },
+            { id: 28, text: "La capa más profunda que arrastra el testículo al salir de la cavidad abdominal (invaginándola en forma de dedo de guante por el anillo profundo) es la fascia transversalis, que pasará a llamarse:", options: [ { text: "a) Fascia espermática externa.", isCorrect: false }, { text: "b) Músculo cremáster.", isCorrect: false }, { text: "c) Fascia espermática interna.", isCorrect: true }, { text: "d) Túnica albugínea.", isCorrect: false } ], explanation: "Al atravesar la pared, la fascia transversalis envuelve al cordón y baja hasta el escroto." },
+            { id: 29, text: "En la pared posterior del abdomen, los vasos Epigástricos Inferiores son la referencia clave para clasificar hernias. Si un asa intestinal entra al trayecto inguinal POR FUERA (lateral) de estos vasos, a través del anillo profundo, se trata de una hernia:", options: [ { text: "a) Hernia Inguinal Directa.", isCorrect: false }, { text: "b) Hernia Inguinal Indirecta.", isCorrect: true }, { text: "c) Hernia Crural (Femoral).", isCorrect: false }, { text: "d) Hernia Umbilical.", isCorrect: false } ], explanation: "La indirecta sigue el camino natural del cordón espermático (de lateral a medial)." },
+            { id: 30, text: "Si, por el contrario, el asa intestinal rompe directamente la pared posterior debilitada del Triángulo de Hesselbach, MEDIAL a los vasos epigástricos inferiores, estamos ante una hernia:", options: [ { text: "a) Directa.", isCorrect: true }, { text: "b) Indirecta.", isCorrect: false }, { text: "c) De Spighel.", isCorrect: false }, { text: "d) Lumbar de Petit.", isCorrect: false } ], explanation: "Sale \"directamente\" empujando la fascia transversalis sin entrar por el anillo profundo." },
+            { id: 31, text: "La porción más medial de la laguna vascular, por debajo del ligamento inguinal, está cerrada por un ligamento cóncavo que se inserta en el pubis y forma el límite de las hernias crurales (femorales). Se llama:", options: [ { text: "a) Ligamento reflejo.", isCorrect: false }, { text: "b) Ligamento de Gimbernat (lacunar).", isCorrect: true }, { text: "c) Ligamento de Hesselbach.", isCorrect: false }, { text: "d) Tendón conjunto.", isCorrect: false } ], explanation: "El ligamento lacunar es una expansión del ligamento inguinal hacia abajo y atrás que cierra el conducto femoral." },
+            { id: 32, text: "Al descender por el trayecto inguinal, el cordón espermático arrastra fibras musculares del oblicuo interno y el transverso que formarán un músculo encargado de elevar el testículo. Es el:", options: [ { text: "a) Músculo dartos.", isCorrect: false }, { text: "b) Músculo cremáster.", isCorrect: true }, { text: "c) Músculo piramidal.", isCorrect: false }, { text: "d) Músculo suspensorio.", isCorrect: false } ], explanation: "Responde al frío o al tacto del muslo elevando el testículo (reflejo cremastérico)." },
+            { id: 33, text: "En la mujer, el trayecto inguinal es más estrecho y su contenido principal no es un cordón espermático, sino una estructura de fijación uterina llamada:", options: [ { text: "a) Ligamento ancho.", isCorrect: false }, { text: "b) Trompa de Falopio.", isCorrect: false }, { text: "c) Ligamento redondo del útero.", isCorrect: true }, { text: "d) Arteria ovárica.", isCorrect: false } ], explanation: "Va desde los cuernos del útero hasta fusionarse en los labios mayores." },
+            { id: 34, text: "Concepto Prada sobre dolor referido: Si un varón recibe un golpe directo en la bolsa escrotal (testículo), el dolor sordo y nauseabundo profundo se referirá hacia:", options: [ { text: "a) La región inguinal y el muslo.", isCorrect: false }, { text: "b) La región perianal.", isCorrect: false }, { text: "c) La región abdominal alta y lumbar (nivel metamérico L2, donde se originó el testículo).", isCorrect: true }, { text: "d) La rodilla.", isCorrect: false } ], explanation: "Aunque esté en la bolsa, la inervación vegetativa del testículo viene de L2. El dolor se proyecta al abdomen, no a la piel del escroto." },
+            { id: 35, text: "El suelo de la pelvis (diafragma pélvico) está cerrado muscularmente como un embudo por dos músculos principales:", options: [ { text: "a) Piriforme y Obturador interno.", isCorrect: false }, { text: "b) Elevador del ano y Coccígeo.", isCorrect: true }, { text: "c) Glúteo mayor y Transverso del periné.", isCorrect: false }, { text: "d) Esfínteres externos.", isCorrect: false } ], explanation: "El elevador del ano sostiene la mayor parte de las vísceras, completado por detrás por el coccígeo." },
+            { id: 36, text: "El fascículo más medial del músculo Elevador del Ano forma una \"cincha\" o eslinga en forma de U alrededor de la unión anorrectal. ¿Cómo se llama y qué función tiene?", options: [ { text: "a) Pubococígeo; eleva la vagina.", isCorrect: false }, { text: "b) Iliococcígeo; estabiliza el sacro.", isCorrect: false }, { text: "c) Puborrectal; mantiene el ángulo anorrectal para la continencia fecal voluntaria.", isCorrect: true }, { text: "d) Isquiocavernoso; participa en la erección.", isCorrect: false } ], explanation: "Al contraerse, tira de la flexura hacia el pubis, cerrando el tubo digestivo y reteniendo las heces." },
+            { id: 37, text: "El fascículo intermedio del elevador del ano, situado debajo de la vejiga y que rodea la vagina, siendo el que más se desgarra durante los partos vaginales, es el:", options: [ { text: "a) Iliococcígeo.", isCorrect: false }, { text: "b) Coccígeo.", isCorrect: false }, { text: "c) Pubococígeo.", isCorrect: true }, { text: "d) Esfínter anal interno.", isCorrect: false } ], explanation: "Por su posición central abrazando el hiato urogenital, soporta la máxima dilatación de la cabeza fetal." },
+            { id: 38, text: "El fascículo iliococcígeo del elevador del ano no nace de un hueso, sino de un engrosamiento fascial en la pared lateral de la pelvis llamado:", options: [ { text: "a) Ligamento sacroespinoso.", isCorrect: false }, { text: "b) Arco tendinoso del músculo obturador interno.", isCorrect: true }, { text: "c) Ligamento inguinal.", isCorrect: false }, { text: "d) Membrana obturatriz.", isCorrect: false } ], explanation: "Utiliza la aponeurosis del músculo parietal (obturador interno) para anclarse y formar el suelo." },
+            { id: 39, text: "Topográficamente, el periné (rombo inferior de la pelvis) se divide trazando una línea transversal entre ambas tuberosidades isquiáticas. Los dos triángulos resultantes son:", options: [ { text: "a) Triángulo femoral y triángulo glúteo.", isCorrect: false }, { text: "b) Triángulo Urogenital (anterior) y Triángulo Anal (posterior).", isCorrect: true }, { text: "c) Triángulo de Scarpa y Triángulo de Petit.", isCorrect: false }, { text: "d) Triángulo anterior y medio.", isCorrect: false } ], explanation: "El urogenital contiene la uretra/vagina, el anal contiene el conducto anal." },
+            { id: 40, text: "En el centro exacto del periné existe un nódulo fibroso donde convergen los músculos del suelo pélvico y los esfínteres. Si se rompe en un parto, se debilita todo el suelo. Es el:", options: [ { text: "a) Centro tendinoso del periné (Cuerpo perineal).", isCorrect: true }, { text: "b) Ligamento anococcígeo.", isCorrect: false }, { text: "c) Sínfisis púbica.", isCorrect: false }, { text: "d) Fondo de saco de Douglas.", isCorrect: false } ], explanation: "Punto de anclaje maestro. Para evitar su desgarro incontrolado se realiza la episiotomía." },
+            { id: 41, text: "A ambos lados del conducto anal existen unos espacios en forma de cuña rellenos exclusivamente de grasa, que permiten que el recto se expanda al defecar. Son las:", options: [ { text: "a) Lagunas vasculares.", isCorrect: false }, { text: "b) Celdas prostáticas.", isCorrect: false }, { text: "c) Fosas isquioanales.", isCorrect: true }, { text: "d) Bolsas perineales superficiales.", isCorrect: false } ], explanation: "Están comunicadas por detrás del ano, por lo que una infección puede cruzar de lado a lado (absceso en herradura)." },
+            { id: 42, text: "La inervación motora principal del diafragma pélvico y sensitiva de los genitales externos proviene de las raíces sacras (S2-S4) formando un gran nervio:", options: [ { text: "a) Nervio ciático.", isCorrect: false }, { text: "b) Nervio femoral.", isCorrect: false }, { text: "c) Nervio pudendo.", isCorrect: true }, { text: "d) Nervio obturador.", isCorrect: false } ], explanation: "Es el nervio que se anestesia (bloqueo pudendo) a nivel de la espina ciática en procedimientos obstétricos." },
+            { id: 43, text: "La principal arteria que irriga las estructuras del periné, músculos esfinterianos y genitales externos es la arteria:", options: [ { text: "a) Pudenda interna (rama de la ilíaca interna).", isCorrect: true }, { text: "b) Epigástrica superficial.", isCorrect: false }, { text: "c) Mesentérica inferior.", isCorrect: false }, { text: "d) Gonadal.", isCorrect: false } ], explanation: "Viaja junto al nervio pudendo saliendo por la escotadura ciática mayor y volviendo a entrar por la menor." },
+            { id: 44, text: "El músculo Coccígeo cierra la parte posterior del diafragma pélvico. Se origina en la espina ciática y se inserta en:", options: [ { text: "a) El pubis.", isCorrect: false }, { text: "b) El cóccix y sacro.", isCorrect: true }, { text: "c) El isquion.", isCorrect: false }, { text: "d) El fémur.", isCorrect: false } ], explanation: "Ayuda al elevador del ano a sostener las vísceras pelvianas reposando sobre el ligamento sacroespinoso." },
+            { id: 45, text: "Cuando a un varón se le acaricia la cara medial del muslo y el testículo asciende bruscamente, comprobamos la indemnidad del Reflejo Cremastérico. El nervio que conduce este arco es el:", options: [ { text: "a) Nervio ciático.", isCorrect: false }, { text: "b) Nervio obturador.", isCorrect: false }, { text: "c) Nervio genitofemoral (y raíces L1-L2).", isCorrect: true }, { text: "d) Nervio pudendo.", isCorrect: false } ], explanation: "El ramo genital de este nervio inerva el músculo cremáster, originado en el plexo lumbar (L1-L2)." },
+            { id: 46, text: "El músculo Psoas Mayor forma su masa carnosa abrazando el origen de un gran plexo nervioso que discurre en su interior. ¿De qué plexo hablamos?", options: [ { text: "a) Plexo Cervical.", isCorrect: false }, { text: "b) Plexo Braquial.", isCorrect: false }, { text: "c) Plexo Lumbar.", isCorrect: true }, { text: "d) Plexo Sacro.", isCorrect: false } ], explanation: "Las raíces T12-L4 se unen dentro del psoas. Si el psoas se espasma, puede comprimir el plexo lumbar." },
+            { id: 47, text: "Si un paciente tiene el Psoas Mayor acortado por contractura y se tumba boca arriba con las piernas estiradas, ¿qué postura compensatoria adopta su columna vertebral?", options: [ { text: "a) Escoliosis.", isCorrect: false }, { text: "b) Hiperlordosis lumbar pronunciada.", isCorrect: true }, { text: "c) Rectificación cervical.", isCorrect: false }, { text: "d) Hipercifosis dorsal.", isCorrect: false } ], explanation: "Como el psoas tira de las vértebras lumbares hacia el fémur, al estirar las piernas levanta la columna de la camilla creando un hueco." },
+            { id: 48, text: "El uréter, al descender por el abdomen, se apoya íntimamente sobre la cara anterior de qué músculo?", options: [ { text: "a) Cuadrado lumbar.", isCorrect: false }, { text: "b) Transverso del abdomen.", isCorrect: false }, { text: "c) Psoas Mayor.", isCorrect: true }, { text: "d) Músculo ilíaco.", isCorrect: false } ], explanation: "Un cólico nefrítico (cálculo en el uréter) irrita esta zona y los nervios del plexo lumbar adyacentes, irradiando dolor a la ingle." },
+            { id: 49, text: "La Vaina de los Rectos por debajo del ombligo (Arco de Douglas) se caracteriza porque:", options: [ { text: "a) Todas las aponeurosis pasan por DETRÁS del músculo recto.", isCorrect: false }, { text: "b) Todas las aponeurosis musculares pasan por DELANTE del músculo recto, dejando su cara posterior tapizada solo por fascia transversalis y peritoneo.", isCorrect: true }, { text: "c) Se vuelve tejido óseo.", isCorrect: false }, { text: "d) Desaparece completamente.", isCorrect: false } ], explanation: "\"Le damos la vuelta al bolsillo\" explica Prada. Es una zona de debilidad en el tercio inferior del abdomen." },
+            { id: 50, text: "¿Por qué el músculo recto del abdomen tiene bandas tendinosas transversales (\"la tableta de chocolate\")?", options: [ { text: "a) Por cicatrices de antiguas operaciones.", isCorrect: false }, { text: "b) Para conectarse con las costillas.", isCorrect: false }, { text: "c) Son metámeras de inserción; dividen el músculo en pequeños vientres para permitir flexionar el tronco gradualmente como una persiana.", isCorrect: true }, { text: "d) Para proteger al estómago.", isCorrect: false } ], explanation: "Esto permite la flexión segmentaria de la columna en lugar de doblarnos como un bloque rígido de golpe." },
+            { id: 51, text: "El \"Perrito de Lachapelle\" en la radiografía oblicua lumbar sirve para diagnosticar la Espondilolisis. ¿A qué parte de la vértebra corresponde el \"cuello\" del perro que se ve fracturado?", options: [ { text: "a) El cuerpo vertebral.", isCorrect: false }, { text: "b) La apófisis espinosa.", isCorrect: false }, { text: "c) La pars interarticularis (istmo).", isCorrect: true }, { text: "d) El foramen transverso.", isCorrect: false } ], explanation: "La fractura del istmo (cuello del perro) precede a la espondilolistesis (deslizamiento vertebral)." },
+            { id: 52, text: "La arteria principal que riega los 2/3 inferiores de la médula espinal (isquemia aquí causa paraplejia) se denomina:", options: [ { text: "a) Arteria de Willis.", isCorrect: false }, { text: "b) Arteria de Adamkiewicz (Gran Radicular Magna).", isCorrect: true }, { text: "c) Arteria vertebral izquierda.", isCorrect: false }, { text: "d) Arteria epigástrica.", isCorrect: false } ], explanation: "Vasito segmentario vital que suele entrar por el lado izquierdo entre T9 y L2." },
+            { id: 53, text: "El plexo venoso vertebral (de Batson) tiene una característica crucial para explicar las metástasis óseas vertebrales de tumores pélvicos (próstata). ¿Cuál es?", options: [ { text: "a) Drena solo hacia los riñones.", isCorrect: false }, { text: "b) Tiene válvulas muy fuertes.", isCorrect: false }, { text: "c) Es totalmente avalvular, permitiendo un flujo bidireccional si aumenta la presión en la pelvis/abdomen.", isCorrect: true }, { text: "d) No se comunica con la vena cava.", isCorrect: false } ], explanation: "Concepto pilar del profesor Prada (avalvular = reflujo = metástasis directas)." },
+            { id: 54, text: "¿En qué nivel torácico se encuentra el \"plano mágico de Louis\", que marca la bifurcación de la tráquea y el inicio/fin del cayado aórtico?", options: [ { text: "a) T1 - T2.", isCorrect: false }, { text: "b) T4 - T5.", isCorrect: true }, { text: "c) T8 - T9.", isCorrect: false }, { text: "d) T10 - T11.", isCorrect: false } ], explanation: "Sirve para dividir el mediastino superior del inferior. Corresponde al Ángulo de Louis en el esternón (2ª costilla)." },
+            { id: 55, text: "El hiato por donde la Vena Cava Inferior atraviesa el diafragma se localiza en el Centro Frénico a nivel de:", options: [ { text: "a) T8.", isCorrect: true }, { text: "b) T10.", isCorrect: false }, { text: "c) T12.", isCorrect: false }, { text: "d) L2.", isCorrect: false } ], explanation: "Regla del 8, 10, 12 (Cava, Esófago, Aorta)." },
+            { id: 56, text: "La hernia de Bochdalek (frecuente en recién nacidos) es una hernia diafragmática producida por la falta de cierre de un espacio de debilidad posterior llamado:", options: [ { text: "a) Triángulo de Morgagni (esternocostal).", isCorrect: false }, { text: "b) Hiato esofágico.", isCorrect: false }, { text: "c) Trígono lumbocostal.", isCorrect: true }, { text: "d) Anillo umbilical.", isCorrect: false } ], explanation: "Las vísceras abdominales suben al tórax y comprimen el desarrollo del pulmón." },
+            { id: 57, text: "Todo el drenaje linfático de la piel del abdomen situado POR DEBAJO del ombligo drena obligatoriamente hacia:", options: [ { text: "a) Ganglios axilares.", isCorrect: false }, { text: "b) Ganglios paraesternales.", isCorrect: false }, { text: "c) Ganglios inguinales superficiales.", isCorrect: true }, { text: "d) El conducto torácico directo.", isCorrect: false } ], explanation: "El ombligo es el \"ecuador linfático\" superficial." },
+            { id: 58, text: "Si existe una cirrosis hepática (\"atasco del filtro\"), se produce una red derivativa porto-cava que en el esófago inferior genera un cuadro grave:", options: [ { text: "a) Disfagia neurológica.", isCorrect: false }, { text: "b) Varices esofágicas con alto riesgo de sangrado digestivo.", isCorrect: true }, { text: "c) Hernia de hiato.", isCorrect: false }, { text: "d) Infarto de miocardio.", isCorrect: false } ], explanation: "La sangre portal no puede cruzar el hígado y busca llegar a la cava superior dilatando las venas esofágicas submucosas." },
+            { id: 59, text: "El conducto torácico recoge la linfa del abdomen (Cisterna del Quilo) y sube por el tórax para desembocar finalmente devolviendo la linfa a la sangre en:", options: [ { text: "a) La aurícula derecha.", isCorrect: false }, { text: "b) La vena cava inferior.", isCorrect: false }, { text: "c) El ángulo yugulosubclavio IZQUIERDO.", isCorrect: true }, { text: "d) El hígado.", isCorrect: false } ], explanation: "Todo el cuerpo excepto el cuadrante superior derecho drena en la encrucijada yugulosubclavia izquierda." },
+            { id: 60, text: "La articulación Atlanto-Axoidea Media (Diente de C2 con arco del Atlas) permite rotar la cabeza (\"decir NO\") porque es una articulación tipo:", options: [ { text: "a) Condílea.", isCorrect: false }, { text: "b) Trocoide (Pivote).", isCorrect: true }, { text: "c) Artrodia.", isCorrect: false }, { text: "d) Silla de montar.", isCorrect: false } ], explanation: "El cilindro del diente pivota dentro del anillo osteoligamentoso del atlas." },
+            { id: 61, text: "Si cortas la Vena Yugular Interna en el cuello accidentalmente, ¿qué músculo, cuyo tendón intermedio se adhiere a la vaina carotídea, mantendrá la vena ABIERTA causando una embolia gaseosa mortal?", options: [ { text: "a) Esternocleidomastoideo.", isCorrect: false }, { text: "b) Omohioideo.", isCorrect: true }, { text: "c) Platisma.", isCorrect: false }, { text: "d) Escaleno anterior.", isCorrect: false } ], explanation: "El vientre muscular tracciona de la fascia y la vena no puede colapsarse sobre sí misma, actuando como una pajita que succiona aire." },
+            { id: 62, text: "Para auscultar con precisión la válvula Mitral (ápex cardíaco), el médico pondrá el fonendoscopio en:", options: [ { text: "a) El 2º espacio intercostal derecho.", isCorrect: false }, { text: "b) El apéndice xifoides.", isCorrect: false }, { text: "c) El 5º espacio intercostal IZQUIERDO, línea medioclavicular.", isCorrect: true }, { text: "d) El ángulo de Louis.", isCorrect: false } ], explanation: "Punto topográfico exacto donde la punta del ventrículo izquierdo golpea la pared torácica." },
+            { id: 63, text: "Cuando un cirujano necesita hacer una laparotomía, evita cortar justo por la línea alba media central y prefiere incisiones paramedianas apartando el músculo porque:", options: [ { text: "a) La línea alba sangra muchísimo.", isCorrect: false }, { text: "b) La línea alba es avascular (sin sangre) y por tanto cicatriza muy mal, favoreciendo hernias postquirúrgicas (eventraciones).", isCorrect: true }, { text: "c) Cortaría el intestino inmediatamente.", isCorrect: false }, { text: "d) Arruina la estética del ombligo.", isCorrect: false } ], explanation: "El músculo vascularizado cicatriza mejor que el tejido tendinoso blanco de la línea alba." },
+            { id: 64, text: "El nervio principal que transmite el dolor irradiado al HOMBRO durante una irritación de la porción central del Diafragma o el pericardio es:", options: [ { text: "a) El nervio vago.", isCorrect: false }, { text: "b) El nervio frénico (C3-C5).", isCorrect: true }, { text: "c) El plexo braquial.", isCorrect: false }, { text: "d) El nervio intercostal.", isCorrect: false } ], explanation: "Al provenir de los segmentos cervicales, el cerebro mapea el dolor visceral diafragmático en la piel del cuello/hombro." },
+            { id: 65, text: "El músculo transverso del tórax (triangular del esternón) se encuentra en la cara interna del esternón y tira de los cartílagos costales hacia abajo. Su función respiratoria es:", options: [ { text: "a) Inspiratoria principal.", isCorrect: false }, { text: "b) Inspiratoria accesoria.", isCorrect: false }, { text: "c) Espiratoria.", isCorrect: true }, { text: "d) Cierra el esófago.", isCorrect: false } ], explanation: "Al descender las costillas y cerrar el tórax, ayuda a expulsar el aire." },
+            { id: 66, text: "La irrigación nutritiva (vasa privata) del pulmón NO corre a cargo de la arteria pulmonar (que es funcional), sino de las:", options: [ { text: "a) Arterias bronquiales (nacidas de la aorta torácica).", isCorrect: true }, { text: "b) Arterias intercostales superiores.", isCorrect: false }, { text: "c) Arterias coronarias.", isCorrect: false }, { text: "d) Venas cavas.", isCorrect: false } ], explanation: "La aorta manda ramas bronquiales directas para oxigenar el parénquima pulmonar." },
+            { id: 67, text: "El espacio más declive (el \"sumidero\") de la cavidad pleural, donde los líquidos patológicos como los derrames se acumulan borrando la punta aguda en la radiografía, es el:", options: [ { text: "a) Receso costomediastínico.", isCorrect: false }, { text: "b) Triángulo lumbocostal.", isCorrect: false }, { text: "c) Receso costodiafragmático.", isCorrect: true }, { text: "d) Hilio pulmonar.", isCorrect: false } ], explanation: "Es el ángulo profundo entre las costillas laterales y la cúpula del diafragma." },
+            { id: 68, text: "En la biomecánica ventilatoria costal, las costillas superiores se mueven hacia arriba y adelante ampliando el diámetro anteroposterior. A este movimiento se le asemeja a:", options: [ { text: "a) El asa de un cubo.", isCorrect: false }, { text: "b) El brazo de una bomba de agua.", isCorrect: true }, { text: "c) Un abanico abriéndose.", isCorrect: false }, { text: "d) Un fuelle de acordeón.", isCorrect: false } ], explanation: "Las costillas superiores empujan el esternón como un mango de bomba, las inferiores se abren lateralmente como asas de cubo." },
+            { id: 69, text: "La \"costilla cervical\" es una variación anatómica producida por la hipertrofia de la apófisis transversa de C7. ¿Qué síndrome neurovascular grave puede causar?", options: [ { text: "a) Síndrome de aspiración.", isCorrect: false }, { text: "b) Compresión en el desfiladero de los escalenos (atrapando el plexo braquial y la arteria subclavia).", isCorrect: true }, { text: "c) Hernia de Bochdalek.", isCorrect: false }, { text: "d) Rotura del ligamento amarillo.", isCorrect: false } ], explanation: "Cierra el espacio por donde salen los nervios y vasos hacia el brazo (Sd. del estrecho torácico superior)." },
+            { id: 70, text: "¿Qué estructura anatómica pasa justo por el hiato esofágico del diafragma (T10) junto al tubo digestivo?", options: [ { text: "a) El conducto torácico.", isCorrect: false }, { text: "b) Los troncos vagales (nervios Vagos).", isCorrect: true }, { text: "c) La vena hemiácigos.", isCorrect: false }, { text: "d) La arteria aorta.", isCorrect: false } ], explanation: "Los vagos acompañan al esófago rotando con él durante el desarrollo embriológico para inervar el estómago." },
+            { id: 71, text: "El profesor describe anatómicamente a la faringe como un tubo músculo-mucoso muy particular. ¿Cuál es su característica morfológica definitoria?", options: [ { text: "a) Es un cilindro cerrado herméticamente desde el cráneo al esófago.", isCorrect: false }, { text: "b) Es un cilindro incompleto al que le falta la pared anterior, comunicándose así con las cavidades nasal, oral y laríngea.", isCorrect: true }, { text: "c) Está formado exclusivamente por anillos de cartílago hialino.", isCorrect: false }, { text: "d) Su diámetro es estrecho arriba y se va ensanchando en forma de campana hacia abajo.", isCorrect: false } ], explanation: "Prada insiste en que la faringe no tiene pared anterior; es un canal abierto por delante para recibir el aire de las coanas y el alimento del istmo de las fauces, cerrándose en forma de embudo al llegar al esófago." },
+            { id: 72, text: "La musculatura de la faringe se organiza en tres constrictores (superior, medio e inferior) que se superponen como tejas. ¿Dónde se insertan dorsalmente para cerrar el tubo?", options: [ { text: "a) En los cuerpos vertebrales cervicales.", isCorrect: false }, { text: "b) En un rafe medio fibroso posterior donde se unen las mitades derecha e izquierda.", isCorrect: true }, { text: "c) En la apófisis espinosa de C7.", isCorrect: false }, { text: "d) En la lámina prevertebral.", isCorrect: false } ], explanation: "Los músculos abrazan la cavidad desde delante hacia atrás y se fusionan en la línea media posterior en este rafe tendinoso." },
+            { id: 73, text: "El límite craneal de la porción orofaríngea (la que comunica con la boca) está marcado anatómicamente por el paladar blando y por el borde superior de un cartílago vital que pertenece a la laringe. Es el:", options: [ { text: "a) Cartílago tiroides.", isCorrect: false }, { text: "b) Cartílago cricoides.", isCorrect: false }, { text: "c) Cartílago epiglótico.", isCorrect: true }, { text: "d) Hueso hioides.", isCorrect: false } ], explanation: "La epiglotis asoma su vértice superior en la orofaringe, situándose justo detrás del dorso de la lengua." },
+            { id: 74, text: "Entre la cara posterior de la lengua y la cara anterior de la epiglotis se forman unas depresiones o \"valles\" anatómicos donde la saliva o los líquidos resbalan para no caer por la línea media a la vía aérea. Se llaman:", options: [ { text: "a) Recesos piriformes.", isCorrect: false }, { text: "b) Valléculas glosoepiglóticas.", isCorrect: true }, { text: "c) Coanas.", isCorrect: false }, { text: "d) Istmo de las fauces.", isCorrect: false } ], explanation: "Gloso (lengua) + epiglótico. El profesor las describe como un mecanismo natural para desviar fluidos hacia los laterales y proteger la laringe." },
+            { id: 75, text: "\"La trampa de la deglución\": Según explica el profesor Prada, ¿qué hace la epiglotis para cerrar la vía respiratoria cuando tragamos alimento?", options: [ { text: "a) Se contrae un potente músculo epiglótico que la dobla hacia abajo.", isCorrect: false }, { text: "b) La epiglotis se queda quieta, es la tráquea la que baja.", isCorrect: false }, { text: "c) Al ascender toda la laringe tirada por la musculatura suprahioidea, el ligamento hioepiglótico pierde tensión y la epiglotis cae PASIVAMENTE hacia atrás como una tapadera.", isCorrect: true }, { text: "d) Se infla de aire bloqueando el paso.", isCorrect: false } ], explanation: "Concepto biomecánico de oro de sus clases. El cierre es mecánico y pasivo: al subir la laringe, la tapa cae por gravedad y pérdida de tensión ligamentaria, sellando el \"aditus laryngis\"." },
+            { id: 76, text: "En la clínica, cuando el médico nos introduce un depresor lingual y toca el fondo de la garganta, se desencadena el reflejo nauseoso. ¿Qué nervio recoge esta sensibilidad (vía aferente) para dar la \"alarma\"?", options: [ { text: "a) Trigémino (V2).", isCorrect: false }, { text: "b) Facial (VII).", isCorrect: false }, { text: "c) Glosofaríngeo (IX).", isCorrect: true }, { text: "d) Vago (X).", isCorrect: false } ], explanation: "El glosofaríngeo (IX par) es el responsable sensitivo de la orofaringe y detonante del reflejo nauseoso." },
+            { id: 77, text: "En ese mismo arco reflejo, la respuesta motora violenta que contrae la faringe para expulsar el objeto (vía eferente) es ejecutada casi en su totalidad por el nervio:", options: [ { text: "a) Trigémino (V).", isCorrect: false }, { text: "b) Hipogloso (XII).", isCorrect: false }, { text: "c) Glosofaríngeo (IX).", isCorrect: false }, { text: "d) Vago (X).", isCorrect: true } ], explanation: "El X par craneal (Vago) es el principal nervio motor del plexo faríngeo. Al ser un arco bulbar, la falta de coordinación aquí (ej. ictus) provoca atragantamientos." },
+            { id: 78, text: "Justo por detrás de la fascia bucofaríngea (la pared posterior de la faringe) y por delante de la fascia prevertebral, existe un espacio relleno de tejido conectivo laxo. ¿Por qué es tan importante quirúrgicamente el Espacio Retrofaríngeo?", options: [ { text: "a) Porque aloja la glándula tiroides.", isCorrect: false }, { text: "b) Porque es un plano de clivaje \"exangüe\" (sin vasos) que permite a los cirujanos acceder hasta la base del cráneo sin provocar sangrados masivos, aunque también es vía de diseminación de abscesos.", isCorrect: true }, { text: "c) Porque contiene la médula espinal.", isCorrect: false }, { text: "d) Porque por ahí discurre la arteria carótida interna.", isCorrect: false } ], explanation: "El profesor lo describe como una \"autopista\" natural sin barreras que baja hasta el mediastino." },
+            { id: 79, text: "El esqueleto laríngeo se compone de varios cartílagos. El único cartílago que forma un anillo completo (con forma de sello, arco anterior y lámina posterior alta) y sirve de base a toda la estructura es el:", options: [ { text: "a) Cartílago tiroides.", isCorrect: false }, { text: "b) Cartílago epiglótico.", isCorrect: false }, { text: "c) Cartílago cricoides.", isCorrect: true }, { text: "d) Cartílago aritenoides.", isCorrect: false } ], explanation: "Es la base sólida incompresible de la vía aérea superior, limitando su diámetro." },
+            { id: 80, text: "El cartílago tiroides está formado por dos láminas cuadriláteras que se unen por delante formando un ángulo diedro (la \"nuez de Adán\"). Este ángulo es más agudo (prominente) en:", options: [ { text: "a) Hombres (aprox 90º).", isCorrect: true }, { text: "b) Mujeres (aprox 120º).", isCorrect: false }, { text: "c) Niños menores de 5 años.", isCorrect: false }, { text: "d) Es igual en todos los humanos.", isCorrect: false } ], explanation: "La influencia hormonal alarga las cuerdas vocales (insertadas en este ángulo), agravando la voz y haciendo el cartílago más saliente en varones." },
+            { id: 81, text: "Cabalgando sobre la lámina posterior del cartílago cricoides encontramos dos pequeños cartílagos piramidales esenciales para la fonación. Son:", options: [ { text: "a) Los cartílagos corniculados.", isCorrect: false }, { text: "b) Los cartílagos cuneiformes.", isCorrect: false }, { text: "c) Los cartílagos aritenoides.", isCorrect: true }, { text: "d) Los cartílagos tritíceos.", isCorrect: false } ], explanation: "Los aritenoides pivotan y se deslizan sobre el cricoides para abrir o cerrar las cuerdas vocales." },
+            { id: 82, text: "Los cartílagos aritenoides tienen dos apófisis clave en su base. ¿Dónde se inserta el ligamento vocal (cuerda vocal verdadera)?", options: [ { text: "a) En la apófisis muscular (posteroexterna).", isCorrect: false }, { text: "b) En el vértice superior.", isCorrect: false }, { text: "c) En la apófisis vocal (anterointerna).", isCorrect: true }, { text: "d) En la cara articular del cricoides.", isCorrect: false } ], explanation: "La apófisis vocal apunta hacia delante, hacia el cartílago tiroides, anclando la cuerda vocal." },
+            { id: 83, text: "El único músculo de la laringe capaz de ABDUCIR (separar o abrir) las cuerdas vocales, permitiendo la entrada masiva de aire durante la inspiración, es el:", options: [ { text: "a) Músculo cricoaritenoideo lateral.", isCorrect: false }, { text: "b) Músculo tiroaritenoideo.", isCorrect: false }, { text: "c) Músculo cricoaritenoideo posterior.", isCorrect: true }, { text: "d) Músculo aritenoideo transverso.", isCorrect: false } ], explanation: "Concepto vital. Al tirar de la apófisis muscular hacia atrás, rota la apófisis vocal hacia fuera abriendo la glotis." },
+            { id: 84, text: "\"El chivato y la excepción\". Todos los músculos intrínsecos de la laringe están inervados por el nervio laríngeo recurrente (rama del vago), EXCEPTO un músculo que tensa las cuerdas vocales inervado por el nervio laríngeo superior (rama externa). Es el:", options: [ { text: "a) Músculo vocal.", isCorrect: false }, { text: "b) Músculo cricotiroideo.", isCorrect: true }, { text: "c) Músculo cricoaritenoideo posterior.", isCorrect: false }, { text: "d) Músculo aritenoideo oblicuo.", isCorrect: false } ], explanation: "Bascula el tiroides hacia adelante tensando las cuerdas (voz aguda). Es la gran excepción motora de la laringe." },
+            { id: 85, text: "El espacio estricto comprendido entre los dos pliegues o cuerdas vocales verdaderas se denomina:", options: [ { text: "a) Vestíbulo laríngeo.", isCorrect: false }, { text: "b) Ventrículo laríngeo.", isCorrect: false }, { text: "c) Hendidura glótica (Glotis).", isCorrect: true }, { text: "d) Espacio infraglótico.", isCorrect: false } ], explanation: "Es la zona más estrecha y funcional, responsable de modular el flujo de aire para la fonación." },
+            { id: 86, text: "El engrosamiento del borde superior libre del Cono Elástico (la membrana fibroelástica inferior) constituye anatómicamente:", options: [ { text: "a) El ligamento vestibular (cuerda falsa).", isCorrect: false }, { text: "b) El ligamento vocal (cuerda verdadera).", isCorrect: true }, { text: "c) El ligamento hioepiglótico.", isCorrect: false }, { text: "d) La membrana cuadrangular.", isCorrect: false } ], explanation: "El cono elástico se inserta en el cricoides y sube hasta formar el ligamento vocal, que vibrará con el aire (\"la lengüeta\")." },
+            { id: 87, text: "La glándula tiroides se aloja en la celda tiroidea del compartimento visceral del cuello. Su istmo (la porción central que une ambos lóbulos) cruza anatómicamente por delante de:", options: [ { text: "a) El cartílago tiroides.", isCorrect: false }, { text: "b) El hueso hioides.", isCorrect: false }, { text: "c) Los anillos traqueales 2º, 3º y 4º.", isCorrect: true }, { text: "d) El cartílago cricoides.", isCorrect: false } ], explanation: "Referencia quirúrgica fundamental. Al hacer una traqueotomía de emergencia (por debajo del cricoides) hay que tener cuidado con este istmo altamente vascularizado." },
+            { id: 88, text: "A veces (40% de la población) existe un tercer lóbulo que asciende desde el istmo hacia el hueso hioides, siendo un remanente embriológico del conducto tirogloso. Se denomina:", options: [ { text: "a) Glándula paratiroides.", isCorrect: false }, { text: "b) Lóbulo piramidal (Pírami de Lalouette).", isCorrect: true }, { text: "c) Lóbulo accesorio lateral.", isCorrect: false }, { text: "d) Istmo superior.", isCorrect: false } ], explanation: "Muestra el camino de descenso embriológico de la tiroides desde la base de la lengua (foramen caecum) hasta el cuello." },
+            { id: 89, text: "Las glándulas paratiroides (generalmente cuatro) encargadas de regular el calcio son el terror de los cirujanos en una tiroidectomía porque:", options: [ { text: "a) Se encuentran dentro de la arteria carótida.", isCorrect: false }, { text: "b) Tienen una posición y número muy variable, situándose en la cara posterior de los lóbulos tiroideos, por DENTRO de la propia cápsula de la glándula.", isCorrect: true }, { text: "c) Son microscópicas y transparentes.", isCorrect: false }, { text: "d) Están pegadas al esternón.", isCorrect: false } ], explanation: "El profesor recalca que al extirpar la tiroides es muy fácil llevárselas por delante debido a su inclusión intra-capsular." },
+            { id: 90, text: "La irrigación del tiroides es masiva. La Arteria Tiroidea Superior es la primera rama colateral que nace de:", options: [ { text: "a) La arteria subclavia.", isCorrect: false }, { text: "b) El tronco braquiocefálico.", isCorrect: false }, { text: "c) La arteria carótida interna.", isCorrect: false }, { text: "d) La arteria carótida externa.", isCorrect: true } ], explanation: "Nace justo después de la bifurcación carotídea y desciende hacia el polo superior del tiroides." },
+            { id: 91, text: "La Arteria Tiroidea Inferior nace del tronco tirocervical (rama de la subclavia) y tiene una íntima y peligrosa relación quirúrgica (se cruza) con el nervio:", options: [ { text: "a) Frénico.", isCorrect: false }, { text: "b) Vago.", isCorrect: false }, { text: "c) Laríngeo recurrente.", isCorrect: true }, { text: "d) Hipogloso.", isCorrect: false } ], explanation: "Al ligar esta arteria en cirugía, si se lesiona el nervio recurrente el paciente puede quedar con afonía o problemas respiratorios severos." },
+            { id: 92, text: "Un clásico de la topografía del cuello: La vaina carotídea envuelve un paquete vasculonervioso vital situado profundo al músculo esternocleidomastoideo. Lo forman:", options: [ { text: "a) Arteria vertebral, vena yugular externa y nervio frénico.", isCorrect: false }, { text: "b) Arteria carótida (común/interna), Vena Yugular Interna y Nervio Vago (PC X).", isCorrect: true }, { text: "c) Arteria subclavia, plexo braquial y vena subclavia.", isCorrect: false }, { text: "d) Tráquea, esófago y nervio recurrente.", isCorrect: false } ], explanation: "Es la triada vascular-nerviosa más importante del cuello." },
+            { id: 93, text: "Peligro en traumatismos cervicales (\"Anécdota Prada\"): Si se secciona la vena Yugular Interna, el riesgo de embolia gaseosa se multiplica enormemente porque:", options: [ { text: "a) La vena no tiene válvulas.", isCorrect: false }, { text: "b) El tendón intermedio del músculo Omohioideo está adherido a la vaina carotídea; al estar tenso, tira de la pared de la vena manteniéndola ABIERTA como un tubo rígido que succiona aire al corazón.", isCorrect: true }, { text: "c) La carótida empuja el aire dentro.", isCorrect: false }, { text: "d) El paciente hiperventila.", isCorrect: false } ], explanation: "La tracción fascial impide el colapso protector natural de las paredes venosas cortadas." },
+            { id: 94, text: "Para canalizar una vía venosa central en la Vena Yugular Interna guiándonos por referencias anatómicas de superficie, pincharemos en el vértice del:", options: [ { text: "a) Triángulo suboccipital.", isCorrect: false }, { text: "b) Triángulo de Petit.", isCorrect: false }, { text: "c) Triángulo de Sédillot (entre el haz esternal y clavicular del esternocleidomastoideo).", isCorrect: true }, { text: "d) Ángulo de Louis.", isCorrect: false } ], explanation: "La fosa supraclavicular menor es la ventana anatómica directa hacia el sistema venoso profundo del cuello." },
+            { id: 95, text: "El trayecto inguinal es una necesidad evolutiva del fenotipo masculino para:", options: [ { text: "a) Permitir el paso de la arteria femoral al muslo.", isCorrect: false }, { text: "b) Sacar las gónadas (testículos) fuera de la cavidad abdominal, ya que la espermatogénesis requiere una temperatura inferior a la corporal interna.", isCorrect: true }, { text: "c) Conectar los riñones con la vejiga.", isCorrect: false }, { text: "d) Facilitar la flexión de la cadera.", isCorrect: false } ], explanation: "El testículo migra desde L2 y atraviesa la pared abdominal para alojarse en el escroto buscando frío." },
+            { id: 96, text: "El suelo (o \"canaleta\") sobre el que reposa el cordón espermático en el trayecto inguinal es el Ligamento Inguinal (Arco de Poupart). Este ligamento no es más que el engrosamiento del borde inferior de la aponeurosis del músculo:", options: [ { text: "a) Oblicuo menor (interno).", isCorrect: false }, { text: "b) Transverso del abdomen.", isCorrect: false }, { text: "c) Recto anterior del abdomen.", isCorrect: false }, { text: "d) Oblicuo mayor (externo).", isCorrect: true } ], explanation: "Salta tendido entre la espina ilíaca anterosuperior y el tubérculo del pubis." },
+            { id: 97, text: "La capa más profunda de la pared abdominal, la fascia transversalis, es arrastrada por el testículo al salir por el anillo profundo (como un dedo de guante). Esta capa formará en el cordón espermático:", options: [ { text: "a) El músculo cremáster.", isCorrect: false }, { text: "b) La túnica vaginal.", isCorrect: false }, { text: "c) La fascia espermática interna.", isCorrect: true }, { text: "d) El ligamento redondo.", isCorrect: false } ], explanation: "Rodea íntimamente al conducto deferente y sus vasos al salir del abdomen." },
+            { id: 98, text: "Las fibras musculares del oblicuo interno y del transverso del abdomen que forman el techo del conducto inguinal también son arrastradas parcialmente durante el descenso testicular, formando un músculo que eleva el testículo para regular su temperatura. Se trata del:", options: [ { text: "a) Músculo dartos.", isCorrect: false }, { text: "b) Músculo piramidal.", isCorrect: false }, { text: "c) Músculo pectíneo.", isCorrect: false }, { text: "d) Músculo cremáster.", isCorrect: true } ], explanation: "El reflejo cremastérico es vital en exploración pediátrica para confirmar la indemnidad del nervio genitofemoral (L1-L2)." },
+            { id: 99, text: "En la anatomía quirúrgica de las hernias, los Vasos Epigástricos Inferiores marcan la frontera. Si una hernia asoma lateral a estos vasos (entrando por el anillo profundo y recorriendo el trayecto inguinal), se clasifica como:", options: [ { text: "a) Hernia inguinal directa.", isCorrect: false }, { text: "b) Hernia inguinal indirecta.", isCorrect: true }, { text: "c) Hernia crural o femoral.", isCorrect: false }, { text: "d) Hernia de Spiegel.", isCorrect: false } ], explanation: "Sigue indirectamente el mismo camino natural que hizo el testículo (de lateral a medial)." },
+            { id: 100, text: "Si un asa intestinal asoma rompiendo la pared posterior debilitada del trayecto (el Triángulo de Hesselbach), de forma MEDIAL a los vasos epigástricos inferiores, estamos ante una:", options: [ { text: "a) Hernia inguinal directa.", isCorrect: true }, { text: "b) Hernia inguinal indirecta.", isCorrect: false }, { text: "c) Hernia umbilical.", isCorrect: false }, { text: "d) Hernia crural.", isCorrect: false } ], explanation: "Sale directamente hacia adelante (\"rompiendo la pared\") sin hacer el recorrido del anillo profundo." },
+            { id: 101, text: "En el fenotipo femenino, el trayecto inguinal es más estrecho y no contiene cordón espermático. La estructura homóloga de anclaje que lo atraviesa para insertarse en los labios mayores es el:", options: [ { text: "a) Ligamento ancho del útero.", isCorrect: false }, { text: "b) Ligamento redondo del útero.", isCorrect: true }, { text: "c) Ovario.", isCorrect: false }, { text: "d) Uréter.", isCorrect: false } ], explanation: "Es el remanente embriológico que fija el fondo uterino hacia la pared abdominal anterior." },
+            { id: 102, text: "El dolor referido \"Doctrina Prada\": Si un varón recibe un fuerte impacto en el testículo, el dolor sordo, vegetativo y nauseabundo no se localiza en la piel del escroto, sino que se refiere profundamente a:", options: [ { text: "a) La región inguinal baja exclusivamente.", isCorrect: false }, { text: "b) El glúteo.", isCorrect: false }, { text: "c) La región abdominal alta/lumbar, correspondiente a la metámera L2 donde el testículo se originó embriológicamente.", isCorrect: true }, { text: "d) El hombro.", isCorrect: false } ], explanation: "La inervación visceral del testículo \"viaja\" con él desde el riñón (L2), por lo que el cerebro interpreta el dolor en el abdomen." },
+            { id: 103, text: "El diafragma pélvico es el lecho muscular que cierra la excavación pélvica sosteniendo las vísceras. Está formado fundamentalmente por el músculo Coccígeo y el gran músculo:", options: [ { text: "a) Piriforme.", isCorrect: false }, { text: "b) Obturador interno.", isCorrect: false }, { text: "c) Elevador del ano.", isCorrect: true }, { text: "d) Transverso profundo del periné.", isCorrect: false } ], explanation: "Forma un verdadero embudo dinámico orientado hacia los conductos excretores." },
+            { id: 104, text: "El fascículo más medial del músculo Elevador del Ano actúa formando una eslinga o cincha en \"U\" alrededor de la unión anorrectal. Al contraerse de forma voluntaria, cierra el ángulo y asegura la continencia fecal. Se denomina:", options: [ { text: "a) Músculo pubococcígeo.", isCorrect: false }, { text: "b) Músculo iliococcígeo.", isCorrect: false }, { text: "c) Músculo isquiocavernoso.", isCorrect: false }, { text: "d) Músculo puborrectal.", isCorrect: true } ], explanation: "Tira de la flexura hacia el pubis, estrangulando mecánicamente la salida del recto." },
+            { id: 105, text: "El fascículo intermedio del Elevador del Ano es el más ancho, se sitúa debajo de la vejiga rodeando la vagina/uretra y es el que más frecuentemente se desgarra durante la coronación en el parto. Hablamos del:", options: [ { text: "a) Puborrectal.", isCorrect: false }, { text: "b) Iliococcígeo.", isCorrect: false }, { text: "c) Pubococcígeo.", isCorrect: true }, { text: "d) Esfínter anal externo.", isCorrect: false } ], explanation: "Soporta la máxima distensión de la presentación cefálica fetal." },
+            { id: 106, text: "El fascículo Iliococcígeo no tiene un origen óseo directo, sino que nace de un engrosamiento de la aponeurosis parietal de la pelvis llamado:", options: [ { text: "a) Ligamento inguinal.", isCorrect: false }, { text: "b) Arco tendinoso del músculo obturador interno.", isCorrect: true }, { text: "c) Ligamento sacroespinoso.", isCorrect: false }, { text: "d) Ligamento sacrotuberoso.", isCorrect: false } ], explanation: "Utiliza la fascia del músculo obturador interno (que tapiza la pared lateral) para anclarse." },
+            { id: 107, text: "En el centro anatómico del periné existe un nódulo tendinoso vital donde convergen todos los músculos del suelo pélvico. Si este se rompe incontroladamente, el suelo pélvico fracasa. Es el:", options: [ { text: "a) Ligamento anococcígeo.", isCorrect: false }, { text: "b) Sínfisis púbica.", isCorrect: false }, { text: "c) Centro tendinoso del periné (Cuerpo perineal).", isCorrect: true }, { text: "d) Promontorio.", isCorrect: false } ], explanation: "La episiotomía (corte profiláctico) se realiza lateralmente para evitar que un desgarro afecte a este pilar central y al esfínter anal." },
+            { id: 108, text: "A los lados del conducto anal encontramos unos espacios en forma de cuña rellenos exclusivamente de grasa que permiten la dilatación del recto durante la defecación. Son las:", options: [ { text: "a) Fosas isquioanales (isquiorrectales).", isCorrect: true }, { text: "b) Fosas ilíacas.", isCorrect: false }, { text: "c) Bolsas de Douglas.", isCorrect: false }, { text: "d) Lagunas musculares.", isCorrect: false } ], explanation: "Al estar comunicadas por detrás del ano (ligamento anococcígeo), los abscesos infecciosos pueden cruzar de un lado al otro en forma de herradura." },
+            { id: 109, text: "La inervación motora voluntaria del diafragma pélvico (esfínteres externos) y la sensibilidad de los genitales externos corre a cargo de un nervio que emana de S2-S4 llamado:", options: [ { text: "a) Nervio ciático.", isCorrect: false }, { text: "b) Nervio femoral.", isCorrect: false }, { text: "c) Nervio pudendo.", isCorrect: true }, { text: "d) Nervio obturador.", isCorrect: false } ], explanation: "Crucial en obstetricia, ya que se bloquea anestésicamente palpando la espina ciática por vía transvaginal." },
+            { id: 110, text: "La vascularización de esta región del suelo pélvico y genitales externos es responsabilidad de la Arteria Pudenda Interna, que es rama directa de:", options: [ { text: "a) Arteria aorta abdominal.", isCorrect: false }, { text: "b) Arteria ilíaca interna (Hipogástrica).", isCorrect: true }, { text: "c) Arteria ilíaca externa.", isCorrect: false }, { text: "d) Arteria mesentérica inferior.", isCorrect: false } ], explanation: "Acompaña al nervio pudendo saliendo por la escotadura ciática mayor y reentrando por la menor." },
+            { id: 111, text: "El \"Plano mágico de Louis\" es una referencia topográfica vital en el tórax que trazamos desde el ángulo esternal (articulación de la 2ª costilla) hacia T4-T5. Todos estos eventos ocurren en ese nivel EXCEPTO:", options: [ { text: "a) Bifurcación de la tráquea (Carina).", isCorrect: false }, { text: "b) Inicio y fin del cayado aórtico.", isCorrect: false }, { text: "c) Límite entre mediastino superior e inferior.", isCorrect: false }, { text: "d) Hiato aórtico del diafragma.", isCorrect: true } ], explanation: "El hiato aórtico ocurre mucho más abajo, a nivel de T12, no en el plano de Louis." },
+            { id: 112, text: "Las arterias coronarias (que nutren al corazón) nacen directamente de:", options: [ { text: "a) La aorta torácica descendente.", isCorrect: false }, { text: "b) Los senos aórticos (senos de Valsalva) en la base de la aorta ascendente, justo por encima de la válvula aórtica.", isCorrect: true }, { text: "c) La arteria pulmonar.", isCorrect: false }, { text: "d) El seno coronario.", isCorrect: false } ], explanation: "Son las primeras ramas de la circulación sistémica." },
+            { id: 113, text: "Si un paciente tiene el músculo Psoas Mayor acortado o contracturado, la tracción que ejerce sobre los cuerpos vertebrales en bipedestación o al tumbarse estirado provoca:", options: [ { text: "a) Una hernia de hiato.", isCorrect: false }, { text: "b) Una hiperlordosis lumbar (aumento de la curvatura lumbar).", isCorrect: true }, { text: "c) Rectificación del cuello.", isCorrect: false }, { text: "d) Escoliosis hacia la izquierda.", isCorrect: false } ], explanation: "Tira de la columna hacia adelante. El paciente debe encoger las piernas para destensar el músculo y aplanar la espalda contra la camilla." },
+            { id: 114, text: "La arteria vertebral (vital para la irrigación del 50% del encéfalo posterior) hace un bucle o sifón de reserva antes de entrar al foramen magno. Se apoya en un surco situado exactamente en:", options: [ { text: "a) El diente del axis (C2).", isCorrect: false }, { text: "b) La apófisis transversa de C7.", isCorrect: false }, { text: "c) La cara superior del arco posterior del Atlas (C1).", isCorrect: true }, { text: "d) La base del hueso occipital.", isCorrect: false } ], explanation: "Un detalle muy preguntable de neuroanatomía topográfica. Pasa por el agujero transverso de C1 y se tumba sobre su arco posterior." },
+            { id: 115, text: "El dolor originado en la porción central del Diafragma (ej. por irritación subfrénica o pericarditis) se refiere o proyecta a la región del hombro y cuello debido a que:", options: [ { text: "a) El diafragma se inserta en la clavícula.", isCorrect: false }, { text: "b) Es inervado por el nervio frénico (raíces C3-C5), y el cerebro confunde el origen visceral con el dermatoma cutáneo de esas mismas raíces.", isCorrect: true }, { text: "c) El nervio vago sube al cerebro.", isCorrect: false }, { text: "d) El pulmón presiona las costillas.", isCorrect: false } ], explanation: "El origen embrionario cervical del diafragma marca su inervación sensitiva para siempre." },
+            { id: 116, text: "El sistema de drenaje venoso interno de la columna vertebral (Plexo de Batson) es famoso clínicamente porque:", options: [ { text: "a) Es el único con válvulas tricúspides perfectas.", isCorrect: false }, { text: "b) Al carecer de válvulas (avalvular), el flujo sanguíneo puede invertirse ante esfuerzos (Valsalva), permitiendo que metástasis de próstata colonicen las vértebras o el cerebro directamente.", isCorrect: true }, { text: "c) Drena exclusivamente linfa, no sangre.", isCorrect: false }, { text: "d) Se anastomosa con la arteria aorta.", isCorrect: false } ], explanation: "\"Concepto Prada\" fundamental que explica diseminaciones tumorales atípicas sin pasar por los pulmones." },
+            { id: 117, text: "Cuando un cirujano hace una laparotomía, evita la línea alba (corte vertical medio) siempre que sea posible y prefiere incisiones musculares paramedianas porque:", options: [ { text: "a) La línea alba contiene la aorta.", isCorrect: false }, { text: "b) La línea alba, al ser tejido fibroso avascular (sin riego sanguíneo), cicatriza muy mal y favorece la aparición de hernias (eventraciones) postquirúrgicas.", isCorrect: true }, { text: "c) Provoca parálisis del recto del abdomen.", isCorrect: false }, { text: "d) Corta el ligamento redondo.", isCorrect: false } ], explanation: "El músculo sangra más, pero cicatriza excelentemente gracias a su red capilar. La aponeurosis se debilita." },
+            { id: 118, text: "La \"ley de resegmentación\" embrionaria consiste en que una vértebra definitiva se forma por la fusión de la mitad caudal de un esclerotoma y la craneal del siguiente. La gran ventaja anatómica de esto es que:", options: [ { text: "a) Las vértebras sean más altas.", isCorrect: false }, { text: "b) El nervio espinal, que se desarrolla en medio, sale cómodamente por el agujero de conjunción intervertebral sin tener que perforar el hueso compacto.", isCorrect: true }, { text: "c) Se forme el núcleo pulposo.", isCorrect: false }, { text: "d) Desaparezca la notocorda.", isCorrect: false } ], explanation: "Un diseño evolutivo brillante para proteger al nervio y darle una vía de salida entre partes móviles." },
+            { id: 119, text: "La articulación Sacroilíaca biomecánicamente funciona bajo el concepto de \"tenaza\". Esto quiere decir que:", options: [ { text: "a) El hueso sacro se mueve libremente 360 grados.", isCorrect: false }, { text: "b) Al recibir la carga del cuerpo, los ligamentos posteriores se tensan, cerrando las palas ilíacas que \"abrazan y bloquean\" al sacro para darle máxima estabilidad.", isCorrect: true }, { text: "c) Es una articulación sinovial pura que nunca se osifica.", isCorrect: false }, { text: "d) Permite saltar sin doblar las rodillas.", isCorrect: false } ], explanation: "El peso presiona la cuña, la tensión cierra las ramas de la tenaza (huesos ilíacos), inmovilizando la estructura." },
+            { id: 120, text: "La \"cara de gato\" en una radiografía AP de columna corresponde a las vértebras cervicales. Las \"orejas\" de ese gato anatómico son:", options: [ { text: "a) Los pedículos.", isCorrect: false }, { text: "b) Las apófisis mamilares lumbares.", isCorrect: false }, { text: "c) Los procesos unciformes (apófisis semilunares) típicos de C3-C7.", isCorrect: true }, { text: "d) La apófisis odontoides.", isCorrect: false } ], explanation: "Pequeños realces óseos laterales en la cara superior del cuerpo vertebral, que articulan con la vértebra superior (articulación de Luschka)." },
+            { id: 121, text: "El \"Perrito de Lachapelle\" en una Rx oblicua lumbar permite evaluar la pars interarticularis (istmo). Si el perrito tiene un \"collar\" negro (fractura), diagnosticamos radiológicamente una:", options: [ { text: "a) Espondilolistesis (deslizamiento vertebral).", isCorrect: false }, { text: "b) Espondilolisis (rotura del puente óseo interarticular).", isCorrect: true }, { text: "c) Luxación sacroilíaca.", isCorrect: false }, { text: "d) Hernia discal.", isCorrect: false } ], explanation: "La lisis (rotura) del istmo es el paso previo al listesis (deslizamiento)." },
+            { id: 122, text: "En una hernia discal posterolateral a nivel L4-L5, ¿qué raíz nerviosa es la que típicamente queda atrapada por la protrusión del núcleo pulposo?", options: [ { text: "a) La raíz L4 (que ya ha salido por arriba).", isCorrect: false }, { text: "b) La raíz L5 (la raíz \"transeúnte\" que baja por el receso lateral buscando el agujero inferior L5-S1).", isCorrect: true }, { text: "c) La raíz S1.", isCorrect: false }, { text: "d) Toda la cola de caballo.", isCorrect: false } ], explanation: "Debido a la salida alta de la raíz saliente (L4), la que pilla el disco L4-L5 es la que está de paso hacia abajo (L5)." },
+            { id: 123, text: "El drenaje linfático de todo el tejido celular subcutáneo de la piel de la pared abdominal que se encuentra POR DEBAJO del nivel del ombligo va a:", options: [ { text: "a) Los ganglios axilares.", isCorrect: false }, { text: "b) El conducto linfático derecho.", isCorrect: false }, { text: "c) Los ganglios inguinales superficiales.", isCorrect: true }, { text: "d) Directo a la aurícula derecha.", isCorrect: false } ], explanation: "El ombligo es el \"ecuador linfático\" superficial del tronco. De ombligo arriba a la axila, de ombligo abajo a la ingle." },
+            { id: 124, text: "Si un paciente sufre un atragantamiento total en el restaurante, la maniobra rápida de punción salvavidas (\"Cricotirotomía\") se realiza perforando:", options: [ { text: "a) El cartílago tiroides directamente.", isCorrect: false }, { text: "b) La membrana tirohioidea.", isCorrect: false }, { text: "c) El ligamento cricotiroideo medio (la depresión blanda justo debajo de la nuez de Adán).", isCorrect: true }, { text: "d) La línea alba.", isCorrect: false } ], explanation: "Acceso rápido a la vía aérea infraglótica, sorteando las cuerdas vocales ocluidas." },
+            { id: 125, text: "La arteria encargada de vascularizar a los dos tercios inferiores de la médula espinal (Toracolumbar) de forma crítica, cuya lesión accidental provoca paraplejia, es:", options: [ { text: "a) La arteria torácica interna.", isCorrect: false }, { text: "b) La arteria radicular magna de Adamkiewicz.", isCorrect: true }, { text: "c) La arteria vertebral.", isCorrect: false }, { text: "d) La arteria sacra media.", isCorrect: false } ], explanation: "Entra habitualmente entre T9 y L2 por el lado izquierdo. Vital en cirugías de aorta." },
+            { id: 126, text: "¿A qué nivel topográfico vertebral atraviesa el Esófago el diafragma (Hiato esofágico)?", options: [ { text: "a) T8.", isCorrect: false }, { text: "b) T10.", isCorrect: true }, { text: "c) T12.", isCorrect: false }, { text: "d) L1.", isCorrect: false } ], explanation: "Recordad la \"Regla de los pares\": Cava 8, Esófago 10, Aorta 12." },
+            { id: 127, text: "El hiato esofágico NO solo da paso al tubo digestivo, sino que lo acompañan íntimamente adheridos:", options: [ { text: "a) El conducto torácico.", isCorrect: false }, { text: "b) Los troncos de los nervios Vagos (izquierdo y derecho).", isCorrect: true }, { text: "c) Las venas ácigos y hemiácigos.", isCorrect: false }, { text: "d) La arteria epigástrica superior.", isCorrect: false } ], explanation: "Los vagos acompañan al esófago rotando con él durante el desarrollo embriológico para inervar el estómago." },
+            { id: 128, text: "En pacientes con cirrosis hepática severa (\"el filtro del hígado se atasca\"), la sangre del sistema portal busca volver al corazón por derivaciones. ¿Qué patología grave se produce en el esófago inferior por esta hipertensión portal?", options: [ { text: "a) Cáncer de laringe.", isCorrect: false }, { text: "b) Varices esofágicas (con alto riesgo de sangrado digestivo mortal).", isCorrect: true }, { text: "c) Acidez gástrica leve.", isCorrect: false }, { text: "d) Neumonía.", isCorrect: false } ], explanation: "La sangre deriva por el plexo submucoso esofágico, hinchando las venas que comunican el sistema porta con el sistema cava superior." },
+            { id: 129, text: "El uréter, en su descenso hacia la pelvis, tiene una relación cruzada muy famosa por delante del psoas con unos vasos muy largos que se dirigen a las gónadas. Son:", options: [ { text: "a) Los vasos epigástricos inferiores.", isCorrect: false }, { text: "b) Los vasos testiculares / ováricos (vasos gonadales).", isCorrect: true }, { text: "c) Los vasos ilíacos internos.", isCorrect: false }, { text: "d) Los vasos lumbares.", isCorrect: false } ], explanation: "Un cólico nefrítico o ureteral referirá el dolor al mismo territorio testicular o labial que vascularizan e inervan esos elementos adyacentes." },
+            { id: 130, text: "El músculo cremáster se origina por la \"fuga\" o arrastre de fibras musculares hacia el cordón espermático provenientes de:", options: [ { text: "a) El oblicuo mayor (externo) y el recto anterior.", isCorrect: false }, { text: "b) El oblicuo menor (interno) y el transverso del abdomen.", isCorrect: true }, { text: "c) El músculo piramidal.", isCorrect: false }, { text: "d) El músculo pectíneo.", isCorrect: false } ], explanation: "Cuando el testículo empuja el techo del trayecto inguinal, se lleva fibras de estos músculos para su termorregulación." },
+            { id: 131, text: "El drenaje venoso del corazón desemboca mayoritariamente en la Aurícula Derecha a través de:", options: [ { text: "a) Las venas pulmonares.", isCorrect: false }, { text: "b) El Seno Coronario (cuya entrada está limitada por la válvula de Tebesio y forma parte del triángulo de Koch).", isCorrect: true }, { text: "c) La Vena Cava Superior.", isCorrect: false }, { text: "d) La arteria aorta.", isCorrect: false } ], explanation: "Recoge casi toda la sangre venosa del propio miocardio." },
+            { id: 132, text: "Para localizar el nodo auriculoventricular (AV o de Aschoff-Tawara) en una cirugía cardíaca, buscaremos el Triángulo de Koch, situado en:", options: [ { text: "a) El ventrículo izquierdo.", isCorrect: false }, { text: "b) La aurícula derecha (limitado por la valva septal tricuspídea, el tendón de Todaro y el orificio del seno coronario).", isCorrect: true }, { text: "c) El ápex cardíaco.", isCorrect: false }, { text: "d) La orejuela izquierda.", isCorrect: false } ], explanation: "Geometría anatómica pura para ubicar el sistema de conducción eléctrica (\"el retraso fisiológico\")." },
+            { id: 133, text: "Asimetría linfática: La linfa del cuerpo drena en el conducto torácico (hacia la izquierda) a EXCEPCIÓN de la cabeza, cuello, brazo derecho y hemitórax superior derecho, que drena a través del conducto linfático derecho en:", options: [ { text: "a) La aurícula derecha.", isCorrect: false }, { text: "b) La vena cava inferior.", isCorrect: false }, { text: "c) El ángulo yugulosubclavio DERECHO.", isCorrect: true }, { text: "d) Directamente en el pulmón.", isCorrect: false } ], explanation: "Concepto clínico vital porque las diseminaciones y adenopatías tumorales obedecen a esta asimetría dándole preponderancia a la encrucijada izquierda (Ganglio de Virchow)." },
+            { id: 134, text: "La Cisterna del Quilo (o de Pecquet) es una dilatación linfática receptora abdominal situada a nivel de L1-L2, que es el punto de origen del gran:", options: [ { text: "a) Conducto deferente.", isCorrect: false }, { text: "b) Conducto torácico.", isCorrect: true }, { text: "c) Conducto de Santorini.", isCorrect: false }, { text: "d) Sistema venoso ácigos.", isCorrect: false } ], explanation: "Recolecta toda la linfa \"grasienta\" intestinal y de extremidades inferiores para subirla al tórax." },
+            { id: 135, text: "El espacio pleural más declive donde se acumulan patológicamente los derrames de líquido (borrando la silueta puntiaguda normal en una radiografía frontal de tórax) es el:", options: [ { text: "a) Receso costomediastínico.", isCorrect: false }, { text: "b) Receso costodiafragmático.", isCorrect: true }, { text: "c) Receso retrofaríngeo.", isCorrect: false }, { text: "d) Seno coronario.", isCorrect: false } ], explanation: "El fondo de saco agudo entre la pared torácica lateral y la caída del diafragma. El sumidero por gravedad." },
+            { id: 136, text: "El nervio frénico, motor del diafragma, desciende por el cuello hacia el tórax apoyado directamente sobre la cara anterior de qué músculo:", options: [ { text: "a) Psoas mayor.", isCorrect: false }, { text: "b) Escaleno medio.", isCorrect: false }, { text: "c) Escaleno anterior.", isCorrect: true }, { text: "d) Esternocleidomastoideo.", isCorrect: false } ], explanation: "Cruza la cara anterior de este músculo cervical y queda por detrás de la vena subclavia pero por delante de la arteria subclavia." },
+            { id: 137, text: "¿Cuál de las siguientes costillas se articula atípicamente con un solo cuerpo vertebral (carilla completa) y carece de tubérculo costal, por lo que NO tiene articulación costotransversaria funcional?", options: [ { text: "a) 1ª costilla.", isCorrect: false }, { text: "b) 2ª costilla.", isCorrect: false }, { text: "c) 7ª costilla.", isCorrect: false }, { text: "d) 11ª y 12ª costillas (flotantes).", isCorrect: true } ], explanation: "Al ser flotantes y no participar en el asa de cubo respiratoria fija, no necesitan el doble apoyo biomecánico posterior, anclándose en la pared abdominal." },
+            { id: 138, text: "En la biomecánica respiratoria, un paciente que sufre fracturas costales múltiples sucesivas y al inspirar ese segmento de la pared del tórax \"se hunde\" hacia dentro, está sufriendo:", options: [ { text: "a) Respiración diafragmática.", isCorrect: false }, { text: "b) Respiración paradójica (Volet costal o tórax inestable).", isCorrect: true }, { text: "c) Cifosis.", isCorrect: false }, { text: "d) Pectus excavatum congénito.", isCorrect: false } ], explanation: "La presión negativa intratorácica que entra el aire, al perder el soporte óseo rígido, succiona el trozo roto de costillas hacia adentro." },
+            { id: 139, text: "Si un paciente tiene anestesiada/seccionada la inervación intercostal superficial (músculos paralizados de la pared torácica), seguirá pudiendo inspirar profundamente gracias a un potente músculo \"inspirador accesorio\" originado en el cuello, que eleva las dos primeras costillas:", options: [ { text: "a) El recto del abdomen.", isCorrect: false }, { text: "b) Los escalenos.", isCorrect: true }, { text: "c) El dorsal ancho.", isCorrect: false }, { text: "d) El transverso del tórax.", isCorrect: false } ], explanation: "Son flexores del cuello, pero si se fija el cuello, tiran de la caja torácica hacia arriba (Tiraje costal)." },
+            { id: 140, text: "La membrana tectoria (\"techo\" craneocervical) es la potente continuación superior ancha y firme del:", options: [ { text: "a) Ligamento longitudinal anterior.", isCorrect: false }, { text: "b) Ligamento amarillo.", isCorrect: false }, { text: "c) Ligamento longitudinal posterior (LLP).", isCorrect: true }, { text: "d) Ligamento nucal.", isCorrect: false } ], explanation: "El LLP asciende por dentro del canal, cruza el diente del axis y se inserta en el borde anterior del foramen magno cambiando de nombre." }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {};
+        let markedQuestions = new Set();
+
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría para repetir.");
+                showEndScreen();
+                return;
+            }
+
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente para este intento?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                // Botón del Índice
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                // Tarjeta de la Pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.innerHTML = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.innerHTML = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                // Lista de Opciones (Mezcladas)
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    label.id = `label-${q.id}-${optIndex}`;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList, q.explanation);
+                    
+                    label.appendChild(input);
+                    const spanText = document.createElement('span');
+                    spanText.innerHTML = opt.text;
+                    label.appendChild(spanText);
+                    
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                // Caja de Feedback
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement, explanation) {
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong><br><em>Explicación de clase: ${explanation}</em>`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong><br><em>Explicación de clase: ${explanation}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

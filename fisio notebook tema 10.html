@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Fisiología: Potencial de Membrana</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; margin: 0; height: 100vh; background: #f4f7f6; color: #333; }
+        
+        /* Pantallas de superposición (Inicio y Fin) */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .modal-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; max-width: 500px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; }
+        .btn { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 6px; background: #3498db; color: white; font-size: 16px; transition: background 0.3s; width: 100%; max-width: 300px; }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-warning { background: #e67e22; }
+        .btn-warning:hover { background: #d35400; }
+
+        /* Estructura Principal */
+        #sidebar { width: 280px; background: #2c3e50; color: white; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        #sidebar h3 { text-align: center; margin-top: 0; border-bottom: 1px solid #34495e; padding-bottom: 15px; }
+        .index-btn { width: 100%; text-align: left; padding: 10px; background: #34495e; border: none; color: white; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; font-size: 14px; }
+        .index-btn:hover { background: #415b76; }
+        .index-btn.correct { border-left: 6px solid #2ecc71; background: #27ae6033; }
+        .index-btn.incorrect { border-left: 6px solid #e74c3c; background: #c0392b33; }
+        .index-btn .mark-indicator { color: #f1c40f; font-weight: bold; font-size: 16px; display: none; }
+        .index-btn.is-marked .mark-indicator { display: inline; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 30px; position: relative; scroll-behavior: smooth; }
+        .question-container { background: white; padding: 30px; margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 20px; }
+        .question-text { font-size: 18px; font-weight: 600; margin: 0; line-height: 1.5; color: #2c3e50; }
+        
+        .mark-btn { background: none; border: 2px solid #f1c40f; color: #f1c40f; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .mark-btn:hover { background: #fef9e7; }
+        .mark-btn.marked { background: #f1c40f; color: white; }
+
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn { width: 100%; text-align: left; padding: 15px; background: #f8f9f9; border: 2px solid #d5d8dc; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; color: #333; line-height: 1.4; }
+        .option-btn:hover:not(:disabled) { background: #ebedef; border-color: #bdc3c7; }
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background: #d5f5e3; border-color: #2ecc71; color: #1e8449; font-weight: bold; }
+        .option-btn.incorrect { background: #fadbd8; border-color: #e74c3c; color: #922b21; }
+
+        .explanation { margin-top: 20px; padding: 15px 20px; background: #e8f8f5; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; font-size: 15px; line-height: 1.5; color: #0e6251; }
+        .explanation strong { color: #117a65; }
+
+        .floating-finish { position: fixed; bottom: 30px; right: 30px; z-index: 100; }
+        .floating-finish button { box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 18px; padding: 15px 30px; border-radius: 30px; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <div class="modal-box">
+            <h2>Cuestionario de Potencial de Membrana</h2>
+            <p>60 Preguntas extraídas de los bloques proporcionados.</p>
+            <p>¿Cómo deseas ordenar las preguntas para esta sesión?</p>
+            <button class="btn" onclick="startQuiz('all', false)">Orden Preestablecido</button>
+            <button class="btn" onclick="startQuiz('all', true)">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <div class="modal-box">
+            <h2>Resumen del Cuestionario</h2>
+            <p id="results-text" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></p>
+            
+            <button class="btn" onclick="startQuiz('all', false)">Repetir Cuestionario Completo (Original)</button>
+            <button class="btn" onclick="startQuiz('all', true)">Repetir Cuestionario Completo (Aleatorio)</button>
+            <button class="btn btn-warning" id="btn-retry-failed" onclick="startQuiz('failed', false)">Repetir Solo Falladas</button>
+            <button class="btn btn-warning" id="btn-retry-marked" onclick="startQuiz('marked', false)">Repetir Solo Marcadas</button>
+            <button class="btn btn-warning" id="btn-retry-both" onclick="startQuiz('both', false)">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-container"></div>
+    </div>
+    
+    <div id="main-content">
+        <div id="questions-container"></div>
+    </div>
+
+    <div class="floating-finish" id="finish-btn-container" style="display: none;">
+        <button class="btn btn-warning" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <script>
+        // Datos crudos literales
+        const rawText = `Bloque 1: Conceptos Básicos y Bases del Potencial de Membrana
+1. Según el profesor, ¿cuál es el rango normal de la diferencia de potencial de membrana (Vm) en las células?
+A) Entre +50 y +90 mV.
+B) Entre -10 y -30 mV.
+C) Entre -50 y -90 mV.
+D) Exactamente 0 mV en reposo.Respuesta correcta: C
+2. La propiedad de la bicapa lipídica de acumular cargas de signo opuesto a ambos lados de la membrana, manteniendo el resto del líquido eléctricamente neutro, hace que actúe como:
+A) Una resistencia infinita.
+B) Un condensador.
+C) Un conductor perfecto.
+D) Una bomba iónica.Respuesta correcta: B
+3. ¿Cuáles son los dos requisitos fundamentales para que se genere y mantenga un potencial de membrana?
+A) Que existan gradientes de concentración y que la membrana sea permeable a esos iones.
+B) Que las concentraciones iónicas sean iguales a ambos lados y haya bombas activas.
+C) Que no existan canales de fuga y la bomba Na+/K+ esté inactiva.
+D) Que la membrana sea permeable a las proteínas intracelulares.Respuesta correcta: A
+4. ¿Qué elemento es el responsable de generar y mantener los gradientes de concentración a ambos lados de la membrana?
+A) Los canales de fuga.
+B) La bicapa lipídica por sí misma.
+C) Las bombas iónicas (ATPasas).
+D) El potencial de equilibrio.Respuesta correcta: C
+5. En condiciones fisiológicas basales, ¿cuál es el ion que se encuentra a mayor concentración en el líquido intracelular respecto al extracelular?
+A) Sodio (Na+).
+B) Calcio (Ca2+).
+C) Cloro (Cl-).
+D) Potasio (K+).Respuesta correcta: D
+6. ¿Qué característica exclusiva poseen las células excitables (como neuronas y células musculares) respecto a su potencial de membrana?
+A) Son las únicas que tienen potencial de membrana en reposo.
+B) Tienen la capacidad de modular o modificar transitoriamente su potencial de membrana para generar señales.
+C) Su membrana es completamente impermeable a todos los iones.
+D) No poseen canales de fuga.Respuesta correcta: B
+7. Los canales iónicos que siempre están abiertos en la membrana plasmática de todas las células se denominan:
+A) Canales dependientes de voltaje.
+B) Bombas electrogénicas.
+C) Canales de fuga.
+D) Canales dependientes de ligando.Respuesta correcta: C
+8. En condiciones basales, la permeabilidad de la membrana plasmática es mucho mayor para un ion específico. Si a esa permeabilidad le damos el valor de 1, ¿a qué ion nos referimos?
+A) Sodio (Na+).
+B) Cloro (Cl-).
+C) Calcio (Ca2+).
+D) Potasio (K+).Respuesta correcta: D
+9. Si la permeabilidad del potasio (PK) es 1, ¿cuál es la permeabilidad relativa aproximada del sodio (PNa) en una célula en reposo?
+A) 1
+B) 0.04 (25 veces menor).
+C) 0.45
+D) 100Respuesta correcta: B
+10. Por su gradiente químico, si abrimos canales en la membrana, ¿hacia dónde tenderían a moverse el Sodio y el Potasio respectivamente?
+A) Ambos hacia fuera.
+B) Na+ hacia dentro, K+ hacia fuera.
+C) Na+ hacia fuera, K+ hacia dentro.
+D) Ambos hacia dentro.Respuesta correcta: B
+Bloque 2: Potencial de Equilibrio y Ecuación de Nernst (Conceptos Clave del Profesor)
+11. El profesor define el "Potencial de Equilibrio para un ion (Eion)" o "Potencial de Nernst" como:
+A) El momento en el que las concentraciones intra y extracelulares se igualan.
+B) La diferencia de potencial eléctrico a la cual el gradiente eléctrico contrarresta exactamente al gradiente químico del ion.
+C) La diferencia de potencial a la que la célula muere.
+D) El potencial al cual la bomba Na+/K+ deja de funcionar.Respuesta correcta: B
+12. En el potencial de equilibrio para un ion, el flujo neto de ese ion a través de la membrana es:
+A) Máximo hacia el interior.
+B) Máximo hacia el exterior.
+C) Cero.
+D) Igual al flujo de la bomba Na+/K+.Respuesta correcta: C
+13. Si en el laboratorio logramos que las concentraciones extracelulares e intracelulares de un ion sean exactamente iguales, el profesor (haciendo uso del cálculo del logaritmo de 1) indica que su potencial de equilibrio será:
+A) +100 mV.
+B) -100 mV.
+C) 0 mV.
+D) Infinito.Respuesta correcta: C
+14. Según la tabla fisiológica dada en clase, ¿cuál es el valor aproximado del potencial de equilibrio para el potasio (EK)?
+A) +65 mV.
+B) -85 mV.
+C) -70 mV.
+D) +150 mV.Respuesta correcta: B
+15. ¿Cuál es el valor aproximado del potencial de equilibrio para el sodio (ENa) en condiciones fisiológicas?
+A) +65 mV (o +55 a +75 mV).
+B) -85 mV.
+C) 0 mV.
+D) -70 mV.Respuesta correcta: A
+16. ¿Qué ion presenta una diferencia de concentración entre el exterior y el interior celular de hasta tres órdenes de magnitud (10.000 veces más concentrado fuera)?
+A) Sodio.
+B) Potasio.
+C) Cloro.
+D) Calcio (Ca2+).Respuesta correcta: D
+17. Si una membrana celular fuese EXCLUSIVAMENTE permeable al sodio, ¿cuál sería el potencial de membrana (Vm) de esa célula?
+A) Coincidiría con el potencial de equilibrio del potasio (-85 mV).
+B) Coincidiría con el potencial de equilibrio del sodio (+65 mV).
+C) Sería de 0 mV.
+D) Sería de -70 mV.Respuesta correcta: B
+18. En el caso de algunas células (p. ej. células gliales) cuya membrana es casi exclusivamente permeable al potasio, ¿qué valor adopta su potencial de membrana?
+A) 0 mV.
+B) +65 mV.
+C) -85 mV (igual al EK).
+D) +150 mV.Respuesta correcta: C
+19. Cuando inicialmente el K+ comienza a salir a favor de su gradiente químico a través de canales de fuga, el interior celular se hace electronegativo. Este nuevo gradiente eléctrico generado tiende a:
+A) Empujar más potasio hacia fuera.
+B) Atraer el potasio de vuelta hacia el interior celular.
+C) Destruir los canales de potasio.
+D) Atraer cloro hacia fuera.Respuesta correcta: B
+20. La ecuación utilizada para calcular el potencial de equilibrio de un ÚNICO ion difusible se denomina:
+A) Ecuación de Goldman.
+B) Ecuación de Ohm.
+C) Ecuación de Nernst.
+D) Ley de Fick.Respuesta correcta: C
+Bloque 3: Ecuación de Goldman y Potencial de Membrana en Reposo
+21. Puesto que la mayoría de las células en reposo son permeables a más de un ion simultáneamente, su potencial de membrana se calcula teóricamente usando:
+A) La ecuación de Nernst para el sodio solamente.
+B) La ecuación de Goldman (una modificación de la ecuación de Nernst que incluye las permeabilidades).
+C) La constante de Faraday aislada.
+D) La ley de Ohm directa.Respuesta correcta: B
+22. En una célula permeable a Na+ y K+, ¿de qué dependerá que su potencial de membrana esté más cerca del ENa o del EK?
+A) Exclusivamente del tamaño de la célula.
+B) Del ion al cual la célula sea MÁS permeable.
+C) Del ion que tenga mayor peso molecular.
+D) De la temperatura externa.Respuesta correcta: B
+23. El potencial de membrana en reposo de una neurona típica ronda los -65 mV. ¿Por qué este valor está mucho más cerca de -85 mV (EK) que de +65 mV (ENa)?
+A) Porque el sodio no existe en las neuronas.
+B) Porque en reposo, la permeabilidad al potasio (PK) es mucho mayor que la del sodio (PNa).
+C) Porque la bomba Na+/K+ solo mueve potasio.
+D) Porque el calcio lo contrarresta.Respuesta correcta: B
+24. Al aplicar la ecuación de Goldman, el profesor advierte un detalle matemático importante respecto al Cloro (Cl-). ¿Cuál es?
+A) Se ignora su permeabilidad por ser nula.
+B) Al ser un anión (negativo), en el logaritmo se invierten las concentraciones (intracelular en el numerador, extracelular en el denominador).
+C) Se suma su carga al sodio.
+D) No tiene potencial de equilibrio.Respuesta correcta: B
+25. Si a una célula en reposo le aumentamos bruscamente la permeabilidad al sodio abriendo 100 canales nuevos, el potencial de membrana:
+A) Se hará más electronegativo.
+B) Tenderá a acercarse al potencial de equilibrio del sodio (+65 mV), haciéndose menos electronegativo o incluso positivo.
+C) No sufrirá ningún cambio.
+D) Se hará igual al del potasio.Respuesta correcta: B
+Bloque 4: Aplicación Práctica y Clínica (¡Pistas de Examen!)
+26. El profesor describe un experimento en el que se aumenta drásticamente (de 140 a 1000) la concentración extracelular de SODIO. ¿Qué efecto tiene esto sobre el potencial de membrana en reposo?
+A) Provoca una despolarización extrema.
+B) Provoca una parada cardíaca inmediata por hiperpolarización.
+C) Prácticamente NO cambia el potencial de membrana, porque la célula en reposo es muy poco permeable al sodio.
+D) Invierte el potencial a -100 mV.Respuesta correcta: C
+27. Por el contrario, si cambiamos ligeramente la concentración extracelular de POTASIO (ej. de 5 a 15 mM), ¿qué ocurre con el potencial de membrana?
+A) No cambia nada.
+B) Cambia de forma exponencial (se despolariza considerablemente) debido a la alta permeabilidad basal al potasio.
+C) Se hiperpolariza de inmediato.
+D) Destruye los canales de fuga.Respuesta correcta: B
+28. El profesor advierte explícitamente sobre la terminología para evitar errores en los exámenes. ¿Qué término médico describe el exceso de POTASIO en sangre?
+A) Hipercalcemia.
+B) Hipernatremia.
+C) Hipercalemia (o hiperpotasemia).
+D) Hipocalcemia.Respuesta correcta: C
+29. Clínicamente, ¿qué consecuencia grave tiene una hipercalemia (hiperpotasemia) sobre el corazón, mencionada en la clase al mostrar un ECG?
+A) Aumenta la permeabilidad al sodio curando arritmias.
+B) Disminuye la frecuencia cardíaca hasta pararlo por hiperpolarización.
+C) Tiene efectos drásticos, pudiendo provocar una taquicardia severa, un infarto o parada cardíaca por despolarización sostenida.
+D) No tiene ningún efecto en el ECG.Respuesta correcta: C
+30. ¿Por qué una hipernatremia (exceso de sodio en sangre) NO tiene efectos tan drásticos sobre el potencial de membrana en reposo como la hipercalemia?
+A) Porque el sodio no tiene carga eléctrica.
+B) Porque las células en reposo son mucho menos permeables al sodio que al potasio.
+C) Porque la bomba Na+/K+ deja de funcionar con hipernatremia.
+D) Porque el sodio se precipita en sangre.Respuesta correcta: B
+Bloque 5: Flujos Iónicos Reales y Fuerza Electromotriz
+31. En una célula real con un potencial de membrana en reposo de -65 mV, ¿están el Na+ y el K+ en equilibrio electroquímico?
+A) Sí, ambos tienen flujo neto cero.
+B) No, ninguno de los dos está en equilibrio; siempre hay flujo neto de ambos iones.
+C) Solo el K+ está en equilibrio.
+D) Solo el Na+ está en equilibrio.Respuesta correcta: B
+32. La "Fuerza electromotriz" que impulsa a un ion a moverse a través de la membrana se calcula mediante la diferencia entre:
+A) Vm - Eion (Potencial de membrana menos el Potencial de equilibrio del ion).
+B) Concentración interna menos concentración externa.
+C) Temperatura menos constante de gases.
+D) Permeabilidad del potasio menos permeabilidad del sodio.Respuesta correcta: A
+33. Según la Ley de Ohm adaptada a las membranas, la intensidad de corriente (I) para un ion es igual a su conductancia (g) multiplicada por:
+A) La resistencia de la membrana.
+B) Su fuerza electromotriz (Vm - Eion).
+C) El número de bombas ATPasa.
+D) El logaritmo de las concentraciones.Respuesta correcta: B
+34. En una célula en reposo a -65 mV, ¿cómo es el flujo continuo (pasivo) de potasio y sodio?
+A) Hay un eflujo (salida) continuo de Na+ y un influjo (entrada) continuo de K+.
+B) No hay flujo porque están en equilibrio.
+C) Hay un eflujo (salida) continuo de K+ y un influjo (entrada) continuo de Na+.
+D) Ambos iones entran masivamente.Respuesta correcta: C
+35. A un Vm de -65 mV, la fuerza electromotriz para el Sodio (ENa = +65 mV) es inmensa comparada con la del Potasio (EK = -85 mV). Sin embargo, ¿por qué entra tan poco Sodio en estado de reposo?
+A) Porque es repelido por cargas positivas intracelulares.
+B) Por el factor "g" (conductancia/permeabilidad), que es extremadamente baja para el sodio en reposo.
+C) Porque las bombas lo sacan antes de que entre.
+D) Porque no hay gradiente químico para el sodio.Respuesta correcta: B
+Bloque 6: El Papel de la Bomba Na+/K+ ATPasa
+36. Si los flujos pasivos de K+ hacia fuera y Na+ hacia dentro son continuos, ¿por qué no se disipan las concentraciones iónicas con el tiempo (llegando a cero el potencial)?
+A) Por la rigidez de la bicapa lipídica.
+B) Porque se genera agua que diluye los iones.
+C) Por la acción continua de la bomba Na+/K+ ATPasa.
+D) Porque los canales de fuga se cierran solitos.Respuesta correcta: C
+37. El profesor destaca que la bomba Na+/K+ tiene una contribución DIRECTA al potencial de membrana (generando algo de negatividad extra). Esto se debe a su naturaleza "electrogénica". ¿Cuál es su estequiometría?
+A) Saca 2 Na+ y mete 3 K+.
+B) Saca 3 Na+ y mete 3 K+ (es neutra).
+C) Saca 1 Na+ y mete 1 K+.
+D) Saca 3 Na+ por cada 2 K+ que mete.Respuesta correcta: D
+38. Aunque la contribución directa de la bomba es pequeña, ¿cuál es su contribución INDIRECTA, que el profesor califica como la más importante?
+A) Generar y mantener los gradientes de concentración de Na+ y K+ a lo largo del tiempo.
+B) Sintetizar ATP para la célula.
+C) Abrir canales de cloro durante la inhibición.
+D) Mantener la temperatura de la membrana constante.Respuesta correcta: A
+39. Si en un experimento utilizamos Ouabaína (un inhibidor de la bomba Na+/K+), ¿qué sucederá a largo plazo con el potencial de membrana?
+A) Se hará cada vez más negativo (hiperpolarización infinita).
+B) Los gradientes de concentración se disiparán progresivamente, acercando el Vm a 0.
+C) No pasará nada porque los canales de fuga toman el relevo.
+D) La permeabilidad al potasio se hará cero de inmediato.Respuesta correcta: B (Deducción directa de la pérdida de gradientes)
+40. En una célula con todos sus canales iónicos cerrados (permeabilidad cero para todos), el potencial de membrana sería:
+A) +65 mV.
+B) -85 mV.
+C) 0 mV, independientemente de los gradientes existentes.
+D) -65 mV por la acción aislada de las proteínas aniónicas.Respuesta correcta: C
+Bloque 7: Modificaciones del Vm (Despolarización e Hiperpolarización)
+41. Se define el proceso de DESPOLARIZACIÓN como el cambio en el potencial de membrana hacia:
+A) Valores más electronegativos (ej. de -65 a -90 mV).
+B) Valores menos electronegativos o más electropositivos (ej. de -65 a -20 mV o +40 mV).
+C) Un estado estático donde no hay flujo de iones.
+D) El potencial de equilibrio exclusivo del cloro.Respuesta correcta: B
+42. ¿Qué cambio de permeabilidad iónica justifica el profesor como la causa más típica de una despolarización?
+A) Un aumento en la permeabilidad al Potasio (↑PK).
+B) Un aumento en la permeabilidad al Sodio (↑PNa).
+C) Una disminución en la permeabilidad al Sodio (↓PNa).
+D) Un aumento masivo en la entrada de Cloro.Respuesta correcta: B
+43. En la sinapsis química, el profesor pregunta por otro ion muy importante cuyo aumento de permeabilidad también provoca una DESPOLARIZACIÓN drástica (debido a su Eion de +150 mV). ¿De cuál se trata?
+A) Magnesio.
+B) Cloro.
+C) Potasio.
+D) Calcio (Ca2+).Respuesta correcta: D
+44. Se define el proceso de HIPERPOLARIZACIÓN como el cambio en el potencial de membrana hacia:
+A) Valores más electronegativos (ej. de -65 a -90 mV).
+B) Valores de +65 mV.
+C) El potencial de equilibrio del Sodio.
+D) 0 mV.Respuesta correcta: A
+45. ¿Cuál de los siguientes eventos iónicos es causa habitual de HIPERPOLARIZACIÓN?
+A) Un aumento de la permeabilidad al Sodio (↑PNa).
+B) Un aumento de la permeabilidad al Potasio (↑PK).
+C) Una disminución de la permeabilidad al Potasio (↓PK).
+D) La entrada masiva de Calcio.Respuesta correcta: B
+46. Otra forma de causar hiperpolarización mencionada en clase es facilitar la entrada de cargas negativas a la célula mediante:
+A) Un aumento en la permeabilidad al Cloro (↑PCl).
+B) Una reducción de la permeabilidad al Cloro.
+C) La apertura de canales de Sodio.
+D) La salida de proteínas negativas.Respuesta correcta: A
+47. Si "teóricamente" disminuimos la permeabilidad al potasio en una célula en reposo (↓PK), ¿qué efecto tendrá sobre el Vm?
+A) Una hiperpolarización masiva.
+B) Una despolarización (al salir menos cargas positivas, se acumulan en el interior).
+C) El potencial se anula instantáneamente.
+D) Un cambio en la conductancia del cloro exclusivamente.Respuesta correcta: B
+48. El concepto de REPOLARIZACIÓN (mostrado en las gráficas) hace referencia a:
+A) Hacer la célula más positiva que el umbral.
+B) La vuelta del potencial de membrana hacia el valor de reposo tras una despolarización.
+C) El proceso de igualar las concentraciones iónicas mediante la bomba.
+D) Convertir una célula excitable en no excitable.Respuesta correcta: B
+49. El profesor pregunta "trampa" en clase: ¿Podría un aumento de permeabilidad al Cloro causar despolarización?
+A) Sí, y es lo que ocurre siempre en todas las neuronas.
+B) No, jamás, siempre causa hiperpolarización pase lo que pase.
+C) En condiciones normales causa hiperpolarización, pero en "determinadas condiciones" (que se estudiarán después) sí puede causar despolarización.
+D) El cloro no afecta al Vm porque es neutro.Respuesta correcta: C
+50. Si inyectamos corriente positiva en una neurona para pasar su potencial artificialmente de -65 mV a -45 mV, ¿cómo cambia el flujo iónico del potasio respecto al de reposo?
+A) La fuerza electromotriz para el K+ aumenta, provocando una mayor SALIDA de K+ intentando repolarizar la célula.
+B) El K+ comienza a entrar.
+C) El flujo neto de K+ se hace cero.
+D) Los canales de K+ se bloquean.Respuesta correcta: A (Razonamiento basado en la Ley de Ohm: a -45mV está más lejos de -85mV, I=g(Vm-Ek) se hace mayor).
+Bloque 8: Integración y Repaso de Casos Hipotéticos
+51. Si el EK es -85 mV, y una neurona se hiperpolariza artificialmente hasta los -120 mV. En este momento exacto, ¿qué hará el potasio?
+A) Seguirá saliendo más rápido.
+B) Su fuerza electromotriz se invierte, y el potasio tenderá a ENTRAR a la célula.
+C) No se moverá.
+D) Destruirá la bomba Na/K.Respuesta correcta: B (Si Vm baja de su potencial de equilibrio, la fuerza electromotriz cambia de signo).
+52. ¿Qué le ocurre al gradiente eléctrico del potasio mientras éste difunde hacia fuera por los canales de fuga en una membrana modelo partiendo de cero potencial?
+A) Permanece en cero.
+B) Aumenta progresivamente hasta igualar y contrarrestar al gradiente químico.
+C) Se invierte y expulsa sodio.
+D) Se disipa por completo en milisegundos.Respuesta correcta: B
+53. Para medir experimentalmente la diferencia de potencial (Vm), se utilizan electrodos colocados de la siguiente forma:
+A) Ambos electrodos en el líquido extracelular.
+B) Un microelectrodo dentro de la célula y un electrodo de referencia en el líquido extracelular.
+C) Dos electrodos dentro de la célula.
+D) Electrodos adheridos al exterior de la bicapa.Respuesta correcta: B
+54. ¿Cuál es el papel fundamental de los "aniones orgánicos" (A-) en el líquido intracelular?
+A) Difundir por canales libremente.
+B) Contrarrestar la carga de todos los cationes y mantener la electronegatividad interna ante la salida de potasio.
+C) Bombear potasio al exterior.
+D) Neutralizar al calcio intracelular.Respuesta correcta: B
+55. Si la constante de los gases (R), la temperatura en Kelvin (T) y la constante de Faraday (F) son los componentes base, ¿de qué otra variable depende la Ecuación de Nernst para un ion dado?
+A) Del voltaje que aplique el investigador.
+B) De la permeabilidad de otros iones.
+C) Del logaritmo de la razón (cociente) entre la concentración externa e interna del ion.
+D) Exclusivamente del número de canales abiertos.Respuesta correcta: C
+56. En una membrana que ES igualmente permeable a Na+ y a K+ (ej. abrimos la misma cantidad de canales de alta eficiencia), el Vm se situaría en:
+A) Exactamente -85 mV.
+B) Exactamente +65 mV.
+C) Un valor intermedio cercano a -10 mV (promedio de las fuerzas compensadas).
+D) Infinito.Respuesta correcta: C
+57. ¿Por qué es un error fatal confundir "Hipocalcemia" con "Hipocalemia/Hipopotasemia" en un examen de este profesor?
+A) Porque la primera afecta al Na+ y la segunda al Cl-.
+B) Porque ambas significan lo mismo.
+C) Porque "calcemia" se refiere al calcio (Ca2+) y "calemia" se refiere al potasio (K), iones con potenciales de equilibrio y efectos cardíacos muy distintos.
+D) Porque el sufijo -emia no se usa en fisiología.Respuesta correcta: C
+58. En el cálculo de Goldman de una célula fisiológica, si la permeabilidad del calcio es PCa=0:
+A) El calcio no contribuye en absoluto al establecimiento del potencial de membrana de reposo.
+B) El calcio atrae sodio y genera Vm.
+C) El calcio obliga a la membrana a despolarizarse.
+D) El calcio inhibe la bomba Na+/K+.Respuesta correcta: A
+59. Según el profesor, ¿por qué los cambios en la conductancia (permeabilidad) son el mecanismo usado por las células excitables para mandar señales?
+A) Porque cambiar los gradientes de concentración enteros llevaría horas o días, pero abrir un canal permite cambiar el Vm en milisegundos.
+B) Porque la conductancia no gasta ATP nunca.
+C) Porque solo existen canales en el cerebro.
+D) Porque los iones no tienen masa.Respuesta correcta: A
+60. Para asentar el concepto: Al potencial de reposo de -65 mV, la magnitud (valor absoluto) de la fuerza electromotriz es:
+A) Mayor para el K+ que para el Na+.
+B) Mayor para el Cl- que para el Ca2+.
+C) Mucho mayor para el Na+ ( |-65 - 65| = 130 mV) que para el K+ ( |-65 - (-85)| = 20 mV).
+D) Igual para todos los iones.Respuesta correcta: C`;
+
+        let allQuestions = [];
+        let currentQuestions = [];
+        let userState = {}; 
+
+        // Procesar y parsear los datos crudos
+        function initData() {
+            let cleanText = rawText.replace(/Bloque \d+:.*?\n/g, '');
+            const blocks = cleanText.split(/\n(?=\d+\.\s)/);
+
+            blocks.forEach(block => {
+                block = block.trim();
+                if (!block) return;
+
+                // Nueva regex adaptada al formato de A, B, C, D y notas opcionales tras la respuesta
+                const match = block.match(/^(\d+)\.\s*(.*?)\s+A\)\s*(.*?)\s+B\)\s*(.*?)\s+C\)\s*(.*?)\s+D\)\s*(.*?)\s*Respuesta correcta:\s*([A-D])(.*)/is);
+                
+                if (match) {
+                    let id = parseInt(match[1]);
+                    
+                    // Extraer explicación adicional si la hay
+                    let expText = match[8] ? match[8].trim() : "";
+                    if (expText.startsWith("(")) expText = expText.substring(1).trim();
+                    if (expText.endsWith(")")) expText = expText.substring(0, expText.length - 1).trim();
+                    
+                    if (!expText) {
+                        expText = `La opción correcta es la ${match[7].toUpperCase()}.`;
+                    } else {
+                        expText = `<strong>La opción correcta es la ${match[7].toUpperCase()}:</strong> ${expText}`;
+                    }
+
+                    allQuestions.push({
+                        originalId: id,
+                        q: match[2].trim(),
+                        options: [
+                            { text: match[3].trim(), correct: match[7].toUpperCase() === 'A', originalLetter: 'A' },
+                            { text: match[4].trim(), correct: match[7].toUpperCase() === 'B', originalLetter: 'B' },
+                            { text: match[5].trim(), correct: match[7].toUpperCase() === 'C', originalLetter: 'C' },
+                            { text: match[6].trim(), correct: match[7].toUpperCase() === 'D', originalLetter: 'D' }
+                        ],
+                        exp: expText
+                    });
+                    userState[id] = { answered: false, failed: false, marked: false };
+                }
+            });
+        }
+
+        // Algoritmo de Fisher-Yates para mezclar arrays
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startQuiz(mode, isRandom) {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('finish-btn-container').style.display = 'block';
+
+            let pool = [];
+            if (mode === 'all') {
+                pool = [...allQuestions];
+            } else if (mode === 'failed') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed);
+            } else if (mode === 'marked') {
+                pool = allQuestions.filter(q => userState[q.originalId].marked);
+            } else if (mode === 'both') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed || userState[q.originalId].marked);
+            }
+
+            if (isRandom) {
+                shuffleArray(pool);
+            }
+
+            currentQuestions = pool;
+
+            // Resetear estado de "respondido" y mezclar opciones para esta sesión
+            currentQuestions.forEach(q => {
+                userState[q.originalId].answered = false;
+                userState[q.originalId].failed = false; 
+                shuffleArray(q.options);
+            });
+
+            renderUI();
+            
+            // Scrollear arriba
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function renderUI() {
+            const indexContainer = document.getElementById('index-container');
+            const questionsContainer = document.getElementById('questions-container');
+            
+            indexContainer.innerHTML = '';
+            questionsContainer.innerHTML = '';
+
+            if (currentQuestions.length === 0) {
+                questionsContainer.innerHTML = '<h2>No hay preguntas en esta categoría.</h2>';
+                return;
+            }
+
+            currentQuestions.forEach((q, displayIndex) => {
+                let id = q.originalId;
+                let isMarked = userState[id].marked;
+                
+                // Botón del índice
+                const idxBtn = document.createElement('button');
+                idxBtn.className = `index-btn ${isMarked ? 'is-marked' : ''}`;
+                idxBtn.id = `idx-btn-${id}`;
+                idxBtn.innerHTML = `Pregunta ${id} <span class="mark-indicator">★</span>`;
+                idxBtn.onclick = () => document.getElementById(`q-container-${id}`).scrollIntoView({ behavior: 'smooth' });
+                indexContainer.appendChild(idxBtn);
+
+                // Contenedor de la pregunta
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-container';
+                qDiv.id = `q-container-${id}`;
+
+                // Header (Texto + Botón Marcar)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'question-header';
+                
+                const qText = document.createElement('h3');
+                qText.className = 'question-text';
+                qText.textContent = `${id}. ${q.q}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.id = `mark-btn-${id}`;
+                markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+                markBtn.onclick = () => toggleMark(id);
+
+                headerDiv.appendChild(qText);
+                headerDiv.appendChild(markBtn);
+                qDiv.appendChild(headerDiv);
+
+                // Opciones
+                const optsDiv = document.createElement('div');
+                optsDiv.className = 'options-list';
+                
+                q.options.forEach((opt, optIndex) => {
+                    const optBtn = document.createElement('button');
+                    optBtn.className = 'option-btn';
+                    optBtn.id = `opt-${id}-${optIndex}`;
+                    optBtn.textContent = opt.text;
+                    optBtn.onclick = () => handleAnswer(id, optIndex, opt.correct);
+                    optsDiv.appendChild(optBtn);
+                });
+                qDiv.appendChild(optsDiv);
+
+                // Explicación (oculta inicialmente)
+                const expDiv = document.createElement('div');
+                expDiv.className = 'explanation';
+                expDiv.id = `exp-${id}`;
+                expDiv.innerHTML = q.exp;
+                qDiv.appendChild(expDiv);
+
+                questionsContainer.appendChild(qDiv);
+            });
+        }
+
+        function handleAnswer(qId, optIndex, isCorrect) {
+            if (userState[qId].answered) return; 
+
+            userState[qId].answered = true;
+            userState[qId].failed = !isCorrect;
+
+            // Actualizar interfaz del índice
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Encontrar la pregunta actual para ver las opciones
+            const question = currentQuestions.find(q => q.originalId === qId);
+
+            // Actualizar botones de opciones
+            question.options.forEach((opt, i) => {
+                const btn = document.getElementById(`opt-${qId}-${i}`);
+                btn.disabled = true; 
+                if (opt.correct) {
+                    btn.classList.add('correct');
+                } else if (i === optIndex && !isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            // Mostrar explicación
+            document.getElementById(`exp-${qId}`).style.display = 'block';
+        }
+
+        function toggleMark(qId) {
+            userState[qId].marked = !userState[qId].marked;
+            const isMarked = userState[qId].marked;
+            
+            const markBtn = document.getElementById(`mark-btn-${qId}`);
+            markBtn.classList.toggle('marked', isMarked);
+            markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.toggle('is-marked', isMarked);
+        }
+
+        function finishQuiz() {
+            let correctCount = 0;
+            let failedCount = 0;
+            let unanweredCount = 0;
+
+            currentQuestions.forEach(q => {
+                if (!userState[q.originalId].answered) {
+                    unanweredCount++;
+                } else if (userState[q.originalId].failed) {
+                    failedCount++;
+                } else {
+                    correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const resText = document.getElementById('results-text');
+            resText.innerHTML = `Aciertos: <span style="color:#2ecc71">${correctCount}</span> | 
+                                 Fallos: <span style="color:#e74c3c">${failedCount}</span> | 
+                                 Sin responder: <span style="color:#f39c12">${unanweredCount}</span><br>
+                                 Total en esta sesión: ${total}`;
+
+            // Habilitar/Deshabilitar botones de repetición
+            const totalMarked = Object.values(userState).filter(st => st.marked).length;
+            const totalFailed = Object.values(userState).filter(st => st.failed).length;
+
+            document.getElementById('btn-retry-failed').disabled = totalFailed === 0;
+            document.getElementById('btn-retry-marked').disabled = totalMarked === 0;
+            document.getElementById('btn-retry-both').disabled = (totalFailed === 0 && totalMarked === 0);
+
+            document.getElementById('end-screen').style.display = 'flex';
+        }
+
+        // Inicializar datos al cargar
+        window.onload = () => {
+            initData();
+        };
+
+    </script>
+</body>
+</html>

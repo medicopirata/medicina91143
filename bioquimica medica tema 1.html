@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Nutrición y Bioquímica (50 Preguntas)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f7;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- PANTALLAS (Overlay) --- */
+        #start-screen, #results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        h2 { color: var(--primary); margin-bottom: 20px; }
+        p { font-size: 1.1em; color: #555; max-width: 600px; margin-bottom: 20px; }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0,0,0,0.15); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--accent); color: white; }
+        .btn-danger { background-color: var(--error); color: white; }
+        .btn-warning { background-color: var(--warning); color: #333; }
+        .btn-info { background-color: #8e44ad; color: white; }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        #app-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navegación */
+        #sidebar {
+            width: 70px;
+            background-color: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .nav-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .nav-dot:hover { background-color: rgba(255,255,255,0.4); }
+        .nav-dot.active { border-color: white; transform: scale(1.15); font-weight: bold; }
+        .nav-dot.correct { background-color: var(--success); }
+        .nav-dot.wrong { background-color: var(--error); }
+        .nav-dot.marked { border-color: var(--warning); color: var(--warning); font-weight: bold; }
+        .nav-dot.marked.correct { background-color: var(--success); color: white; border-color: var(--warning); }
+        .nav-dot.marked.wrong { background-color: var(--error); color: white; border-color: var(--warning); }
+
+        /* Área de Preguntas */
+        #main-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--accent);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.4;
+            width: 85%;
+        }
+
+        /* Checkbox de Marcar */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            user-select: none;
+        }
+        .mark-container input { display: none; }
+        .mark-icon { font-size: 1.5em; margin-right: 5px; transition: color 0.2s; }
+        .mark-container input:checked ~ .mark-icon { color: var(--warning); }
+        .mark-container input:checked ~ span { color: #d35400; font-weight: bold; }
+        .mark-icon::before { content: '☆'; }
+        .mark-container input:checked ~ .mark-icon::before { content: '★'; }
+
+        /* Opciones */
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: left;
+            font-size: 1em;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background-color: #f0f8ff; }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background-color: #f8d7da; border-color: var(--error); color: #721c24; }
+        
+        /* Explicación */
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-left: 4px solid var(--success);
+            border-radius: 4px;
+            color: #2c3e50;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Botón Flotante Finalizar */
+        #finish-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Stats en Modal */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .stat-box { text-align: center; }
+        .stat-number { display: block; font-size: 2.5em; font-weight: bold; }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--error); }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Quiz de Nutrición y Bioquímica</h1>
+        <p>50 Preguntas | Corrección Inmediata</p>
+        <p>Selecciona el modo de orden de las preguntas:</p>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="initQuiz('ordered')">Orden Numérico (1-50)</button>
+            <button class="btn-secondary" onclick="initQuiz('random')">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav id="sidebar"></nav>
+        <main id="main-area"></main>
+        <button id="finish-btn" class="btn-danger" onclick="showResults()">Finalizar Quiz</button>
+    </div>
+
+    <div id="results-modal" class="hidden">
+        <h2>Resultados</h2>
+        <div class="stats-row">
+            <div class="stat-box">
+                <span class="stat-number text-success" id="res-correct">0</span>
+                <span>Aciertos</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number text-danger" id="res-wrong">0</span>
+                <span>Fallos</span>
+            </div>
+        </div>
+        <p id="res-msg"></p>
+
+        <h3>Opciones de Reintento</h3>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-danger" id="btn-retry-failed" onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button class="btn-warning" id="btn-retry-marked" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-info" id="btn-retry-combo" onclick="restartQuiz('combo')">Falladas + Marcadas</button>
+        </div>
+        <br>
+        <button style="background:transparent; color:#777; border:1px solid #ccc; font-size:0.9em;" onclick="closeModal()">Volver a revisar respuestas</button>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS DE PREGUNTAS (50 Items) ---
+        const dbQuestions = [
+            { id: 1, q: "Según la Organización Mundial de la Salud (OMS), ¿cuál es la distribución calórica recomendada de macronutrientes en la dieta? (Pista Audio)", options: ["40% Carbohidratos, 40% Grasas, 20% Proteínas.", "55-75% Carbohidratos, 15-30% Grasas, 10-15% Proteínas.", "50% Carbohidratos, 35% Grasas, 15% Proteínas.", "60% Carbohidratos, 10% Grasas, 30% Proteínas."], ans: 1, exp: "Respuesta correcta: B. Nota: La profesora enfatiza en el audio que sigue estos porcentajes específicos de la OMS." },
+            { id: 2, q: "¿Cuál de los siguientes factores contribuye mayoritariamente (aprox. 60%) al gasto energético diario en un individuo sedentario?", options: ["Efecto térmico de los alimentos.", "Actividad física voluntaria.", "Tasa metabólica basal (IMB).", "Termogénesis inducida por el frío."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 3, q: "Respecto al aporte energético de los nutrientes, señale la relación correcta:", options: ["Grasas: 4 kcal/g.", "Proteínas: 9 kcal/g.", "Alcohol: 7 kcal/g.", "Glucosa: 7 kcal/g."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 4, q: "¿Qué componente de los alimentos se considera \"no nutritivo\" pero beneficioso por sus propiedades antioxidantes? (Pista Audio)", options: ["Aditivos.", "Polifenoles.", "Avidina.", "Colesterol."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 5, q: "El efecto térmico de los alimentos (termogénesis inducida por la dieta):", options: ["Representa el 30% del gasto energético total.", "Es la energía necesaria para la digestión, absorción y metabolismo de los nutrientes.", "Es constante independientemente del tipo de macronutriente ingerido.", "Disminuye tras la ingesta de proteínas."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 6, q: "¿Cuál de los siguientes NO es un determinante directo del metabolismo basal?", options: ["Superficie corporal.", "Edad.", "Ingesta de agua diaria.", "Función tiroidea (hiper/hipotiroidismo)."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 7, q: "Un nutriente se considera \"esencial\" cuando:", options: ["El organismo lo sintetiza en cantidades suficientes.", "Es necesario para la vida y el organismo no puede sintetizarlo, debiendo ser aportado por la dieta.", "Aporta más de 9 kcal/g.", "Se encuentra exclusivamente en alimentos de origen animal."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 8, q: "¿Cuál es la principal diferencia entre el Índice Glucémico (IG) y la Carga Glucémica (CG)? (Pista Audio - Ejemplo Sandía)", options: ["El IG tiene en cuenta la cantidad de carbohidratos por ración, la CG no.", "La CG tiene en cuenta la cantidad de hidratos de carbono presentes en una porción de alimento, además de su IG.", "El IG se mide en crudo y la CG en cocinado.", "No hay diferencia, son sinónimos."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 9, q: "Los carbohidratos se almacenan en el organismo principalmente en forma de:", options: ["Almidón en el hígado.", "Glucógeno en hígado y músculo esquelético.", "Triglicéridos en el tejido adiposo.", "Celulosa en el intestino."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 10, q: "¿Qué efecto fisiológico provoca una ingesta brusca de carbohidratos de absorción rápida (alto índice glucémico)?", options: ["Una liberación sostenida y baja de insulina.", "Un pico brusco de insulina seguido de una posible hipoglucemia reactiva.", "Aumento inmediato de la lipólisis.", "Inhibición de la glucogenogénesis."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 11, q: "¿Cuál de las siguientes fibras es insoluble y favorece el tránsito intestinal?", options: ["Pectinas.", "Gomas.", "Celulosa.", "Mucílagos."], ans: 2, exp: "Respuesta correcta: C. Nota: Aunque el texto lista tipos, la distinción clásica bioquímica coloca a la celulosa como insoluble estructural." },
+            { id: 12, q: "Respecto a la fibra dietética, es FALSO que:", options: ["Carece de valor calórico directo para el humano.", "Puede unirse al colesterol disminuyendo su absorción.", "Las fibras solubles aceleran bruscamente la absorción de glucosa.", "Las fibras insolubles favorecen el tránsito intestinal."], ans: 2, exp: "Respuesta correcta: C. La fibra soluble enlentece la absorción." },
+            { id: 13, q: "¿Cuál de los siguientes tejidos es estrictamente dependiente de la glucosa como fuente de energía en condiciones normales?", options: ["Músculo esquelético.", "Hígado.", "Cerebro / Eritrocitos.", "Tejido adiposo."], ans: 2, exp: "Respuesta correcta: C. Aunque el cerebro usa cuerpos cetónicos en ayuno, en condiciones normales y los eritrocitos siempre dependen de glucosa." },
+            { id: 14, q: "¿Cuáles son los dos ácidos grasos estrictamente esenciales para el ser humano?", options: ["Ácido palmítico y ácido esteárico.", "Ácido linoleico y ácido alfa-linolénico.", "Ácido oleico y ácido araquidónico.", "EPA y DHA."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 15, q: "El ácido linoleico pertenece a la serie:", options: ["Omega-3.", "Omega-6.", "Omega-9.", "Saturados."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 16, q: "Sobre las grasas \"Trans\", señale la afirmación correcta: (Pista Audio)", options: ["Son beneficiosas porque aumentan el HDL.", "Se forman naturalmente en grandes cantidades en frutas.", "Aumentan los niveles de LDL y el riesgo cardiovascular.", "Tienen una estructura espacial \"cis\" en sus dobles enlaces."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 17, q: "¿Qué función principal desempeñan las lipoproteínas LDL?", options: ["Transporte inverso de colesterol (de tejidos al hígado).", "Transporte de colesterol del hígado a los tejidos.", "Transporte de triglicéridos exógenos (dieta).", "Almacenamiento de energía en el adipocito."], ans: 1, exp: "Respuesta correcta: B. Nota: En el audio se discute por qué se le llama \"malo\"." },
+            { id: 18, q: "Un desequilibrio a favor de los ácidos grasos Omega-6 frente a los Omega-3 puede favorecer: (Pista Audio)", options: ["Un estado antiinflamatorio.", "La síntesis de prostaglandinas proinflamatorias (PGE2).", "La reducción de la agregación plaquetaria.", "La disminución del LDL oxidado."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 19, q: "¿Cuál es la principal reserva energética del organismo en términos cuantitativos (kilos)?", options: ["Glucógeno hepático.", "Proteína muscular.", "Triglicéridos en tejido adiposo.", "Glucosa plasmática."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 20, q: "Los ácidos grasos de cadena corta:", options: ["Son insolubles y requieren quilomicrones.", "Se transportan unidos a la albúmina directamente a la sangre portal.", "Se almacenan preferentemente en el músculo.", "Son la principal fuente de energía del cerebro."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 21, q: "¿Qué apoproteína es característica de los quilomicrones?", options: ["Apo B100.", "Apo A-I.", "Apo B48.", "Apo C-I."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 22, q: "¿Cuál de los siguientes NO es un aminoácido esencial?", options: ["Leucina.", "Fenilalanina.", "Alanina.", "Triptófano."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 23, q: "El valor biológico de una proteína se define por: (Pista Audio)", options: ["Su contenido calórico total.", "La cantidad de nitrógeno retenido para el crecimiento y mantenimiento.", "Su sabor y textura.", "La rapidez con la que se digiere en el estómago."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 24, q: "¿Qué alimento se considera la proteína de referencia o \"patrón\" con valor biológico cercano a 1? (Pista Audio)", options: ["Soja.", "Carne roja.", "Huevo (albúmina) / Leche humana.", "Pescado azul."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 25, q: "En situaciones de catabolismo intenso (ej. sepsis, quemaduras), el balance nitrogenado suele ser:", options: ["Positivo.", "Negativo (se excreta más nitrógeno del que se ingiere).", "Neutro.", "No se ve afectado."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 26, q: "¿Qué enfermedad se produce por un déficit calórico-proteico severo, caracterizada por edema y hepatomegalia (hígado graso)?", options: ["Marasmo.", "Kwashiorkor.", "Escorbuto.", "Raquitismo."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 27, q: "El aminoácido limitante es:", options: ["El que se encuentra en exceso en una proteína.", "El aminoácido esencial que se encuentra en menor proporción respecto a las necesidades, limitando la síntesis proteica.", "Un aminoácido no esencial que el cuerpo no puede sintetizar.", "El triptófano en todas las legumbres."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 28, q: "¿Qué porcentaje del gasto energético diario corresponde aproximadamente a la acción dinámica específica (efecto térmico) de las proteínas?", options: ["Es menor que el de las grasas.", "Es mayor que el de grasas y carbohidratos.", "Es despreciable.", "Es igual para todos los nutrientes."], ans: 1, exp: "Respuesta correcta: B. Nota: El audio menciona el efecto térmico global (10%), pero bioquímicamente las proteínas son las que más energía gastan en su metabolismo." },
+            { id: 29, q: "¿Qué vitamina es necesaria para la síntesis de protrombina y factores de coagulación? (Mencionada en audio como importante)", options: ["Vitamina E.", "Vitamina C.", "Vitamina K.", "Vitamina A."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 30, q: "Los polifenoles son compuestos no nutricionales que:", options: ["Actúan como antinutrientes bloqueando la absorción de hierro.", "Tienen propiedades antioxidantes y antiinflamatorias.", "Aportan 4 kcal/g.", "Son esenciales para la coagulación."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 31, q: "El agua endógena o metabólica:", options: ["Es la que ingerimos con bebidas.", "Es la producida en las reacciones de oxidación celular.", "Es suficiente para cubrir las necesidades diarias sin beber.", "Se elimina principalmente por heces."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 32, q: "¿Qué vitamina hidrosoluble forma parte del NAD+ y NADP+?", options: ["B1 (Tiamina).", "B2 (Riboflavina).", "B3 (Niacina/Ácido nicotínico).", "C (Ácido ascórbico)."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 33, q: "La pelagra es una enfermedad carencial producida por el déficit de:", options: ["Tiamina.", "Niacina (B3).", "Cobalamina.", "Vitamina C."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 34, q: "¿Cuál es el principal almacén de hierro en el organismo?", options: ["Transferrina.", "Ferritina.", "Hemoglobina libre.", "Mioglobina."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 35, q: "Sobre el balance energético, si la ingesta calórica supera al gasto energético total:", options: ["Se incrementa el metabolismo basal para compensar.", "El exceso se almacena principalmente como triglicéridos en tejido adiposo.", "El exceso se elimina por orina.", "Se sintetizan proteínas musculares ilimitadamente."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 36, q: "En el estado de buena nutrición (postprandial), la insulina:", options: ["Estimula la lipólisis.", "Estimula la glucogenólisis.", "Estimula la captación de glucosa por tejido adiposo y muscular.", "Inhibe la síntesis de proteínas."], ans: 2, exp: "Respuesta correcta: C." },
+            { id: 37, q: "Durante el ayuno prolongado, ¿cuál es el principal sustrato para la gluconeogénesis hepática proveniente del músculo?", options: ["Ácidos grasos.", "Alanina.", "Cuerpos cetónicos.", "Glucógeno muscular."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 38, q: "El cerebro en condiciones de ayuno prolongado se adapta para utilizar:", options: ["Ácidos grasos libres.", "Cuerpos cetónicos.", "Únicamente glucosa.", "Proteínas estructurales."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 39, q: "¿Qué enzima permite al hígado liberar glucosa a la sangre (y que no tiene el músculo)?", options: ["Hexoquinasa.", "Glucosa-6-fosfatasa.", "Glucógeno sintasa.", "Fosfofructoquinasa."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 40, q: "¿Qué lipoproteína transporta los triglicéridos sintetizados en el hígado (endógenos) hacia los tejidos periféricos?", options: ["Quilomicrones.", "VLDL.", "LDL.", "HDL."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 41, q: "Un paciente presenta una dieta con exceso de carbohidratos simples. Bioquímicamente, esto favorece:", options: ["La acumulación directa de glucógeno ilimitado.", "La conversión del exceso de glucosa en ácidos grasos (Lipogénesis de novo).", "La disminución de VLDL plasmáticas.", "Un balance nitrogenado negativo."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 42, q: "Si un paciente tiene déficit de lipoproteína lipasa (LPL), ¿qué se acumulará en su sangre tras una comida rica en grasas?", options: ["Ácidos grasos libres.", "Quilomicrones.", "LDL.", "HDL."], ans: 1, exp: "Respuesta correcta: B. La LPL degrada los quilomicrones; si falla, estos se acumulan." },
+            { id: 43, q: "En la valoración del estado nutricional, la albúmina es un marcador:", options: ["Muy sensible a cambios agudos (vida media corta).", "De estado nutricional a largo plazo (vida media larga).", "Que aumenta en la desnutrición.", "Específico de la ingesta de grasas."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 44, q: "Respecto a la fibra soluble, ¿cuál es su mecanismo de acción beneficioso en la diabetes?", options: ["Aumenta la secreción de insulina pancreática.", "Forma geles que enlentecen la absorción de glucosa, aplanando la curva glucémica.", "Se hidroliza rápidamente a glucosa.", "Aumenta el índice glucémico de los alimentos."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 45, q: "¿Por qué la glucosa aporta 4 kcal/g y las grasas 9 kcal/g?", options: ["Porque las grasas contienen nitrógeno.", "Porque los átomos de carbono de los ácidos grasos están más reducidos que los de los carbohidratos.", "Porque la glucosa no se oxida completamente.", "Por el contenido de agua de los carbohidratos."], ans: 1, exp: "Respuesta correcta: B Explicación bioquímica estándar inferida del concepto de densidad energética mencionado en." },
+            { id: 46, q: "La enfermedad de Kwashiorkor se diferencia del Marasmo en que:", options: ["En el Kwashiorkor hay edema debido a la hipoalbuminemia.", "El Marasmo es una deficiencia exclusiva de proteínas con ingesta calórica normal.", "El Kwashiorkor presenta una pérdida extrema de grasa subcutánea sin edema.", "El Marasmo cursa con hígado graso típicamente."], ans: 0, exp: "Respuesta correcta: A." },
+            { id: 47, q: "¿Qué implica una dieta con un Índice Glucémico (IG) bajo? (Pista Audio)", options: ["Que no se consume ningún carbohidrato.", "Que los niveles de glucosa en sangre se mantienen más estables y sostenidos.", "Que se produce un pico rápido de insulina.", "Que se consumen principalmente monosacáridos."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 48, q: "El requerimiento proteico diario para un adulto sano promedio es: (Pista Audio - Diferencia WHO vs otros)", options: ["2 g/kg/día.", "0.8 - 1 g/kg/día.", "0.5 g/kg/día.", "3 g/kg/día."], ans: 1, exp: "Respuesta correcta: B. Nota: El texto menciona 0.8-1.5, pero el estándar base suele ser 0.8 a 1." },
+            { id: 49, q: "¿Cuál es el papel del colesterol en las membranas biológicas?", options: ["Aporte de energía rápida.", "Regular la fluidez de la membrana.", "Actuar como enzima digestiva.", "Transportar oxígeno."], ans: 1, exp: "Respuesta correcta: B." },
+            { id: 50, q: "En el contexto de la nutrición personalizada, la Nutrigenómica estudia:", options: ["Cómo la dieta afecta a la expresión de los genes.", "Cómo los genes afectan a la respuesta a la dieta (Nutrigenética).", "El conteo de calorías.", "La herencia mendeliana de la obesidad."], ans: 0, exp: "Respuesta correcta: A." }
+        ];
+
+        // --- ESTADO ---
+        let currentList = [];
+        let markedIds = new Set();
+        let failedIds = new Set();
+        let answeredIds = new Set();
+        
+        // --- UTILIDADES ---
+        const shuffle = (array) => {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        };
+
+        // --- INICIALIZACIÓN ---
+        function initQuiz(mode, customList = null) {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('results-modal').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            const container = document.getElementById('main-area');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = "";
+            sidebar.innerHTML = "";
+            
+            let sourceList = customList ? customList : [...dbQuestions];
+            
+            // Si es un inicio nuevo (no reintento parcial), limpiamos el estado
+            if (!customList) {
+                markedIds.clear();
+                failedIds.clear();
+                answeredIds.clear();
+            }
+
+            // Preparar las preguntas y mezclar opciones
+            currentList = sourceList.map(q => {
+                let optionsObj = q.options.map((txt, idx) => ({ txt, isCorrect: idx === q.ans }));
+                return { ...q, shuffledOpts: shuffle(optionsObj) };
+            });
+
+            // Ordenar preguntas
+            if (mode === 'random') {
+                currentList = shuffle(currentList);
+            } else {
+                currentList.sort((a,b) => a.id - b.id);
+            }
+
+            // Renderizar
+            currentList.forEach((q, index) => {
+                // 1. Sidebar Dot
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.innerText = q.id;
+                dot.id = `dot-${q.id}`;
+                dot.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                if(markedIds.has(q.id)) dot.classList.add('marked');
+                sidebar.appendChild(dot);
+
+                // 2. Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${q.id}`;
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'q-header';
+                
+                const title = document.createElement('div');
+                title.className = 'q-title';
+                title.innerText = `${q.id}. ${q.q}`;
+
+                const markLabel = document.createElement('label');
+                markLabel.className = 'mark-container';
+                const markInput = document.createElement('input');
+                markInput.type = 'checkbox';
+                markInput.checked = markedIds.has(q.id);
+                markInput.onchange = (e) => toggleMark(q.id, e.target.checked);
+                
+                const markIcon = document.createElement('i');
+                markIcon.className = 'mark-icon';
+                const markText = document.createElement('span');
+                markText.innerText = "Revisar";
+
+                markLabel.append(markInput, markIcon, markText);
+                header.append(title, markLabel);
+
+                // Opciones
+                const optList = document.createElement('div');
+                optList.className = 'options-list';
+
+                q.shuffledOpts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt.txt;
+                    btn.onclick = () => handleAnswer(q, opt, btn, card);
+                    optList.appendChild(btn);
+                });
+
+                // Explicación
+                const expBox = document.createElement('div');
+                expBox.className = 'explanation';
+                expBox.innerHTML = `<strong>${q.exp}</strong>`;
+
+                card.append(header, optList, expBox);
+                container.appendChild(card);
+            });
+        }
+
+        // --- LÓGICA DE RESPUESTA ---
+        function handleAnswer(qObj, optObj, btnElem, cardElem) {
+            // Bloquear si ya se respondió
+            if (btnElem.disabled || cardElem.getAttribute('data-answered') === 'true') return;
+            
+            cardElem.setAttribute('data-answered', 'true');
+            answeredIds.add(qObj.id);
+            
+            const allBtns = cardElem.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            // Marcar visualmente
+            if (optObj.isCorrect) {
+                btnElem.classList.add('correct');
+                // Si estaba fallada antes, la quitamos al acertar
+                if(failedIds.has(qObj.id)) failedIds.delete(qObj.id);
+            } else {
+                btnElem.classList.add('wrong');
+                failedIds.add(qObj.id);
+                // Mostrar correcta
+                const correctBtnText = qObj.shuffledOpts.find(o => o.isCorrect).txt;
+                allBtns.forEach(b => {
+                    if(b.innerText === correctBtnText) b.classList.add('correct');
+                });
+            }
+
+            // Actualizar Dot
+            const dot = document.getElementById(`dot-${qObj.id}`);
+            dot.classList.add(optObj.isCorrect ? 'correct' : 'wrong');
+            if (markedIds.has(qObj.id)) dot.classList.add('marked');
+
+            // Mostrar explicación
+            cardElem.querySelector('.explanation').style.display = 'block';
+        }
+
+        function toggleMark(id, isChecked) {
+            const dot = document.getElementById(`dot-${id}`);
+            if (isChecked) {
+                markedIds.add(id);
+                dot.classList.add('marked');
+            } else {
+                markedIds.delete(id);
+                dot.classList.remove('marked');
+            }
+        }
+
+        // --- FINALIZACIÓN ---
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const total = currentList.length;
+            
+            // Calcular aciertos en la sesión actual
+            let currentFails = 0;
+            let currentCorrect = 0;
+            
+            currentList.forEach(q => {
+               const card = document.getElementById(`card-${q.id}`);
+               if (card && card.getAttribute('data-answered') === 'true') {
+                   if (card.querySelector('.option-btn.wrong')) currentFails++;
+                   else currentCorrect++;
+               }
+            });
+
+            document.getElementById('res-correct').innerText = currentCorrect;
+            document.getElementById('res-wrong').innerText = currentFails;
+            
+            const answeredCount = currentCorrect + currentFails;
+            document.getElementById('res-msg').innerText = `Has respondido ${answeredCount} de ${total} preguntas mostradas.`;
+
+            // Botones de reintento
+            const btnFailed = document.getElementById('btn-retry-failed');
+            const btnMarked = document.getElementById('btn-retry-marked');
+            const btnCombo = document.getElementById('btn-retry-combo');
+
+            btnFailed.disabled = failedIds.size === 0;
+            btnMarked.disabled = markedIds.size === 0;
+            btnCombo.disabled = (failedIds.size === 0 && markedIds.size === 0);
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        function restartQuiz(mode) {
+            if (mode === 'all') {
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('results-modal').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+                return;
+            }
+
+            let idsToFilter = new Set();
+            if (mode === 'failed') idsToFilter = failedIds;
+            else if (mode === 'marked') idsToFilter = markedIds;
+            else if (mode === 'combo') idsToFilter = new Set([...failedIds, ...markedIds]);
+
+            const filteredList = dbQuestions.filter(q => idsToFilter.has(q.id));
+            
+            if (filteredList.length === 0) {
+                alert("No hay preguntas en esta selección.");
+                return;
+            }
+
+            // Siempre aleatorio en reintentos para evitar memorización
+            initQuiz('random', filteredList);
+        }
+
+    </script>
+</body>
+</html>

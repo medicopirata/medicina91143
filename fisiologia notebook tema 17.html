@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Neurotransmisión - Acetilcolina</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 80px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            overflow-y: auto;
+            border-right: 2px solid #1a252f;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.3s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.correct { background: var(--success); }
+        .index-item.incorrect { background: var(--error); }
+        .index-item.marked { position: relative; }
+        .index-item.marked::after {
+            content: '🚩';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 10px;
+        }
+
+        /* Contenedor principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: transparent;
+        }
+
+        .card-setup {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { color: var(--primary); text-align: center; }
+        
+        /* Pantalla de Inicio */
+        #setup-screen { text-align: center; }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            transition: 0.3s;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-finish { background: #95a5a6; padding: 15px 40px; font-size: 1.1em;}
+
+        /* Preguntas */
+        .question-block { 
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border-left: 6px solid var(--secondary);
+        }
+        
+        .options { margin-top: 20px; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0f8ff; }
+        .option-btn.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option-btn.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .marking-zone {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        /* Pantalla Final */
+        #result-screen { display: none; text-align: center; }
+        .summary-stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { padding: 15px; border-radius: 8px; background: #f8f9fa; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);}
+
+        /* Botón Scroll to Top */
+        #scrollTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 1000;
+        }
+        #scrollTopBtn:hover {
+            background-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar" style="display: none;"></div>
+
+    <div id="main-content">
+        <div class="container">
+            <div id="setup-screen" class="card-setup">
+                <h1>🧠 Neurotransmisión: Acetilcolina</h1>
+                <p>Bienvenido al cuestionario sobre neurotransmisores y farmacología.</p>
+                <div style="margin: 30px 0;">
+                    <p>Selecciona el modo de orden:</p>
+                    <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+                    <button class="btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" style="display: none;">
+                <div id="question-container"></div>
+                <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;">
+                    <button class="btn btn-finish" onclick="confirmFinish()">Finalizar Cuestionario</button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="card-setup">
+                <h1>Resultados Finales</h1>
+                <div class="summary-stats">
+                    <div class="stat-box"><h2 id="res-total">0</h2><p>Respondidas</p></div>
+                    <div class="stat-box" style="color: var(--success)"><h2 id="res-correct">0</h2><p>Correctas</p></div>
+                    <div class="stat-box" style="color: var(--error)"><h2 id="res-fail">0</h2><p>Falladas</p></div>
+                </div>
+                <h3>¿Qué quieres hacer ahora?</h3>
+                <div id="repeat-options">
+                    <button class="btn" onclick="repeatMode('all')">Repetir Todo</button>
+                    <button class="btn" onclick="repeatMode('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="repeatMode('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="repeatMode('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="scrollTopBtn" onclick="scrollToTop()" title="Subir al inicio">↑</button>
+
+<script>
+const rawData = [
+    { n: 1, q: "A principios del siglo XX, se creía que toda la transmisión nerviosa era puramente eléctrica. ¿Qué experimento histórico, mencionado en clase, demostró la existencia de la neurotransmisión química liberando el \"Vagusstoff\"?", a: "b", ex: "Otto Loewi demostró que el nervio vago liberaba una sustancia química (luego identificada como acetilcolina) al bañar el corazón.", opts: ["El experimento de Ramón y Cajal tiñendo la médula espinal.", "El experimento de Otto Loewi, donde el líquido de un corazón estimulado logró reducir la frecuencia cardíaca de un segundo corazón no estimulado.", "El experimento de fijación de voltaje de Hodgkin y Huxley.", "El aislamiento del curare por los indígenas."] },
+    { n: 2, q: "Atendiendo a la clasificación de los neurotransmisores, la acetilcolina y las aminas biógenas pertenecen al grupo de \"molécula pequeña\". Esto implica fisiológicamente que:", a: "b", ex: "A diferencia de los péptidos, las moléculas pequeñas se fabrican in situ en el botón terminal por las enzimas enviadas desde el soma.", opts: ["Se sintetizan por completo en el soma y viajan en vesículas grandes de núcleo denso.", "Sus enzimas de síntesis viajan por transporte axónico lento, pero el neurotransmisor se sintetiza y empaqueta directamente en el terminal sináptico en vesículas pequeñas de centro claro.", "Son exclusivamente inhibidores.", "Atraviesan la membrana por difusión pasiva sin usar vesículas."] },
+    { n: 3, q: "(Aviso del profesor). La enzima responsable de la SÍNTESIS de la acetilcolina en el terminal nervioso, a partir de la unión de Acetil-CoA y Colina, es:", a: "c", ex: "El profesor avisó explícitamente: \"No liaros entre la colina acetil transferasa y la que luego degrada\".", opts: ["Acetilcolinesterasa.", "Monoamino oxidasa (MAO).", "Colina Acetiltransferasa (ChAT).", "Tirosina hidroxilasa."] },
+    { n: 4, q: "Para lograr empaquetar grandes cantidades de acetilcolina (unas 10.000 moléculas) en el interior de las vesículas sinápticas en contra de su gradiente, el Transportador Vesicular de Acetilcolina (VAChT) utiliza como fuente de energía principal:", a: "b", ex: "Es un transporte activo secundario (antiporte) acoplado al gradiente de protones generado por la bomba de H+.", opts: ["La hidrólisis directa de ATP por la propia vesícula.", "Un mecanismo de transporte activo que intercambia la entrada de acetilcolina por la salida de protones (H+) desde el interior vesicular.", "La difusión facilitada por canales de cloro.", "El bombeo conjunto con iones de calcio."] },
+    { n: 5, q: "A nivel de la placa motora, para que la señal finalice y el músculo pueda relajarse, la acetilcolina debe desaparecer de la hendidura sináptica. El mecanismo principal para conseguirlo es:", a: "c", ex: "La ACh se rompe en el exterior celular, y el terminal presináptico solo recupera la \"pieza\" de la colina mediante un cotransportador con Sodio para fabricar más ACh.", opts: ["La recaptación de la acetilcolina intacta hacia la motoneurona por transporte activo.", "Su absorción inmediata por el torrente sanguíneo.", "La degradación en la propia hendidura en acetato y colina mediada por la enzima Acetilcolinesterasa (AChE), recaptándose posteriormente sólo la colina.", "Su internalización en los astrocitos para convertirse en glutamina."] },
+    { n: 6, q: "¿Cuál es la diferencia fundamental en el mecanismo de transducción de señal entre un receptor colinérgico Nicotínico y uno Muscarínico?", a: "c", ex: "Diferencia básica y crucial remarcada en clase. Nicotínico = canal directo (rápido). Muscarínico = acoplado a proteína G (lento).", opts: ["Los nicotínicos son siempre inhibidores, y los muscarínicos siempre excitadores.", "Los nicotínicos son receptores metabotrópicos (acoplados a proteína G), mientras que los muscarínicos son canales iónicos de apertura rápida.", "Los nicotínicos son canales ionotrópicos (permiten el paso directo de iones como Na+ y K+), mientras que los muscarínicos son receptores metabotrópicos (acoplados a proteína G) que inician cascadas intracelulares.", "No existen diferencias, solo cambian de nombre según la especie."] },
+    { n: 7, q: "(Aplicación Clínica). Un paciente acude a medicina estética para atenuar las arrugas faciales mediante inyecciones de Toxina Botulínica (Botox). A nivel celular, ¿cómo logra esta toxina producir la relajación/parálisis de la musculatura mímica?", a: "b", ex: "El Botox ataca la maquinaria presináptica, cortando los \"cables\" que anclan la vesícula e impidiendo la liberación de la orden excitadora.", opts: ["Bloqueando los receptores nicotínicos postsinápticos.", "Inactivando y destruyendo las proteínas del complejo SNARE (como la sinaptobrevina o sintaxina), lo que bloquea la exocitosis de las vesículas de acetilcolina.", "Causando la destrucción masiva de las mitocondrias del músculo.", "Activando irreversiblemente la acetilcolinesterasa."] },
+    { n: 8, q: "Por el contrario, el efecto de la picadura de la araña \"Viuda Negra\" (cuya toxina es la α-latrotoxina) resulta letal debido a que provoca:", a: "b", ex: "Al liberar ACh sin control y saturar los receptores, los músculos (incluyendo respiratorios y cardíaco) se contraen en exceso, llevando al fallo sistémico.", opts: ["Una parálisis flácida idéntica al Botox.", "La inducción masiva y descontrolada de la exocitosis de vesículas de acetilcolina, llevando a una sobreestimulación muscular que puede derivar en espasmos, insuficiencia cardíaca y paro respiratorio.", "La necrosis inmediata de la placa motora.", "El bloqueo del potencial de acción en el nervio ciático."] },
+    { n: 9, q: "En la historia clínica reciente, el Gas Sarín ha sido empleado como un letal agente neurotóxico en guerras y atentados terroristas. Su extrema toxicidad radica en su capacidad de:", a: "c", ex: "Al inhibir la enzima \"limpiadora\", la ACh no se elimina de la hendidura, produciendo espasmos, asfixia y la muerte.", opts: ["Bloquear los receptores muscarínicos del corazón.", "Destruir las vainas de mielina de las motoneuronas.", "Inhibir de manera irreversible la enzima Acetilcolinesterasa, lo que causa la acumulación tóxica de acetilcolina en la sinapsis y la sobreestimulación de todo el sistema.", "Sustituir al Sodio en los potenciales de acción."] },
+    { n: 10, q: "Históricamente, ciertos pueblos indígenas utilizaban extractos de plantas ricos en \"Curare\" para cazar, provocando la parálisis en las presas. Hoy en día derivados de esta molécula se usan en anestesia clínica porque actúan:", a: "b", ex: "A diferencia de las toxinas anteriores (presinápticas), el curare es postsináptico: tapa el receptor nicotínico para que la ACh no pueda actuar.", opts: ["Destruyendo las vesículas sinápticas.", "Uniéndose a los receptores nicotínicos de la placa motora bloqueándolos (antagonistas), impidiendo que la acetilcolina abra el canal iónico y bloqueando así la contracción.", "Como agonistas exagerados de la acetilcolina.", "Impidiendo que el potencial de acción nazca en el cono axónico."] },
+    { n: 11, q: "¿Cuál es el mecanismo fisiopatológico subyacente en la enfermedad de Miastenia Gravis, que cursa típicamente con debilidad muscular y ptosis palpebral (caída del párpado)?", a: "b", ex: "El profesor mencionó que el sistema autoinmune inutiliza los receptores nicotínicos musculares, perdiendo la capacidad de contraerse normalmente.", opts: ["La degeneración exclusiva de las neuronas del hipocampo.", "Una enfermedad autoinmune donde el cuerpo produce anticuerpos que atacan y bloquean los receptores nicotínicos de la placa motora, reduciendo severamente la eficacia de la transmisión sináptica.", "La falta genética de la enzima colina acetiltransferasa en la dieta.", "La mielinización excesiva del nervio trigémino."] },
+    { n: 12, q: "En relación a las adicciones, la nicotina del tabaco genera un fuerte poder adictivo actuando a nivel del Sistema Nervioso Central (SNC). Esto ocurre porque activa receptores nicotínicos en la vía de recompensa, promoviendo concretamente la liberación masiva de:", a: "b", ex: "Al activar esta vía dopaminérgica de recompensa cerebral, se consolida el proceso de adicción.", opts: ["Glicina en la médula espinal.", "Dopamina en el núcleo accumbens desde el área tegmentaria ventral.", "Ácido láctico en los ventrículos cerebrales.", "Serotonina en el cerebelo."] },
+    { n: 13, q: "Dentro de la familia de los receptores muscarínicos (acoplados a proteína G), el profesor destacó que existen cinco subtipos (M1 a M5). ¿Qué característica funcional agrupa a los receptores IMPARES (M1, M3, M5)?", a: "c", ex: "La conformación impar desencadena cascadas excitadoras y activadoras a nivel celular, muy importantes en secreciones y SNC.", opts: ["Son receptores de tipo inhibidor, que reducen los niveles intracelulares de Ca2+.", "Son canales iónicos que solo dejan pasar cloro.", "Son activadores o excitadores: su activación por proteína G aumenta la producción de IP3, DAG y los niveles intracelulares de Ca2+.", "Se localizan únicamente en el músculo esquelético de las piernas."] },
+    { n: 14, q: "(Farmacología clínica). Un paciente con glaucoma es tratado con \"Pilocarpina\" en forma de colirio para aumentar el drenaje ocular y contraer la pupila (miosis). Según se vio en clase, este fármaco actúa como:", a: "b", ex: "La pilocarpina cumple la misma función que la acetilcolina (es agonista), provocando efectos parasimpáticos como la miosis en el ojo.", opts: ["Antagonista nicotínico.", "Agonista de los receptores muscarínicos, mimetizando la acción parasimpática de la acetilcolina.", "Antagonista de los receptores muscarínicos.", "Inhibidor de la colina acetiltransferasa."] },
+    { n: 15, q: "Por el contrario, en una situación de urgencia médica por bradicardia extrema, a un paciente se le administra \"Atropina\" intravenosa, un fármaco que salva vidas gracias a que:", a: "a", ex: "La atropina es el antagonista muscarínico por excelencia. Al bloquear el efecto parasimpático (freno) de la ACh sobre el corazón, el pulso sube.", opts: ["Actúa como un antagonista muscarínico, bloqueando la acción frenadora fisiológica del sistema parasimpático sobre el corazón y permitiendo que aumente la frecuencia cardíaca.", "Multiplica por cien la actividad de la acetilcolinesterasa.", "Bloquea irreversiblemente los canales de potasio en la aurícula.", "Es un potente precursor de la acetilcolina de liberación prolongada."] }
+];
+
+let questions = [];
+let userAnswers = {}; 
+
+function startQuiz(isRandom) {
+    questions = [...rawData].map(q => {
+        const correctText = q.opts[q.a.charCodeAt(0) - 97];
+        const shuffledOpts = [...q.opts].sort(() => Math.random() - 0.5);
+        const newCorrectLetter = String.fromCharCode(97 + shuffledOpts.indexOf(correctText));
+        return { ...q, opts: shuffledOpts, a: newCorrectLetter };
+    });
+
+    if (isRandom) questions.sort(() => Math.random() - 0.5);
+
+    renderQuiz();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'flex';
+}
+
+function renderQuiz() {
+    const container = document.getElementById('question-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+
+    questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = `question-block qb-${i}`;
+        div.innerHTML = `
+            <h2>Pregunta ${i + 1}</h2>
+            <p>${q.q}</p>
+            <div class="options">
+                ${q.opts.map((opt, idx) => `
+                    <button class="option-btn" onclick="checkAnswer(${i}, '${String.fromCharCode(97 + idx)}', this)">
+                        ${String.fromCharCode(97 + idx)}) ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="explanation" id="ex-${i}">${q.ex}</div>
+            <div class="marking-zone">
+                <input type="checkbox" id="mark-${i}" onchange="toggleMark(${i})">
+                <label for="mark-${i}">Marcar pregunta para revisión 🚩</label>
+            </div>
+        `;
+        container.appendChild(div);
+
+        const item = document.createElement('div');
+        item.className = `index-item ii-${i}`;
+        item.innerText = i + 1;
+        item.onclick = () => {
+            document.querySelector(`.qb-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        sidebar.appendChild(item);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+function checkAnswer(qIdx, letter, btn) {
+    if (userAnswers[qIdx]) return; 
+
+    const isCorrect = letter === questions[qIdx].a;
+    userAnswers[qIdx] = { selected: letter, correct: isCorrect, marked: document.getElementById(`mark-${qIdx}`).checked };
+
+    const buttons = document.querySelectorAll(`.qb-${qIdx} .option-btn`);
+    buttons.forEach(b => {
+        b.disabled = true;
+        const bLetter = b.innerText.split(')')[0].trim();
+        if (bLetter === questions[qIdx].a) b.classList.add('correct');
+        else if (bLetter === letter) b.classList.add('incorrect');
+    });
+
+    const sideItem = document.querySelector(`.ii-${qIdx}`);
+    sideItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    document.getElementById(`ex-${qIdx}`).style.display = 'block';
+}
+
+function toggleMark(index) {
+    const sideItem = document.querySelector(`.ii-${index}`);
+    if (document.getElementById(`mark-${index}`).checked) {
+        sideItem.classList.add('marked');
+    } else {
+        sideItem.classList.remove('marked');
+    }
+}
+
+function confirmFinish() {
+    if (confirm("¿Estás seguro de que quieres finalizar el cuestionario?")) {
+        showResults();
+    }
+}
+
+function showResults() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main-content').scrollTop = 0;
+
+    let correct = 0, failed = 0;
+    Object.values(userAnswers).forEach(v => {
+        if (v.correct) correct++;
+        else failed++;
+    });
+
+    document.getElementById('res-total').innerText = Object.keys(userAnswers).length;
+    document.getElementById('res-correct').innerText = correct;
+    document.getElementById('res-fail').innerText = failed;
+}
+
+function repeatMode(mode) {
+    let subSet = [];
+    if (mode === 'all') {
+        subSet = [...rawData];
+    } else if (mode === 'failed') {
+        subSet = questions.filter((_, i) => userAnswers[i] && !userAnswers[i].correct);
+    } else if (mode === 'marked') {
+        subSet = questions.filter((_, i) => document.getElementById(`mark-${i}`).checked);
+    } else if (mode === 'mixed') {
+        subSet = questions.filter((_, i) => 
+            (userAnswers[i] && !userAnswers[i].correct) || document.getElementById(`mark-${i}`).checked
+        );
+    }
+
+    if (subSet.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return;
+    }
+
+    userAnswers = {};
+    questions = subSet;
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('quiz-screen').style.display = 'block';
+    renderQuiz();
+}
+
+/* Lógica del botón Scroll to Top */
+const mainContent = document.getElementById('main-content');
+const scrollTopBtn = document.getElementById('scrollTopBtn');
+
+mainContent.addEventListener('scroll', () => {
+    if (mainContent.scrollTop > 300) {
+        scrollTopBtn.style.display = 'block';
+    } else {
+        scrollTopBtn.style.display = 'none';
+    }
+});
+
+function scrollToTop() {
+    mainContent.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+</script>
+</body>
+</html>

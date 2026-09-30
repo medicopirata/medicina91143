@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Vascularización, Inervación y Tórax</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantallas */
+        #setup-screen, #results-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen-content {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1, h2 { color: var(--text); margin-bottom: 1.5rem; }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Contenedor principal del Quiz */
+        #quiz-layout {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar izquierdo */
+        #sidebar {
+            width: 80px;
+            min-width: 80px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 5;
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #475569;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .nav-dot:hover { transform: scale(1.1); }
+        .nav-dot.correct { background-color: var(--correct); color: white; }
+        .nav-dot.incorrect { background-color: var(--incorrect); color: white; }
+        
+        .mark-indicator {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            background-color: var(--marked);
+            border-radius: 50%;
+            display: none;
+            border: 2px solid white;
+        }
+        .nav-dot.is-marked .mark-indicator { display: block; }
+
+        /* Área de preguntas */
+        #main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            scroll-margin-top: 2rem;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0;
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+
+        .mark-btn {
+            background: none;
+            border: 2px solid var(--border);
+            color: #64748b;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        .mark-btn:hover { background-color: #f1f5f9; }
+        .mark-btn.marked {
+            border-color: var(--marked);
+            color: var(--marked);
+            background-color: #fffbeb;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .option-btn {
+            text-align: left;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            background-color: white;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background-color: #dcfce7; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2; border-color: var(--incorrect); }
+        .option-btn.missed-correct { background-color: #dcfce7; border-color: var(--correct); border-style: dashed; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+            display: none;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        #finish-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                width: 100%;
+                height: 60px;
+                min-height: 60px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0 1rem;
+                align-items: center;
+            }
+            .nav-dot { margin-bottom: 0; margin-right: 0.5rem; flex-shrink: 0; }
+            #main-content { padding: 1rem; }
+            #finish-btn { bottom: 1rem; right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="screen-content">
+            <h1>Vascularización, Inervación y Tórax</h1>
+            <p>Configura tu sesión de estudio:</p>
+            <div style="margin-top: 2rem;">
+                <button class="btn" onclick="startQuiz('original')">Iniciar (Orden Original)</button>
+                <button class="btn" onclick="startQuiz('random')">Iniciar (Orden Aleatorio)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-layout">
+        <div id="sidebar"></div>
+        <div id="main-content">
+            <div id="questions-container"></div>
+            <button id="finish-btn" class="btn" onclick="finishQuiz()" style="background-color: #334155;">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <div class="screen-content">
+            <h2>Resultados</h2>
+            <p id="results-summary" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 2rem;"></p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn" onclick="retakeQuiz('all')">Repetir Completo</button>
+                <button class="btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir Solo Falladas</button>
+                <button class="btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir Solo Marcadas</button>
+                <button class="btn" id="btn-retake-both" onclick="retakeQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Base de datos de 60 preguntas literales
+const db = [
+    { q: `1. Las arterias que nutren a las vértebras torácicas proceden de un ramo dorsal que, a su vez, es rama de:`, opts: [`La arteria torácica interna.`, `La arteria subclavia.`, `Las arterias intercostales posteriores (ramas de la aorta torácica).`, `El tronco braquiocefálico.`], c: 2 },
+    { q: `2. A nivel del canal medular toracolumbar, existe un gran vaso arterial que discurre por la cara anterior de la médula y cuya lesión (ej. isquemia o trombosis) tiene consecuencias dramáticas como la paraplejia. Se trata de la:`, opts: [`Arteria carótida interna.`, `Arteria de Adamkiewicz.`, `Arteria radicular magna de Luschka.`, `Arteria vertebral.`], c: 1 },
+    { q: `3. El sistema venoso de drenaje de la columna vertebral (plexo de Batson) tiene una característica anatómica CRÍTICA:`, opts: [`Posee potentes válvulas unidireccionales.`, `Drena exclusivamente en la vena cava inferior.`, `Es totalmente avalvular (sin válvulas), lo que permite que el flujo de sangre sea bidireccional dependiendo de la presión.`, `No se comunica en absoluto con las venas de la pelvis.`], c: 2 },
+    { q: `4. Según el profesor, ¿cuál es la implicación clínica más importante de que el plexo venoso vertebral sea avalvular y esté conectado con las venas pélicas?`, opts: [`Evita los mareos al levantarnos.`, `Permite que cánceres muy prevalentes (próstata, útero, recto) diseminen metástasis directamente a las vértebras o al cerebro sin pasar por el filtro pulmonar.`, `Favorece la oxigenación del disco intervertebral.`, `Impide las hernias discales.`], c: 1 },
+    { q: `5. El sistema de venas lumbares ascendentes, al atravesar el diafragma hacia la cavidad torácica, se transforma en:`, opts: [`La vena cava superior.`, `Las venas yugulares.`, `El sistema Ácigos (a la derecha) y Hemiácigos (a la izquierda).`, `La vena porta.`], c: 2 },
+    { q: `6. El espacio epidural (extradural) espinal contiene fundamentalmente:`, opts: [`Líquido cefalorraquídeo.`, `Tejido adiposo (grasa) y redes venosas anastomóticas.`, `La médula espinal desnuda.`, `Solo arterias de gran calibre.`], c: 1 },
+    { q: `7. La inervación sensitiva y propioceptiva de las estructuras DENTRO del canal medular (ligamento longitudinal posterior, meninges y parte externa del anillo fibroso del disco) depende de:`, opts: [`La raíz motora anterior.`, `El nervio vago.`, `Un ramo que se emite hacia el interior del agujero de conjunción (nervio sinuvertebral).`, `El ganglio espinal dorsal directamente.`], c: 2 },
+    { q: `8. En la radiografía lateral de columna lumbar, los discos intervertebrales sanos se observan habitualmente:`, opts: [`Con forma rectangular perfecta.`, `Con forma cuneiforme (de cuña), siendo más altos en su porción anterior que en la posterior para adaptarse a la lordosis.`, `Más altos en la porción posterior.`, `Totalmente osificados.`], c: 1 },
+    { q: `9. En la radiología cervical Anteroposterior (AP), la imagen conocida clásicamente como "cara de gato" está formada por los ojitos (pedículos), el bigote (espinosa bífida) y un reborde inferior redondeado en las "orejas" que corresponde a:`, opts: [`Las apófisis mamilares.`, `Las masas laterales del atlas.`, `Los procesos unciformes (apófisis semilunares).`, `El diente del axis.`], c: 2 },
+    { q: `10. En una radiografía oblicua de la región lumbar, el "hocico" del famoso "Perrito de Lachapelle" corresponde a:`, opts: [`El pedículo.`, `La apófisis transversa del lado estudiado.`, `La apófisis articular superior (oreja).`, `La apófisis espinosa.`], c: 1 },
+    { q: `11. Siguiendo con el Perrito de Lachapelle, el "ojo" del perro se corresponde anatómicamente con:`, opts: [`La lámina.`, `El istmo.`, `El pedículo de la vértebra.`, `El cuerpo vertebral.`], c: 2 },
+    { q: `12. Si en la radiografía oblicua observamos que el perrito tiene un "collar" (una línea de fractura o separación en su cuello), el diagnóstico clínico es:`, opts: [`Espondilolistesis.`, `Fractura del cuerpo vertebral.`, `Espondilolisis (rotura de la pars interarticularis o istmo).`, `Hernia discal masiva.`], c: 2 },
+    { q: `13. El desplazamiento o deslizamiento hacia atrás o hacia delante de una vértebra sobre otra se denomina clínicamente:`, opts: [`Espondilolisis.`, `Espondilolistesis.`, `Artrodesis.`, `Escoliosis.`], c: 1 },
+    { q: `14. El núcleo pulposo del disco intervertebral tiene una consistencia de gel. ¿Cuál es su origen embriológico?`, opts: [`Es una osificación del tubo neural.`, `Deriva de la cresta neural.`, `Guarda en su interior restos de la antigua notocorda embrionaria.`, `Es cartílago hialino puro.`], c: 2 },
+    { q: `15. Las fibras de colágeno del anillo fibroso del disco intervertebral se disponen en láminas concéntricas (como capas de cebolla) con una característica muy particular:`, opts: [`Son todas perfectamente verticales.`, `Se disponen de forma oblicua y su dirección se alterna (se cruza) de una lámina a la siguiente.`, `Son completamente horizontales.`, `No contienen colágeno, solo elastina.`], c: 1 },
+    { q: `16. ¿Qué ventaja biomecánica aporta la disposición cruzada de las fibras del anillo fibroso?`, opts: [`Permite la osificación rápida.`, `Resiste excelentemente los movimientos de tracción y, sobre todo, las fuerzas de torsión/rotación del tronco.`, `Evita que el disco se hidrate.`, `Acelera la pérdida de altura.`], c: 1 },
+    { q: `17. La nutrición del disco intervertebral en el adulto se caracteriza por:`, opts: [`Estar altamente vascularizado por arterias directas al núcleo.`, `Ser un tejido poco vascularizado en su interior, nutriéndose casi exclusivamente por imbibición/difusión desde la periferia.`, `Recibir sangre del plexo de Batson.`, `Ser nutrido por el líquido cefalorraquídeo.`], c: 1 },
+    { q: `18. Clínicamente, ¿qué consecuencia tiene la pobre vascularización del centro del disco intervertebral?`, opts: [`Que nunca se rompe.`, `Que cuando sufre una lesión o rotura, su capacidad de cicatrización y recuperación es muy mala y lenta.`, `Que no duele nunca.`, `Que se osifica en la infancia.`], c: 1 },
+    { q: `19. A lo largo del día, debido a la carga del peso corporal en bipedestación, el disco intervertebral:`, opts: [`Aumenta su grosor absorbiendo sangre.`, `Pierde agua y reduce bruscamente su altura, haciéndonos perder 2-3 cm de talla que recuperamos por la noche.`, `Se desplaza hacia el canal medular sistemáticamente.`, `No sufre ninguna alteración.`], c: 1 },
+    { q: `20. Los discos intervertebrales son más gruesos y altos en la región:`, opts: [`Torácica.`, `Cervical alta.`, `Lumbar (llegando a 7-9 mm de altura).`, `Sacra.`], c: 2 },
+    { q: `21. El desgaste crónico del disco ("microtraumas") se produce generalmente no por grandes cargas puntuales, sino por:`, opts: [`El reposo prolongado.`, `Movimientos repetitivos y sostenidos de baja carga en el tiempo sin periodo de recuperación (ej. malas posturas en el trabajo).`, `Un único impacto de 300 kg.`, `Defectos en la duramadre.`], c: 1 },
+    { q: `22. El Ligamento Longitudinal Anterior (LLA) recorre la cara anterior de los cuerpos vertebrales. Su función principal es:`, opts: [`Limitar la flexión del tronco.`, `Limitar la rotación.`, `Evitar el exceso de separación entre cuerpos vertebrales, limitando la extensión del tronco (echarse hacia atrás).`, `Proteger la médula espinal directamente.`], c: 2 },
+    { q: `23. El Ligamento Longitudinal Posterior (LLP) se caracteriza por:`, opts: [`Ser más ancho que el anterior y estar por fuera del canal.`, `Encontrarse DENTRO del canal medular (tapizando la cara posterior de los cuerpos y discos) y limitar la flexión.`, `Unir las apófisis espinosas.`, `Ser de color amarillo.`], c: 1 },
+    { q: `24. El ligamento amarillo (flavum) se establece entre:`, opts: [`Los cuerpos vertebrales.`, `Las apófisis transversas.`, `El borde inferior de una lámina y el borde superior de la lámina contigua, cerrando el canal por detrás.`, `El atlas y el axis exclusivamente.`], c: 2 },
+    { q: `25. El borde anterior del ligamento amarillo forma parte del límite anatómico de:`, opts: [`El agujero magno.`, `El agujero de conjunción (foramen intervertebral), pudiendo comprometerlo si se hipertrofia.`, `El conducto del epéndimo.`, `El agujero transverso.`], c: 1 },
+    { q: `26. En la región cervical, el ligamento supraespinoso e interespinoso se ve sustituido por un amplio tabique fibroso medial que llega hasta el occipital. Este es el:`, opts: [`Ligamento cruciforme.`, `Ligamento alar.`, `Ligamento nucal.`, `Ligamento longitudinal anterior.`], c: 2 },
+    { q: `27. Las articulaciones uncovertebrales (de Luschka) son pequeñas articulaciones sinoviales que aparecen exclusivamente en la región:`, opts: [`Sacra.`, `Lumbar.`, `Cervical (entre los procesos unciformes y la vértebra superior).`, `Torácica baja.`], c: 2 },
+    { q: `28. La articulación occipito-atloidea (cóndilos del occipital con masas laterales de C1) permite funcionalmente:`, opts: [`Un movimiento de rotación pura (decir "NO").`, `Un único eje de movimiento: la flexo-extensión corta (el movimiento de asentimiento o decir "SÍ").`, `Movimientos de lateralidad extrema.`, `Ningún movimiento (es una sinartrosis).`], c: 1 },
+    { q: `29. Para cerrar el amplio espacio anterior y posterior que queda entre el occipital y el atlas, existen dos membranas fibrosas llamadas:`, opts: [`Ligamentos amarillos cervicales.`, `Membranas occipito-atloideas (anterior y posterior).`, `Ligamentos alares.`, `Membrana tectoria.`], c: 1 },
+    { q: `30. La articulación atlanto-axoidea media (Diente de C2 con arco anterior de C1) es biomecánicamente una articulación tipo:`, opts: [`Artrodia (plana).`, `Condílea.`, `Trocoide (en pivote), permitiendo la rotación de la cabeza.`, `Encaje recíproco.`], c: 2 },
+    { q: `31. El elemento de tensión más importante que mantiene el diente del axis pegado al arco anterior del atlas y evita que se desplace hacia la médula espinal es:`, opts: [`El ligamento longitudinal anterior.`, `El ligamento transverso del atlas.`, `La cápsula articular.`, `El ligamento nucal.`], c: 1 },
+    { q: `32. El profesor enfatiza que en patologías como el Síndrome de Down o enfermedades del colágeno, una laxitud de este ligamento transverso puede provocar:`, opts: [`Sordera.`, `Una subluxación atlanto-axoidea con riesgo gravísimo de sección o compresión de la médula espinal.`, `Imposibilidad total para asentir.`, `Fusión de las vértebras.`], c: 1 },
+    { q: `33. Para reforzar el ligamento transverso, existen unas bandas longitudinales superior (hacia el occipital) e inferior (hacia C2) que en conjunto forman el:`, opts: [`Ligamento alar.`, `Ligamento apical.`, `Ligamento cruciforme.`, `Ligamento amarillo.`], c: 2 },
+    { q: `34. Los ligamentos que salen de los bordes laterales del diente del axis y buscan el arco del atlas/occipital, limitando la rotación excesiva, se llaman:`, opts: [`Apicales.`, `Alares.`, `Transversos.`, `Interespinosos.`], c: 1 },
+    { q: `35. La articulación sacroilíaca presenta dos partes bien diferenciadas morfológica y funcionalmente:`, opts: [`Una porción anterior cartilaginosa y una posterior ósea.`, `Una porción anterior sinovial (carilla auricular) y una porción posterior rugosa unida por potentes ligamentos (sinfibrosis).`, `Es totalmente una enartrosis móvil.`, `Es una sutura craneal.`], c: 1 },
+    { q: `36. Con el paso de las décadas (4ª a 7ª década de vida), la articulación sacroilíaca tiende a:`, opts: [`Aumentar su movilidad por desgaste.`, `Luxarse espontáneamente.`, `Osificarse perdiendo su mínima capacidad de movimiento (anquilosis/sinostosis).`, `Desaparecer absorbiéndose el hueso.`], c: 2 },
+    { q: `37. Un potente ligamento "a distancia" que ayuda a estabilizar la articulación sacroilíaca saltando desde la apófisis transversa de L5 hasta la cresta ilíaca es el:`, opts: [`Ligamento sacrociático mayor.`, `Ligamento sacrotuberoso.`, `Ligamento iliolumbar.`, `Ligamento amarillo.`], c: 2 },
+    { q: `38. Biomecánicamente, la articulación sacroilíaca soporta el peso corporal funcionando como "los brazos de una tenaza". Al recibir la carga:`, opts: [`El sacro se sale hacia arriba.`, `Las palas ilíacas se abren y el sacro cae.`, `Los brazos ilíacos se cierran dorsalmente, abrazando y presionando al sacro para sostenerlo in situ de forma muy estable.`, `El cóccix se fractura.`], c: 2 },
+    { q: `39. Durante el parto, el primer movimiento del sacro (Nutación) consiste en:`, opts: [`El promontorio bascula hacia atrás.`, `El promontorio se dirige hacia delante y abajo, mientras el vértice del sacro va hacia atrás, disminuyendo el estrecho superior pero preparando el encaje.`, `El sacro rota sobre su eje vertical.`, `El sacro se osifica.`], c: 1 },
+    { q: `40. El movimiento contrario (Contranutación) ocurre al final del parto para:`, opts: [`Aumentar el diámetro inferior de la pelvis y facilitar la expulsión final del feto.`, `Bloquear la cabeza fetal.`, `Cerrar la sínfisis púbica.`, `Proteger el disco intervertebral L5-S1.`], c: 0 },
+    { q: `41. La columna cervical tiene sus apófisis articulares oblicuas/horizontalizadas. Esto determina que sus movimientos naturales acoplados sean:`, opts: [`Flexión y extensión puras.`, `Rotación y lateralidad combinadas simultáneamente.`, `Solo lateralidad sin rotación.`, `Inmovilidad casi absoluta.`], c: 1 },
+    { q: `42. En clínica, la anestesia/reanimación requiere una hiperextensión cervical para la intubación porque:`, opts: [`Abre el esófago.`, `Relaja los músculos del abdomen.`, `Dispone la faringe y vía aérea en un ángulo más lineal y abordable.`, `Protege la arteria vertebral.`], c: 2 },
+    { q: `43. La región torácica tiene las apófisis articulares muy verticalizadas en el plano frontal. Su principal limitación biomecánica es:`, opts: [`Bloquear la flexo-extensión y la lateralidad para no colapsar los espacios intercostales y proteger la función ventilatoria.`, `Limitar exclusivamente la rotación.`, `Impedir el movimiento de las clavículas.`, `Soportar todo el peso del abdomen.`], c: 0 },
+    { q: `44. Si fijamos la pelvis y giramos el tronco, el mayor grado de rotación pura lo aporta:`, opts: [`La región lumbar.`, `La región torácica (junto con el complejo occipito-atlanto-axoideo en el cuello).`, `El sacro.`, `El cóccix.`], c: 1 },
+    { q: `45. Las apófisis articulares lumbares tienen forma cilíndrica (trocoide) orientadas hacia la línea media. Esto bloquea la rotación pero favorece enormemente el movimiento de:`, opts: [`Lateralidad pura.`, `Flexión y extensión (flexo-extensión).`, `Circunducción.`, `Deslizamiento anteroposterior.`], c: 1 },
+    { q: `46. El estrecho torácico superior, orificio de entrada a la cavidad, está delimitado óseamente por:`, opts: [`Las clavículas y el esternón.`, `La vértebra T1, el borde interno de la primera costilla y la escotadura yugular del manubrio esternal.`, `C7 y la clavícula.`, `El diafragma.`], c: 1 },
+    { q: `47. El límite inferior de la cavidad torácica está cerrado por un músculo en forma de embudo o cúpula llamado:`, opts: [`Músculo transverso del tórax.`, `Músculo diafragma.`, `Músculo psoas.`, `Músculo pectoral mayor.`], c: 1 },
+    { q: `48. El esternón se compone de hueso diploico (hueso esponjoso muy vascularizado en su interior) y es un lugar clínico de elección para:`, opts: [`Realizar electrocardiogramas.`, `Punciones para la obtención/donación de médula ósea (tejido hematopoyético) por su accesibilidad subcutánea.`, `Medir la presión arterial.`, `Inyectar anestesia epidural.`], c: 1 },
+    { q: `49. Topográficamente, el "plano mágico" horizontal que pasa entre las vértebras T4-T5 nos permite dividir la cavidad torácica en:`, opts: [`Hemotórax derecho e izquierdo.`, `Mediastino superior y mediastino inferior.`, `Espacio pleural y pericárdico.`, `Región supra e infradiafragmática.`], c: 1 },
+    { q: `50. Si proyectamos el plano T4-T5 hacia la cara anterior del tórax, coincide exactamente con:`, opts: [`El apéndice xifoides.`, `La clavícula.`, `La unión del manubrio y el cuerpo del esternón (Ángulo de Louis), a nivel del 2º espacio intercostal/2ª costilla.`, `El ombligo.`], c: 2 },
+    { q: `51. A la hora de palpar los espacios intercostales, el primero (entre la 1ª y 2ª costilla) suele ser muy difícil de identificar porque:`, opts: [`No existe.`, `Queda oculto por detrás y por debajo del reborde de la clavícula.`, `Está osificado con el esternón.`, `Lo cubre el músculo recto del abdomen.`], c: 1 },
+    { q: `52. En la auscultación cardíaca, el foco Aórtico se localiza topográficamente en:`, opts: [`El 5º espacio intercostal línea medioclavicular.`, `El apéndice xifoides.`, `El 2º espacio intercostal, línea paraesternal DERECHA.`, `El 2º espacio intercostal izquierdo.`], c: 2 },
+    { q: `53. El ápex del corazón (punta cardíaca o foco Mitral) se palpa/ausculta típicamente en:`, opts: [`Línea media del esternón.`, `2º espacio intercostal derecho.`, `El 5º o 6º espacio intercostal, en la línea medio-clavicular IZQUIERDA.`, `Hipocondrio derecho.`], c: 2 },
+    { q: `54. El profesor recalca que el corazón NO tiene una posición fija e inamovible dentro del tórax porque:`, opts: [`Flota en líquido pleural.`, `Al estar apoyado sobre el diafragma, cambia su posición constantemente con los movimientos de ascenso y descenso respiratorios.`, `Las costillas lo empujan.`, `El esternón es móvil.`], c: 1 },
+    { q: `55. El espacio libre situado justo por encima del manubrio esternal, por donde se puede realizar una mediastinoscopia para explorar el mediastino superior, es:`, opts: [`El hiato aórtico.`, `La escotadura yugular.`, `El foramen magno.`, `El triángulo de Scarpa.`], c: 1 },
+    { q: `56. La osificación completa de una vértebra, mediante la fusión definitiva de los anillos epifisarios (metáfisis cartilaginosa), ocurre de manera tardía hacia los:`, opts: [`5 años.`, `12 años.`, `20 a 25 años de edad.`, `40 años.`], c: 2 },
+    { q: `57. ¿En qué región de la columna encontramos apófisis espinosas "imbricadas" (muy inclinadas hacia abajo, montándose unas sobre otras como tejas)?`, opts: [`Cervical alta.`, `Torácica.`, `Lumbar.`, `Sacra.`], c: 1 },
+    { q: `58. Las apófisis espinosas lumbares, al ser observadas en una radiografía lateral o disecadas, destacan por ser:`, opts: [`Cortas, bífidas y puntiagudas.`, `Muy oblicuas hacia abajo.`, `Anchas, cuadrangulares y horizontales (con forma de lágrima caída en Rx AP).`, `Inexistentes.`], c: 2 },
+    { q: `59. La vena intercostal suprema izquierda (que drena los primeros espacios) suele desembocar en una estructura venosa clave de la región del cuello antes de llegar al corazón. ¿Cuál es?`, opts: [`Vena cava inferior.`, `Vena safena.`, `Vena braquiocefálica izquierda (tronco venoso braquiocefálico).`, `Directamente en la aurícula izquierda.`], c: 2 },
+    { q: `60. ¿Qué estructura meníngea delimita el espacio por donde discurre el flujo venoso avalvular intramedular ("senos" a nivel espinal)?`, opts: [`Entre la piamadre y la aracnoides.`, `Por dentro de la piamadre.`, `Entre la capa perióstica de la duramadre (adherida al hueso) y la capa meníngea propiamente dicha de la duramadre.`, `En el centro del disco intervertebral.`], c: 2 }
+];
+
+// Estado de la aplicación
+let activeQuestions = [];
+let answers = {};
+let marked = {};
+let currentOrderMode = 'original';
+
+// Utilidad para mezclar arrays
+function shuffleArray(array) {
+    let newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+// Inicia el quiz
+function startQuiz(orderMode) {
+    currentOrderMode = orderMode;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+    
+    activeQuestions = db.map((item, index) => ({
+        ...item,
+        originalId: index + 1
+    }));
+
+    if (orderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+// Lógica de repetición
+function retakeQuiz(mode) {
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+
+    let toKeep = [];
+    if (mode === 'all') {
+        toKeep = db.map((_, i) => i + 1);
+    } else if (mode === 'failed') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false).map(q => q.originalId);
+    } else if (mode === 'marked') {
+        toKeep = activeQuestions.filter(q => marked[q.originalId]).map(q => q.originalId);
+    } else if (mode === 'failed_marked') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false || marked[q.originalId]).map(q => q.originalId);
+    }
+
+    if (toKeep.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        document.getElementById('results-screen').style.display = 'flex';
+        document.getElementById('quiz-layout').style.display = 'none';
+        return;
+    }
+
+    activeQuestions = db.filter((_, i) => toKeep.includes(i + 1)).map(item => ({
+        ...item,
+        originalId: db.indexOf(item) + 1
+    }));
+
+    if (currentOrderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+function resetState() {
+    answers = {};
+}
+
+// Construcción del DOM
+function buildInterface() {
+    const sidebar = document.getElementById('sidebar');
+    const container = document.getElementById('questions-container');
+    
+    sidebar.innerHTML = '';
+    container.innerHTML = '';
+
+    activeQuestions.forEach((q, index) => {
+        // Dot del sidebar
+        const dot = document.createElement('div');
+        dot.className = `nav-dot ${marked[q.originalId] ? 'is-marked' : ''}`;
+        dot.id = `nav-${q.originalId}`;
+        dot.innerHTML = `${index + 1}<div class="mark-indicator"></div>`;
+        dot.onclick = () => {
+            document.getElementById(`q-${q.originalId}`).scrollIntoView({behavior: 'smooth'});
+        };
+        sidebar.appendChild(dot);
+
+        // Tarjeta de la pregunta
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.originalId}`;
+
+        // Mezclar opciones
+        let optionsWithIndex = q.opts.map((text, i) => ({ text, isCorrect: i === q.c }));
+        optionsWithIndex = shuffleArray(optionsWithIndex);
+
+        let optionsHTML = '';
+        optionsWithIndex.forEach((opt, optIndex) => {
+            optionsHTML += `<button class="option-btn" id="opt-${q.originalId}-${optIndex}" 
+                onclick="selectAnswer(${q.originalId}, ${opt.isCorrect}, ${optIndex}, '${opt.text.replace(/'/g, "\\'")}')">
+                ${opt.text}
+            </button>`;
+        });
+
+        const isMarked = marked[q.originalId] ? 'marked' : '';
+        const markText = marked[q.originalId] ? '★ Marcada' : '☆ Marcar';
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${index + 1}. ${q.q.replace(/^\d+\.\s*/, '')}</h3>
+                <button class="mark-btn ${isMarked}" id="mark-${q.originalId}" onclick="toggleMark(${q.originalId})">${markText}</button>
+            </div>
+            <div class="options-grid" id="grid-${q.originalId}">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.originalId}"></div>
+        `;
+
+        container.appendChild(card);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+// Acción de respuesta
+function selectAnswer(qId, isCorrect, optIndex, optText) {
+    if (answers[qId] !== undefined) return;
+
+    answers[qId] = isCorrect;
+    
+    const grid = document.getElementById(`grid-${qId}`);
+    const buttons = grid.getElementsByClassName('option-btn');
+    const feedback = document.getElementById(`feedback-${qId}`);
+    const navDot = document.getElementById(`nav-${qId}`);
+
+    for (let i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+        if (buttons[i].id === `opt-${qId}-${optIndex}`) {
+            buttons[i].classList.add(isCorrect ? 'correct' : 'incorrect');
+        } else if (buttons[i].getAttribute('onclick').includes('true')) {
+            buttons[i].classList.add('missed-correct');
+        }
+    }
+
+    navDot.classList.add(isCorrect ? 'correct' : 'incorrect');
+    feedback.style.display = 'block';
+    
+    const correctOriginalOptionText = db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).opts[db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).c];
+
+    if (isCorrect) {
+        feedback.innerHTML = `<strong>¡Correcto!</strong> La respuesta es: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--correct)';
+    } else {
+        feedback.innerHTML = `<strong>Incorrecto.</strong> La respuesta correcta era: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--incorrect)';
+    }
+}
+
+// Acción marcar
+function toggleMark(qId) {
+    marked[qId] = !marked[qId];
+    
+    const btn = document.getElementById(`mark-${qId}`);
+    const dot = document.getElementById(`nav-${qId}`);
+
+    if (marked[qId]) {
+        btn.classList.add('marked');
+        btn.innerHTML = '★ Marcada';
+        dot.classList.add('is-marked');
+    } else {
+        btn.classList.remove('marked');
+        btn.innerHTML = '☆ Marcar';
+        dot.classList.remove('is-marked');
+    }
+}
+
+// Acción finalizar
+function finishQuiz() {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unattemptedCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (answers[q.originalId] === true) correctCount++;
+        else if (answers[q.originalId] === false) incorrectCount++;
+        else unattemptedCount++;
+    });
+
+    document.getElementById('quiz-layout').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'flex';
+
+    document.getElementById('results-summary').innerHTML = `
+        Aciertos: <span style="color: var(--correct)">${correctCount}</span> | 
+        Fallos: <span style="color: var(--incorrect)">${incorrectCount}</span> | 
+        Sin responder: ${unattemptedCount}
+    `;
+
+    const totalFailed = activeQuestions.filter(q => answers[q.originalId] === false).length;
+    const totalMarked = Object.values(marked).filter(v => v).length;
+    
+    document.getElementById('btn-retake-failed').disabled = totalFailed === 0;
+    document.getElementById('btn-retake-marked').disabled = totalMarked === 0;
+    document.getElementById('btn-retake-both').disabled = (totalFailed === 0 && totalMarked === 0);
+}
+</script>
+</body>
+</html>

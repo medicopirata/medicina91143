@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Tejido Cartilaginoso y Articulaciones</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #16a085;
+            --correct: #27ae60;
+            --incorrect: #c0392b;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantalla de Selección Inicial */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(44, 62, 80, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-main {
+            padding: 15px 40px;
+            margin: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-main:hover { background: #1abc9c; transform: translateY(-2px); }
+
+        /* Índice Lateral (1 Columna) */
+        #sidebar {
+            width: 70px;
+            background: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered-ok { background: var(--correct) !important; }
+        .nav-dot.answered-bad { background: var(--incorrect) !important; }
+        .nav-dot.is-marked { border: 2px solid var(--marked); color: var(--marked); }
+
+        /* Área de Preguntas */
+        #main-scroll {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            max-width: 800px;
+            margin: 0 auto 50px auto;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .q-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.4;
+        }
+
+        .mark-btn {
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #eee;
+            border: 1px solid #ddd;
+            transition: 0.3s;
+        }
+
+        .mark-btn.active {
+            background: var(--marked);
+            border-color: #d4ac0d;
+            color: #000;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-item {
+            padding: 15px 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option-item:hover { background: #f9f9f9; border-color: #ccc; }
+        
+        .option-item.correct {
+            background: #d4edda !important;
+            border-color: var(--correct) !important;
+            color: #155724;
+            font-weight: bold;
+        }
+
+        .option-item.wrong {
+            background: #f8d7da !important;
+            border-color: var(--incorrect) !important;
+            color: #721c24;
+        }
+
+        .option-item.disabled { pointer-events: none; }
+
+        .explanation-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #eaf2f8;
+            border-left: 5px solid #2980b9;
+            display: none;
+            font-style: italic;
+            color: #2c3e50;
+        }
+
+        /* Pantalla Final */
+        #results-area {
+            display: none;
+            max-width: 800px;
+            margin: 40px auto 100px auto;
+            text-align: center;
+            background: white;
+            padding: 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .floating-finish {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <h1>Cuestionario de Histología: Cartílago</h1>
+    <p>Selecciona el modo de realización:</p>
+    <button class="btn-main" onclick="startQuiz('literal')">Orden Literal (1 a 40)</button>
+    <button class="btn-main" onclick="startQuiz('random')">Orden Aleatorio</button>
+</div>
+
+<div id="sidebar"></div>
+
+<div id="main-scroll">
+    <div id="quiz-anchor"></div>
+    
+    <div id="results-area">
+        <h2 style="font-size: 2rem;">Resultados</h2>
+        <p id="score-summary" style="font-size: 1.2rem; margin-bottom: 30px;"></p>
+        <div style="display: grid; gap: 10px; max-width: 400px; margin: 0 auto;">
+            <button class="btn-main" onclick="restart('all')">Repetir Todo</button>
+            <button class="btn-main" style="background:#8e44ad" onclick="restart('failed')">Repetir Falladas</button>
+            <button class="btn-main" style="background:#f39c12" onclick="restart('marked')">Repetir Marcadas</button>
+            <button class="btn-main" style="background:#34495e" onclick="restart('both')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<div class="floating-finish">
+    <button class="btn-main" style="background: var(--primary)" onclick="finishQuiz()">Finalizar Cuestionario</button>
+</div>
+
+<script>
+const rawData = [
+    {
+        q: "1. A diferencia de otros tejidos conjuntivos, ¿cuál es una característica fundamental y limitante del tejido cartilaginoso fuertemente remarcada en clase?",
+        options: ["a) Posee una gran cantidad de vasos linfáticos.", "b) Es totalmente avascular, careciendo de vasos sanguíneos y nervios.", "c) Sus células no se dividen nunca tras el nacimiento.", "d) Carece de sustancia fundamental."],
+        correct: 1,
+        exp: "La profesora insiste en que, a diferencia del conjuntivo general, el cartílago es avascular. Los nutrientes y oxígeno deben difundir a través del agua de la matriz."
+    },
+    {
+        q: "2. ¿Qué macromoléculas de la matriz cartilaginosa son las responsables directas de retener enormes cantidades de agua para proporcionar resistencia a la compresión y facilitar la difusión de sustancias?",
+        options: ["a) Las fibras colágenas tipo II.", "b) La condronectina.", "c) Los proteoglucanos (glucosaminoglucanos unidos a una proteína central y al ácido hialurónico).", "d) Las fibras elásticas."],
+        correct: 2,
+        exp: "La profesora explica que estas moléculas actúan como \"esponjas\" que retienen agua, vital para la amortiguación mecánica y la nutrición por difusión."
+    },
+    {
+        q: "3. Cuando observamos al microscopio un cartílago hialino con Hematoxilina-Eosina, la matriz que rodea inmediatamente a los condrocitos se ve de un color basófilo más intenso (PAS positiva). ¿Cómo se denomina esta zona?",
+        options: ["a) Matriz interterritorial.", "b) Matriz territorial.", "c) Zona de Tidemark.", "d) Pericondrio celular."],
+        correct: 1,
+        exp: "Es la zona más próxima a la célula, rica en proteoglucanos (lo que le da el color azul/violeta intenso) y más pobre en colágeno."
+    },
+    {
+        q: "4. ¿Qué nombre recibe el espacio físico o \"hueco\" en el que se aloja el condrocito dentro de la matriz cartilaginosa sólida?",
+        options: ["a) Osteoplasto.", "b) Condroplasto (o laguna / condroplasma).", "c) Sinoviocito.", "d) Vesícula sinovial."],
+        correct: 1,
+        exp: "Es el término histológico exacto para la cavidad que ocupa la célula en la matriz rígida."
+    },
+    {
+        q: "5. El cartílago puede crecer desde su interior mediante la mitosis de los condrocitos ya atrapados en la matriz. ¿Cómo se denomina este tipo de crecimiento?",
+        options: ["a) Crecimiento aposicional.", "b) Crecimiento pericondral.", "c) Crecimiento intersticial.", "d) Crecimiento endocondral."],
+        correct: 2,
+        exp: "\"Intersticial\" significa crecer desde dentro (espesor de la matriz). Forma los grupos isogénicos."
+    },
+    {
+        q: "6. Si en la observación microscópica vemos células cartilaginosas agrupadas formando una \"fila india\" o columna, decimos que forman un:",
+        options: ["a) Grupo isogénico coronario.", "b) Grupo isogénico axial.", "c) Acino cartilaginoso.", "d) Cúmulo pericondral."],
+        correct: 1,
+        exp: "La mitosis en un solo eje forma grupos axiales, típicos del cartílago de crecimiento de los huesos largos (zona seriada) para alargar el hueso en una dirección."
+    },
+    {
+        q: "7. El crecimiento APOSICIONAL del cartílago se produce gracias a:",
+        options: ["a) La proliferación de células endoteliales.", "b) La división de los condrocitos maduros del interior de la matriz.", "c) La diferenciación de células de la capa celular interna del pericondrio, que añaden nuevas capas a la superficie.", "d) El líquido sinovial."],
+        correct: 2,
+        exp: "Crece añadiendo capas desde el exterior (como los anillos de un árbol) gracias a la capa condrogénica del pericondrio."
+    },
+    {
+        q: "8. ¿Cuál es el tipo de cartílago más frecuente y extendido en el organismo, de aspecto macroscópico blanco-azulado y translúcido?",
+        options: ["a) Cartílago elástico.", "b) Fibrocartílago.", "c) Cartílago hialino.", "d) Cartílago calcificado."],
+        correct: 2,
+        exp: "El cartílago hialino es el más abundante, forma el esqueleto fetal, las vías respiratorias y los cartílagos articulares."
+    },
+    {
+        q: "9. En las prácticas de microscopía, al teñir con Hematoxilina-Eosina un cartílago elástico, además de una mayor densidad de condrocitos, la profesora señala que en la matriz próxima a ellos se observa:",
+        options: ["a) Trazos gruesos de colágeno tipo I de color azul.", "b) Acúmulos de color rosa intenso correspondientes a las abundantes fibras elásticas.", "c) Una ausencia total de tinción (ópticamente vacío).", "d) Puntos negros de reticulina."],
+        correct: 1,
+        exp: "A diferencia del hialino (que tiene fondo liso basófilo), el elástico muestra eosinofilia intensa alrededor de las lagunas por la red de fibras elásticas."
+    },
+    {
+        q: "10. ¿Cuál de las siguientes estructuras anatómicas está formada por cartílago ELÁSTICO (y no hialino) para permitir su flexión continua, como durante la deglución?",
+        options: ["a) Anillos de la tráquea.", "b) Cartílagos costales.", "c) Epiglotis y pabellón de la oreja.", "d) Discos intervertebrales."],
+        correct: 2,
+        exp: "La profesora pone el ejemplo de la epiglotis: si fuera hialino, sería rígido y no podría flexionarse para tapar la laringe al tragar."
+    },
+    {
+        q: "11. El Fibrocartílago es una forma de transición entre el tejido conjuntivo denso y el cartílago. ¿Qué tipo de colágeno PREDOMINA en su matriz, dándole ese aspecto fuertemente eosinófilo (rosado) con haces visibles?",
+        options: ["a) Colágeno tipo II.", "b) Colágeno tipo IV.", "c) Colágeno tipo I.", "d) Colágeno tipo X."],
+        correct: 2,
+        exp: "Es la principal diferencia molecular: el fibrocartílago tiene abundantes haces gruesos de colágeno tipo I para resistir grandes tracciones."
+    },
+    {
+        q: "12. ¿En qué localización del organismo encontramos característicamente FIBROCARTÍLAGO actuando como amortiguador de choques y dando solidez?",
+        options: ["a) Pabellón auditivo.", "b) Superficies articulares de los huesos largos.", "c) Discos intervertebrales y meniscos de la rodilla.", "d) Trompa de Eustaquio."],
+        correct: 2,
+        exp: "El fibrocartílago soporta inmensas cargas y tracciones, situándose en meniscos, sínfisis pubiana y discos intervertebrales."
+    },
+    {
+        q: "13. Clínica de examen: Una de las patologías degenerativas del fibrocartílago ocurre en la columna vertebral cuando se rompe el anillo fibroso, provocando que protruya una estructura central, presionando raíces nerviosas. Esto se conoce como:",
+        options: ["a) Artrosis severa.", "b) Hernia de disco (protusión del núcleo pulposo).", "c) Raquitismo.", "d) Escorbuto."],
+        correct: 1,
+        exp: "La profesora explica cómo la degeneración del disco por la edad genera zonas de menor resistencia por donde \"se sale\" el núcleo pulposo herniándose."
+    },
+    {
+        q: "14. EXCEPCIÓN CLAVE: De los siguientes tipos de cartílago hialino, ¿cuál es el ÚNICO que CARECE de pericondrio y por tanto depende del líquido sinovial para su nutrición?",
+        options: ["a) Cartílago de la tráquea.", "b) Cartílago nasal.", "c) Cartílago articular.", "d) Cartílago costal."],
+        correct: 2,
+        exp: "Lo repite varias veces; si tuviera pericondrio en la superficie de roce de la articulación, se destruiría por la fricción constante."
+    },
+    {
+        q: "15. El cartílago articular presenta 4 zonas distintas para adaptarse a las fuerzas mecánicas. ¿En qué zona encontramos las fibras colágenas dispuestas de forma PARALELA a la superficie articular y los condrocitos muy aplanados?",
+        options: ["a) Zona superficial o tangencial.", "b) Zona intermedia o transicional.", "c) Zona profunda o radial.", "d) Zona de cartílago calcificado."],
+        correct: 0,
+        exp: "Esta disposición paralela superficial es fundamental para resistir las fuerzas de deslizamiento, fricción, tensión o tracción de la articulación."
+    },
+    {
+        q: "16. Siguiendo en el cartílago articular, ¿qué características tiene la Zona PROFUNDA o Radial?",
+        options: ["a) Presenta el mayor contenido de colágeno, dispuesto paralelo a la superficie articular.", "b) Fibras dispuestas al azar, con pocos proteoglucanos.", "c) Presenta fibras colágenas de gran diámetro dispuestas perpendicularmente a la superficie y el mayor contenido en proteoglucanos.", "d) Está constituida exclusivamente por hueso subcondral."],
+        correct: 2,
+        exp: "Al ser la zona que soporta mayor peso y fuerzas de compresión, necesita columnas perpendiculares y máxima hidratación (proteoglucanos)."
+    },
+    {
+        q: "17. En la histología del cartílago articular, ¿cómo se denomina la línea fuertemente marcada que separa la Zona Radial de la Zona de Cartílago Calcificado?",
+        options: ["a) Pericondrio interno.", "b) Tidemark (Marca de marea).", "c) Disco epifisario.", "d) Íntima sinovial."],
+        correct: 1,
+        exp: "Es el límite histológico visible (\"Tidemark\") que separa el cartílago hialino normal de la última capa que se está calcificando."
+    },
+    {
+        q: "18. En la zona de cartílago calcificado (la más profunda de la articulación), encontramos un tipo de colágeno muy específico que NO se encuentra en el resto del cartílago hialino. ¿Cuál es?",
+        options: ["a) Colágeno tipo I.", "b) Colágeno tipo II.", "c) Colágeno tipo III.", "d) Colágeno tipo X."],
+        correct: 3,
+        exp: "Se especifica claramente en el esquema de las zonas articulares que la zona calcificada contiene Colágeno Tipo X."
+    },
+    {
+        q: "19. Si un cartílago articular sufre una lesión o desgaste importante (artrosis), ¿cómo es la reparación en un adulto?",
+        options: ["a) Excelente, se regenera el cartílago hialino con la misma organización en 4 zonas en pocos días.", "b) Es muy limitada; suele formarse un tejido de cicatrización intermedio tipo fibrocartílago que no tiene las mismas propiedades biomecánicas.", "c) Crece nuevo pericondrio que recubre la articulación.", "d) Las células cebadas de la sinovial se transforman en condrocitos."],
+        correct: 1,
+        exp: "La profesora remarca que la regeneración espontánea de cartílago hialino funcional en adultos es casi nula (por ser avascular y faltar pericondrio), generando una cicatriz menos resistente."
+    },
+    {
+        q: "20. Una técnica moderna para intentar reparar lesiones focales en el cartílago de la rodilla es el ACI (Implantación Autóloga de Condrocitos). ¿En qué consiste fundamentalmente?",
+        options: ["a) Inyectar líquido sinovial sintético.", "b) Extraer cartílago de una zona de NO carga, cultivar sus condrocitos in vitro para multiplicarlos, e inyectarlos en la lesión tapándolos con un parche de periostio o colágeno.", "c) Extraer hueso subcondral para generar cartílago.", "d) Implantar células madre del tejido adiposo."],
+        correct: 1,
+        exp: "Es la técnica descrita paso a paso en las diapositivas y el audio (Biopsia de cartílago sano -> Cultivo celular -> Inyección bajo flap perióstico)."
+    },
+    {
+        q: "21. Atendiendo a la movilidad, las articulaciones de la columna vertebral (discos intervertebrales) donde el movimiento individual es escaso pero globalmente permiten la flexión, se clasifican como:",
+        options: ["a) Sinartrosis.", "b) Diartrosis.", "c) Anfiartrosis.", "d) Sinostosis."],
+        correct: 2,
+        exp: "Las anfiartrosis son articulaciones semimóviles, típicas de los cuerpos vertebrales."
+    },
+    {
+        q: "22. La cápsula articular de una diartrosis (articulación móvil) consta de dos capas. La capa EXTERNA o membrana fibrosa está constituida por:",
+        options: ["a) Tejido adiposo unilocular.", "b) Cartílago elástico.", "c) Tejido conjuntivo denso orientado, rico en fibras colágenas tipo I (y se fusiona con el periostio).", "d) Tejido epitelial simple escamoso."],
+        correct: 2,
+        exp: "Proporciona la resistencia y contención mecánica de la articulación, continuando el tejido de los ligamentos y el periostio."
+    },
+    {
+        q: "23. TRAMPA DE EXAMEN SOBRE LA SINOVIAL: La capa más interna de la cápsula (membrana sinovial) tiene una zona llamada \"íntima sinovial\" formada por células. Al microscopio óptico parece un epitelio, pero la profesora aclara que:",
+        options: ["a) Es un verdadero epitelio glandular estratificado.", "b) NO es un epitelio, sino células del tejido conjuntivo especializadas (sinoviocitos) que carecen de lámina basal.", "c) Es un mesotelio puro como el de la pleura.", "d) Está formada por condrocitos aplanados."],
+        correct: 1,
+        exp: "Recalca textualmente: \"se organiza formando una estructura que nos recuerda un epitelio... pero repito, NO LO ES\". Son células mesenquimales sin membrana basal."
+    },
+    {
+        q: "24. En la íntima sinovial existen dos tipos de células. Los SINOVIOCITOS TIPO A se caracterizan funcionalmente porque:",
+        options: ["a) Sintetizan el líquido sinovial.", "b) Son células contráctiles parecidas al músculo.", "c) Tienen características de MACRÓFAGO, con gran capacidad de fagocitosis para limpiar la cavidad.", "d) Producen colágeno tipo II."],
+        correct: 2,
+        exp: "Tienen el rol de defensa y limpieza en la articulación."
+    },
+    {
+        q: "25. Por otro lado, los SINOVIOCITOS TIPO B de la íntima sinovial:",
+        options: ["a) Fagocitan las bacterias de la articulación.", "b) Tienen características de FIBROBLASTO (gran RER y Golgi) y son los que producen el líquido sinovial (incluyendo el ácido hialurónico y la lubricina).", "c) Son las células madre del hueso.", "d) Sintetizan la queratina articular."],
+        correct: 1,
+        exp: "Son la fábrica del componente viscoso y lubricante de la cavidad articular."
+    },
+    {
+        q: "26. La \"Lubricina\" mencionada en clase es una glucoproteína que tiene como función principal:",
+        options: ["a) Destruir las bacterias intrarticulares.", "b) Lubricar la articulación y facilitar el deslizamiento de los extremos articulares reduciendo la fricción.", "c) Calcificar el cartílago.", "d) Digerir las fibras de colágeno gastadas."],
+        correct: 1,
+        exp: "Es segregada al líquido sinovial para proteger las superficies de cartílago articular que rozan."
+    },
+    {
+        q: "27. ¿Qué efecto tiene la HORMONA CORTISONA (o hidrocortisona) sobre el tejido cartilaginoso?",
+        options: ["a) Estimula fuertemente el crecimiento del cartílago.", "b) Inhibe el crecimiento del cartílago y la formación de matriz.", "c) Acelera la osificación de las placas epifisarias.", "d) No tiene ningún efecto conocido."],
+        correct: 1,
+        exp: "Según el cuadro de histofisiología, las hormonas corticoideas inhiben el desarrollo cartilaginoso, a diferencia de la testosterona o somatotropina que lo estimulan."
+    },
+    {
+        q: "28. ¿Qué alteración se produce en el cartílago epifisario (placa de crecimiento) ante una HIPERVITAMINOSIS A (exceso de vitamina A)?",
+        options: ["a) Deformación por escorbuto.", "b) Reducción de la anchura de la placa.", "c) Acelera la osificación de las placas epifisarias (cesando antes el crecimiento en longitud del hueso).", "d) Calcificación defectuosa y raquitismo."],
+        correct: 2,
+        exp: "Como indica la profesora, un exceso de Vitamina A hace que el cartílago sea sustituido por hueso prematuramente."
+    },
+    {
+        q: "29. En el raquitismo (por deficiencia de Vitamina D y malabsorción de calcio/fósforo), ¿qué le ocurre al cartílago de crecimiento?",
+        options: ["a) Hay proliferación normal de condrocitos, pero la matriz NO se calcifica de manera apropiada.", "b) Los condrocitos mueren inmediatamente sin llegar a proliferar.", "c) Se convierte en tejido adiposo.", "d) Hay un exceso de calcificación que bloquea la articulación."],
+        correct: 0,
+        exp: "La vitamina D es necesaria para calcificar la matriz (último paso antes de formar hueso); sin ella, el cartílago crece pero el hueso no fragua, deformándose."
+    },
+    {
+        q: "30. La vitamina C es fundamental para la correcta síntesis del colágeno. Su déficit (Hipovitaminosis C) afecta gravemente al cartílago, produciendo la enfermedad conocida como:",
+        options: ["a) Osteogénesis imperfecta.", "b) Artrosis juvenil.", "c) Escorbuto.", "d) Sarcoma."],
+        correct: 2,
+        exp: "La vitamina C es crucial para inhibir la deformación de la placa epifisaria y permitir una síntesis de matriz correcta."
+    },
+    {
+        q: "31. El proceso de maduración de los condrocitos en la placa o cartílago de crecimiento (huesos largos) atraviesa varias zonas. ¿En qué zona los condrocitos aumentan enormemente su tamaño antes de morir?",
+        options: ["a) Cartílago de reserva (hialino).", "b) Cartílago seriado (columnas).", "c) Cartílago hipertrófico.", "d) Zona de calcificación."],
+        correct: 2,
+        exp: "\"Hipertrófico\" denota este hinchamiento/crecimiento masivo previo a la calcificación de la matriz que los rodea."
+    },
+    {
+        q: "32. PREGUNTA CLAVE DE INTEGRACIÓN: Durante el desarrollo de un hueso largo, cuando el cartílago de crecimiento es \"reemplazado\" por tejido óseo, la profesora remarca enfáticamente que:",
+        options: ["a) Los condrocitos mutan genéticamente y se transforman en osteocitos.", "b) El cartílago NUNCA se transforma en hueso; el cartílago sirve de molde, su matriz se calcifica, los condrocitos mueren y es sustituido por hueso nuevo desde los vasos sanguíneos.", "c) El fibrocartílago se endurece por fricción.", "d) Las fibras elásticas se vuelven de colágeno."],
+        correct: 1,
+        exp: "Es un concepto clásico para evitar confusiones. Un tejido no se metamorfosea en otro; el andamio cartilaginoso muere y es invadido por células óseas."
+    },
+    {
+        q: "33. En personas mayores, es frecuente observar una disminución en la plasticidad de la caja torácica que dificulta un poco los movimientos respiratorios. Histológicamente, esto se debe con frecuencia a un proceso degenerativo consistente en:",
+        options: ["a) La calcificación paulatina de los cartílagos costales.", "b) La conversión del cartílago hialino en cartílago elástico.", "c) La hipertrofia de la íntima sinovial costal.", "d) El exceso de hidratación por retención de ácido hialurónico."],
+        correct: 0,
+        exp: "La profesora menciona la calcificación de cartílagos costales como ejemplo típico de desgaste asociado a la edad, perdiéndose la elasticidad respiratoria."
+    },
+    {
+        q: "34. Con el envejecimiento, ¿qué cambio bioquímico principal sufre la matriz del cartílago que favorece el desarrollo de artrosis?",
+        options: ["a) Los condrocitos fabrican demasiada elastina.", "b) Las moléculas de proteoglucanos se hacen más pequeñas y escasas, disminuyendo drásticamente la capacidad de retener agua (hidratación) y soportar la compresión.", "c) Se vuelve extremadamente vascularizado.", "d) Aumenta el tamaño del núcleo celular."],
+        correct: 1,
+        exp: "La deshidratación del cartílago por pérdida/achicamiento de proteoglucanos es la causa fisiológica central de su pérdida de resistencia mecánica."
+    },
+    {
+        q: "35. A la hora de diferenciar visualmente al microscopio un tejido conjuntivo denso regular (como un tendón) de un fibrocartílago, ¿qué clave nos daría la respuesta definitiva a favor del FIBROCARTÍLAGO?",
+        options: ["a) El tendón tiene fibras de colágeno, el fibrocartílago no.", "b) En el fibrocartílago las células (condrocitos) se encuentran encerradas en lagunas o condroplastos bien definidos, mientras que en el tendón los fibroblastos están aplastados entre las fibras.", "c) El fibrocartílago tiene vasos sanguíneos enormes.", "d) El fibrocartílago es PAS negativo."],
+        correct: 1,
+        exp: "Aunque ambos tienen haces de colágeno tipo I paralelos, la presencia inconfundible de lagunas \"huecas\" habitadas por condrocitos redondos diagnostica el fibrocartílago."
+    },
+    {
+        q: "36. A nivel histológico, los \"Ligamentos\", que a menudo refuerzan las articulaciones diartrósicas (como los cruzados de la rodilla), están constituidos principalmente por:",
+        options: ["a) Cartílago elástico.", "b) Cartílago hialino especializado.", "c) Tejido conjuntivo denso orientado (haces paralelos de colágeno tipo I).", "d) Fibrocartílago calcificado."],
+        correct: 2,
+        exp: "La profesora hace una pausa para preguntar esto a la clase. Los ligamentos son tejido conjuntivo denso orientado puro (tracción unidireccional)."
+    },
+    {
+        q: "37. Los \"meniscos\" de la rodilla no son más que estructuras biomecánicas hechas de:",
+        options: ["a) Tejido conjuntivo mucoso.", "b) Fibrocartílago.", "c) Hueso esponjoso.", "d) Cartílago elástico."],
+        correct: 1,
+        exp: "Clásico ejemplo de fibrocartílago aportando amortiguación y mejorando la congruencia articular (encaje) de los huesos."
+    },
+    {
+        q: "38. En una reparación quirúrgica de rodilla (ACI) vista en clase, si no se usan membranas de colágeno sintéticas, ¿de dónde se extrae el \"parche\" (flap) natural que el cirujano cose sobre la lesión tras inyectar los condrocitos?",
+        options: ["a) De la piel del paciente.", "b) De la íntima sinovial.", "c) Del periostio del hueso adyacente.", "d) Del músculo cuádriceps."],
+        correct: 2,
+        exp: "El esquema muestra explícitamente la obtención de un \"flap perióstico\" que se sutura sobre la úlcera cartilaginosa para retener las células cultivadas."
+    },
+    {
+        q: "39. Si analizamos la Matriz Interterritorial del cartílago hialino comparada con la Territorial, podemos afirmar que:",
+        options: ["a) La interterritorial es PAS positiva intensa.", "b) La interterritorial contiene menos fibras colágenas y más proteoglucanos.", "c) La interterritorial contiene MÁS fibras colágenas y MENOS proteoglucanos (siendo menos basófila).", "d) La interterritorial rodea estrechamente a cada condrocito (\"cápsula pericelular\")."],
+        correct: 2,
+        exp: "Se sitúa lejos de la célula, y la proporción se invierte: sube el colágeno y bajan los proteoglucanos, perdiendo el tinte azulado."
+    },
+    {
+        q: "40. De las tres clases de articulaciones según su movimiento (Sinartrosis, Anfiartrosis, Diartrosis), ¿cuál es la ÚNICA que presenta un espacio físico (cavidad) ocupado por un líquido lubricante y cápsula articular?",
+        options: ["a) Sinartrosis (ej. cráneo).", "b) Diartrosis (articulaciones móviles).", "c) Anfiartrosis (ej. sínfisis púbica).", "d) Sincondrosis (ej. placa epifisaria)."],
+        correct: 1,
+        exp: "Las diartrosis son el modelo complejo de articulación móvil que requiere cámara sinovial, cápsula y líquido para evitar el rozamiento."
+    }
+];
+
+let questions = [];
+let state = {}; // id: {answered: bool, correct: bool, marked: bool}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+
+function startQuiz(mode) {
+    document.getElementById('overlay').style.display = 'none';
+    questions = JSON.parse(JSON.stringify(rawData));
+    
+    if (mode === 'random') shuffle(questions);
+    
+    // Aleatorizar opciones en cada carga
+    questions.forEach(q => {
+        const correctText = q.options[q.correct];
+        shuffle(q.options);
+        q.correct = q.options.indexOf(correctText);
+    });
+
+    render();
+}
+
+function render() {
+    const container = document.getElementById('quiz-anchor');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+    
+    questions.forEach((q, index) => {
+        const id = `q-${index}`;
+        state[id] = state[id] || { answered: false, correct: false, marked: false };
+
+        // Sidebar dot
+        const dot = document.createElement('div');
+        dot.className = 'nav-dot';
+        dot.id = `nav-${id}`;
+        dot.innerText = index + 1;
+        dot.onclick = () => document.getElementById(id).scrollIntoView();
+        if (state[id].marked) dot.classList.add('is-marked');
+        sidebar.appendChild(dot);
+
+        // Card
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = id;
+
+        const header = document.createElement('div');
+        header.className = 'q-header';
+        
+        const mark = document.createElement('div');
+        mark.className = 'mark-btn' + (state[id].marked ? ' active' : '');
+        mark.innerText = state[id].marked ? '★ Marcada' : '☆ Marcar';
+        mark.onclick = () => toggleMark(id, mark);
+
+        const text = document.createElement('div');
+        text.className = 'q-text';
+        text.innerText = q.q;
+
+        header.appendChild(text);
+        header.appendChild(mark);
+        card.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'options-list';
+        q.options.forEach((opt, idx) => {
+            const item = document.createElement('div');
+            item.className = 'option-item';
+            item.innerText = opt;
+            item.onclick = () => check(id, idx, q.correct, item, card, q.exp);
+            list.appendChild(item);
+        });
+        card.appendChild(list);
+
+        const exp = document.createElement('div');
+        exp.className = 'explanation-box';
+        exp.id = `exp-${id}`;
+        exp.innerText = `Respuesta: ${q.options[q.correct]}\n\nExplicación: ${q.exp}`;
+        card.appendChild(exp);
+
+        container.appendChild(card);
+    });
+}
+
+function toggleMark(id, btn) {
+    state[id].marked = !state[id].marked;
+    btn.classList.toggle('active');
+    btn.innerText = state[id].marked ? '★ Marcada' : '☆ Marcar';
+    document.getElementById(`nav-${id}`).classList.toggle('is-marked');
+}
+
+function check(id, sIdx, cIdx, item, card, expText) {
+    if (state[id].answered) return;
+    
+    state[id].answered = true;
+    const isOk = sIdx === cIdx;
+    state[id].correct = isOk;
+
+    const items = card.querySelectorAll('.option-item');
+    items.forEach((it, i) => {
+        it.classList.add('disabled');
+        if (i === cIdx) it.classList.add('correct');
+        else if (i === sIdx) it.classList.add('wrong');
+    });
+
+    card.querySelector('.explanation-box').style.display = 'block';
+    const nav = document.getElementById(`nav-${id}`);
+    nav.classList.add(isOk ? 'answered-ok' : 'answered-bad');
+}
+
+function finishQuiz() {
+    const total = questions.length;
+    const ok = Object.values(state).filter(v => v.correct).length;
+    document.getElementById('score-summary').innerText = `Has completado el cuestionario. Aciertos: ${ok} de ${total}.`;
+    document.getElementById('results-area').style.display = 'block';
+    document.getElementById('results-area').scrollIntoView();
+}
+
+function restart(mode) {
+    let nextQuestions = [];
+    
+    if (mode === 'all') {
+        nextQuestions = JSON.parse(JSON.stringify(rawData));
+    } else {
+        questions.forEach((q, i) => {
+            const s = state[`q-${i}`];
+            const failed = s.answered && !s.correct;
+            const marked = s.marked;
+            if (mode === 'failed' && failed) nextQuestions.push(q);
+            else if (mode === 'marked' && marked) nextQuestions.push(q);
+            else if (mode === 'both' && (failed || marked)) nextQuestions.push(q);
+        });
+    }
+
+    if (nextQuestions.length === 0) {
+        alert("No hay preguntas que cumplan el criterio.");
+        return;
+    }
+
+    questions = nextQuestions;
+    state = {};
+    document.getElementById('results-area').style.display = 'none';
+    document.getElementById('overlay').style.display = 'flex';
+}
+</script>
+</body>
+</html>

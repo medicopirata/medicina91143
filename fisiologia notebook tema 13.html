@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Neurofisiología</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 8px;
+        }
+
+        .index-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 0;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+
+        .mark-btn {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            transition: background 0.2s;
+        }
+
+        .mark-btn.active {
+            background: #fef08a;
+            border-color: #eab308;
+            color: #854d0e;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .option-label:hover { background: var(--bg); }
+        
+        .option-label input { margin-right: 10px; }
+
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        
+        #finish-btn-container {
+            text-align: center;
+            margin-top: 2rem;
+            padding-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid">
+            </div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        
+        <div id="questions-container">
+            </div>
+
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        // Todas las preguntas proporcionadas
+        const dbQuestions = [
+            {
+                id: 1,
+                text: "A diferencia de los potenciales electrotónicos o graduados, el potencial de acción se caracteriza por:",
+                options: [
+                    { text: "Propagarse con decremento (perdiendo amplitud).", isCorrect: false },
+                    { text: "Ser una propagación activa que requiere de la regeneración constante de la señal conforme avanza.", isCorrect: true },
+                    { text: "Ocurrir exclusivamente en las dendritas.", isCorrect: false },
+                    { text: "No depender de canales voltaje-dependientes.", isCorrect: false }
+                ]
+            },
+            {
+                id: 2,
+                text: "Funcionalmente, las neuronas son células polarizadas. ¿Qué región está especializada exclusivamente en el procesamiento (recepción e integración) de potenciales electrotónicos o locales?",
+                options: [
+                    { text: "El axón y sus terminales.", isCorrect: false },
+                    { text: "Los Nodos de Ranvier.", isCorrect: false },
+                    { text: "El soma y las dendritas.", isCorrect: true },
+                    { text: "La mielina.", isCorrect: false }
+                ]
+            },
+            {
+                id: 3,
+                text: "¿Cómo se denomina la región especializada de la neurona donde se \"toma la decisión\" de si se genera o no un potencial de acción (zona de disparo)?",
+                options: [
+                    { text: "Dendrita apical.", isCorrect: false },
+                    { text: "Botón sináptico.", isCorrect: false },
+                    { text: "Aparato paranodal.", isCorrect: false },
+                    { text: "Cono axónico o segmento inicial (SI).", isCorrect: true }
+                ]
+            },
+            {
+                id: 4,
+                text: "¿Qué característica molecular exclusiva posee el segmento inicial (cono axónico) para ser la zona de disparo, demostrada mediante inmunohistoquímica en clase?",
+                options: [
+                    { text: "Una altísima densidad de canales de Sodio (Na+) voltaje dependientes.", isCorrect: true },
+                    { text: "Ausencia total de canales de fuga.", isCorrect: false },
+                    { text: "Presencia de mielina intracelular.", isCorrect: false },
+                    { text: "Alta concentración de receptores de neurotransmisores.", isCorrect: false }
+                ]
+            },
+            {
+                id: 5,
+                text: "En el experimento de inmunohistoquímica explicado por el profesor, se utilizó un anticuerpo marcador (MAP2) para perfilar toda la neurona. ¿Qué reveló el anticuerpo secundario marcado con fluorescencia roja?",
+                options: [
+                    { text: "Que los canales de sodio están uniformemente distribuidos por toda la membrana celular.", isCorrect: false },
+                    { text: "Que el segmento inicial y el axón concentran casi todos los canales de Na+ voltaje dependientes, siendo escasos en el soma.", isCorrect: true },
+                    { text: "Que las dendritas tienen más canales de Na+ que el axón.", isCorrect: false },
+                    { text: "La ubicación exacta del núcleo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 6,
+                text: "Cuando un potencial electrotónico despolarizante llega al segmento inicial, para que se inicie el potencial de acción, obligatoriamente debe:",
+                options: [
+                    { text: "Superar el umbral de activación de los canales de Na+ voltaje dependientes.", isCorrect: true },
+                    { text: "Hiperpolarizar la membrana hasta -90 mV.", isCorrect: false },
+                    { text: "Activar la bomba Na+/K+ ATPasa de inmediato.", isCorrect: false },
+                    { text: "Cerrar los canales de potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 7,
+                text: "El mecanismo inicial de propagación se basa en un lazo de retroalimentación positiva. Esto significa que:",
+                options: [
+                    { text: "El sodio que entra inhibe a otros canales cercanos.", isCorrect: false },
+                    { text: "El sodio que entra despolariza la membrana, lo que abre aún más canales de Na+, entrando más sodio sucesivamente.", isCorrect: true },
+                    { text: "El potasio anula inmediatamente la entrada de sodio.", isCorrect: false },
+                    { text: "La mielina crea más canales de sodio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 8,
+                text: "Una vez que el Na+ entra al axón durante el potencial de acción, los iones difunden por el interior debido a su gradiente eléctrico. ¿Hacia dónde se dirigen físicamente esos iones dentro del cilindro axonal?",
+                options: [
+                    { text: "Exclusivamente hacia el terminal sináptico.", isCorrect: false },
+                    { text: "Salen inmediatamente por el mismo canal por el que entraron.", isCorrect: false },
+                    { text: "Difunden en ambas direcciones (hacia el soma y hacia el terminal axónico).", isCorrect: true },
+                    { text: "Se van directamente al núcleo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 9,
+                text: "Los iones de sodio que difunden \"hacia atrás\" (hacia el soma y dendritas) no generan un potencial de acción allí porque:",
+                options: [
+                    { text: "Son destruidos por enzimas.", isCorrect: false },
+                    { text: "En esas zonas no hay densidad suficiente de canales de Na+ voltaje dependientes, fugándose por los canales de fuga y la bomba Na+/K+.", isCorrect: true },
+                    { text: "El soma está recubierto de mielina.", isCorrect: false },
+                    { text: "El potencial de reposo del soma es positivo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 10,
+                text: "El profesor insiste en aprender la nomenclatura clínica. ¿Cómo se denomina a la conducción de la señal eléctrica que viaja en la dirección normal, desde el soma hacia los terminales axónicos?",
+                options: [
+                    { text: "Antidrómica.", isCorrect: false },
+                    { text: "Ortodrómica.", isCorrect: true },
+                    { text: "Saltatoria invertida.", isCorrect: false },
+                    { text: "Retrógrada.", isCorrect: false }
+                ]
+            },
+            {
+                id: 11,
+                text: "La conducción que viaja desde los terminales sinápticos \"hacia atrás\" en dirección al soma se denomina:",
+                options: [
+                    { text: "Ortodrómica.", isCorrect: false },
+                    { text: "Antidrómica.", isCorrect: true },
+                    { text: "Regenerativa.", isCorrect: false },
+                    { text: "Sináptica.", isCorrect: false }
+                ]
+            },
+            {
+                id: 12,
+                text: "En condiciones fisiológicas (in vivo), la conducción del potencial de acción es unidireccional (siempre ortodrómica). ¿Qué mecanismo impide que se genere una \"señal reverberante\" o que retroceda?",
+                options: [
+                    { text: "Las regiones de membrana previamente activadas quedan en estado refractario (canales de Na+ inactivados), impidiendo la retro-propagación.", isCorrect: true },
+                    { text: "La mielina actúa como un muro físico.", isCorrect: false },
+                    { text: "Los iones de sodio solo pueden viajar en una dirección.", isCorrect: false },
+                    { text: "La bomba de sodio-potasio bloquea el axón.", isCorrect: false }
+                ]
+            },
+            {
+                id: 13,
+                text: "Si activamos artificialmente un axón en una región situada a la MITAD de su longitud con un estímulo supraumbral (mediante un electrodo), ¿en qué dirección se propagará el potencial de acción?",
+                options: [
+                    { text: "Solo ortodrómicamente.", isCorrect: false },
+                    { text: "Solo antidrómicamente.", isCorrect: false },
+                    { text: "En ambas direcciones simultáneamente, porque a ambos lados del punto de estímulo la membrana está inactiva y excitable (sin periodo refractario).", isCorrect: true },
+                    { text: "No se propagará.", isCorrect: false }
+                ]
+            },
+            {
+                id: 14,
+                text: "Según las deducciones hechas en clase, la velocidad de propagación del potencial de acción depende directamente de:",
+                options: [
+                    { text: "La cantidad de neurotransmisor disponible.", isCorrect: false },
+                    { text: "El número de mitocondrias en el soma.", isCorrect: false },
+                    { text: "Las propiedades pasivas de la membrana axonal (Cm, ri, Rm).", isCorrect: true },
+                    { text: "Exclusivamente la temperatura externa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 15,
+                text: "La Capacitancia de membrana (Cm) determina la constante de tiempo (τ). Si un axón tiene una capacitancia ALTA, su constante de tiempo será larga. ¿Cómo afectará esto a la velocidad de conducción?",
+                options: [
+                    { text: "La velocidad será mayor.", isCorrect: false },
+                    { text: "La velocidad será menor (inversamente proporcional), porque a las corrientes locales les costará más tiempo despolarizar las zonas adyacentes.", isCorrect: true },
+                    { text: "No afecta a la velocidad.", isCorrect: false },
+                    { text: "El potencial viajará hacia atrás.", isCorrect: false }
+                ]
+            },
+            {
+                id: 16,
+                text: "Matemáticamente, ¿cuál es la relación entre la Velocidad de Conducción (V.C.) y la Capacitancia de membrana (Cm)?",
+                options: [
+                    { text: "V.C. α Cm", isCorrect: false },
+                    { text: "V.C. α 1/Cm", isCorrect: true },
+                    { text: "V.C. α (Cm)²", isCorrect: false },
+                    { text: "V.C. α log(Cm)", isCorrect: false }
+                ]
+            },
+            {
+                id: 17,
+                text: "La Resistencia Axial o interna (ri) es la resistencia que ofrece el citoplasma al flujo de iones. Si la resistencia axial es muy ALTA, el flujo es difícil. ¿Qué le pasará a la velocidad de conducción?",
+                options: [
+                    { text: "Aumentará exponencialmente.", isCorrect: false },
+                    { text: "Disminuirá, la V.C. es inversamente proporcional a la resistencia axial (1/ri).", isCorrect: true },
+                    { text: "No se altera.", isCorrect: false },
+                    { text: "Causará un bloqueo total de inmediato.", isCorrect: false }
+                ]
+            },
+            {
+                id: 18,
+                text: "La Resistencia de Membrana (Rm) indica la dificultad para que los iones se escapen hacia el exterior. Una resistencia de membrana ALTA significa que:",
+                options: [
+                    { text: "Hay muchísimos canales de fuga abiertos.", isCorrect: false },
+                    { text: "Hay muy pocos canales de fuga, por lo que los iones no se pierden y viajan más rápido por el interior para despolarizar el siguiente segmento.", isCorrect: true },
+                    { text: "El potencial de acción no puede ocurrir.", isCorrect: false },
+                    { text: "La mielina está dañada.", isCorrect: false }
+                ]
+            },
+            {
+                id: 19,
+                text: "Por tanto, la Velocidad de Conducción (V.C.) es _______________ a la Resistencia de Membrana (Rm).",
+                options: [
+                    { text: "Directamente proporcional (V.C. α Rm).", isCorrect: true },
+                    { text: "Inversamente proporcional.", isCorrect: false },
+                    { text: "Exponencialmente inversa.", isCorrect: false },
+                    { text: "Independiente.", isCorrect: false }
+                ]
+            },
+            {
+                id: 20,
+                text: "Si en un experimento utilizamos un fármaco que abre masivamente canales de fuga en el axón (disminuyendo drásticamente Rm), el efecto lógico sobre la propagación será:",
+                options: [
+                    { text: "Aumento de la velocidad.", isCorrect: false },
+                    { text: "Disminución de la velocidad de conducción porque se pierde la corriente despolarizante al exterior.", isCorrect: true },
+                    { text: "Cambio de dirección ortodrómica a antidrómica.", isCorrect: false },
+                    { text: "Aumento de la amplitud del potencial de acción a +100mV.", isCorrect: false }
+                ]
+            },
+            {
+                id: 21,
+                text: "Existen dos grandes estrategias evolutivas para aumentar la velocidad de conducción axonal. La estrategia adoptada predominantemente por los INVERTEBRADOS (ej. calamar) es:",
+                options: [
+                    { text: "Mielinizar todos sus axones.", isCorrect: false },
+                    { text: "Aumentar drásticamente el diámetro del axón para disminuir la resistencia axial (ri).", isCorrect: true },
+                    { text: "Reducir el diámetro axonal al mínimo.", isCorrect: false },
+                    { text: "Eliminar los canales de sodio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 22,
+                text: "Según la fórmula mostrada en el PDF (ri α 1/πr²), aumentar el radio/diámetro del axón es una forma de:",
+                options: [
+                    { text: "Disminuir la resistencia axial (ri).", isCorrect: true },
+                    { text: "Aumentar la resistencia axial (ri).", isCorrect: false },
+                    { text: "Disminuir la capacitancia (Cm).", isCorrect: false },
+                    { text: "Eliminar la mielina.", isCorrect: false }
+                ]
+            },
+            {
+                id: 23,
+                text: "El axón gigante de calamar fue el modelo clásico para estudiar potenciales de acción porque es extraordinariamente grueso. ¿Qué diámetro aproximado puede llegar a tener?",
+                options: [
+                    { text: "2 micrómetros.", isCorrect: false },
+                    { text: "800 micrómetros (casi 1 milímetro).", isCorrect: true },
+                    { text: "10 milímetros.", isCorrect: false },
+                    { text: "0.5 micrómetros.", isCorrect: false }
+                ]
+            },
+            {
+                id: 24,
+                text: "El problema de la estrategia de los invertebrados es la falta de \"ahorro de espacio\". La estrategia evolutiva mucho más eficaz adoptada por los VERTEBRADOS fue:",
+                options: [
+                    { text: "Aumentar el diámetro hasta 2 mm.", isCorrect: false },
+                    { text: "Incorporar la vaina de mielina alrededor del axón.", isCorrect: true },
+                    { text: "Eliminar el sodio extracelular.", isCorrect: false },
+                    { text: "Crear sincitios neuronales.", isCorrect: false }
+                ]
+            },
+            {
+                id: 25,
+                text: "Biofísicamente, la incorporación de la vaina de mielina tiene dos efectos fundamentales que disparan la velocidad de conducción. ¿Cuáles son?",
+                options: [
+                    { text: "Disminuye la Resistencia de membrana (Rm) y Aumenta la Capacitancia (Cm).", isCorrect: false },
+                    { text: "Aumenta la Resistencia axial (ri) y Disminuye la Resistencia de membrana (Rm).", isCorrect: false },
+                    { text: "Disminuye la Capacitancia de membrana (Cm) y Aumenta la Resistencia de membrana (Rm).", isCorrect: true },
+                    { text: "Aumenta la densidad de canales de fuga en los internodos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 26,
+                text: "¿Por qué la mielina disminuye la Capacitancia de la membrana (Cm)?",
+                options: [
+                    { text: "Porque inactiva las cargas positivas.", isCorrect: false },
+                    { text: "Porque al añadir capas aislantes, aumenta enormemente la distancia (d) entre las \"placas\" del condensador biológico (LEC y LIC), y Cm α A/d.", isCorrect: true },
+                    { text: "Porque atrae más aniones.", isCorrect: false },
+                    { text: "Porque destruye los canales de potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 27,
+                text: "¿Por qué la mielina aumenta la Resistencia de Membrana (Rm)?",
+                options: [
+                    { text: "Porque es una zona muy pobre en canales de fuga y actúa como un aislante eléctrico, impidiendo que los iones se escapen durante la conducción.", isCorrect: true },
+                    { text: "Porque abre poros acuosos gigantes.", isCorrect: false },
+                    { text: "Porque despolariza la célula a 0 mV.", isCorrect: false },
+                    { text: "Porque activa la bomba Na+/K+ a máxima potencia.", isCorrect: false }
+                ]
+            },
+            {
+                id: 28,
+                text: "La mielina es producida por células gliales especializadas. En el Sistema Nervioso Periférico (SNP), estas células son:",
+                options: [
+                    { text: "Astrocitos.", isCorrect: false },
+                    { text: "Células de Schwann.", isCorrect: true },
+                    { text: "Oligodendrocitos.", isCorrect: false },
+                    { text: "Microglía.", isCorrect: false }
+                ]
+            },
+            {
+                id: 29,
+                text: "Una característica anatómica diferencial mencionada en clase es que, en el Sistema Nervioso Periférico, UNA célula de Schwann:",
+                options: [
+                    { text: "Forma la cubierta de mielina de varios axones distintos simultáneamente.", isCorrect: false },
+                    { text: "Rodea y forma un único internodo de mielina en un único axón.", isCorrect: true },
+                    { text: "No produce mielina, solo fagocita.", isCorrect: false },
+                    { text: "Cubre todo el axón desde el soma hasta el terminal de una sola vez.", isCorrect: false }
+                ]
+            },
+            {
+                id: 30,
+                text: "Por el contrario, en el Sistema Nervioso Central (SNC), las células encargadas de formar la mielina son los _________, y cada uno puede mielinizar _________.",
+                options: [
+                    { text: "Astrocitos / un solo axón.", isCorrect: false },
+                    { text: "Células de Schwann / varios axones.", isCorrect: false },
+                    { text: "Oligodendrocitos / varios axones (múltiples internodos en distintos axones).", isCorrect: true },
+                    { text: "Ependimocitos / solo el soma.", isCorrect: false }
+                ]
+            },
+            {
+                id: 31,
+                text: "La vaina de mielina no es continua. Las pequeñas regiones desprovistas de mielina que separan los internodos se denominan:",
+                options: [
+                    { text: "Conos de crecimiento.", isCorrect: false },
+                    { text: "Nodos de Ranvier.", isCorrect: true },
+                    { text: "Espinas dendríticas.", isCorrect: false },
+                    { text: "Hendiduras sinápticas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 32,
+                text: "¿Qué característica molecular es propia de los Nodos de Ranvier y vital para la propagación del impulso?",
+                options: [
+                    { text: "Tienen una altísima densidad de receptores muscarínicos.", isCorrect: false },
+                    { text: "Son regiones ricas en canales de Sodio (Na+) voltaje dependientes.", isCorrect: true },
+                    { text: "Están completamente recubiertos de grasa.", isCorrect: false },
+                    { text: "No poseen membrana plasmática.", isCorrect: false }
+                ]
+            },
+            {
+                id: 33,
+                text: "En un axón mielínico, la corriente electrotónica viaja velozmente por el interior del internodo (sin perderse por fugas) hasta llegar al siguiente Nodo de Ranvier, donde el potencial de acción se regenera. Este fenómeno se conoce como:",
+                options: [
+                    { text: "Conducción continua.", isCorrect: false },
+                    { text: "Conducción pasiva pura.", isCorrect: false },
+                    { text: "Conducción saltatoria.", isCorrect: true },
+                    { text: "Conducción antidrómica.", isCorrect: false }
+                ]
+            },
+            {
+                id: 34,
+                text: "¿Qué ocurriría si la cubierta de mielina fuera TOTALMENTE CONTINUA a lo largo del axón, sin Nodos de Ranvier?",
+                options: [
+                    { text: "La velocidad de conducción sería la velocidad de la luz.", isCorrect: false },
+                    { text: "La corriente electrotónica local se iría atenuando por la resistencia axial y la ligera fuga restante, hasta perderse sin poder regenerar el potencial de acción (bloqueo de la señal).", isCorrect: true },
+                    { text: "El potencial de acción se regeneraría en la mielina.", isCorrect: false },
+                    { text: "No habría ningún cambio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 35,
+                text: "Para ilustrar la abismal diferencia de eficacia entre ambas estrategias evolutivas, el profesor compara la velocidad del axón amielínico gigante del calamar con los axones mielínicos del gato. ¿A qué velocidad máxima puede llegar el pequeño axón del gato (11-12 μm)?",
+                options: [
+                    { text: "5 m/s.", isCorrect: false },
+                    { text: "20 m/s.", isCorrect: false },
+                    { text: "100 - 120 m/s.", isCorrect: true },
+                    { text: "300.000 km/s.", isCorrect: false }
+                ]
+            },
+            {
+                id: 36,
+                text: "La degeneración progresiva de la vaina de mielina causa gravísimos problemas neurológicos. La enfermedad desmielinizante clásica del Sistema Nervioso CENTRAL es:",
+                options: [
+                    { text: "Síndrome de Guillain-Barré.", isCorrect: false },
+                    { text: "Esclerosis Múltiple (EM).", isCorrect: true },
+                    { text: "Miastenia Gravis.", isCorrect: false },
+                    { text: "Alzheimer.", isCorrect: false }
+                ]
+            },
+            {
+                id: 37,
+                text: "El Síndrome de Guillain-Barré es una enfermedad desmielinizante grave, pero se diferencia de la Esclerosis Múltiple en que ataca a:",
+                options: [
+                    { text: "Los oligodendrocitos del cerebro.", isCorrect: false },
+                    { text: "Las células de Schwann en el Sistema Nervioso Periférico (SNP).", isCorrect: true },
+                    { text: "El soma neuronal directamente.", isCorrect: false },
+                    { text: "Las fibras musculares lisas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 38,
+                text: "Físico-químicamente, cuando un fragmento de axón pierde su mielina, ¿qué ocurre en esa zona?",
+                options: [
+                    { text: "La capacitancia disminuye a cero.", isCorrect: false },
+                    { text: "La capacitancia (Cm) AUMENTA y la resistencia de membrana (Rm) DISMINUYE dramáticamente al quedar expuestos canales de fuga.", isCorrect: true },
+                    { text: "La resistencia axial se vuelve infinita.", isCorrect: false },
+                    { text: "Se genera mielina nueva en 1 segundo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 39,
+                text: "¿Cuáles son las dos consecuencias directas de los cambios pasivos (aumento de Cm y caída de Rm) producidos por la desmielinización sobre el potencial de acción?",
+                options: [
+                    { text: "Generación de potenciales de acción gigantes y taquicardia.", isCorrect: false },
+                    { text: "Disminución de la velocidad de conducción y, eventualmente, bloqueo completo en la propagación.", isCorrect: true },
+                    { text: "Inversión de la conducción a exclusivamente antidrómica.", isCorrect: false },
+                    { text: "Engrosamiento inmediato del axón.", isCorrect: false }
+                ]
+            },
+            {
+                id: 40,
+                text: "El profesor mostró un modelo de ratón de Esclerosis Múltiple. En un axón normal, ¿qué proteína en color verde marca la separación entre el internodo y el nodo de Ranvier aislando la zona?",
+                options: [
+                    { text: "La actina.", isCorrect: false },
+                    { text: "El aparato paranodal.", isCorrect: true },
+                    { text: "La bomba de sodio-potasio.", isCorrect: false },
+                    { text: "La clatrina.", isCorrect: false }
+                ]
+            },
+            {
+                id: 41,
+                text: "(PISTA CLÍNICA EXPLICADA DETALLADAMENTE). En los pacientes con Esclerosis Múltiple se observan \"remisiones clínicas\" donde recuperan milagrosamente la función temporalmente. ¿A qué adaptación celular subyacente se debe esto?",
+                options: [
+                    { text: "El cerebro regenera completamente la mielina en 24 horas.", isCorrect: false },
+                    { text: "Se produce una redistribución de los canales de Sodio voltaje-dependientes a lo largo de la zona desmielinizada, permitiendo que el axón vuelva a conducir (pasando a conducir de forma continua y lenta).", isCorrect: true },
+                    { text: "El paciente utiliza otros nervios no mielinizados que crecen de golpe.", isCorrect: false },
+                    { text: "Los canales de potasio se cierran para siempre.", isCorrect: false }
+                ]
+            },
+            {
+                id: 42,
+                text: "Según la inmunohistoquímica mostrada en clase, en una placa desmielinizada en fase de remisión (recuperación temporal), ¿cómo se observan los canales de sodio (rojos)?",
+                options: [
+                    { text: "Completamente desaparecidos.", isCorrect: false },
+                    { text: "Concentrados exclusivamente en un punto como un nodo normal.", isCorrect: false },
+                    { text: "Dispersos de forma uniforme a lo largo de toda la zona desmielinizada.", isCorrect: true },
+                    { text: "Formando grupos gigantes en el soma.", isCorrect: false }
+                ]
+            },
+            {
+                id: 43,
+                text: "A largo plazo, a pesar de esta redistribución adaptativa de canales de Na+, la función se pierde de forma definitiva (recaída final) porque:",
+                options: [
+                    { text: "Se agotan todos los iones de sodio del cuerpo.", isCorrect: false },
+                    { text: "El axón \"desnudo\" no estaba diseñado para soportar ese enorme coste metabólico y flujo de iones, terminando por cortarse y degenerar.", isCorrect: true },
+                    { text: "La mielina se vuelve hueso.", isCorrect: false },
+                    { text: "El sistema inmune destruye el cerebelo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 44,
+                text: "Si registramos el Vm a lo largo de un axón usando múltiples electrodos situados cada milímetro tras inyectar corriente en un extremo (imagen del PDF), veremos que:",
+                options: [
+                    { text: "La gráfica del potencial de acción se hace cada vez más pequeña conforme avanza.", isCorrect: false },
+                    { text: "La gráfica del potencial de acción mantiene exactamente la misma amplitud de +30 mV en cada registro, pero aparece con un retraso en el tiempo.", isCorrect: true },
+                    { text: "El potencial de acción se transforma en un potencial electrotónico.", isCorrect: false },
+                    { text: "El potencial desaparece en el tercer electrodo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 45,
+                text: "¿Qué componente iónico es el responsable de repolarizar la membrana durante el periodo refractario, impidiendo así que el potencial de acción retroceda?",
+                options: [
+                    { text: "Entrada de Cloro.", isCorrect: false },
+                    { text: "Cierre de los canales de Calcio.", isCorrect: false },
+                    { text: "Apertura de los canales de Potasio (K+) y cierre de las compuertas de inactivación de los canales de Sodio (Na+).", isCorrect: true },
+                    { text: "La entrada masiva de aniones proteicos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 46,
+                text: "La distancia física de un internodo de mielina en el humano mide aproximadamente:",
+                options: [
+                    { text: "1-2 nanómetros.", isCorrect: false },
+                    { text: "1-2 milímetros.", isCorrect: true },
+                    { text: "10-20 centímetros.", isCorrect: false },
+                    { text: "5-10 micrómetros.", isCorrect: false }
+                ]
+            },
+            {
+                id: 47,
+                text: "Cuando el potencial de acción avanza en una fibra mielínica, ¿dónde ocurren exclusivamente los movimientos masivos de iones transmembrana (apertura de canales)?",
+                options: [
+                    { text: "Bajo la vaina de mielina.", isCorrect: false },
+                    { text: "En los Nodos de Ranvier.", isCorrect: true },
+                    { text: "En las dendritas.", isCorrect: false },
+                    { text: "En el aparato paranodal.", isCorrect: false }
+                ]
+            },
+            {
+                id: 48,
+                text: "En la metáfora del profesor, competir haciendo conducción amielínica vs mielínica es como:",
+                options: [
+                    { text: "Ir en bicicleta frente a ir en coche.", isCorrect: false },
+                    { text: "Poner un pie delante del otro (caminar de puntillas sin separar los pies) frente a caminar/correr normalmente dando zancadas.", isCorrect: true },
+                    { text: "Nadar frente a volar.", isCorrect: false },
+                    { text: "Hablar frente a gritar.", isCorrect: false }
+                ]
+            },
+            {
+                id: 49,
+                text: "¿Por qué es crucial para la supervivencia de un animal la velocidad de conducción axonal?",
+                options: [
+                    { text: "Para mantener la temperatura corporal.", isCorrect: false },
+                    { text: "Para que los nutrientes lleguen al cerebro.", isCorrect: false },
+                    { text: "Determina lo rápido que se dan las órdenes motoras y respuestas sensitivas, vital para escapar de un depredador o cazar una presa.", isCorrect: true },
+                    { text: "Para evitar el envejecimiento celular.", isCorrect: false }
+                ]
+            },
+            {
+                id: 50,
+                text: "Si comparamos los gráficos de velocidad de conducción vs diámetro axonal (gato vs calamar), la pendiente de la gráfica en los axones mielinizados es:",
+                options: [
+                    { text: "Exactamente igual a la de los amielínicos.", isCorrect: false },
+                    { text: "Muchísimo mayor (más vertical), indicando que un mínimo aumento de diámetro con mielina dispara la velocidad.", isCorrect: true },
+                    { text: "Totalmente plana.", isCorrect: false },
+                    { text: "Negativa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 51,
+                text: "En la esclerosis múltiple, la pérdida de conducción inicial ocurre por:",
+                options: [
+                    { text: "Muerte del soma neuronal de forma primaria.", isCorrect: false },
+                    { text: "Aumento de fuga de corriente en la región desmielinizada que impide alcanzar el umbral en el siguiente nodo.", isCorrect: true },
+                    { text: "Bloqueo directo de los receptores postsinápticos.", isCorrect: false },
+                    { text: "Envenamiento de los canales de calcio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 52,
+                text: "La \"zona de conducción\" pura de una neurona típica corresponde anatómicamente a:",
+                options: [
+                    { text: "Las espinas dendríticas.", isCorrect: false },
+                    { text: "El soma.", isCorrect: false },
+                    { text: "El cuerpo celular.", isCorrect: false },
+                    { text: "El axón.", isCorrect: true }
+                ]
+            },
+            {
+                id: 53,
+                text: "Si la constante de tiempo (τ) es CORTA (debido a una baja capacitancia), el axón tardará ____________ en despolarizarse, por lo que la velocidad de conducción será ____________.",
+                options: [
+                    { text: "Mucho tiempo / Lenta.", isCorrect: false },
+                    { text: "Poco tiempo / Rápida.", isCorrect: true },
+                    { text: "Poco tiempo / Lenta.", isCorrect: false },
+                    { text: "Mucho tiempo / Rápida.", isCorrect: false }
+                ]
+            },
+            {
+                id: 54,
+                text: "Fisiológicamente, en la zona central de un internodo normal sano:",
+                options: [
+                    { text: "Hay miles de canales de sodio.", isCorrect: false },
+                    { text: "Hay miles de canales de potasio dependientes de voltaje.", isCorrect: false },
+                    { text: "Prácticamente no hay canales voltaje dependientes bajo la gruesa capa aislante.", isCorrect: true },
+                    { text: "Ocurren sinapsis eléctricas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 55,
+                text: "El axón amielínico de un invertebrado tiene un factor de eficacia del aumento de diámetro de ~0.025. El de un vertebrado con mielina tiene un factor de ~10 veces mayor. Esto demuestra que:",
+                options: [
+                    { text: "El tamaño es el único factor biológico que importa.", isCorrect: false },
+                    { text: "La mielinización fue un \"invento\" evolutivo abrumadoramente superior para ganar velocidad sin ocupar espacio.", isCorrect: true },
+                    { text: "Los calamares son más rápidos que los gatos.", isCorrect: false },
+                    { text: "La mielina es ineficiente espacialmente.", isCorrect: false }
+                ]
+            },
+            {
+                id: 56,
+                text: "En una fibra amielínica, la fase despolarizante se repite:",
+                options: [
+                    { text: "Solo al principio y al final del axón.", isCorrect: false },
+                    { text: "Secuencialmente de forma continua por cada pequeña sección adyacente de la membrana.", isCorrect: true },
+                    { text: "Solo en el soma.", isCorrect: false },
+                    { text: "A saltos cada 2 milímetros.", isCorrect: false }
+                ]
+            },
+            {
+                id: 57,
+                text: "El periodo refractario asegura no solo la unidireccionalidad, sino también:",
+                options: [
+                    { text: "El tamaño de las vesículas.", isCorrect: false },
+                    { text: "Evitar que los potenciales de acción se fusionen o sumen (limita la frecuencia máxima de disparo).", isCorrect: true },
+                    { text: "El crecimiento de la vaina de mielina.", isCorrect: false },
+                    { text: "La síntesis de nuevos neurotransmisores.", isCorrect: false }
+                ]
+            },
+            {
+                id: 58,
+                text: "Las propiedades pasivas de la membrana (Cm, Rm) están influenciadas intrínsecamente por la naturaleza de la bicapa lipídica que actúa como:",
+                options: [
+                    { text: "Un condensador (aislante eléctrico que separa cargas).", isCorrect: true },
+                    { text: "Un electrodo activo.", isCorrect: false },
+                    { text: "Una bobina magnética.", isCorrect: false },
+                    { text: "Un generador de ATP.", isCorrect: false }
+                ]
+            },
+            {
+                id: 59,
+                text: "Según las opciones del PDF, si existiera un axón sin mielina en humanos (y de hecho existen las fibras C del dolor), ¿puede propagar un potencial de acción?",
+                options: [
+                    { text: "No, es biológicamente imposible.", isCorrect: false },
+                    { text: "Sí, pero lo hará a velocidades muy lentas (conducción continua) comparado con las fibras mielínicas motoras.", isCorrect: true },
+                    { text: "Sí, pero solo viajará hacia atrás.", isCorrect: false },
+                    { text: "Solo si la temperatura es superior a 40ºC.", isCorrect: false }
+                ]
+            },
+            {
+                id: 60,
+                text: "Para asentar un concepto crítico para el examen: El potencial de acción NO \"viaja\" realmente como un solo objeto desplazándose, sino que:",
+                options: [
+                    { text: "Es la mielina la que viaja por el tubo axonal.", isCorrect: false },
+                    { text: "Es un evento electroquímico LOCAL que se autogenera (se crea \"de nuevo\") en el segmento de membrana adyacente.", isCorrect: true },
+                    { text: "Es un líquido rojo que fluye por el centro del axón.", isCorrect: false },
+                    { text: "Son electrones rebotando en el ADN.", isCorrect: false }
+                ]
+            }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {}; // id -> isCorrect
+        let markedQuestions = new Set(); // ids
+
+        // Utilidad para mezclar arrays
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            // Si es un inicio limpio con todas las preguntas
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                showEndScreen();
+                return;
+            }
+
+            // Preguntar siempre cómo ordenar en el reintento
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            // Las marcadas se mantienen marcadas visualmente pero podemos limpiar el estado para el nuevo test o mantenerlo. Lo mantenemos.
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                // --- Index Button ---
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                // --- Question Card ---
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.textContent = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.innerHTML = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                // Options (mezcladas cada vez que se renderiza)
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    label.id = `label-${q.id}-${optIndex}`;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList);
+                    
+                    label.appendChild(input);
+                    label.appendChild(document.createTextNode(opt.text));
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                // Feedback Div
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement) {
+            // Prevenir más cambios
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            // Actualizar el índice
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Mostrar colores en opciones
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            // Mostrar feedback
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            const correctText = allOptionsData.find(o => o.isCorrect).text;
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong> La respuesta es correcta.`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong> La explicación/respuesta correcta es:<br><em>${correctText}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            // Actualizar visibilidad de botones basados en el estado
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

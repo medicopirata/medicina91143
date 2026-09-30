@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Fisiología y Hematología</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --accent: #f1c40f;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantallas de Inicio y Fin */
+        #setup-screen, #result-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover { background: var(--primary); transform: translateY(-2px); }
+        .btn-finish { background: var(--error); position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+
+        /* Layout Principal */
+        #main-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            gap: 8px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+
+        .nav-dot {
+            width: 45px;
+            height: 45px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 3px solid var(--accent); }
+
+        /* Área de Preguntas */
+        #quiz-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 10%;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .mark-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            cursor: pointer;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 15px 20px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover { background: #f8f9fa; border-color: var(--secondary); }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; font-weight: bold; }
+        .option.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e8f4fd;
+            border-left: 5px solid var(--secondary);
+            border-radius: 4px;
+            display: none;
+            line-height: 1.5;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>Cuestionario de Fisiología Médica</h1>
+        <p>Seleccione el orden de las preguntas para comenzar:</p>
+        <div style="margin: 20px;">
+            <input type="radio" id="fixed" name="order" value="fixed" checked>
+            <label for="fixed">Orden Preestablecido</label>
+            <span style="margin: 0 15px;"></span>
+            <input type="radio" id="random" name="order" value="random">
+            <label for="random">Mezclar Aleatoriamente</label>
+        </div>
+        <button class="btn" onclick="startQuiz()">Empezar Test</button>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.2rem; margin: 20px 0;"></p>
+        <div id="retry-options">
+            <button class="btn" onclick="retry('all')">Repetir completo</button>
+            <button class="btn" onclick="retry('failed')">Repetir solo falladas</button>
+            <button class="btn" onclick="retry('marked')">Repetir solo marcadas</button>
+            <button class="btn" onclick="retry('failed-marked')">Repetir falladas + marcadas</button>
+        </div>
+    </div>
+
+    <button id="finish-btn" class="btn btn-finish hidden" onclick="finishQuiz()">Finalizar Cuestionario</button>
+
+    <div id="main-container">
+        <div id="sidebar"></div>
+        <div id="quiz-area"></div>
+    </div>
+
+    <script>
+        const rawData = [
+            { q: "Pregunta 1: Tal y como se ha remarcado en clase, si definimos de forma estricta y purista el \"Índice Hematocrito\" (cuyos valores normales rondan el 42-47%), nos estamos refiriendo a:", a: "A) El porcentaje exacto de eritrocitos respecto al plasma sanguíneo.", b: "B) La relación entre el volumen ocupado por todos los componentes celulares (eritrocitos, leucocitos y plaquetas) y el volumen total de sangre.", c: "C) El volumen total de glóbulos rojos por cada milímetro cúbico de sangre.", d: "D) La relación entre el plasma y los elementos formes tras la centrifugación.", correct: "b", exp: "Trampa clásica avisada por el profesor en clase y en el Kahoot. Aunque los eritrocitos ocupan la inmensa mayoría de ese volumen celular, la definición estricta incluye a todos los elementos formes (células) respecto al volumen total." },
+            { q: "Pregunta 2: Teniendo en cuenta la tasa de recambio de los elementos formes en la sangre, ¿cuál es la vida media fisiológica aproximada de un eritrocito circulante antes de ser degradado?", a: "A) 6 horas", b: "B) 5 días", c: "C) 30 días", d: "D) 120 días", correct: "d", exp: "Según las tablas del temario, los eritrocitos viven unos 120 días, las plaquetas unos 5 días y los neutrófilos apenas unas horas." },
+            { q: "Pregunta 3: En un individuo sano de 45 años, ¿en cuál de las siguientes estructuras anatómicas NO esperaríamos encontrar hematopoyesis activa de forma fisiológica?", a: "A) Costillas", b: "B) Esternón", c: "C) Tibia", d: "D) Pelvis", correct: "c", exp: "El profesor enfatiza que a partir de los 30-40 años, la médula ósea hematopoyética queda restringida exclusivamente a los huesos planos y cortos (esternón, pelvis, vértebras), desapareciendo de los huesos largos como la tibia o el fémur." },
+            { q: "Pregunta 4: ¿Qué propiedad define el concepto de \"división asimétrica\" característico de las células madre (stem cells) hematopoyéticas?", a: "A) Al dividirse generan dos células maduras directamente.", b: "B) Generan una célula idéntica a sí misma (autorregeneración) y otra célula que inicia el camino de la diferenciación.", c: "C) Producen un número impar de células progenitoras.", d: "D) Se dividen exclusivamente en la línea mieloide, dejando de lado la linfoide.", correct: "b", exp: "Concepto clave de clase. La división asimétrica permite mantener el remanente inagotable de células madre (autorregeneración) a la vez que aporta células comprometidas que madurarán." },
+            { q: "Pregunta 5: En el laboratorio se utiliza un marcador de membrana específico acoplado a un anticuerpo y un imán para aislar stem cells hematopoyéticas mediante citometría de flujo. ¿Cuál es este marcador principal?", a: "A) CD4+", b: "B) CD8+", c: "C) CD34+", d: "D) CD38+", correct: "c", exp: "Dato específico destacado por el profesor. El CD34+ es el marcador clásico para identificar y aislar las escasas células troncales de la sangre." },
+            { q: "Pregunta 6: Según el profesor, dentro de los múltiples factores de diferenciación hematopoyética, si queremos estimular la producción de plaquetas (megacariocitos) utilizaremos:", a: "A) Eritropoyetina (EPO)", b: "B) Trombopoyetina (TPO)", c: "C) Factor Estimulante de Colonias de Monocitos (M-CSF)", d: "D) Interleucina-1 (IL-1)", correct: "b", exp: "La trombopoyetina induce la maduración de megacariocitos para generar plaquetas, mientras que la eritropoyetina estimula los glóbulos rojos." },
+            { q: "Pregunta 7: ¿Qué componentes del plasma son los responsables de mantener el pH fisiológico de la sangre (pregunta de Kahoot de clase)?", a: "A) Exclusivamente el agua, al actuar como solvente.", b: "B) Únicamente los gases respiratorios (O2 y CO2).", c: "C) Las proteínas (como la albúmina) y las sales (como el bicarbonato).", d: "D) Las inmunoglobulinas y el fibrinógeno.", correct: "c", exp: "Tanto las sales (sistemas tampón como el bicarbonato) como las proteínas plasmáticas (por su carácter anfótero) son fundamentales para el mantenimiento del pH. El agua es solo el solvente." },
+            { q: "Pregunta 8: Respecto a los gradientes iónicos en una célula humana en reposo, señale la afirmación FALSA:", a: "A) Hay mayor concentración de Sodio (Na+) en el exterior celular.", b: "B) El catión intracelular más abundante es el Potasio (K+).", c: "C) La bomba Na+/K+ ATPasa extrae 3 sodios y mete 2 potasios.", d: "D) En reposo, la membrana es mucho más permeable al Sodio que al Potasio.", correct: "d", exp: "Trampa clásica. En reposo, la membrana es unas 25 veces más permeable al Potasio debido a la gran cantidad de canales de fuga de K+ abiertos, acercando el potencial de reposo al equilibrio de Nernst del K+." },
+            { q: "Pregunta 9: En un potencial de acción neuronal, la fase de despolarización rápida ascendente se produce fisiológicamente por:", a: "A) Salida masiva de Potasio (K+).", b: "B) Entrada masiva de Sodio (Na+) a favor de su gradiente electroquímico.", c: "C) Entrada de Calcio (Ca2+) a través de receptores NMDA.", d: "D) Cierre de los canales de Sodio dependientes de voltaje.", correct: "b", exp: "Al alcanzar el umbral, los canales de Na+ dependientes de voltaje se abren, permitiendo una avalancha de cationes hacia el interior celular que positiviza la membrana." },
+            { q: "Pregunta 10: La Ecuación de Nernst sirve para calcular el \"potencial de equilibrio\" de un ion. Físicamente, este concepto significa que a ese voltaje:", a: "A) La membrana se despolariza al máximo.", b: "B) El flujo neto de ese ion a través de la membrana es cero.", c: "C) Los canales dependientes de ligando se cierran irreversiblemente.", d: "D) La célula entra en periodo refractario absoluto.", correct: "b", exp: "El potencial de equilibrio es el valor eléctrico exacto que compensa matemáticamente el gradiente químico del ion, deteniendo el movimiento neto." },
+            { q: "Pregunta 11: La propagación del impulso nervioso es más rápida en axones mielinizados gracias a:", a: "A) Una disminución de la resistencia de la membrana (Rm).", b: "B) La conducción continua por todo el axolema.", c: "C) Un aumento de la capacitancia.", d: "D) El aislamiento que obliga al potencial a saltar de un Nodo de Ranvier al siguiente (conducción saltatoria).", correct: "d", exp: "La vaina de mielina es un aislante lipídico que disminuye las fugas (sube la Rm) y baja la capacitancia, acelerando drásticamente la velocidad." },
+            { q: "Pregunta 12: En la fisiología de la sinapsis química, el evento molecular directamente responsable de que las vesículas se fusionen (mediante el complejo SNARE) y liberen su neurotransmisor es:", a: "A) La apertura de canales de Sodio presinápticos.", b: "B) La hiperpolarización del terminal.", c: "C) La entrada masiva de Calcio (Ca2+) en el botón presináptico.", d: "D) La activación de la bomba Na+/K+.", correct: "c", exp: "El Calcio actúa como la señal intracelular definitiva que dispara la exocitosis de las vesículas en la zona activa." },
+            { q: "Pregunta 13: Sobre los receptores de Glutamato tipo NMDA, es CIERTO que:", a: "A) Son receptores metabotrópicos acoplados a proteína G.", b: "B) Generan Potenciales Postsinápticos Inhibitorios (IPSP).", c: "C) Requieren la unión del ligando y una despolarización previa para liberar el tapón de Magnesio (Mg2+).", d: "D) Son impermeables al Calcio.", correct: "c", exp: "El receptor NMDA es ionotrópico, despolarizante (EPSP) y tiene un bloqueo voltaje-dependiente por magnesio que exige una despolarización previa celular para dejar pasar Ca2+ y Na+." },
+            { q: "Pregunta 14: ¿Cuál es el principal neurotransmisor inhibidor en el encéfalo humano y qué efecto iónico produce típicamente?", a: "A) Glutamato; entrada de Sodio.", b: "B) GABA; entrada de Cloro (Cl-) o salida de Potasio.", c: "C) Acetilcolina; entrada de Calcio.", d: "D) Glicina; cierre de canales de Cloro.", correct: "b", exp: "El GABA es el gran inhibidor del SNC. Al abrir canales de Cloro, introduce cargas negativas en la célula, provocando una hiperpolarización (IPSP)." },
+            { q: "Pregunta 15: En relación con la contracción del músculo esquelético, el ion Calcio liberado del retículo sarcoplásmico se une específicamente a:", a: "A) La cabeza de Miosina.", b: "B) La Tropomiosina.", c: "C) La Troponina C.", d: "D) La Calmodulina.", correct: "c", exp: "En el músculo estriado, el sensor de calcio es la Troponina C (a diferencia del músculo liso, que usa Calmodulina)." },
+            { q: "Pregunta 16: ¿Cuál es la función indispensable de la molécula de ATP para que ocurra la RELAJACIÓN del músculo esquelético tras un espasmo?", a: "A) Su unión es necesaria para el \"golpe de fuerza\" de la miosina.", b: "B) Es bombeada al exterior celular para bajar el voltaje.", c: "C) Es utilizada por la bomba SERCA para recaptar activamente el Calcio hacia el retículo sarcoplásmico.", d: "D) Abre los canales de rianodina (RyR).", correct: "c", exp: "Sin ATP, el calcio no puede ser barrido del citosol de vuelta al retículo (y la miosina no se puede soltar de la actina), impidiendo la relajación muscular." },
+            { q: "Pregunta 17: Biomecánicamente, si un individuo levanta una pesa estirando el músculo exteriormente pero sus fibras se tensionan internamente sin que el músculo modifique su longitud global, está realizando una contracción:", a: "A) Isotónica concéntrica", b: "B) Isométrica", c: "C) Excéntrica", d: "D) Isovolumétrica", correct: "b", exp: "Contracción isométrica (igual longitud): se genera tensión en los puentes cruzados pero el músculo no se acorta visiblemente." },
+            { q: "Pregunta 18: Al administrar una disolución endovenosa puramente de 50 mOsm (extremadamente hipotónica respecto a los ~300 mOsm de la célula), ¿qué ocurrirá con los eritrocitos del paciente?", a: "A) Sufrirán crenación celular por pérdida de agua.", b: "B) Mantendrán su volumen intacto porque la ósmosis no afecta a los hematíes.", c: "C) Experimentarán una entrada pasiva masiva de agua, hinchándose hasta la lisis (reventar).", d: "D) El agua fluirá hacia el plasma sanguíneo.", correct: "c", exp: "El agua viaja hacia el compartimento con más partículas osmóticamente activas. Al ser la célula hiperosmótica respecto al medio de 50 mOsm, el agua entrará sin control." },
+            { q: "Pregunta 19: La absorción de glucosa desde la luz intestinal hacia el interior del enterocito se realiza principalmente mediante:", a: "A) Transporte activo primario consumiendo ATP directamente.", b: "B) Difusión facilitada a través de transportadores GLUT.", c: "C) Cotransporte secundario acoplado a favor del gradiente de Sodio (SGLT).", d: "D) Endocitosis inespecífica.", correct: "c", exp: "Utiliza el sistema SGLT, que parasita la fuerza cinética del sodio entrando a la célula para arrastrar a la glucosa \"cuesta arriba\" contra su gradiente." },
+            { q: "Pregunta 20: El paso de un gas respiratorio como el CO2 a través de la membrana celular sigue una cinética de transporte pasivo mediante:", a: "A) Difusión simple.", b: "B) Uso de permeasas transportadoras.", c: "C) Canales iónicos voltaje-dependientes.", d: "D) Transcitosis.", correct: "a", exp: "El CO2 y el O2 son moléculas pequeñas y lipofílicas que cruzan la bicapa lipídica aleatoriamente a favor de gradiente por difusión simple estricta." },
+            { q: "Pregunta 21: Si dos o más potenciales postsinápticos locales excitadores (EPSP) generados en diferentes dendritas al mismo tiempo se superponen en el cono axónico para alcanzar el umbral, estamos ante un fenómeno de:", a: "A) Sumación temporal.", b: "B) Sumación espacial.", c: "C) Inhibición lateral.", d: "D) Periodo refractario relativo.", correct: "b", exp: "Espacial = convergencia de varias vías distintas simultáneamente. Temporal = descargas muy rápidas y sucesivas de un único terminal." },
+            { q: "Pregunta 22: Una célula tumoral con un fenotipo invasivo y metastásico logra soltarse de su tejido de origen principalmente debido a la pérdida o mutación de moléculas de unión por contacto celular dependientes de Calcio, conocidas como:", a: "A) Integrinas", b: "B) Conexinas", c: "C) Cadherinas (ej. E-cadherina)", d: "D) Selectinas", correct: "c", exp: "Las cadherinas median las uniones homofílicas firmes (célula a célula). Su silenciamiento permite a la célula metastásica migrar." },
+            { q: "Pregunta 23: La Ley del Corazón (Frank-Starling) dicta mecánicamente que:", a: "A) La frecuencia cardíaca disminuye con la estimulación vagal.", b: "B) A mayor volumen telediastólico (precarga), mayor estiramiento miocárdico y, por tanto, mayor fuerza de contracción y volumen sistólico.", c: "C) Un aumento abrupto de la postcarga aórtica incrementa la eyección inicial.", d: "D) El gasto cardíaco es constante.", correct: "b", exp: "El corazón exprime lo que recibe. Cuanto más retorno venoso llena los ventrículos, más se optimiza la longitud del sarcómero para generar una sístole más potente." },
+            { q: "Pregunta 24: En la curva de disociación de la Hemoglobina-Oxígeno, un desplazamiento hacia la DERECHA (menor afinidad, cediendo más O2 a los tejidos) está provocado por:", a: "A) Reducción del CO2 (hipocapnia).", b: "B) Disminución del metabolismo tisular.", c: "C) Descenso de la temperatura corporal.", d: "D) Aumento de la pCO2, caída del pH y aumento de temperatura (Efecto Bohr).", correct: "d", exp: "En los tejidos muy activos (haciendo ejercicio), hay acidez, calor y CO2. Estas condiciones alteran la hemoglobina para que suelte el oxígeno (curva a la derecha)." },
+            { q: "Pregunta 25: Un paciente acude a urgencias con necesidad imperiosa de transfusión. Su analítica revela el fenotipo AB+. Desde un punto de vista fisiológico estricto, ¿qué componentes sanguíneos NO tolerará?", a: "A) Sangre O negativa.", b: "B) Sangre B positiva.", c: "C) Sangre A negativa.", d: "D) Tolera todos los grupos (es receptor universal).", correct: "d", exp: "La sangre AB+ posee en sus eritrocitos antígenos A, antígenos B y el factor Rh (D). Al conocerlos todos, su sistema inmunitario no ha fabricado anticuerpos contra ninguno, pudiendo recibir sangre de cualquier donante humano." },
+            { q: "Pregunta 26: En la hemodinámica capilar del corpúsculo renal, si se produce una vasoconstricción EXCLUSIVA de la arteriola eferente (la salida del glomérulo):", a: "A) Disminuye drásticamente el Filtrado Glomerular (TFG).", b: "B) Aumenta la presión hidrostática intraglomerular y, por ende, sube la Tasa de Filtrado Glomerular.", c: "C) Cesa el flujo urinario por completo.", d: "D) Disminuye la presión hidrostática glomerular.", correct: "b", exp: "Si estrangulamos la \"cañería de salida\", la sangre se embalsa en el glomérulo, elevando su presión interna y forzando a que se filtre más plasma a la cápsula de Bowman." },
+            { q: "Pregunta 27: ¿Qué enzima clave activa el Diacilglicerol (DAG), segundo mensajero lipídico producido por la vía de las proteínas Gq y la Fosfolipasa C?", a: "A) Adenilato Ciclasa", b: "B) Proteína Quinasa C (PKC)", c: "C) Proteína Quinasa A (PKA)", d: "D) Guanilato Ciclasa", correct: "b", exp: "La Gq activa la Fosfolipasa C, que rompe PIP2 en IP3 (que libera calcio) y DAG, el cual queda en la membrana activando específicamente a la PKC." },
+            { q: "Pregunta 28: A nivel de placa motora, ¿cómo frena el organismo la señal excitatoria continua de la Acetilcolina (ACh) en el espacio sináptico?", a: "A) Mediante la recaptación celular por el transportador NET.", b: "B) Degradándola in situ mediante la enzima Acetilcolinesterasa (AChE).", c: "C) Por difusión pasiva hacia la sangre.", d: "D) Neutralizándola con GABA.", correct: "b", exp: "A diferencia de las aminas biógenas que son recaptadas enteras, la acetilcolina es \"rota\" rápidamente en colina y acetato por la AChE en la propia hendidura." },
+            { q: "Pregunta 29: Una patología que destruya selectivamente los oligodendrocitos del Sistema Nervioso Central provocará:", a: "A) Un aumento explosivo en la velocidad de conducción del PA.", b: "B) Pérdida de la vaina de mielina y fracaso de la conducción saltatoria (ej. Esclerosis Múltiple).", c: "C) Regeneración axonal inmediata.", d: "D) Inhibición exclusiva de neuronas motoras periféricas.", correct: "b", exp: "Los oligodendrocitos forman la mielina del SNC. Su muerte desmieliniza el axón, originando cortocircuitos y fallos neurológicos graves." },
+            { q: "Pregunta 30: Durante un infarto, la inhibición de qué receptores provocaría un aumento drástico de la frecuencia cardíaca al anular el tono del nervio Vago:", a: "A) Receptores nicotínicos musculares.", b: "B) Receptores beta-adrenérgicos.", c: "C) Receptores muscarínicos colinérgicos (ej. fármaco Atropina).", d: "D) Receptores NMDA.", correct: "c", exp: "El parasimpático frena el corazón soltando ACh sobre receptores muscarínicos. Su bloqueo (con atropina) desata taquicardia." },
+            { q: "Pregunta 31: ¿Qué familia de neurotransmisores se sintetiza a partir de la Tirosina e incluye a moléculas como la Noradrenalina y Dopamina?", a: "A) Indolaminas", b: "B) Aminoácidos inhibidores", c: "C) Catecolaminas", d: "D) Neuropéptidos", correct: "c", exp: "La Tirosina se convierte en L-DOPA, luego Dopamina y finalmente Noradrenalina/Adrenalina (las Catecolaminas). La Serotonina (indolamina) proviene del Triptófano." },
+            { q: "Pregunta 32: Las uniones en hendidura (GAP junctions), responsables de los sincitios eléctricos en el corazón o el acoplamiento directo de citoplasmas, están conformadas estructuralmente por proteínas llamadas:", a: "A) Clatrinas", b: "B) Conexinas", c: "C) Integrinas", d: "D) Selectinas", correct: "b", exp: "Seis conexinas se unen formando un conexón (hemicanal), que empalma con otro conexón vecino originando el poro eléctrico ininterrumpido." },
+            { q: "Pregunta 33: Si administramos la neurotoxina Tetrodotoxina (del pez globo) a una preparación neuronal, el registro electrofisiológico mostrará:", a: "A) Liberación masiva de neurotransmisor por entrada espontánea de Calcio.", b: "B) Bloqueo total de la generación del potencial de acción por taponamiento de los canales de Sodio (Na+) voltaje-dependientes.", c: "C) Potenciales de acción prolongados que no repolarizan.", d: "D) Hiperexcitabilidad epiléptica.", correct: "b", exp: "La TTX es el bloqueador universal clásico del poro de los canales de Sodio; sin entrada de sodio, la excitabilidad colapsa." },
+            { q: "Pregunta 34: En el proceso inflamatorio, las plaquetas de la hemostasia primaria promueven localmente:", a: "A) Una vasodilatación periférica masiva por liberación de óxido nítrico.", b: "B) Una reducción de la coagulación mediante trombomodulina.", c: "C) Vasoconstricción violenta del vaso roto mediante la secreción granular de Tromboxano A2 y Serotonina.", d: "D) La producción de anticuerpos IgE.", correct: "c", exp: "Lejos de relajar los vasos, el tapón plaquetario busca cortar la hemorragia estrangulando las fibras musculares lisas aledañas mediante vasocontrictores potentes." },
+            { q: "Pregunta 35: Las células plasmáticas que patrullan en la inmunidad humoral y que segregan masivamente anticuerpos (inmunoglobulinas) a la sangre provienen originalmente de la maduración de:", a: "A) Linfocitos T", b: "B) Neutrófilos", c: "C) Monocitos", d: "D) Linfocitos B", correct: "d", exp: "Al contactar con un antígeno, el linfocito B se hipertrofia y se convierte en una fábrica de anticuerpos llamada célula plasmática." },
+            { q: "Pregunta 36: Para identificar clínicamente a las poblaciones de monocitos in vivo o potenciar su cultivo, el tejido del estroma requiere producir una citocina o factor de crecimiento llamado (basado en pregunta de clase/Kahoot):", a: "A) M-CSF (Factor estimulante de colonias de monocitos).", b: "B) Trombopoyetina.", c: "C) G-CSF (Factor estimulante de granulocitos).", d: "D) Factor intrínseco.", correct: "a", exp: "Citocina específica para desviar la progenitora mieloide a la estirpe monocito/macrófago (señalado como evaluable por el profesor en su juego formativo)." },
+            { q: "Pregunta 37: Si a nivel del encéfalo, el neurotransmisor principal Glutamato ejerce una función excitadora excesiva en un proceso de isquemia, ¿qué catión inunda las neuronas hasta destruirlas por \"excitotoxicidad\"?", a: "A) Cloro (Cl-)", b: "B) Magnesio (Mg2+)", c: "C) Calcio (Ca2+)", d: "D) Bicarbonato (HCO3-)", correct: "c", exp: "El Calcio a nivel intracelular es un poderoso mensajero que, en altas dosis no controladas (por apertura de receptores NMDA), activa endonucleasas y proteasas lisando la propia neurona." },
+            { q: "Pregunta 38: Se define como \"Sinergia\" al fenómeno fisiológico celular por el cual:", a: "A) Dos ligandos antagonizan exactamente los efectos del otro.", b: "B) El efecto de dos citoquinas unidas es idéntico al de una sola, saturando los receptores.", c: "C) La acción combinada de dos moléculas desencadena una respuesta biológica exponencialmente mayor que la simple suma de sus efectos individuales.", d: "D) Un receptor es internalizado en una vesícula.", correct: "c", exp: "La potenciación cruzada sinérgica es fundamental en el control endocrino y hematopoyético. 1+1 no son 2, sino que pueden ser 10." },
+            { q: "Pregunta 39: El gas endógeno Óxido Nítrico (NO), actúa como un potente vasodilatador al difundir al músculo liso y activar directamente la vía intracelular del:", a: "A) AMP cíclico (AMPc).", b: "B) GMP cíclico (GMPc) activando la Guanilato Ciclasa.", c: "C) Diacilglicerol (DAG).", d: "D) Receptor colinérgico.", correct: "b", exp: "Frecuente trampa de examen; el NO NO activa la vía clásica de la adenilato ciclasa (AMPc), sino la GMPc." },
+            { q: "Pregunta 40: El principio funcional biológico detrás del reflejo de los Barorreceptores arteriales en un organismo sano es que:", a: "A) Detectan hipoxemia química periférica.", b: "B) Al aumentar bruscamente la presión arterial, sus terminales se estiran, incrementando la tasa de disparo para inducir una respuesta refleja parasimpática de frenado (bradicardia).", c: "C) Descargan exclusivamente en hipotensión extrema.", d: "D) Provocan taquicardia inmediata al subir la presión en la aorta.", correct: "b", exp: "Son mecanorreceptores tónicos. La distensión de la pared (alta presión) los activa, informando al bulbo raquídeo para que estimule el nervio vago y controle la tensión por feedback negativo." }
+        ];
+
+        let currentQuestions = [];
+        let userState = {}; // { qIndex: { answered, correct, marked, selectedKey } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz() {
+            const isRandom = document.getElementById('random').checked;
+            currentQuestions = JSON.parse(JSON.stringify(rawData));
+            if (isRandom) shuffle(currentQuestions);
+            
+            userState = {};
+            renderUI();
+        }
+
+        function renderUI() {
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('main-container').style.display = 'flex';
+            document.getElementById('finish-btn').classList.remove('hidden');
+
+            const sidebar = document.getElementById('sidebar');
+            const quizArea = document.getElementById('quiz-area');
+            sidebar.innerHTML = '';
+            quizArea.innerHTML = '';
+
+            currentQuestions.forEach((q, i) => {
+                // Crear botón en sidebar
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.id = `nav-${i}`;
+                dot.innerText = i + 1;
+                dot.onclick = () => document.getElementById(`card-${i}`).scrollIntoView();
+                sidebar.appendChild(dot);
+
+                // Crear card de pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${i}`;
+
+                // Aleatorizar opciones
+                const opts = [
+                    { key: 'a', text: q.a },
+                    { key: 'b', text: q.b },
+                    { key: 'c', text: q.c },
+                    { key: 'd', text: q.d }
+                ];
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <strong>Pregunta ${i + 1}</strong>
+                        <label class="mark-container">
+                            <input type="checkbox" onchange="toggleMark(${i}, this.checked)"> Marcar duda
+                        </label>
+                    </div>
+                    <p style="font-size: 1.1rem; font-weight: 500;">${q.q}</p>
+                    <div class="options-list">
+                        ${opts.map(o => `
+                            <div class="option" data-key="${o.key}" onclick="checkAnswer(${i}, '${o.key}', this)">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${i}">${q.exp}</div>
+                `;
+                quizArea.appendChild(card);
+            });
+        }
+
+        function checkAnswer(qIdx, selectedKey, element) {
+            if (userState[qIdx]?.answered) return;
+
+            const correctKey = currentQuestions[qIdx].correct;
+            const isCorrect = selectedKey === correctKey;
+
+            userState[qIdx] = { ...userState[qIdx], answered: true, correct: isCorrect, selectedKey };
+
+            const container = element.parentElement;
+            const options = container.querySelectorAll('.option');
+            
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.dataset.key === correctKey) opt.classList.add('correct');
+                if (opt.dataset.key === selectedKey && !isCorrect) opt.classList.add('wrong');
+            });
+
+            document.getElementById(`exp-${qIdx}`).style.display = 'block';
+            document.getElementById(`nav-${qIdx}`).classList.add('answered');
+        }
+
+        function toggleMark(qIdx, isMarked) {
+            if (!userState[qIdx]) userState[qIdx] = {};
+            userState[qIdx].marked = isMarked;
+            document.getElementById(`nav-${qIdx}`).classList.toggle('marked', isMarked);
+        }
+
+        function finishQuiz() {
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('finish-btn').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            const total = currentQuestions.length;
+            const correctOnes = Object.values(userState).filter(s => s.correct).length;
+            document.getElementById('score-text').innerText = `Has completado el test. Resultado: ${correctOnes} / ${total}`;
+        }
+
+        function retry(mode) {
+            let nextSet = [];
+
+            if (mode === 'all') {
+                nextSet = rawData;
+            } else {
+                nextSet = currentQuestions.filter((q, i) => {
+                    const state = userState[i] || {};
+                    const isFailed = state.answered && !state.correct;
+                    const isMarked = state.marked;
+
+                    if (mode === 'failed') return isFailed;
+                    if (mode === 'marked') return isMarked;
+                    if (mode === 'failed-marked') return isFailed || isMarked;
+                });
+            }
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            currentQuestions = JSON.parse(JSON.stringify(nextSet));
+            const isRandom = document.getElementById('random').checked;
+            if (isRandom) shuffle(currentQuestions);
+            
+            userState = {};
+            renderUI();
+        }
+    </script>
+</body>
+</html>

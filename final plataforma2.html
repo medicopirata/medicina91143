@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Esplacnología - Prada Final</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #27ae60;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f0f4f1;
+            --sidebar-w: 130px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral en 3 columnas */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-header {
+            color: white;
+            text-align: center;
+            padding: 10px 5px;
+            font-size: 0.75em;
+            font-weight: bold;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            padding: 10px;
+            align-content: start;
+        }
+
+        .nav-dot {
+            aspect-ratio: 1;
+            background: #34495e;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: 0.2s;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        .restart-tab {
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+        }
+
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid var(--accent);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--accent); background: #f9fffb; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95em;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-header">ESPLACNO</div>
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Esplacnología - Examen Final Completo</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados</h2>
+        <p id="score-text" style="font-size: 1.4rem;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const rawQuestions = [
+        { id: 1, q: "Sobre el páncreas relacione qué porción se relaciona ventralmente con la cara posterior del estómago", options: ["cuerpo", "proceso unciforme", "cabeza", "cola"], correct: 0, r: "El cuerpo del páncreas forma parte del lecho gástrico, separado por la bolsa omental." },
+        { id: 2, q: "En la papila duodenal menor drena", options: ["El conducto pancreatico accesorio de Santorini", "El conducto colédoco", "El conducto de Wirsung", "La ampolla hepatopancreática"], correct: 0, r: "El conducto accesorio drena habitualmente en la papila menor, situada superior a la mayor." },
+        { id: 3, q: "Señale cuál de las siguientes estructuras no se encuentra en el mediastino posterior", options: ["nervio frénico", "conducto torácico", "venas ácigos", "esófago"], correct: 0, r: "El nervio frénico transcurre por el mediastino medio." },
+        { id: 4, q: "El estrechamiento broncoaórtico del esófago se produce por", options: ["el cruce con el bronquio principal izquierdo y el arco aórtico", "el cruce con la aorta ascendente", "el cruce con el bronquio principal derecho", "el cartílago cricoides"], correct: 0, r: "Es el segundo estrechamiento fisiológico del esófago." },
+        { id: 5, q: "Qué elemento no forma parte del árbol bronquial", options: ["tráquea", "bronquiolos terminales", "bronquios segmentarios", "bronquios lobares"], correct: 0, r: "La tráquea es el conducto previo a la formación del árbol bronquial propiamente dicho." },
+        { id: 6, q: "Cuál de las siguientes afirmaciones sobre los pulmones es falsa", options: ["el pulmón izquierdo tiene tres lóbulos", "la base descansa sobre el diafragma", "el hilio se encuentra en la cara mediastínica", "el pulmón derecho tiene dos fisuras"], correct: 0, r: "El pulmón izquierdo solo tiene dos lóbulos (superior e inferior)." },
+        { id: 7, q: "El ligamento pulmonar es una dependencia de", options: ["la pleura", "el peritoneo", "el pericardio", "la fascia endotorácica"], correct: 0, r: "Es una reflexión de la pleura mediastínica en el hilio." },
+        { id: 8, q: "La cara posterior del corazón está formada principalmente por", options: ["atrio (aurícula) izquierdo", "ventrículo derecho", "atrio derecho", "ventrículo izquierdo"], correct: 0, r: "El atrio izquierdo forma la base del corazón." },
+        { id: 9, q: "La válvula tricúspide se sitúa entre", options: ["atrio derecho y ventrículo derecho", "atrio izquierdo y ventrículo izquierdo", "ventrículo izquierdo y aorta", "ventrículo derecho y pulmón"], correct: 0, r: "Comunica las cámaras derechas del corazón." },
+        { id: 10, q: "La arteria coronaria derecha suele originar la arteria", options: ["interventricular posterior", "interventricular anterior", "circunfleja", "marginal izquierda"], correct: 0, r: "En la mayoría de los casos (dominancia derecha) origina la descendente posterior." },
+        { id: 11, q: "El nodo sinoatrial (sinusal) se localiza en", options: ["la pared del atrio derecho", "el tabique interventricular", "el atrio izquierdo", "el ventrículo derecho"], correct: 0, r: "Se sitúa cerca de la desembocadura de la vena cava superior." },
+        { id: 12, q: "El conducto torácico desemboca habitualmente en", options: ["ángulo venoso yugulosubclavio izquierdo", "vena cava superior", "atrio derecho", "vena ácigos"], correct: 0, r: "Recoge la linfa de la mayor parte del cuerpo." },
+        { id: 13, q: "El tronco celíaco da origen a las arterias", options: ["gástrica izquierda, esplénica y hepática común", "mesentérica superior e inferior", "renales y gonadales", "lumbares"], correct: 0, r: "Son las tres ramas principales del tronco celíaco." },
+        { id: 14, q: "Cuál de estos órganos es retroperitoneal primario", options: ["riñón", "estómago", "bazo", "yeyuno"], correct: 0, r: "Los riñones se sitúan detrás del peritoneo durante todo el desarrollo." },
+        { id: 15, q: "El epiplón (omento) menor se extiende entre", options: ["hígado, estómago y duodeno", "estómago y colon transverso", "estómago y bazo", "hígado y diafragma"], correct: 0, r: "Contiene los ligamentos hepatogástrico y hepatoduodenal." },
+        { id: 16, q: "La tríada portal en el ligamento hepatoduodenal consta de", options: ["vena porta, arteria hepática propia y conducto colédoco", "vena cava, aorta y conducto torácico", "arteria mesentérica, vena mesentérica y nervio vago", "conducto cístico, conducto hepático y vesícula"], correct: 0, r: "Es la unidad funcional que entra al hilio hepático." },
+        { id: 17, q: "El esfínter de Oddi se localiza en", options: ["la papila duodenal mayor", "el cardias", "el píloro", "la unión ileocecal"], correct: 0, r: "Regula el paso de bilis y jugo pancreático al duodeno." },
+        { id: 18, q: "La arteria mesentérica superior irriga habitualmente hasta", options: ["los 2/3 proximales del colon transverso", "el estómago", "el recto", "el colon descendente"], correct: 0, r: "Irriga el intestino derivado del intestino medio." },
+        { id: 19, q: "Las tenias del colon son", options: ["bandas de músculo liso longitudinal", "pliegues de la mucosa", "apéndices grasos", "dilataciones de la pared"], correct: 0, r: "Su contracción forma las haustras del colon." },
+        { id: 20, q: "La vena porta se forma por la unión de", options: ["vena mesentérica superior y vena esplénica", "venas hepáticas", "venas renales", "vena cava y vena ácigos"], correct: 0, r: "Suele recibir también a la mesentérica inferior." },
+        { id: 21, q: "El lóbulo caudado del hígado se sitúa entre", options: ["la fisura del ligamento venoso y la vena cava inferior", "el lóbulo derecho y el izquierdo", "la vesícula biliar y el ligamento redondo", "el bazo y el estómago"], correct: 0, r: "Es funcionalmente independiente de los lóbulos derecho e izquierdo." },
+        { id: 22, q: "La vesícula biliar se relaciona inferiormente con", options: ["el duodeno y el colon transverso", "el estómago", "el riñón derecho", "el bazo"], correct: 0, r: "Se sitúa en la fosa de la cara visceral del hígado." },
+        { id: 23, q: "El bazo se sitúa en", options: ["hipocondrio izquierdo", "epigastrio", "hipocondrio derecho", "fosa ilíaca izquierda"], correct: 0, r: "Se relaciona con las costillas 9ª a 11ª." },
+        { id: 24, q: "La unidad funcional del riñón es", options: ["la nefrona", "el cáliz", "la pirámide", "el glomérulo únicamente"], correct: 0, r: "Compuesta por corpúsculo y sistema tubular." },
+        { id: 25, q: "El uréter cruza por delante de", options: ["los vasos ilíacos", "la arteria aorta", "la vena cava inferior", "los vasos gonadales"], correct: 0, r: "Punto de estrechamiento importante." },
+        { id: 26, q: "La glándula suprarrenal derecha tiene forma", options: ["piramidal", "semilunar", "esférica", "aplanada"], correct: 0, r: "A diferencia de la izquierda que es más semilunar." },
+        { id: 27, q: "El detrusor es el músculo de", options: ["la vejiga urinaria", "el útero", "el estómago", "el recto"], correct: 0, r: "Su contracción permite el vaciado vesical." },
+        { id: 28, q: "La uretra masculina más corta es la porción", options: ["membranosa", "prostática", "esponjosa", "preprostática"], correct: 0, r: "Atraviesa el periné profundo." },
+        { id: 29, q: "Los conductos eyaculadores desembocan en", options: ["la uretra prostática", "la vejiga", "el testículo", "el conducto deferente"], correct: 0, r: "Lo hacen a nivel del colículo seminal." },
+        { id: 30, q: "La túnica albugínea envuelve a", options: ["el testículo", "la próstata", "la vesícula seminal", "el uréter"], correct: 0, r: "Es una cápsula fibrosa densa." },
+        { id: 31, q: "El útero se sitúa normalmente en", options: ["anteversoflexión", "retroversión", "anteposición únicamente", "retroflexión"], correct: 0, r: "Inclinado hacia adelante sobre la vejiga." },
+        { id: 32, q: "Las trompas uterinas se abren a la cavidad peritoneal por", options: ["el ostium abdominal (infundíbulo)", "el istmo", "la porción intramural", "la ampolla"], correct: 0, r: "Permite la captación del ovocito." },
+        { id: 33, q: "El ligamento ancho del útero es", options: ["un pliegue de peritoneo", "un ligamento fibroso", "un músculo", "una fascia"], correct: 0, r: "Contiene a las trompas y vasos." },
+        { id: 34, q: "La arteria uterina cruza al uréter", options: ["por delante y por arriba", "por detrás", "por debajo", "medialmente sin cruzarlo"], correct: 0, r: "Relación quirúrgica crítica ('agua bajo el puente')." },
+        { id: 35, q: "El recto comienza a nivel de", options: ["S3", "L5", "S1", "Coccix"], correct: 0, r: "Continuación del colon sigmoide." },
+        { id: 36, q: "El canal anal presenta internamente", options: ["columnas anales de Morgagni", "tenias", "haustras", "villi"], correct: 0, r: "Pliegues verticales de mucosa." },
+        { id: 37, q: "Cuál de estos no es un componente del cordón espermático", options: ["nervio ilioinguinal", "conducto deferente", "arteria testicular", "plexo pampiniforme"], correct: 0, r: "El nervio ilioinguinal acompaña al cordón pero no va dentro de sus fascias." },
+        { id: 38, q: "El mediastino medio contiene", options: ["el corazón y pericardio", "el esófago", "la tráquea únicamente", "la vena ácigos"], correct: 0, r: "Es la porción central del mediastino inferior." },
+        { id: 39, q: "La pleura parietal se inerva por", options: ["nervios intercostales y frénicos", "nervio vago", "plexo pulmonar", "nervios esplácnicos"], correct: 0, r: "Es sensible al dolor a diferencia de la visceral." },
+        { id: 40, q: "El hilio pulmonar derecho tiene la arteria pulmonar", options: ["anterior al bronquio", "superior al bronquio", "posterior al bronquio", "inferior al bronquio"], correct: 0, r: "En el izquierdo es superior." },
+        { id: 41, q: "Las venas pulmonares llevan sangre", options: ["oxigenada al atrio izquierdo", "carboxigenada al pulmón", "oxigenada al ventrículo derecho", "carboxigenada al atrio derecho"], correct: 0, r: "Excepción a la regla general de venas." },
+        { id: 42, q: "La fosa oval se encuentra en", options: ["el tabique interatrial", "el ventrículo derecho", "la aorta", "el tabique interventricular"], correct: 0, r: "Remanente del foramen oval fetal." },
+        { id: 43, q: "El esófago atraviesa el diafragma a nivel de", options: ["T10", "T8", "T12", "L1"], correct: 0, r: "Junto con los nervios vagos." },
+        { id: 44, q: "El fondo del estómago se sitúa", options: ["superior al cardias", "inferior al píloro", "medial al cuerpo", "en la curvatura menor"], correct: 0, r: "Suele contener aire (burbuja gástrica)." },
+        { id: 45, q: "El conducto cístico une", options: ["vesícula biliar y conducto hepático común", "hígado y duodeno", "páncreas y vesícula", "estómago e hígado"], correct: 0, r: "Forma el conducto colédoco." },
+        { id: 46, q: "La fascia de Gerota envuelve a", options: ["el riñón", "el hígado", "el bazo", "el corazón"], correct: 0, r: "Es la fascia renal." },
+        { id: 47, q: "La arteria mesentérica inferior se origina a nivel de", options: ["L3", "L1", "T12", "L5"], correct: 0, r: "Irriga el intestino posterior." },
+        { id: 48, q: "La arteria del conducto deferente es rama de", options: ["A umbilical", "Ilíaca interna", "Iliaca externa", "obturatriz"], correct: 0, r: "Nace de la porción permeable de la umbilical." },
+        { id: 49, q: "En el bazo, una afirmación es falsa", options: ["el peritoneo no lo envuelve completamente", "En la cara visceral se imprimen el estómago y riñón izquierdo", "se sitúa bajo la cúpula diafragmática izquierda", "Recibe un único grueso tronco arterial del tronco celiaco"], correct: 0, r: "Es un órgano intraperitoneal envuelto casi totalmente." },
+        { id: 50, q: "Los ligamentos frenocólicos, señale la incorrecta", options: ["fijan desde las fascias de Toldt hasta los músculos cuadrados de los lomos", "Fijan los ángulos cólicos hasta la fascia del músculo diafragma", "Se produce por pliegues peritoneales en los ángulos cólicos", "Se encuentran en ambos hipocondrios"], correct: 0, r: "Unen los ángulos del colon al diafragma." }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [];
+
+    function preparePool(questions) {
+        return questions.map(q => {
+            const options = q.options.map((text, i) => ({ text, isCorrect: i === q.correct }));
+            return { ...q, options };
+        });
+    }
+
+    const fullPool = preparePool(rawQuestions);
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        const qData = fullPool.find(f => f.id === qId);
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${qData.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = qData.options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Has acertado <strong>${correctas}</strong> de <strong>${total}</strong> preguntas.`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...fullPool];
+        else if (mode === 'failed') next = fullPool.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = fullPool.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = fullPool.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    currentPool = [...fullPool];
+    initQuiz(currentPool);
+</script>
+</body>
+</html>

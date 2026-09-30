@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Digestión y Absorción de Glúcidos y Lípidos</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Pantalla de Inicio --- */
+        #setup-screen, #results-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .config-box {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: #64748b; }
+        .btn-marked { background-color: var(--marked); }
+
+        /* --- Layout Principal --- */
+        #quiz-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            grid-template-columns: 280px 1fr;
+        }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.25rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .index-item.answered-correct { background-color: var(--correct); color: white; }
+        .index-item.answered-incorrect { background-color: var(--incorrect); color: white; }
+        .index-item.is-marked { border: 3px solid var(--marked); }
+
+        /* --- Contenido --- */
+        #main-content {
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1.5;
+            max-width: 85%;
+        }
+
+        .mark-toggle {
+            cursor: pointer;
+            background: none;
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+        }
+
+        .mark-toggle.active {
+            background-color: var(--marked);
+            color: white;
+            border-color: var(--marked);
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .option-item {
+            margin-bottom: 0.75rem;
+        }
+
+        .option-btn {
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--bg);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn.correct { background-color: #dcfce7 !important; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2 !important; border-color: var(--incorrect); }
+
+        .explanation {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f0fdf4;
+            border-left: 4px solid var(--correct);
+            border-radius: 0.25rem;
+        }
+
+        .footer-nav {
+            margin-top: 3rem;
+            text-align: center;
+            padding-bottom: 5rem;
+        }
+
+        @media (max-width: 768px) {
+            #quiz-container { grid-template-columns: 1fr; }
+            #sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="config-box">
+            <h1>Cuestionario de Biología</h1>
+            <p>Tema 4: Lípidos y Glúcidos</p>
+            <p>Selecciona el modo de inicio:</p>
+            <button class="btn" onclick="initQuiz('original')">Orden Preestablecido</button>
+            <button class="btn" onclick="initQuiz('random')">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display:none;">
+        <div class="config-box">
+            <h2>Cuestionario Finalizado</h2>
+            <div id="stats" style="font-size: 1.2rem; margin: 1rem 0;"></div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <button class="btn" onclick="restart('all')">Repetir Todo</button>
+                <button class="btn btn-secondary" onclick="restart('failed')">Repetir Falladas</button>
+                <button class="btn btn-marked" onclick="restart('marked')">Repetir Marcadas</button>
+                <button class="btn" onclick="restart('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-container">
+        <aside id="sidebar">
+            <h3>Navegación</h3>
+            <div class="index-grid" id="index-grid"></div>
+            <button class="btn btn-secondary" onclick="showResults()" style="margin-top: auto;">Finalizar y Corregir</button>
+        </aside>
+
+        <main id="main-content">
+            <div id="questions-wrapper"></div>
+            <div class="footer-nav">
+                <button class="btn btn-secondary" onclick="showResults()">Finalizar Cuestionario</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Datos de las 60 preguntas
+        const rawData = [
+    { n: 1, q: "¿Cuáles son las dos principales familias de enzimas encargadas de degradar los hidratos de carbono en el intestino?", opts: ["Pepsina y Tripsina.", "Amilasas y Oligosacaridasas.", "Lipasa y Colipasa.", "Enteropeptidasa y Elastasa."], c: 1, e: "Las amilasas degradan los polisacáridos más grandes y las oligosacaridasas rompen los disacáridos." },
+    { n: 2, q: "¿Cuáles son las tres unidades más pequeñas (monosacáridos) en las que se deben degradar los carbohidratos para poder entrar al enterocito?", opts: ["Maltosa, sacarosa y lactosa.", "Glucosa, fructosa y galactosa.", "Almidón, glucógeno y celulosa.", "Ácido graso, glicerol y colesterol."], c: 1, e: "Son las piezas más pequeñas que los transportadores de membrana son capaces de reconocer y meter en la célula." },
+    { n: 3, q: "(¡Pista Profesora!) Para entrar desde la luz intestinal al enterocito, la glucosa y la galactosa utilizan el transportador SGLT1. ¿Qué característica clave tiene este transportador?", opts: ["Es totalmente independiente de energía y de iones.", "Es dependiente de Sodio (Na+), funcionando como un simportador.", "Es dependiente de Protones (H+).", "Transporta exclusivamente fructosa."], c: 1, e: "El SGLT1 introduce una molécula de glucosa o galactosa acoplada a la entrada de sodio a favor de su gradiente." },
+    { n: 4, q: "(¡Pista Profesora!) El transportador SGLT1 necesita una fuente de energía indirecta para funcionar. Si esta falla, NO se capta glucosa. ¿Cuál es?", opts: ["La ATPasa de protones estomacal.", "La bomba de Sodio-Potasio ATPasa (Na+/K+ ATPasa) localizada en la membrana basal.", "La lipasa pancreática.", "El gradiente de calcio."], c: 1, e: "La profesora insistió muchísimo: si no funciona la bomba sodio-ATPasa que saca el sodio de la célula para mantener el gradiente, el SGLT1 no puede meter glucosa." },
+    { n: 5, q: "¿Qué transportador permite la salida de la glucosa y galactosa desde el interior del enterocito hacia la sangre (membrana basolateral)?", opts: ["SGLT1.", "GLUT4.", "GLUT5.", "GLUT2."], c: 3, e: "Una vez dentro de la célula, la glucosa sale a la circulación sanguínea a través del GLUT2." },
+    { n: 6, q: "A diferencia de la glucosa, la FRUCTOSA entra al enterocito mediante un mecanismo distinto. ¿Qué transportador utiliza en la membrana apical?", opts: ["SGLT1.", "GLUT2.", "GLUT5.", "GLUT4."], c: 2, e: "La fructosa entra por difusión facilitada usando el GLUT5, un proceso que no necesita sodio ni la bomba ATPasa." },
+    { n: 7, q: "Si una persona tiene una deficiencia genética en la enzima lactasa, el principal síntoma clínico asociado a la mala absorción será:", opts: ["Hipoglucemia severa inmediata.", "Retención de agua en el intestino, descompensación osmótica y diarreas.", "Formación de cálculos biliares.", "Aumento de la presión arterial."], c: 1, e: "Al no degradarse, la lactosa no se absorbe y se acumula en el intestino atrayendo agua por ósmosis (diarrea osmótica)." },
+    { n: 8, q: "Los receptores GLUT varían según el órgano. ¿Qué transportador es el responsable de captar glucosa específicamente en las neuronas del cerebro?", opts: ["GLUT2.", "GLUT5.", "SGLT1.", "GLUT3."], c: 3, e: "La profesora mencionó que el cerebro tiene su propio transportador de alta afinidad, el GLUT3." },
+    { n: 9, q: "¿Qué transportador (presente en músculo y tejido adiposo) es dependiente de insulina para captar la glucosa de la sangre durante una hiperglucemia?", opts: ["GLUT1.", "GLUT2.", "GLUT4.", "GLUT5."], c: 2, e: "El GLUT4 se expone en la membrana solo cuando hay insulina para reducir los niveles de glucosa en sangre." },
+    { n: 10, q: "En condiciones de hipoglucemia, ¿qué hormona ordena que salga glucosa a la sangre para repartirse por el cuerpo?", opts: ["Insulina.", "Glucagón.", "Aldosterona.", "Colecistoquinina (CCK)."], c: 1, e: "El glucagón contrarresta a la insulina promoviendo la liberación de glucosa al torrente sanguíneo." },
+    { n: 11, q: "Aproximadamente, ¿qué porcentaje de las grasas de nuestra dieta se encuentra en forma de triglicéridos (triacilgliceroles)?", opts: ["20%.", "50%.", "80%.", "100%."], c: 2, e: "El 80% de la grasa ingerida son TAG; el resto son colesterol, fosfolípidos y ácidos grasos libres." },
+    { n: 12, q: "¿Cuál es la principal barrera o problema químico para digerir los lípidos y por qué necesitan un paso de preparación previo?", opts: ["Son moléculas demasiado grandes.", "Son fuertemente hidrofóbicos, repelen el agua y las enzimas no pueden acceder a sus enlaces sin una 'emulsificación' previa.", "Tienen carga positiva constante.", "Destruyen la lipasa al contacto."], c: 1, e: "Como el agua y el aceite no se mezclan, las grasas forman grandes gotas que las enzimas acuosas no pueden atacar." },
+    { n: 13, q: "(¡Pista Profesora!) ¿Qué moléculas secretadas al intestino son ESENCIALES para emulsionar las gotas de grasa, formando micelas o liposomas?", opts: ["Ácido clorhídrico.", "Sales biliares.", "Enteropeptidasas.", "Insulina."], c: 1, e: "Las sales biliares actúan como un detergente, rompiendo las grandes gotas en micelas diminutas." },
+    { n: 14, q: "(¡Pista Profesora!) Bioquímicamente, ¿por qué las sales biliares son capaces de emulsionar los lípidos?", opts: ["Porque son enzimas que cortan enlaces peptídicos.", "Porque tienen una superficie puramente polar.", "Porque son moléculas anfipáticas (una cara hidrofílica/polar y otra hidrofóbica/apolar).", "Porque elevan el pH a 14."], c: 2, e: "Su cara apolar interacciona con el lípido y su cara polar interactúa con el medio acuoso intestinal." },
+    { n: 15, q: "¿De qué molécula precursora derivan las sales biliares sintetizadas en el hígado?", opts: ["Glucosa.", "Colesterol.", "Aminoácidos ramificados.", "Ácido araquidónico."], c: 1, e: "El hígado utiliza el colesterol para sintetizar los ácidos biliares que formarán la bilis." },
+    { n: 16, q: "¿Qué hormona estimula la contracción de la vesícula biliar para secretar las sales biliares al duodeno?", opts: ["Colecistoquinina (CCK).", "Grelina.", "Adrenalina.", "Gastrina."], c: 0, e: "La CCK, liberada al llegar la grasa, provoca el vaciado de la vesícula biliar." },
+    { n: 17, q: "(¡Pista Profesora!) Para que la Lipasa Pancreática sea activa y pueda anclarse a la micela rodeada de sales biliares, requiere obligatoriamente la secreción de:", opts: ["Tripsina.", "Colipasa.", "Albúmina.", "Bicarbonato."], c: 1, e: "La profesora lo recalcó: la colipasa es el co-factor indispensable que activa a la lipasa pancreática." },
+    { n: 18, q: "La lipasa pancreática hidroliza los triglicéridos. ¿Cuáles son los productos principales que resultan de esta hidrólisis listos para absorberse?", opts: ["Glucosa y galactosa.", "Ácidos grasos libres y 2-monoglicéridos (2-MAG).", "Colesterol y fosfolípidos intactos.", "Quilomicrones grandes."], c: 1, e: "La enzima corta dos de las tres colas del triglicérido, dejando ácidos grasos libres y un monoglicérido." },
+    { n: 19, q: "A nivel celular, ¿mediante qué mecanismo entran los ácidos grasos y monoglicéridos desde la micela al interior del enterocito?", opts: ["Simportador de Sodio (SGLT1).", "Endocitosis mediada por clatrina.", "Difusión simple a través de la membrana plasmática.", "Bomba de protones."], c: 2, e: "Por su naturaleza hidrofóbica, atraviesan la bicapa lipídica directamente, sin necesidad de receptores transmembrana." },
+    { n: 20, q: "(¡Pista Profesora!) Una vez dentro del enterocito, ¿qué ocurre con el Glicerol libre y los ácidos grasos de CADENA CORTA (menos de 10 carbonos)?", opts: ["Se empaquetan en quilomicrones.", "Difunden libremente saliendo del enterocito hacia los capilares sanguíneos (vena porta).", "Son excretados por las heces.", "Se convierten en lactosa."], c: 1, e: "La profesora repitió varias veces que los cortos y el glicerol 'entran y salen solos sin receptor', yendo directos a la sangre." },
+    { n: 21, q: "Por el contrario, ¿qué deben hacer obligatoriamente los ácidos grasos de CADENA LARGA (>10 C) tras entrar en el enterocito?", opts: ["Salir directamente a la sangre.", "Ser activados y reutilizados para resintetizar Triglicéridos.", "Degradar la membrana celular.", "Convertirse en sales biliares."], c: 1, e: "Los ácidos largos no pueden salir solos; la célula debe volver a ensamblarlos en triglicéridos." },
+    { n: 22, q: "En la resíntesis de triglicéridos dentro del enterocito, la activación de los ácidos grasos se consigue mediante la enzima:", opts: ["Acil-CoA sintasa.", "Lipasa pancreática.", "Amilasa salival.", "Enteropeptidasa."], c: 0, e: "Para que un ácido graso pueda unirse a un glicerol, primero debe 'activarse' añadiéndole un grupo Coenzima A." },
+    { n: 23, q: "En el enterocito, para formar nuevos triglicéridos, ¿de dónde proviene el glicerol necesario?", opts: ["Del glicerol libre absorbido desde la luz intestinal.", "De los 2-MAG absorbidos o de la glucólisis (el glicerol absorbido de la luz NO se reutiliza).", "Del colesterol sanguíneo.", "De las proteínas de la dieta."], c: 1, e: "Curiosamente, el glicerol libre que se absorbió se va a la sangre, por lo que la célula debe sacar el esqueleto de glicerol de otras vías." },
+    { n: 24, q: "Una vez resintetizados los triglicéridos de cadena larga, ¿en qué estructura se empaquetan en el Retículo Endoplasmático (RER) y Golgi para poder salir de la célula?", opts: ["En micelas biliares.", "En Quilomicrones (una clase de lipoproteína).", "En glóbulos rojos.", "En vesículas de albúmina."], c: 1, e: "Al ser sumamente insolubles, la célula los envuelve en quilomicrones para poder exportarlos." },
+    { n: 25, q: "(¡Pista Profesora!) ¿Hacia dónde se secretan (por exocitosis) los Quilomicrones una vez abandonan el enterocito por la superficie basolateral?", opts: ["A los capilares sanguíneos de forma directa.", "Al estómago.", "Al vaso quilífero (canal linfático) de las vellosidades.", "Al tejido adiposo local."], c: 2, e: "Son partículas demasiado grandes para entrar en los capilares venosos, así que usan el sistema linfático como ruta principal." },
+    { n: 26, q: "Estructuralmente, un quilomicrón (o cualquier lipoproteína) presenta:", opts: ["Un núcleo de proteínas sólidas.", "Un centro hidrofóbico (TAG y Ésteres de colesterol) y una superficie polar (Fosfolípidos, colesterol libre y Apoproteínas).", "Solo triglicéridos, sin rastro de proteínas.", "Una estructura 100% idéntica a la doble hélice del ADN."], c: 1, e: "Tienen un diseño de 'bola' con lo insoluble escondido en el núcleo y lo polar expuesto al plasma." },
+    { n: 27, q: "¿Cuál es la función principal de las 'Apoproteínas' ubicadas en la superficie de los quilomicrones y lipoproteínas?", opts: ["Dar color a la vesícula.", "Son señales que determinan su destino metabólico, permitiendo la interacción con receptores celulares específicos o enzimas.", "Destruir toxinas del intestino.", "Absorber agua."], c: 1, e: "La profesora las define como 'la marquita que le dice dónde tiene que ir', como una etiqueta de envío." },
+    { n: 28, q: "¿Qué apoproteína es característica estructural específica de los Quilomicrones ensamblados en el intestino?", opts: ["Apo A.", "Apo B48.", "Apo B100.", "Apo D."], c: 1, e: "La Apo B48 es el marcador distintivo de los quilomicrones de origen intestinal." },
+    { n: 29, q: "Según el cuadro de clasificación de lipoproteínas, ¿cuál es el papel fisiológico de los Quilomicrones?", opts: ["Transporte de colesterol inverso al hígado.", "Transporte de grasa endógena.", "Transporte de grasa EXÓGENA (procedente de la dieta).", "Transporte de oxígeno tisular."], c: 2, e: "Su único propósito es repartir los triglicéridos que acabamos de comer." },
+    { n: 30, q: "¿Qué lipoproteína (sintetizada en el hígado) se encarga de transportar la grasa ENDÓGENA hacia los tejidos?", opts: ["Quilomicrón.", "HDL.", "VLDL.", "LDL."], c: 2, e: "Las VLDL transportan los lípidos fabricados por el propio cuerpo." },
+    { n: 31, q: "La principal función de las lipoproteínas de baja densidad (LDL) es:", opts: ["Transportar grasa exógena de la dieta.", "Transportar colesterol hacia los tejidos periféricos.", "Realizar el transporte inverso de colesterol (de los tejidos al hígado).", "Degradar proteínas."], c: 1, e: "Las LDL se dedican fundamentalmente a distribuir el colesterol allí donde se necesita." },
+    { n: 32, q: "El transporte de colesterol INVERSO (recoger el exceso de colesterol de los tejidos y llevarlo al hígado para su eliminación) es realizado de manera exclusiva por:", opts: ["VLDL.", "Quilomicrones.", "HDL.", "IDL."], c: 2, e: "Por esta acción limpiadora, la HDL es conocida coloquialmente como el colesterol 'bueno'." },
+    { n: 33, q: "En términos de DENSIDAD, ¿cuál es el orden correcto de las lipoproteínas (de menor a mayor densidad)?", opts: ["HDL < LDL < VLDL < Quilomicrón.", "Quilomicrón < VLDL < LDL < HDL.", "LDL < HDL < Quilomicrón < VLDL.", "VLDL < Quilomicrón < HDL < LDL."], c: 1, e: "Los quilomicrones son los menos densos porque tienen más grasa (90% TAG), y las HDL son las más densas porque tienen más proteínas (40-55%)." },
+    { n: 34, q: "Clínicamente, un ratio LDL/HDL superior a 3,5 en un análisis de sangre es un indicador claro de:", opts: ["Excelente salud cardiovascular.", "Hipercolesterolemia y alto riesgo de Aterogénesis (placas de ateroma).", "Intolerancia a la lactosa.", "Déficit de vitamina D."], c: 1, e: "Un exceso de la lipoproteína transportadora (LDL) frente a la limpiadora (HDL) favorece que el colesterol se quede en las arterias." },
+    { n: 35, q: "Según el PDF, una concentración total de colesterol y de LDL en plasma por encima de qué valor se considera MUY ELEVADA?", opts: ["50 mg/100ml.", "100 mg/100ml.", "200 mg/100ml.", "500 mg/100ml."], c: 2, e: "Cifras superiores a 200 mg/dl indican hipercolesterolemia." },
+    { n: 36, q: "La aterogénesis se define como:", opts: ["La formación de cartílago en el hígado.", "El estrechamiento u oclusión completa de la luz arterial debido a la formación de placas.", "La digestión incompleta de grasas en el estómago.", "La síntesis excesiva de sales biliares."], c: 1, e: "Es el proceso patológico de acumulación de lípidos e inflamación en la pared arterial." },
+    { n: 37, q: "Si una placa de ateroma causa la oclusión completa o bloqueo de una ARTERIA CORONARIA, la consecuencia clínica será:", opts: ["Infarto de Miocardio.", "Accidente Cerebrovascular (Ictus).", "Enfermedad de Parkinson.", "Úlcera gástrica."], c: 0, e: "Las arterias coronarias irrigan el corazón; si se tapan, el músculo cardíaco sufre un infarto." },
+    { n: 38, q: "Si el bloqueo aterosclerótico ocurre en una arteria que irriga el CEREBRO, el evento patológico se denomina:", opts: ["Infarto de miocardio.", "Accidente Cerebrovascular (Ictus).", "Neuropatía diabética.", "Meningitis."], c: 1, e: "La falta de riego sanguíneo en el tejido cerebral origina un ictus." },
+    { n: 39, q: "¿Cuáles son dos causas principales (anomalías) que originan un exceso de LDL en sangre y consecuente aterogénesis?", opts: ["Exceso de receptores de insulina y baja ingesta calórica.", "Defectos en el Receptor de LDL o excesiva ingesta de colesterol en la dieta.", "Aumento de la lipasa pancreática.", "Ausencia de vesícula biliar."], c: 1, e: "O el cuerpo recibe demasiada grasa exógena, o sus células tienen las 'puertas rotas' (receptores) y no pueden retirar el LDL de la sangre." },
+    { n: 40, q: "Al observar el esquema final resumen del Tema 4, ¿qué transportador absorbe los dipéptidos y tripéptidos?", opts: ["Transporte activo secundario con Na+.", "Transporte activo secundario dependiente de Protones (H+).", "Difusión simple.", "Endocitosis de vesículas."], c: 1, e: "A diferencia de los aminoácidos libres (que usan sodio), los péptidos cortos aprovechan un gradiente de protones." },
+    { n: 41, q: "¿Qué porcentaje aproximado de los Quilomicrones está compuesto por Proteínas (Apoproteínas)?", opts: ["1 - 2,5%.", "20 - 25%.", "40 - 55%.", "80 - 90%."], c: 0, e: "Son las partículas más grandes y con más grasa, por lo que su porcentaje relativo de proteína es mínimo (alrededor del 1-2%)." },
+    { n: 42, q: "¿Qué porcentaje aproximado de las lipoproteínas HDL está compuesto por Proteínas?", opts: ["1 - 2,5%.", "10 - 15%.", "40 - 55%.", "90 - 100%."], c: 2, e: "Al ser de alta densidad (Heavy), su contenido en proteína es casi la mitad de su masa total." },
+    { n: 43, q: "En la digestión gástrica de los lípidos, además de la lipasa gástrica, ¿qué otra lipasa participa de forma menor?", opts: ["Lipasa intestinal.", "Lipasa salival.", "Lipasa hepática.", "Lipoproteína lipasa."], c: 1, e: "Las lipasas salival y gástrica inician una escasa hidrólisis antes de llegar al intestino." },
+    { n: 44, q: "Tras la hidrólisis por la lipasa, las sales biliares, ácidos grasos libres y monoacilgliceroles forman una estructura microscópica clave para el transporte hasta la célula. ¿Cómo se llama?", opts: ["Quilomicrón.", "Micela (o Liposoma).", "Trombo.", "Ateroma."], c: 1, e: "Las micelas arrastran los lípidos insolubles hasta el 'borde en cepillo' para facilitar su absorción." },
+    { n: 45, q: "¿Qué sucede con las sales biliares una vez que los lípidos de la micela son absorbidos por el enterocito?", opts: ["Se destruyen en el estómago.", "Pasan de largo, se reabsorben en el íleon y vuelven al hígado (circulación enterohepática).", "Se absorben y forman parte de los quilomicrones.", "Se transforman en glucosa."], c: 1, e: "Las sales biliares se reciclan; hacen su trabajo, bajan por el intestino y se recuperan casi al final." },
+    { n: 46, q: "¿A partir de qué molécula el organismo obtiene la enzima COLIPASA en la luz intestinal?", opts: ["La sintetiza el propio intestino delgado.", "Se secreta desde el páncreas de manera concomitante junto a la lipasa.", "La produce la vesícula biliar.", "Proviene directamente de la dieta."], c: 1, e: "El páncreas secreta ambas moléculas para que se encuentren en el duodeno y formen el complejo activo." },
+    { n: 47, q: "Comparando con las grasas, ¿cómo difunden hacia la sangre los AMINOÁCIDOS una vez dentro del enterocito?", opts: ["Por difusión simple.", "A través de la membrana basolateral mediante difusión facilitada por transportadores.", "Hacia los vasos linfáticos junto a los quilomicrones.", "En forma de di- y tri-péptidos."], c: 1, e: "Según el esquema resumen, usan proteínas transportadoras específicas para salir a los capilares." },
+    { n: 48, q: "En las consultas médicas (como indicó la profesora), cuando se diagnostica un fallo en la absorción de HDL/LDL, ¿qué técnica actual brinda gran cantidad de pistas sobre el problema de base del paciente?", opts: ["Medición de orina simple.", "Informes genéticos o 'biopsias líquidas' (ADN, proteico o metabólico).", "Radiografía de tórax.", "Endoscopia pulmonar."], c: 1, e: "La profesora mencionó que los análisis genéticos de receptores/mutaciones se usan muchísimo hoy en día para afinar el diagnóstico lipídico." },
+    { n: 49, q: "La Acil-CoA sintasa del enterocito tiene como sustrato principal a:", opts: ["Glicerol.", "Ácidos grasos de cadena larga.", "Ácidos grasos de cadena corta.", "Glucosa."], c: 1, e: "Activa únicamente a los de cadena larga para que puedan re-esterificarse; los cortos escapan sin que la enzima los toque." },
+    { n: 50, q: "Un paciente presenta acumulación masiva de vesículas de LDL circulantes en sus vasos sanguíneos porque estas no consiguen entrar a los tejidos. El diagnóstico más probable es:", opts: ["Déficit de sales biliares.", "Intolerancia severa a la fructosa.", "Mutación o defecto en el receptor celular de LDL (Hipercolesterolemia Familiar).", "Exceso de producción de Lipasa pancreática."], c: 2, e: "Si el 'puerto de entrada' (receptor) de las células diana falla, las 'naves' (LDL) se quedan vagando y acumulándose en la sangre." },
+    { n: 51, q: "La profesora mencionó el uso de 'liposomas' en laboratorios para meter ADN en las células mediante transfección. ¿Por qué funcionan tan bien?", opts: ["Porque cortan el ADN.", "Porque, al igual que las micelas intestinales, su estructura fosfolipídica permite una fusión libre y física con la membrana plasmática celular.", "Porque actúan como virus infecciosos.", "Porque son dependientes de la bomba Na+/K+."], c: 1, e: "La interacción polar-polar y apolar-apolar permite que el liposoma se funda con la célula y vierta su contenido al interior." },
+    { n: 52, q: "Además del estómago y la saliva, ¿qué glándulas inician, aunque muy levemente, la digestión de las grasas antes de llegar al intestino?", opts: ["Glándulas suprarrenales.", "Glándulas salivales y mucosa gástrica (lipasas salival y gástrica).", "Hígado.", "Tiroides."], c: 1, e: "La digestión inicial empieza por la boca/estómago, pero es escasa comparada con la fase intestinal." },
+    { n: 53, q: "Durante la resíntesis en el retículo endoplasmático, un 2-monoacilglicerol (2-MAG) se une a ácidos grasos activados para volver a formar:", opts: ["Un fosfolípido libre.", "Un Triglicérido (Triacilglicerol).", "Una molécula de glucógeno.", "Una proteína pequeña."], c: 1, e: "Se le vuelven a 'pegar' las dos colas de ácido graso que la lipasa le había quitado previamente en la luz intestinal." },
+    { n: 54, q: "¿Qué clase de transporte celular requiere consumo DIRECTO o INDIRECTO de energía en forma de ATP?", opts: ["Difusión simple de ácidos grasos.", "Difusión facilitada de fructosa (GLUT5).", "Transporte activo secundario acoplado a Sodio (SGLT1).", "Movimiento de agua por ósmosis."], c: 2, e: "El SGLT1 es secundario porque usa el gradiente del sodio, pero ese gradiente se crea gastando ATP en la bomba Na+/K+." },
+    { n: 55, q: "Según las apoproteínas principales, la Apo B100 está fuertemente asociada a:", opts: ["Quilomicrones.", "VLDL, IDL y LDL (lipoproteínas de origen hepático/metabolismo endógeno).", "HDL.", "Micelas biliares."], c: 1, e: "En el cuadro resumen, VLDL, IDL y LDL comparten la Apo B100 como componente estructural/marcador principal." },
+    { n: 56, q: "La principal diferencia entre un Quilomicrón y una HDL, en cuanto a su composición, es que:", opts: ["La HDL tiene un 80% de triglicéridos y el quilomicrón un 40% de proteínas.", "El Quilomicrón no tiene colesterol y la HDL sí.", "El Quilomicrón está compuesto en su mayoría por triglicéridos (80-90%) y pobre en proteínas (1%), mientras la HDL es rica en proteínas (40-55%) y pobre en triglicéridos (3-4%).", "Son idénticos en composición, solo cambia el tamaño."], c: 2, e: "Es la relación inversa que justifica su diferencia brutal de densidad y función fisiológica." },
+    { n: 57, q: "El hígado segrega VLDL hacia el torrente sanguíneo. A medida que las VLDL entregan sus triglicéridos a los tejidos, se van encogiendo y transformando gradualmente en:", opts: ["Quilomicrones.", "IDL y finalmente LDL.", "HDL naciente.", "Sales biliares."], c: 1, e: "A medida que pierden grasa en los tejidos, su densidad aumenta, pasando de Very Low (VLDL) a Intermediate (IDL) y finalmente Low (LDL)." },
+    { n: 58, q: "Si la bomba de Sodio/Potasio (Na+/K+ ATPasa) de la membrana basolateral del enterocito es envenenada y deja de funcionar, el resultado más inminente será:", opts: ["Un exceso de absorción de glucosa.", "La destrucción de los quilomicrones.", "El cese de la captación de glucosa/galactosa desde la luz intestinal, debido a la pérdida del gradiente de Sodio.", "La fructosa dejará de ser absorbida."], c: 2, e: "El transportador SGLT1 se bloquearía al igualarse las concentraciones de sodio a ambos lados de la membrana celular." },
+    { n: 59, q: "En el contexto del metabolismo patológico, la intolerancia a los carbohidratos (como la lactosa) causa síntomas primariamente en qué órgano:", opts: ["Corazón (infarto).", "Hígado (cirrosis).", "Tracto gastrointestinal (colon/intestino), manifestándose con hinchazón, gases y diarrea.", "Cerebro (cefalea tensional)."], c: 2, e: "El problema es puramente lumínico y osmótico dentro del tubo digestivo." },
+    { n: 60, q: "Como resumen final general: ¿Qué dos nutrientes o monómeros abandonan el enterocito cruzando la membrana basolateral para entrar DIRECTAMENTE a la red capilar venosa (rumbo a la vena porta)?", opts: ["Monosacáridos y Quilomicrones.", "Monosacáridos (Glucosa, galactosa, fructosa) y Aminoácidos/Ácidos grasos cortos.", "Únicamente los Quilomicrones.", "Proteínas completas y almidón."], c: 1, e: "Todos los nutrientes hidrosolubles (y los lípidos de cadena corta) toman la vía capilar-porta hacia el hígado, mientras que los lípidos complejos toman la vía linfática." }
+];
+
+        let quizQuestions = [];
+        let markedQuestions = new Set();
+        let userAnswers = {}; // { index: { selected: int, correct: bool } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initQuiz(mode) {
+            const dataCopy = JSON.parse(JSON.stringify(rawData));
+            if (mode === 'random') {
+                quizQuestions = shuffle(dataCopy);
+            } else {
+                quizQuestions = dataCopy;
+            }
+
+            // Mezclar opciones para cada pregunta
+            quizQuestions.forEach(q => {
+                const originalCorrectText = q.opts[q.c];
+                shuffle(q.opts);
+                q.c = q.opts.indexOf(originalCorrectText);
+            });
+
+            renderQuiz();
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'grid';
+        }
+
+        function renderQuiz() {
+            const wrapper = document.getElementById('questions-wrapper');
+            const grid = document.getElementById('index-grid');
+            wrapper.innerHTML = '';
+            grid.innerHTML = '';
+
+            quizQuestions.forEach((q, i) => {
+                // Crear Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-card-${i}`;
+                
+                const isMarked = markedQuestions.has(q.n);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <div class="question-text">${i + 1}. ${q.q}</div>
+                        <button class="mark-toggle ${isMarked ? 'active' : ''}" onclick="toggleMark(${i}, ${q.n})">
+                            ${isMarked ? 'Marcada' : 'Marcar'}
+                        </button>
+                    </div>
+                    <ul class="options-list" id="opts-${i}">
+                        ${q.opts.map((opt, optIdx) => `
+                            <li class="option-item">
+                                <button class="option-btn" onclick="checkAnswer(${i}, ${optIdx})">${opt}</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <div class="explanation" id="exp-${i}">
+                        <strong>Respuesta correcta: ${String.fromCharCode(65 + q.c)}</strong><br>
+                        ${q.e}
+                    </div>
+                `;
+                wrapper.appendChild(card);
+
+                // Crear Item de navegación
+                const indexItem = document.createElement('a');
+                indexItem.href = `#q-card-${i}`;
+                indexItem.className = 'index-item';
+                indexItem.id = `nav-${i}`;
+                indexItem.innerText = i + 1;
+                if (isMarked) indexItem.classList.add('is-marked');
+                grid.appendChild(indexItem);
+            });
+        }
+
+        function checkAnswer(qIdx, optIdx) {
+            if (userAnswers[qIdx]) return; // Evitar re-responder
+
+            const q = quizQuestions[qIdx];
+            const isCorrect = optIdx === q.c;
+            userAnswers[qIdx] = { selected: optIdx, correct: isCorrect };
+
+            // UI
+            const buttons = document.querySelectorAll(`#opts-${qIdx} .option-btn`);
+            buttons.forEach((btn, idx) => {
+                btn.disabled = true;
+                if (idx === q.c) btn.classList.add('correct');
+                if (idx === optIdx && !isCorrect) btn.classList.add('incorrect');
+            });
+
+            document.getElementById(`exp-${qIdx}`).style.display = 'block';
+            
+            // Sidebar
+            const navItem = document.getElementById(`nav-${qIdx}`);
+            navItem.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+        }
+
+        function toggleMark(qIdx, qID) {
+            const btn = document.querySelector(`#q-card-${qIdx} .mark-toggle`);
+            const navItem = document.getElementById(`nav-${qIdx}`);
+            
+            if (markedQuestions.has(qID)) {
+                markedQuestions.delete(qID);
+                btn.classList.remove('active');
+                btn.innerText = 'Marcar';
+                navItem.classList.remove('is-marked');
+            } else {
+                markedQuestions.add(qID);
+                btn.classList.add('active');
+                btn.innerText = 'Marcada';
+                navItem.classList.add('is-marked');
+            }
+        }
+
+        function showResults() {
+            const total = quizQuestions.length;
+            let correctas = 0;
+            let respondidas = Object.keys(userAnswers).length;
+
+            Object.values(userAnswers).forEach(a => {
+                if (a.correct) correctas++;
+            });
+
+            document.getElementById('stats').innerHTML = `
+                Respondidas: ${respondidas} de ${total}<br>
+                Correctas: ${correctas}<br>
+                Incorrectas: ${respondidas - correctas}
+            `;
+            document.getElementById('results-screen').style.display = 'flex';
+        }
+
+        function restart(filter) {
+            let nextQuestions = [];
+            
+            if (filter === 'all') {
+                nextQuestions = rawData;
+            } else if (filter === 'failed') {
+                const failedIDs = quizQuestions
+                    .filter((q, i) => userAnswers[i] && !userAnswers[i].correct)
+                    .map(q => q.n);
+                nextQuestions = rawData.filter(q => failedIDs.includes(q.n));
+            } else if (filter === 'marked') {
+                nextQuestions = rawData.filter(q => markedQuestions.has(q.n));
+            } else if (filter === 'failed_marked') {
+                const failedIDs = quizQuestions
+                    .filter((q, i) => userAnswers[i] && !userAnswers[i].correct)
+                    .map(q => q.n);
+                nextQuestions = rawData.filter(q => failedIDs.includes(q.n) || markedQuestions.has(q.n));
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            // Resetear estado
+            userAnswers = {};
+            quizQuestions = JSON.parse(JSON.stringify(nextQuestions));
+            
+            // Preguntar orden otra vez
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>

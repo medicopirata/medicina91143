@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Histología: Tejido Conjuntivo y Epitelio Glandular</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #9b59b6;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f5f7fa;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 85px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            overflow-y: auto;
+            border-right: 2px solid #1a252f;
+        }
+
+        .index-item {
+            width: 45px;
+            height: 45px;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: var(--secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.active { border-color: white; background: var(--accent); }
+        .index-item.correct { background: var(--success); }
+        .index-item.incorrect { background: var(--error); }
+        .index-item.marked { position: relative; border-left: 4px solid #f1c40f; }
+
+        /* Contenedor principal */
+        #main-content {
+            flex: 1;
+            padding: 40px 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+        }
+
+        h1 { color: var(--primary); text-align: center; margin-bottom: 25px; }
+        
+        /* Pantalla de Inicio */
+        #setup-screen { text-align: center; padding: 40px 0; }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.05em;
+            margin: 10px;
+            transition: 0.3s;
+            font-weight: 600;
+        }
+        .btn:hover { background: var(--accent); transform: translateY(-2px); }
+        .btn-finish { background: #7f8c8d; margin-top: 40px; }
+
+        /* Preguntas */
+        .question-block { display: none; animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .question-block.active { display: block; }
+        
+        .options { margin: 25px 0; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border: 2px solid #eef2f5;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1em;
+            color: var(--text);
+            line-height: 1.4;
+        }
+        .option-btn:hover:not(:disabled) { background: #f8f0fc; border-color: var(--accent); }
+        .option-btn.correct { background: #e8f8f5 !important; border-color: var(--success) !important; color: #1e8449; font-weight: 600; }
+        .option-btn.incorrect { background: #fdedec !important; border-color: var(--error) !important; color: #c0392b; }
+
+        .explanation {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f4ecf7;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .marking-zone {
+            background: #f8f9fa;
+            padding: 12px 18px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            margin-top: 15px;
+            border: 1px solid #e9ecef;
+            font-weight: 500;
+        }
+
+        /* Navegación inferior */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #f1f3f5;
+        }
+
+        /* Pantalla Final */
+        #result-screen { display: none; text-align: center; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        .stat-card {
+            padding: 25px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-bottom: 5px solid #bdc3c7;
+        }
+        .stat-card h2 { margin: 0; font-size: 2.5em; }
+        .stat-card p { margin: 10px 0 0 0; color: #7f8c8d; font-weight: 600; text-transform: uppercase; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar"></div>
+
+    <div id="main-content">
+        <div class="container">
+            <div id="setup-screen">
+                <h1>🔬 Histología: Conjuntivo y Glandular</h1>
+                <p style="font-size: 1.1em; color: #7f8c8d;">Bloques 1 al 8. Consta de 80 preguntas literales.</p>
+                <div style="margin-top: 35px;">
+                    <p style="font-weight: 600; margin-bottom: 20px;">Selecciona el modo de realización:</p>
+                    <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+                    <button class="btn" onclick="startQuiz(true)">Mezclar Preguntas</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" style="display: none;">
+                <div id="question-container"></div>
+                <div class="nav-buttons">
+                    <button class="btn btn-finish" onclick="confirmFinish()">Finalizar Test</button>
+                    <div>
+                        <button class="btn" id="prevBtn" onclick="changeQuestion(-1)">Anterior</button>
+                        <button class="btn" id="nextBtn" onclick="changeQuestion(1)">Siguiente</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="result-screen">
+                <h1>Resultados de la Sesión</h1>
+                <div class="stats-grid">
+                    <div class="stat-card"><h2 id="res-total">0</h2><p>Respondidas</p></div>
+                    <div class="stat-card" style="border-color: var(--success); color: var(--success)"><h2 id="res-correct">0</h2><p>Correctas</p></div>
+                    <div class="stat-card" style="border-color: var(--error); color: var(--error)"><h2 id="res-fail">0</h2><p>Falladas</p></div>
+                </div>
+                <h3 style="margin-bottom: 20px; color: var(--primary);">Opciones de Repetición:</h3>
+                <div id="repeat-options">
+                    <button class="btn" onclick="repeatMode('all')">Repetir Test Completo</button>
+                    <button class="btn" onclick="repeatMode('failed')">Repetir Solo Falladas</button>
+                    <button class="btn" onclick="repeatMode('marked')">Repetir Solo Marcadas 🚩</button>
+                    <button class="btn" onclick="repeatMode('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const rawData = [
+    { n: 1, q: "A diferencia de los tejidos epiteliales, ¿cuál es la característica morfológica principal del tejido conjuntivo?", a: "c", ex: "La profesora recalca que, a diferencia del epitelio, aquí predominan las grandes cantidades de sustancia intercelular y fibras que separan a las células.", opts: ["Células muy unidas sin apenas espacio.", "Ausencia total de vasos sanguíneos.", "Las células están muy separadas por una abundante matriz o sustancia intercelular.", "Siempre forma conductos excretores."] },
+    { n: 2, q: "¿De qué célula originaria derivan todas las células propias del tejido conjuntivo?", a: "b", ex: "Todas las células del tejido conjuntivo (fibroblastos, adipocitos, osteoblastos) derivan de células mesenquimales estelares de origen mesodérmico.", opts: ["De la célula epitelial basal.", "De la célula madre pluripotente mesenquimal (del mesodermo).", "Del monocito.", "Del ectodermo."] },
+    { n: 3, q: "A nivel clínico, si se desarrolla un tumor maligno cuyo origen está en las células del tejido conjuntivo (mesenquimales), este se denominará:", a: "b", ex: "La profesora explica que los tumores de origen epitelial son carcinomas, mientras que los de origen conjuntivo (hueso, cartílago, etc.) son sarcomas.", opts: ["Carcinoma.", "Sarcoma.", "Adenoma.", "Papiloma."] },
+    { n: 4, q: "¿Qué función vital desempeña el tejido conjuntivo en relación con el tejido epitelial que tiene por encima?", a: "b", ex: "El epitelio es avascular, por lo que el conjuntivo subyacente es fundamental para su soporte arquitectural y nutrición a través de sus vasos.", opts: ["Lo queratiniza.", "Le proporciona sostén y una función trófica, ya que el conjuntivo está vascularizado y aporta nutrientes.", "Le transmite el impulso nervioso exclusivo.", "Lo aísla del sistema inmunológico."] },
+    { n: 5, q: "En el tejido conjuntivo diferenciamos dos grandes grupos de células: las residentes y las emigrantes. ¿De dónde proceden habitualmente las emigrantes?", a: "c", ex: "Las emigrantes nacen en órganos hemopoyéticos (médula ósea) y migran por la sangre para intervenir en la respuesta inflamatoria en el conjuntivo.", opts: ["Del ectodermo superficial.", "De la división celular de los fibroblastos locales.", "De la médula ósea, viajando a través de la sangre.", "De los ganglios nerviosos."] },
+    { n: 6, q: "¿Cuál es la célula fundamental, residente y más abundante del tejido conjuntivo?", a: "c", ex: "Es la célula encargada de sintetizar todos los demás elementos de la matriz, tanto fibras como sustancia fundamental.", opts: ["El macrófago.", "El mastocito.", "El fibroblasto.", "El pericito."] },
+    { n: 7, q: "Morfológicamente, ¿cómo se identifica a un fibroblasto maduro y activo al microscopio?", a: "b", ex: "Su alta función de síntesis hace que tenga el RER y el aparato de Golgi muy desarrollados.", opts: ["Es redondo con un núcleo poli-lobulado.", "Es una célula alargada/fusiforme con prolongaciones, núcleo ovalado y abundante retículo endoplásmico rugoso para síntesis de proteínas.", "Es gigante y multinucleado.", "Está completamente vacío ópticamente."] },
+    { n: 8, q: "¿Cómo se denomina al fibroblasto que está en estado de reposo o inactivo (término clásico)?", a: "c", ex: "Aunque se usa menos hoy en día, el fibrocito es el estado inactivo, más pequeño y con menos prolongaciones, que puede revertir a fibroblasto si hay una herida.", opts: ["Plasmocito.", "Miofibroblasto.", "Fibrocito.", "Macrófago."] },
+    { n: 9, q: "¿Qué células residentes se asocian estrechamente a los vasos sanguíneos, enrollándose a su alrededor y almacenando glucógeno?", a: "b", ex: "Hacen de \"junta\" alrededor de los vasos, son contráctiles y su característica típica es el almacenamiento de glucógeno para nutrirse.", opts: ["Los mastocitos.", "Los pericitos.", "Las células plasmáticas.", "Los condroblastos."] },
+    { n: 10, q: "Ante una herida (solución de continuidad), se activan unas células que actúan como \"puntos de sutura\" biológicos intentando aproximar los bordes gracias a sus filamentos contráctiles. ¿Cuáles son?", a: "c", ex: "Tienen características de fibroblasto pero contienen miofilamentos contráctiles (alfa-actina) para la contracción de la herida.", opts: ["Células cebadas.", "Pericitos.", "Miofibroblastos.", "Células caliciformes."] },
+    { n: 11, q: "El macrófago, la célula encargada de fagocitar (\"célula basurera\"), no nace siendo macrófago. ¿Cuál es su célula precursora en la sangre?", a: "c", ex: "El monocito se genera en la médula ósea, viaja por la sangre y al salir al tejido conjuntivo se diferencia en macrófago.", opts: ["El linfocito B.", "El mastocito.", "El monocito.", "El neutrófilo."] },
+    { n: 12, q: "¿Qué pista visual infalible da la profesora para reconocer un monocito en un frotis sanguíneo?", a: "b", ex: "La indentación típica en forma de habichuela es la clave diagnóstica del monocito en histología.", opts: ["Núcleo en rueda de carro.", "Núcleo en forma de habichuela o riñón (con una indentación).", "Citoplasma lleno de gránulos naranjas.", "Ausencia de núcleo."] },
+    { n: 13, q: "Si un patógeno es muy grande y un solo macrófago no puede fagocitarlo, ¿qué hace según la metáfora de la profesora?", a: "b", ex: "La profesora bromea diciendo que \"llama a otros elefantes\" para fusionarse y formar células gigantes, típicas alrededor de suturas o astillas.", opts: ["Se suicida por apoptosis.", "Llama a otros macrófagos y se fusionan formando una \"Célula gigante de cuerpo extraño\" o células epitelioides.", "Se convierte en hueso.", "Lo ignora y vuelve a la sangre."] },
+    { n: 14, q: "Además de fagocitar, el macrófago tiene la vital función de \"Presentación de antígenos\". ¿A quién le presenta el antígeno de la bacteria destruida?", a: "c", ex: "Actúa como célula presentadora de antígenos (CPA) para que el linfocito T ponga en marcha la defensa celular específica.", opts: ["Al fibroblasto.", "Al eritrocito.", "Al linfocito T.", "Al mastocito."] },
+    { n: 15, q: "Las Células Plasmáticas son las fábricas de anticuerpos (inmunoglobulinas) del cuerpo. ¿De qué célula derivan?", a: "b", ex: "El linfocito B, encargado de la inmunidad humoral, se transforma en célula plasmática.", opts: ["Del Linfocito T.", "Del Linfocito B.", "Del Monocito.", "Del Pericito."] },
+    { n: 16, q: "Pista microscópica clave: ¿Cómo es el núcleo característico de una célula plasmática?", a: "c", ex: "Es la forma más típica de identificarla, junto con su halo perinuclear claro que corresponde al aparato de Golgi.", opts: ["Polilobulado.", "En forma de herradura.", "Excéntrico, con la cromatina en parches formando una \"rueda de carro\" o \"tablero de ajedrez\".", "Completamente transparente."] },
+    { n: 17, q: "En una alergia (como la congestión nasal), las células responsables de liberar grandes cantidades de histamina son:", a: "c", ex: "Están repletos de gránulos con mediadores vasoactivos como la histamina, que provocan vasodilatación y edema en las alergias.", opts: ["Los fibroblastos.", "Los macrófagos.", "Los mastocitos (células cebadas).", "Los eritrocitos."] },
+    { n: 18, q: "La profesora describe a los mastocitos al microscopio con una metáfora visual muy gráfica:", a: "b", ex: "Son células tan cargadas de gránulos (\"células cebadas/gordas\") que el punteado oculta el núcleo subyacente.", opts: ["Parecen un huevo frito.", "Parece que les han echado \"un puñadito de sal\" por encima, ya que los gránulos tapan el núcleo como un paño sutil.", "Parecen una estrella de mar.", "Parecen una rueda de carro."] },
+    { n: 19, q: "¿Qué inmunoglobulina (anticuerpo) se fija a la pared del mastocito dando la orden de que libere sus gránulos ante un alérgeno?", a: "c", ex: "La IgE producida por las células plasmáticas actúa en colaboración con los receptores del mastocito para disparar la alergia.", opts: ["IgA.", "IgG.", "IgE.", "IgM."] },
+    { n: 20, q: "El marcador específico por excelencia de los mastocitos, que se almacena en sus gránulos junto a la histamina, es la:", a: "b", ex: "Es una enzima exclusiva y marcador específico de los mastocitos (no está en basófilos).", opts: ["Serotonina.", "Triptasa.", "Actina.", "Colagenasa."] },
+    { n: 21, q: "Los leucocitos polimorfonucleares (cuyo núcleo parece una salchicha de varios lóbulos) que acuden rápidamente a las infecciones bacterianas se llaman:", a: "b", ex: "Su citoplasma no se tiñe ni con ácido ni base (neutro) y son la primera línea contra bacterias.", opts: ["Eosinófilos.", "Neutrófilos.", "Basófilos.", "Monocitos."] },
+    { n: 22, q: "Si en un análisis histológico observamos células emigrantes con el citoplasma lleno de gránulos teñidos intensamente de rosa/naranja brillante, estaremos ante:", a: "a", ex: "Sus gránulos captan la eosina (colorante ácido) volviéndose rosas/naranjas.", opts: ["Eosinófilos, asociados a alergias y parásitos.", "Macrófagos.", "Linfocitos T.", "Neutrófilos."] },
+    { n: 23, q: "¿Cuál es la proteína fibrilar más abundante del organismo, que aporta gran resistencia mecánica al estiramiento?", a: "c", ex: "Es la fibra por excelencia del tejido conjuntivo denso y laxo.", opts: ["La elastina.", "La queratina.", "El colágeno.", "La fibrilina."] },
+    { n: 24, q: "La síntesis del colágeno requiere hidroxilación de la prolina y lisina en el RER. Para este paso es fundamental la presencia de:", a: "b", ex: "Sin Vitamina C (ácido ascórbico), la hélice no se forma correctamente, originando patologías como el escorbuto.", opts: ["Vitamina D.", "Vitamina C.", "Vitamina A.", "Calcio."] },
+    { n: 25, q: "El precursor soluble que expulsa el fibroblasto y que, una vez fuera de la célula, pierde sus extremos no helicoidales para polimerizar en fibrillas se llama:", a: "b", ex: "La enzima procolágeno peptidasa lo escinde extracelularmente para que pueda polimerizar en fibrillas insolubles.", opts: ["Proelastina.", "Procolágeno (que pasa a tropocolágeno extracelular).", "Fibrilina.", "Hialuronano."] },
+    { n: 26, q: "¿Qué tipo de colágeno es el que resiste la tensión y forma el 90% del colágeno corporal (huesos, tendones, piel)?", a: "a", ex: "Es el colágeno estructural principal en tendones y dermis.", opts: ["Tipo I.", "Tipo II.", "Tipo III.", "Tipo IV."] },
+    { n: 27, q: "¿Qué tipo de colágeno forma redes en la lámina basal (epitelios)?", a: "c", ex: "Especializado en mallas de soporte subepitelial.", opts: ["Tipo I.", "Tipo II.", "Tipo IV.", "Tipo III."] },
+    { n: 28, q: "Las fibras reticulares, que forman redes de sostén en ganglios linfáticos, hígado y glándulas, están compuestas por:", a: "b", ex: "El colágeno III forma estas finas redes (reticulina).", opts: ["Colágeno Tipo II.", "Colágeno Tipo III.", "Elastina.", "Fibronectina."] },
+    { n: 29, q: "Para teñir y visualizar las fibras de reticulina al microscopio, debemos emplear:", a: "c", ex: "Las fibras reticulares son argirófilas, por lo que captan la plata y se ven negras.", opts: ["Hematoxilina.", "Ácido peryódico de Schiff (PAS).", "Técnicas de sales de plata (argénticas).", "Orceína."] },
+    { n: 30, q: "Las fibras elásticas, capaces de distenderse y volver a su forma, tienen un núcleo amorfo central rodeado de una red de microfibrillas. Sus componentes son:", a: "b", ex: "La elastina da la capacidad de estirarse y la fibrilina limita y organiza la fibra.", opts: ["Colágeno y ácido hialurónico.", "Centro de elastina y red de fibrilina.", "Proteoglicanos y laminina.", "Queratina y miosina."] },
+    { n: 31, q: "Si se produce un defecto genético en las fibras elásticas, los pacientes pueden desarrollar órganos anormalmente frágiles (ej. rotura aórtica). Esto se conoce como Síndrome de:", a: "c", ex: "El síndrome de Marfan afecta a las fibras elásticas.", opts: ["Escorbuto.", "Osteogénesis imperfecta.", "Marfan.", "Queloides."] },
+    { n: 32, q: "Al microscopio óptico, ¿qué tinción específica resalta las fibras elásticas de color pardo/oscuro?", a: "c", ex: "La Orceína (o Verhoeff) es selectiva para la elastina.", opts: ["H-E.", "Tricrómico de Masson.", "Orceína.", "Azul Alcián."] },
+    { n: 33, q: "La sustancia fundamental es el medio acuoso donde nadan las células y fibras. ¿Cuál es la gigantesca molécula no sulfatada que forma su eje principal reteniendo enormes cantidades de agua?", a: "a", ex: "Atrapa agua creando un gel viscoso que resiste la compresión.", opts: ["El ácido hialurónico (hialuronano).", "El colágeno I.", "La fibronectina.", "La laminina."] },
+    { n: 34, q: "Las bacterias patógenas agresivas pueden invadir fácilmente el tejido conjuntivo rompiendo este gel de sustancia fundamental si poseen la enzima:", a: "c", ex: "Degradan el ácido hialurónico, licuando la matriz para expandir la infección.", opts: ["Triptasa.", "Colagenasa.", "Hialuronidasa.", "Peroxidasa."] },
+    { n: 35, q: "¿Cómo se denomina al tejido conjuntivo más común, situado justo debajo de los epitelios, que contiene células, fibras y matriz en proporción \"equilibrada\"?", a: "b", ex: "Sirve de relleno y soporte básico, con vasos sanguíneos y abundantes células inmunes.", opts: ["Tejido conjuntivo mucoso.", "Tejido conjuntivo laxo.", "Tejido conjuntivo denso regular.", "Tejido elástico."] },
+    { n: 36, q: "Si en un tejido predominan absolutamente los gruesos haces de fibras de colágeno entrelazados en múltiples direcciones y hay muy pocas células, se trata de:", a: "c", ex: "Su matriz densa irregular otorga resistencia a la tracción en múltiples ejes (como la piel).", opts: ["Tejido conjuntivo mucoso.", "Tejido adiposo.", "Tejido conjuntivo denso no orientado / irregular (ej. dermis profunda).", "Tejido conjuntivo laxo."] },
+    { n: 37, q: "Los tendones y ligamentos deben soportar enorme tensión en un solo eje. Por ello están formados por:", a: "a", ex: "Sus gruesas fibras de colágeno están perfectamente paralelas y ordenadas en la dirección de la fuerza.", opts: ["Tejido conjuntivo denso orientado o regular.", "Tejido adiposo blanco.", "Tejido reticular.", "Epitelio estratificado."] },
+    { n: 38, q: "El tejido conjuntivo mucoso se caracteriza por un dominio abrumador de sustancia fundamental amorfa y grandes fibroblastos estrellados. En un adulto no se encuentra apenas, pero en el feto es el componente principal de:", a: "c", ex: "La gelatina de Wharton es el tejido mucoso por excelencia.", opts: ["La pleura.", "El hígado.", "El cordón umbilical (Gelatina de Wharton).", "El tendón de Aquiles."] },
+    { n: 39, q: "La profesora menciona que, aunque los libros digan que en el adulto no hay tejido mucoso, existe una excepción donde persiste tejido mesenquimal/mucoso. ¿Dónde?", a: "a", ex: "Es un resquicio anatómico de tejido tipo mucoso en la vida adulta.", opts: ["En la pulpa de los dientes.", "En las válvulas cardíacas.", "En la córnea.", "En la uña."] },
+    { n: 40, q: "El tejido adiposo blanco (unilocular) se diferencia del pardo (multilocular) en que sus células:", a: "b", ex: "\"Unilocular\" significa un solo compartimento gigante para la grasa.", opts: ["Tienen múltiples gotitas de grasa y núcleo central.", "Tienen una única y enorme gota de lípido que desplaza el núcleo a la periferia.", "Son macrófagos modificados.", "Solo tienen glucógeno."] },
+    { n: 41, q: "Durante la embriogénesis, ¿qué evento clave marca la diferencia entre una glándula exocrina y una endocrina?", a: "c", ex: "El cordón epitelial inicial degenera en las endocrinas, aislando la porción secretora, que vierte sus hormonas a los capilares neoformados.", opts: ["Las endocrinas derivan del mesodermo, las exocrinas del ectodermo.", "Las exocrinas pierden el conducto.", "Las endocrinas pierden su conducto de conexión con el epitelio superficial y quedan rodeadas de vasos sanguíneos.", "Las exocrinas se llenan de colágeno."] },
+    { n: 42, q: "Las glándulas exocrinas constan siempre de dos partes funcionales anatómicas:", a: "b", ex: "Estructura básica que la define; produce la sustancia en un lado y la guía al exterior por el otro.", opts: ["Cápsula y trabéculas.", "Porción secretora (donde se fabrica la sustancia) y conducto excretor.", "Islotes y folículos.", "Estroma y glía."] },
+    { n: 43, q: "¿Cómo se clasifica a una glándula cuyo conducto excretor NO se ramifica en ningún punto?", a: "c", ex: "El término \"simple\" se refiere exclusivamente a que el conducto excretor es único.", opts: ["Glándula mucosa.", "Glándula acinar.", "Glándula simple.", "Glándula compuesta."] },
+    { n: 44, q: "¿Cómo se clasifica a una glándula cuyo conducto excretor se ramifica varias veces antes de salir, como si fueran los pasillos de un edificio (ej. glándula salival)?", a: "c", ex: "La ramificación del conducto excretor define la complejidad anatómica \"compuesta\".", opts: ["Tubular.", "Apocrina.", "Glándula compuesta.", "Unicelular."] },
+    { n: 45, q: "Una \"célula caliciforme\" del intestino o del aparato respiratorio es en realidad:", a: "b", ex: "Es la forma más básica de secreción: no tiene conducto, la propia célula es la glándula y vierte directamente su mucina.", opts: ["Un macrófago residente.", "Una glándula unicelular exocrina que produce moco.", "Una glándula endocrina folicular.", "Un fibroblasto atrofiado."] },
+    { n: 46, q: "En la mucosa del estómago, TODAS las células de revestimiento producen moco y lo vierten al exterior de forma coordinada. Esto es un ejemplo de:", a: "a", ex: "Cuando no hay glándulas aisladas sino que toda la sábana celular secreta, hablamos de \"epitelio secretor\".", opts: ["Epitelio secretor.", "Glándula alveolar.", "Glándula unicelular.", "Tejido adiposo."] },
+    { n: 47, q: "Si la porción secretora de una glándula tiene forma de tubo recto o ramificado, se la denomina tubular. Si tiene forma esférica u ovalada (como una pelota), puede ser:", a: "b", ex: "Las acinares y alveolares son macroscópicamente esféricas, difiriendo solo en el grosor de su pared.", opts: ["Escamosa o plana.", "Acinar o alveolar.", "Estratificada.", "Merocrina."] },
+    { n: 48, q: "Pista de clase (la metáfora de la sandía/mandarina vs el globo): ¿Cuál es la diferencia histológica entre una porción secretora ACINAR y una ALVEOLAR?", a: "a", ex: "Una de las metáforas visuales más insistentes de la profesora para distinguir cortes microscópicos.", opts: ["La acinar (mandarina) tiene pared gruesa de células y luz muy pequeña; la alveolar (globo) tiene pared fina y una luz enorme.", "La acinar es un tubo y la alveolar es plana.", "La alveolar produce hormonas y la acinar moco.", "La alveolar está en la sangre."] },
+    { n: 49, q: "Una glándula exocrina que produce secreciones de naturaleza puramente proteica (enzimas), mostrando un citoplasma intensamente teñido (basófilo/morado en H-E), se clasifica como:", a: "c", ex: "La afinidad por la hematoxilina se debe al abundante RER para la alta síntesis proteica.", opts: ["Mucosa.", "Sebácea.", "Serosa.", "Endocrina."] },
+    { n: 50, q: "Las glándulas MUCOSAS, a diferencia de las serosas, se ven al microscopio con H-E como:", a: "c", ex: "Se ven \"ópticamente vacías\" o pálidas en H-E.", opts: ["Manchas rojas muy densas.", "Totalmente negras por reticulina.", "Células muy claritas o \"blancas\", ya que el moco (glucoproteína) se disuelve en los lavados con alcohol.", "Túbulos sin núcleos."] },
+    { n: 51, q: "Para demostrar positivamente la presencia de moco (glucosaminoglicanos) en una glándula caliciforme y teñirlo de color magenta brillante, se usa la técnica histológica de:", a: "c", ex: "El PAS es la tinción específica para carbohidratos complejos y moco.", opts: ["Orceína.", "Sales de plata.", "PAS (Ácido peryódico de Schiff).", "Eosina."] },
+    { n: 52, q: "Las glándulas salivales submaxilares (que producen saliva) tienen porciones que tiñen oscuro (serosas) y porciones que tiñen pálido (mucosas) juntas (a menudo formando \"semilunas\"). Se denominan:", a: "a", ex: "Al tener ambos tipos de acinos productores, son mixtas.", opts: ["Mixtas o seromucosas.", "Anfícrinas.", "Apocrinas.", "Holocrinas."] },
+    { n: 53, q: "Según el mecanismo en el que la célula vierta su secreción, si lo hace limpiamente mediante vesículas por exocitosis sin perder parte de su citoplasma (ej. el sudor o saliva), hablamos de glándula:", a: "b", ex: "Es el mecanismo más frecuente y no destruye la célula.", opts: ["Holocrina.", "Merocrina.", "Endocrina.", "Apocrina."] },
+    { n: 54, q: "En la glándula mamaria activa, parte de los lípidos se expulsan desprendiendo todo el ápice de la célula (polo apical) junto con el producto. Este mecanismo de secreción se llama:", a: "a", ex: "Apo = ápice. La célula pierde un trozo de sí misma que luego regenera.", opts: ["Apocrino.", "Merocrino.", "Holocrino.", "Osmótico."] },
+    { n: 55, q: "La glándula sebácea (junto al pelo) acumula tanto lípido en sus células que, para secretarlo, la célula entera muere, se desprende y forma parte de la secreción. Este mecanismo es:", a: "b", ex: "Holo = todo. La célula \"suicida\" entera es el producto.", opts: ["Apocrino.", "Holocrino.", "Merocrino.", "Paracrino."] },
+    { n: 56, q: "En una sección histológica de glándula ramificada (ej. glándula salival), ¿qué truco usa la profesora para diferenciar los \"conductos excretores\" de los \"acinos secretores\"?", a: "c", ex: "Muestra cómo el conducto se ve como un tubo recubierto típicamente de epitelio biestratificado oscuro, diferenciándose de la pared amórfica del acino.", opts: ["El conducto no tiene células.", "Los acinos son siempre azules.", "El conducto excretor está delimitado por un epitelio bien definido (normalmente cúbico o prismático simple/estratificado) y su luz es más regular.", "Los acinos tienen músculo liso estriado."] },
+    { n: 57, q: "Pregunta trampa surgida en clase: Si veo un hueco muy grande y blanco (vacío de lípidos) con el núcleo pegado al borde, ¿por qué NO es un \"alveolo\" mucoso/glandular?", a: "b", ex: "Un estudiante se confundió al ver la enorme célula de grasa y ella le remarcó que la glándula (acino/alveolo) es pluricelular.", opts: ["Porque es un vaso sanguíneo.", "Porque eso es un \"Adipocito\", es decir, una SOLA célula gigante. Un alveolo o acino glandular tiene múltiples células formando su pared en torno a la luz.", "Porque los alveolos solo existen en el cerebro.", "Porque los lípidos se tiñen de PAS intenso."] },
+    { n: 58, q: "Las glándulas exocrinas pueden tener porciones secretoras enrolladas sobre sí mismas (ej. glándulas sudoríparas). Al corte microscópico, este túbulo enrollado se ve como:", a: "b", ex: "La forma espiral hace que el microtomo corte \"anillos\" adyacentes del mismo tubo.", opts: ["Una línea recta perfecta.", "Múltiples secciones circulares y ovaladas juntas, algunas con luz y otras no, como si cortaras un muelle a rodajas.", "Una estrella de 5 puntas.", "Una lámina plana continua."] },
+    { n: 59, q: "Las glándulas endocrinas NO tienen conducto excretor. ¿A dónde vierten sus secreciones, llamadas hormonas?", a: "c", ex: "Al perder su conducto, se rodean de una rica red capilar (angiogénesis) a la cual vierten la hormona para que viaje a distancia.", opts: ["Al interior de las cavidades serosas.", "Al tejido adiposo subcutáneo.", "Directamente a los vasos sanguíneos capilares que las rodean.", "A la médula espinal."] },
+    { n: 60, q: "La hormona producida por una glándula endocrina viajará por toda la sangre, pero SOLO actuará en:", a: "b", ex: "Aunque bañe todo el cuerpo, el efecto es exclusivo donde existan receptores.", opts: ["Las arterias gruesas.", "Las \"células diana\", que poseen receptores específicos (\"lladura y cerradura\") para esa hormona.", "En el mismo tejido conjuntivo adyacente únicamente.", "Los macrófagos."] },
+    { n: 61, q: "Si al microscopio ves una estructura epitelial sin ningún tipo de conducto excretor pero rodeada de una inmensa cantidad de vasos sanguíneos pequeños (capilares), se trata sin duda de:", a: "c", ex: "La regla básica de la profesora: Sin conducto + muchos vasos = Endocrina.", opts: ["Una glándula holocrina.", "Una glándula salival menor.", "Una glándula endocrina.", "Un cartílago hialino."] },
+    { n: 62, q: "Una glándula que posea a la vez acinos pancreáticos (exocrinos, secretan jugo al conducto) e Islotes de Langerhans (endocrinos, secretan insulina a la sangre) se clasifica como:", a: "b", ex: "Amfícrina significa que la glándula entera tiene doble vertiente (endocrina y exocrina).", opts: ["Glándula holocrina pura.", "Glándula amfícrina o mixta (ej. Páncreas).", "Paraganglio.", "Célula de Hofbauer."] },
+    { n: 63, q: "La disposición estructural microscópica más típica de las glándulas endocrinas, donde las células se disponen en \"cuerdas\" serpenteantes entre capilares (ej. hipófisis o suprarrenales) se denomina:", a: "b", ex: "Es el patrón celular más habitual que favorece el máximo contacto con los vasos sanguíneos.", opts: ["Arquitectura alveolar.", "Arquitectura Trabecular o en cordones.", "Células caliciformes agrupadas.", "Sincitio denso."] },
+    { n: 64, q: "A diferencia del resto, la glándula Tiroides se organiza almacenando temporalmente su producto (coloide) en el interior de esferas cerradas formadas por epitelio simple (sin conducto exterior). Esta disposición se llama:", a: "c", ex: "El tiroides forma \"folículos\" redondos que no vacían a un tubo, sino que reabsorben la hormona para pasarla a la sangre.", opts: ["Arquitectura trabecular.", "Glándula tubuloalveolar.", "Glándula endocrina vesicular o folicular.", "Glándula sebácea gigante."] },
+    { n: 65, q: "La profesora explica que, a nivel clínico, existen células que son a la vez verdaderas neuronas y verdaderas células glandulares epiteliales (vierten hormonas a la sangre). Este sistema especial se llama:", a: "b", ex: "Combina el estímulo nervioso con la liberación hormonal vascular.", opts: ["Células de sostén gliales.", "Sistema neuroendocrino (señalización neuroendocrina).", "Sistema purkinje.", "Glándulas sebáceas neurales."] },
+    { n: 66, q: "La enzima \"colagenasa\", como indica el chiste visual del PDF (\"¡Esto no es agua, es colagenasa!\"), se encarga de:", a: "b", ex: "Las metaloproteinasas (MMP) y colagenasas degradan el colágeno para renovar el tejido (o en patología).", opts: ["Formar cicatrices queloides.", "Destruir o degradar enzimáticamente la matriz de colágeno extracelular, \"derritiendo\" o ablandando el tejido.", "Hidroxilar la prolina.", "Transformar el macrófago."] },
+    { n: 67, q: "Si a una paciente le falta vitamina C severamente, se altera la formación de triple hélice del colágeno. ¿Qué problema clínico de los vasos sanguíneos y encías (dientes que se caen) ocurriría?", a: "b", ex: "El escorbuto es el déficit adquirido (nutricional) en la síntesis de colágeno.", opts: ["Alergia anafiláctica por mastocitos.", "Escorbuto.", "Queloides gigantes.", "Osteogénesis imperfecta genética."] },
+    { n: 68, q: "Si observamos un tejido bajo M.E.T. y vemos la fibrilla colágena transversalmente rayada repitiéndose periódicamente, el espaciado de esas bandas es típicamente:", a: "b", ex: "El desfase en el ensamblaje de moléculas (cabeza-cola) genera las estrías a 68 nm.", opts: ["2 nanómetros.", "68 nanómetros (debido al escalonamiento del tropocolágeno).", "1 micra exacta.", "5 milímetros."] },
+    { n: 69, q: "Un queloide es una cicatriz gruesa y abultada patológica. ¿Qué célula ha trabajado en exceso y descontroladamente para provocarlo?", a: "c", ex: "Los problemas de reparación excesiva (queloides) se deben a la sobreactividad fibrogénica.", opts: ["El adipocito.", "El mastocito.", "El fibroblasto (produciendo demasiado colágeno y matriz).", "La célula plasmática."] },
+    { n: 70, q: "Volviendo a la glándula sebácea: La profesora dice que es holocrina. Esto quiere decir que su mecanismo implica que:", a: "b", ex: "Es la definición técnica de secreción holocrina (muerte celular programada como secreción).", opts: ["Solo secreta lípidos de noche.", "La célula acumula grasa, entra en apoptosis/se desintegra entera y sus restos forman el \"sebo\" vertido al folículo piloso.", "Exocita gotitas manteniendo su núcleo sano para seguir trabajando años.", "No pertenece al tejido epitelial."] },
+    { n: 71, q: "La lámina basal subepitelial tiene dos \"capas\": lúcida y densa. ¿Qué glicoproteína principal se encuentra en la lúcida para unir las integrinas de la célula epitelial a la lámina densa?", a: "c", ex: "La laminina, fibronectina y perlecano son proteínas adhesivas clave en la basal.", opts: ["Triptasa.", "Colágeno I.", "Laminina.", "Histamina."] },
+    { n: 72, q: "Cuando el mastocito libera sus gránulos preformados, el primer pico de respuesta (minutos) está mediado por histamina, pero si se prolonga, el mastocito sintetiza \"de novo\" mediadores lipídicos. ¿Cuáles son?", a: "b", ex: "Son la segunda ola de respuesta inflamatoria tras la explosión inicial del gránulo.", opts: ["Proteoglicanos y Triptasa.", "Leucotrienos y prostaglandinas (derivados del ácido araquidónico).", "Insulina y glucagón.", "IgE."] },
+    { n: 73, q: "El tejido conjuntivo elástico se tiñe de negro/pardo con orceína/Verhoeff. A nivel corporal, este tejido denso forma estructuras que soportan presiones pulsátiles fuertes, tales como:", a: "c", ex: "Absorben la fuerza sistólica del corazón y regresan pasivamente a su tamaño.", opts: ["Los pulmones enteros.", "La córnea del ojo.", "Las paredes de las arterias grandes como la aorta (arterias elásticas) y ligamentos amarillos.", "El hígado."] },
+    { n: 74, q: "Si hablamos de \"Macrófagos, células de Kupffer, osteoclastos y microglía\", todos pertenecen a un mismo linaje. ¿Cuál?", a: "b", ex: "Son los nombres específicos que recibe el macrófago según el tejido donde asiente.", opts: ["Sistema linfático B.", "Sistema Mononuclear Fagocítico (derivan todos del monocito en médula ósea).", "Sistema mastocitario de mucosas.", "Estirpe neuroendocrina."] },
+    { n: 75, q: "En un corte de glándula mamaria activa (lactancia), vemos células secretando caseína (proteína) y otras zonas secretando lípidos. ¿Qué es lo fascinante de la secreción en esta glándula según la profesora?", a: "c", ex: "Es un claro ejemplo biológico de doble mecanismo de excreción simultáneo.", opts: ["Que no es una glándula, es un riñón modificado.", "Que segrega solo agua.", "Que las mismas células pueden usar mecanismos merocrinos (para proteínas) y apocrinos (para lípidos) a la vez.", "Que las células mueren totalmente (holocrinas)."] },
+    { n: 76, q: "Identificación de imágenes de prácticas: ¿Qué técnica usaría para ver claramente los límites y el mucinógeno de las células de un acino mucoso?", a: "c", ex: "Es la técnica estándar repetida para epitelios glandulares que segregan hidratos de carbono (moco).", opts: ["Nitrato de plata.", "Azul de toluidina.", "PAS (Ácido Peryódico de Schiff).", "Tinta china."] },
+    { n: 77, q: "De las fibras conjuntivas, ¿cuál de ellas NO forma gruesos haces paralelos blanquecinos sino que crea una delgadísima red ramificada tridimensional similar a una malla (estroma) para órganos como el bazo o ganglios linfáticos?", a: "c", ex: "Es el \"esqueleto\" blando y filtrante de los órganos hematopoyéticos.", opts: ["Fibra muscular esquelética.", "Fibra de colágeno Tipo I.", "Fibras reticulares (colágeno III).", "Fibra elástica pura."] },
+    { n: 78, q: "Los mastocitos abundan estratégicamente en qué zonas del cuerpo para detectar rápidamente alérgenos o parásitos:", a: "c", ex: "Se apostan en la \"puerta de entrada\" (mucosas/piel) rodeando los vasos como centinelas de primera línea.", opts: ["En la matriz ósea dura.", "En el cerebro profundo.", "En el tejido conectivo laxo subepitelial de mucosas (vías respiratorias, intestino) y piel, cerca de capilares.", "En el interior del conducto colédoco puro."] },
+    { n: 79, q: "En la cascada clásica de una reacción alérgica extrema (como la alergia al polen u hojas), el mastocito libera factores como citocinas y quimiotácticos para llamar a qué otras células de la sangre especializadas en este tipo de parásitos/alergias:", a: "a", ex: "Los eosinófilos se activan en la etapa tardía respondiendo al llamado de la histamina/factores mastocitarios.", opts: ["Eosinófilos.", "Eritrocitos.", "Osteoblastos.", "Pericitos."] },
+    { n: 80, q: "Pregunta de razonamiento transversal para el examen: ¿Es correcto afirmar que una glándula endocrina folicular (Tiroides) produce sustancias a través de conductos que llegan a la piel o la boca?", a: "c", ex: "Endocrina = sin conducto, producto vertido a sangre para células diana lejanas.", opts: ["Sí, el tiroides produce saliva por un tubo grueso.", "Sí, todas las glándulas necesitan conductos.", "No, las glándulas foliculares son endocrinas, vierten hormonas a la extensa red de capilares que las abraza.", "No, vierten su contenido al cartílago de la tráquea por ósmosis."] }
+];
+
+let questions = [];
+let currentIndex = 0;
+let userAnswers = {}; 
+
+function startQuiz(isRandom) {
+    questions = [...rawData].map(q => {
+        const correctText = q.opts[q.a.charCodeAt(0) - 97];
+        const shuffledOpts = [...q.opts].sort(() => Math.random() - 0.5);
+        const newCorrectLetter = String.fromCharCode(97 + shuffledOpts.indexOf(correctText));
+        return { ...q, opts: shuffledOpts, a: newCorrectLetter };
+    });
+
+    if (isRandom) questions.sort(() => Math.random() - 0.5);
+
+    renderQuiz();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    showQuestion(0);
+}
+
+function renderQuiz() {
+    const container = document.getElementById('question-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+
+    questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = `question-block qb-${i}`;
+        div.innerHTML = `
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Pregunta ${i + 1}</h2>
+            <p style="font-size: 1.15em; font-weight: 500; margin-bottom: 20px;">${q.q}</p>
+            <div class="options">
+                ${q.opts.map((opt, idx) => `
+                    <button class="option-btn" onclick="checkAnswer(${i}, '${String.fromCharCode(97 + idx)}', this)">
+                        <strong style="margin-right: 10px; color: var(--primary);">${String.fromCharCode(97 + idx)})</strong> ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="explanation" id="ex-${i}"><strong>Explicación de la profesora:</strong><br>${q.ex}</div>
+            <div class="marking-zone" onclick="toggleMarkTrigger(${i})">
+                <input type="checkbox" id="mark-${i}" onclick="event.stopPropagation()">
+                <label>Marcar pregunta para revisar después 🚩</label>
+            </div>
+        `;
+        container.appendChild(div);
+
+        const item = document.createElement('div');
+        item.className = `index-item ii-${i}`;
+        item.innerText = i + 1;
+        item.onclick = () => showQuestion(i);
+        sidebar.appendChild(item);
+    });
+}
+
+function showQuestion(index) {
+    document.querySelectorAll('.question-block').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.index-item').forEach(i => i.classList.remove('active'));
+    
+    document.querySelector(`.qb-${index}`).classList.add('active');
+    document.querySelector(`.ii-${index}`).classList.add('active');
+    
+    currentIndex = index;
+    updateNav();
+}
+
+function checkAnswer(qIdx, letter, btn) {
+    if (userAnswers[qIdx]) return; 
+
+    const isCorrect = letter === questions[qIdx].a;
+    userAnswers[qIdx] = { selected: letter, correct: isCorrect };
+
+    const buttons = document.querySelectorAll(`.qb-${qIdx} .option-btn`);
+    buttons.forEach(b => {
+        b.disabled = true;
+        const bLetter = b.querySelector('strong').innerText.replace(')', '').toLowerCase();
+        if (bLetter === questions[qIdx].a) b.classList.add('correct');
+        else if (bLetter === letter) b.classList.add('incorrect');
+    });
+
+    const sideItem = document.querySelector(`.ii-${qIdx}`);
+    sideItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+    document.getElementById(`ex-${qIdx}`).style.display = 'block';
+}
+
+function toggleMarkTrigger(index) {
+    const cb = document.getElementById(`mark-${index}`);
+    cb.checked = !cb.checked;
+    const sideItem = document.querySelector(`.ii-${index}`);
+    if (cb.checked) sideItem.classList.add('marked');
+    else sideItem.classList.remove('marked');
+}
+
+function changeQuestion(dir) {
+    const newIdx = currentIndex + dir;
+    if (newIdx >= 0 && newIdx < questions.length) showQuestion(newIdx);
+}
+
+function updateNav() {
+    document.getElementById('prevBtn').disabled = currentIndex === 0;
+    document.getElementById('nextBtn').disabled = currentIndex === questions.length - 1;
+}
+
+function confirmFinish() {
+    if (confirm("¿Estás seguro de que quieres finalizar y ver tus estadísticas?")) showResults();
+}
+
+function showResults() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'none';
+
+    let correct = 0, failed = 0;
+    Object.values(userAnswers).forEach(v => {
+        if (v.correct) correct++;
+        else failed++;
+    });
+
+    document.getElementById('res-total').innerText = Object.keys(userAnswers).length;
+    document.getElementById('res-correct').innerText = correct;
+    document.getElementById('res-fail').innerText = failed;
+}
+
+function repeatMode(mode) {
+    let subSet = [];
+    if (mode === 'all') subSet = [...rawData];
+    else if (mode === 'failed') subSet = questions.filter((_, i) => userAnswers[i] && !userAnswers[i].correct);
+    else if (mode === 'marked') subSet = questions.filter((_, i) => document.getElementById(`mark-${i}`).checked);
+    else if (mode === 'mixed') subSet = questions.filter((_, i) => (userAnswers[i] && !userAnswers[i].correct) || document.getElementById(`mark-${i}`).checked);
+
+    if (subSet.length === 0) {
+        alert("No hay preguntas en esta categoría para repetir.");
+        return;
+    }
+
+    userAnswers = {};
+    questions = subSet;
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('quiz-screen').style.display = 'block';
+    renderQuiz();
+    showQuestion(0);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Histología & Embriología Final</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #e67e22; /* Naranja para diferenciar esta versión */
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --bg: #fdfefe;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: #333;
+            background-color: var(--bg);
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 320px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a252f;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+            overflow-y: auto;
+            padding-right: 5px;
+            flex-grow: 1;
+            align-content: start;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 5px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #bdc3c7;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary); color: white; transform: scale(1.15); z-index: 2; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .nav-btn.active { background-color: var(--secondary); color: white; border: 1px solid white; transform: scale(1.1); }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--danger); color: white; }
+        .nav-btn.marked { border: 2px solid var(--warning); box-sizing: border-box; }
+
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+        /* Main Content */
+        #main {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .screen { display: none; max-width: 850px; margin: 0 auto; animation: fadeUp 0.4s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            text-align: center;
+            border: 1px solid #f0f0f0;
+        }
+
+        /* Buttons */
+        .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
+        .battery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+
+        .btn {
+            padding: 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 700;
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 7px 14px rgba(0,0,0,0.1); }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-blue { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+        .btn-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; }
+        .btn-dark { background: linear-gradient(135deg, #34495e, #2c3e50); color: white; }
+        .btn-red { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+        .btn-green { background: linear-gradient(135deg, #27ae60, #219150); color: white; }
+        .btn-yellow { background: linear-gradient(135deg, #f1c40f, #f39c12); color: #2c3e50; }
+        .btn-outline { background: white; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        .btn small { display: block; font-size: 0.7em; margin-top: 5px; opacity: 0.8; font-weight: 400; text-transform: none; }
+
+        /* Questions */
+        .question-container {
+            background: white;
+            padding: 35px;
+            margin-bottom: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+            border: 1px solid #f0f0f0;
+            text-align: left;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f9f9f9;
+        }
+        .question-text { font-size: 1.3em; font-weight: 600; color: #2c3e50; line-height: 1.5; }
+        
+        .mark-check {
+            cursor: pointer;
+            color: #ecf0f1;
+            font-size: 30px;
+            transition: all 0.2s;
+            user-select: none;
+            margin-left: 20px;
+            -webkit-text-stroke: 1px #bdc3c7;
+        }
+        .mark-check.marked { color: #f1c40f; -webkit-text-stroke: 0; text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+        
+        .options-grid { display: grid; gap: 12px; }
+        .option {
+            padding: 18px 22px;
+            background-color: #ffffff;
+            border: 2px solid #eef2f3;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+            color: #555;
+            position: relative;
+        }
+        .option:hover:not(.disabled) { background-color: #f8fbff; border-color: var(--secondary); color: var(--secondary); }
+        
+        .option.correct { background-color: #eafaf1; border-color: var(--success); color: #155724; font-weight: 600; }
+        .option.correct::after { content: '✓'; position: absolute; right: 20px; font-weight: 900; }
+        
+        .option.incorrect { background-color: #fdedec; border-color: var(--danger); color: #721c24; opacity: 0.8; }
+        .option.incorrect::after { content: '✕'; position: absolute; right: 20px; font-weight: 900; }
+        
+        .option.disabled { cursor: default; pointer-events: none; }
+
+        .feedback {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #eafaf1;
+            border-radius: 10px;
+            display: none;
+            border-left: 5px solid var(--success);
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .feedback.error { background-color: #fdedec; border-color: var(--danger); }
+
+        #controls { position: fixed; bottom: 40px; right: 50px; z-index: 100; }
+        
+        .badge {
+            background: #95a5a6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.6em;
+            vertical-align: middle;
+            margin-left: 10px;
+            display: inline-block;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        /* Results */
+        .score-display { font-size: 4em; font-weight: 800; color: var(--secondary); margin: 20px 0; }
+        .stats-display { font-size: 1.4em; color: #7f8c8d; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3 id="sidebar-title">Índice</h3>
+        <div id="nav-grid"></div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--success)"></div> Bien</span>
+            <span><div class="dot" style="background:var(--danger)"></div> Mal</span>
+            <span><div class="dot" style="background:var(--warning)"></div> Ojo</span>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="start-screen" class="screen active">
+            <div class="card">
+                <h1 style="color:var(--primary); margin-bottom: 10px; font-size: 2.5em;">Histología & Embriología</h1>
+                <p style="color:#7f8c8d; margin-top:0; font-size: 1.2em;">Base de Datos Actualizada: 215 Preguntas</p>
+                
+                <hr style="margin: 40px 0; opacity: 0.1; border: 0; border-top: 1px solid #000;">
+                
+                <h3 style="margin-bottom: 20px; color: var(--dark);">BLOQUES TEMÁTICOS:</h3>
+                <div class="battery-grid">
+                    <button class="btn btn-blue" onclick="selectBattery('b1')">Bat 1: Embrio <br><small>General (43)</small></button>
+                    <button class="btn btn-blue" onclick="selectBattery('b2')">Bat 2: Epitelio <br><small>Histología (58)</small></button>
+                    <button class="btn btn-blue" onclick="selectBattery('b3')">Bat 3: Tejidos <br><small>Conj/Musc/Nerv (54)</small></button>
+                </div>
+                <div class="mode-grid">
+                    <button class="btn btn-purple" onclick="selectBattery('b4')">Bat 4: Examen '23 <br><small>Junio (25)</small></button>
+                    <button class="btn btn-purple" onclick="selectBattery('b5')">Bat 5: Conceptos <br><small>Extra (35)</small></button>
+                </div>
+
+                <h3 style="margin-bottom: 20px; margin-top: 30px; color: var(--dark);">MODOS GLOBALES:</h3>
+                <div class="mode-grid">
+                    <button class="btn btn-dark" onclick="selectBattery('all')">REVISIÓN COMPLETA <br><small>215 Preguntas</small></button>
+                    <button class="btn btn-red" onclick="selectBattery('exam')">SIMULACRO EXAMEN <br><small>50 Aleatorias</small></button>
+                </div>
+
+                <div id="order-options" style="display:none; margin-top:30px; background:#fff; padding:25px; border-radius:15px; border: 2px dashed #e0e0e0;">
+                    <h3 style="margin-top:0; color: var(--secondary);">Configurar Orden:</h3>
+                    <div class="mode-grid" style="max-width: 500px; margin: 0 auto; gap: 15px; margin-bottom: 0;">
+                        <button class="btn btn-outline" onclick="startQuiz('ordered')">Orden Numérico</button>
+                        <button class="btn btn-outline" onclick="startQuiz('random')">Orden Aleatorio</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="questions-list"></div>
+            <div id="controls">
+                <button class="btn btn-red" style="box-shadow: 0 10px 20px rgba(192, 57, 43, 0.3); padding: 15px 40px; border-radius: 50px;" onclick="finishQuiz()">Finalizar</button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <div class="card">
+                <h2 style="color:var(--primary); text-transform: uppercase; letter-spacing: 2px;">Resultados</h2>
+                
+                <div class="score-display" id="score-display">0.0</div>
+                <div class="stats-display" id="stats-display"></div>
+                
+                <hr style="margin: 40px 0; opacity: 0.1; border: 0; border-top: 1px solid #000;">
+                
+                <h3 style="margin-bottom: 25px;">¿Cómo quieres continuar?</h3>
+                <div class="mode-grid" style="grid-template-columns: repeat(3, 1fr); gap:15px;">
+                    <button class="btn btn-red" onclick="resetQuiz('failed')">Repetir Fallos</button>
+                    <button class="btn btn-yellow" onclick="resetQuiz('marked')">Repetir Ojo</button>
+                    <button class="btn btn-dark" onclick="resetQuiz('failed_marked')">Fallos + Ojo</button>
+                </div>
+                <div style="margin-top: 25px;">
+                    <button class="btn btn-green" onclick="resetQuiz('all')">Reintentar Todo</button>
+                    <br><br>
+                    <button class="btn btn-outline" style="max-width: 250px; margin: 0 auto; border:none; color: #95a5a6;" onclick="location.reload()">⟵ Volver al Inicio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // BASE DE DATOS DE PREGUNTAS (215 Total)
+    // ==========================================
+
+    // BATERÍA 1: EMBRIOLOGÍA GENERAL (43 Preguntas)
+    const battery1 = [
+        { id: 'b1_1', text: "De las afirmaciones del concepto de determinación ¿cuál es cierta?", options: ["Podemos decir que determinación es el momento en el que el material embrionario decide tomar el camino que lo llevará a su destino.", "Existen huevos con determinación precoz, tanto que su blastómera derecha dará lugar al hemiembrión derecho y la izquierda al izquierdo.", "Podríamos decir cuando la regulación no es posible es que la determinación es estable.", "Todas las respuestas podrían ser ciertas."], correct: 3 },
+        { id: 'b1_2', text: "De los autores que a continuación se citan, ¿cual no realizó estudios sobre estructuras ováricas?", options: ["R. De Graaf.", "A. Van Leeuwenhoek.", "Von Baer.", "W. Harvey."], correct: 1 },
+        { id: 'b1_3', text: "La embriología que se encarga de observar las manifestaciones que se producen en la génesis del ser tras la manipulación del mismo para comprender el determinismo del desarrollo, se denomina:", options: ["Embriología descriptiva.", "Embriología experimental.", "Embriología comparada.", "Embriología patológica."], correct: 1 },
+        { id: 'b1_4', text: "Una de las afirmaciones sobre los estudios realizados por CHARBY no es cierto:", options: ["Sus experimentos participaron en el establecimiento de una nueva teoría neopreformista.", "Al destruir uno de los blastómeros se forma un embrión completo.", "Sus estudios contribuyeron al concepto huevos en mosaico.", "Sus conclusiones fueron que existen porciones del huevo con potencialidades propias."], correct: 1 },
+        { id: 'b1_5', text: "El final del periodo de segmentación nos lleva a:", options: ["Al estadio de mórula.", "Al estadio de blástula.", "Al estadio de gástrula.", "a y b son ciertas."], correct: 1 },
+        { id: 'b1_6', text: "¿Qué días del ciclo ovárico coinciden con la primera semana del desarrollo?", options: ["Del 1 al 7.", "Del 8 al 14.", "Del 15 al 21.", "Del 22 al 28."], correct: 2 },
+        { id: 'b1_7', text: "¿Qué afirmación no es correcta sobre los fenómenos que acontecen durante la primera semana del desarrollo humana?", options: ["Durante este periodo, el producto de la fecundación recorre la trompa y alcanza la cavidad uterina.", "El producto de la fecundación no incrementa su volumen hasta que no se desprende de la membrana pelúcida.", "Las micrómeras darán lugar al citotrofoblasto y las macrómeras al sincitiotrofoblasta.", "El sincitiotrofoblasto, recién formado, es el encargado de iniciar la implantación al final de este periodo."], correct: 2 },
+        { id: 'b1_8', text: "¿Qué fenómeno no acontece durante la primera semana del desarrollo?", options: ["Implantación ectópica del huevo fecundado.", "Establecimiento de gemelos dicigóticos, dicoriónicos, monoamnióticos.", "Migración tubárica del huevo fecundado.", "Inicio de la implantación."], correct: 1 },
+        { id: 'b1_9', text: "De los siguientes fenómenos, ¿cual sucede sobre el séptimo día de la fecundación?", options: ["El producto de la fecundación llega a la cavidad uterina.", "Las células trofoblásticas del polo embrionario se insinúan entre la mucosa endometrial.", "Se produce la inclusión completa del producto de la fecundación en la mucosa uterina (anidación).", "Se desprende la membrana pelúcida, que hasta ahora ha rodeado al producto de la fecundación."], correct: 1 },
+        { id: 'b1_10', text: "De los fenómenos que acontecen durante la primera semana del desarrollo humano, uno de las que se relacionan a continuación no es cierta.", options: ["En la fase de mórula se evidencian una células periféricas más voluminosas, denominadas macrómeras y otras más pequeñas, micrómeras.", "Las externas darán lugar al trofoblasto.", "Las internas darán lugar a la yema embrionaria.", "Antes de producirse la anidación, el producto de la fecundación se desprende de la membrana pelúcida."], correct: 0 },
+        { id: 'b1_11', text: "De los fenómenos que acontecen durante la primera semana del desarrollo humano, uno de los que se relacionan a continuación, no es cierto:", options: ["En el transcurso de su emigración tubárica el producto de la fecundación no aumenta el volumen.", "Antes de alcanzar la cavidad uterina se ha convertido en blástula.", "La mucosa uterina aún no se encuentra totalmente preparada para la anidación, es preciso que se incremente la producción hormonal por el cuerpo amarillo.", "Al conjunto de las células acopladas a uno de los polos en la blástula se denomina yema embrionaria."], correct: 2 },
+        { id: 'b1_12', text: "¿Qué afirmación es falsa respecto a los acontecimientos que ocurren durante la primera semana de desarrollo?", options: ["El producto de la fecundación llega a la cavidad uterina entre el quinto y sexto día tras la fecundación.", "Para iniciar la anidación, sexto día aproximadamente, tiene que desprenderse de la membrana pelúcida que hasta entonces controlaba el volumen del producto de la fecundación.", "La etapa de cuatro células coincide con el segundo día desde la fecundación aproximadamente.", "Coincidiendo con su entrada en la cavidad uterina, en el producto de la fecundación se aíslan un grupo de células internas, embrioblasto, y externas, trofoblasto."], correct: 0 },
+        { id: 'b1_13', text: "De las implantaciones ectópicas ¿cuál es más frecuente?", options: ["Ovárica.", "Tubárica.", "Cervical.", "Abdominal."], correct: 1 },
+        { id: 'b1_14', text: "De los siguientes fenómenos ¿cuál tiene lugar antes de la segunda semana de desarrollo?", options: ["Aparición de la primera hoja embrionaria evidenciable, el ectodermo.", "Aparición de la primera hoja embrionaria evidenciable, el endodermo.", "Formación de la cavidad amniótica.", "Formación del lecitocele primario."], correct: 1 },
+        { id: 'b1_15', text: "El lecitocele primario o cavidad uterina vitelina primaria se encuentra delimitado por:", options: ["Yema embrionaria y citotrofoblasto.", "Es la cavidad que se forma en el mesénquima extraembrionario y por lo tanto, lo delimita el mismo mesénquima.", "Ectodermo y membrana de Heuser.", "Endodermo y membrana de Heuser."], correct: 3 },
+        { id: 'b1_16', text: "De los siguientes cambios en el trofoblasto, durante la segunda semana del desarrollo, uno no es cierto:", options: ["Se forma la cámara intervellosa.", "Existen vellosidades secundarias.", "Las modificaciones sincitiotrofoblasticas son más llamativas en el polo embrionario.", "Al final de dicha semana se produce la envoltura citotrofoblástica que rodea el producto de la fecundación."], correct: 3 },
+        { id: 'b1_17', text: "De las afirmaciones de los fenómenos que acontecen durante la segunda semana del desarrollo, una es falsa:", options: ["La mucosa uterina se encuentra en fase secretora y se inician los cambios a nivel del estroma conocidos como decidualización.", "El cuerpo amarillo, que debería iniciar su declive se mantiene y sigue aumentando su tamaño y segregando hormonas.", "La madre lleva ya dos semanas sin menstruación.", "Las pruebas biológicas del embarazo son todavía negativas."], correct: 2 },
+        { id: 'b1_18', text: "Uno de los acontecimientos que se citan a continuación no ocurre durante la segunda semana del desarrollo:", options: ["Se produce el tampón fibrinoso a nivel de la mucosa endometrial.", "Aparece el mesénquima extraembrionario.", "Sobre el pedículo de fijación se invagina el endodermo dando lugar al divertículo alantoideo.", "Se forma la cavidad celómica."], correct: 2 },
+        { id: 'b1_19', text: "De los siguientes fenómenos, uno no tiene lugar durante la segunda semana del desarrollo embrionario:", options: ["Transformación de la yema embrionaria en disco embrionario dedérmico.", "Formación de la cavidad amniótica.", "Formación del mesénquima extraembrionario.", "Aparición de los islotes vasculosanguíneos en el mesénquima extraembrionario."], correct: 3 },
+        { id: 'b1_20', text: "De los siguientes fenómenos, sobre la evolución del mesénquima extraembrionario, uno no es cierto:", options: ["Constituye junto con el citotrofoblasto de la lámina coriónica.", "En su espesor aparece la cavidad celómica extraembrionaria.", "La cara que reviste al lecitocele secundario se denomina somatopleura extraembrionaria.", "El embrión queda cogido a la lámina por el pedículo de fijación."], correct: 2 },
+        { id: 'b1_21', text: "¿Cuál de los siguientes fenómenos que acontecen en el trofoblasto ocurre durante la segunda semana del desarrolo?", options: ["Se establece la cámara intervellosa.", "Se diferencian el cito y el sincitiotrofoblasto.", "Aparecen vellosidades terciarias.", "En el mesénquima extraembrionario aparecen los islotes de Wolff."], correct: 1 },
+        { id: 'b1_22', text: "¿Qué afirmación sobre el trofoblasto durante la segunda semana del desarrollo no es cierta?", options: ["Las células del citotrofoblasto se dividen y se incorporan al sincitiotrofoblasto.", "En su penetración en el endometrio erosionan los vasos maternos formándose lagunas llenas de sangre materna.", "Los cambios trofoblásticos en el polo anembrionario son bastante menos llamativos.", "El trofoblasto durante este periodo dará lugar también al denominado mesénquima extraembrionario."], correct: 3 },
+        { id: 'b1_23', text: "De las siguientes afirmaciones sobre el divertículo alantoideo, una es falsa:", options: ["Es una evaginación del ectodermo en el mesénquima extraembrionario del pedículo de fijación.", "A su alrededor se diferencian los gonocitos primordiales.", "En el humano es bastante rudimentario y prácticamente no tiene significado en el desarrollo embrionario posterior.", "Es un pequeño divertículo de la pared posterior del saco vitelino."], correct: 0 },
+        { id: 'b1_24', text: "¿Qué fenómeno de los que a continuación se citan, no se produce en la tercera semana de desarrollo?", options: ["La aparición de la línea primitiva y el nódulo de Hensen.", "La emigración hacia esa línea primitiva de las células ectodérmicas que, tras introducirse formarán el mesodermo.", "Existe un momento en el que la cavidad vitelina se comunica con la cavidad amniótica.", "Las células que se introducen sobre el nódulo de Hensen y siguen la línea media dan lugar a la notocorda, que se extiende desde la membrana bucofaríngea a la cloacal donde no penetra."], correct: 2 },
+        { id: 'b1_25', text: "Sobre los cambios que acontecen en el trofoblasto en la tercera semana, una no es cierta:", options: ["El citotrofoblasto crece y produce una fina envoltura citotrofoblástica externa, cáscara citotrofoblástica.", "En el endometrio, se producen cambios alrededor del producto de fecundación estableciéndose la caduca o decidua basal que rodea por completo a dicho producto.", "Se establecen las vellosidades terciarias definitivas.", "Se diferencia el corion frondoso y el corion calvo liso."], correct: 1 },
+        { id: 'b1_26', text: "Una de las estructuras que se citan a continuación no derivan del epiblasto:", options: ["Las placas óticas.", "La adenohipófisis.", "El esmalte dental.", "Los melanocitos epidérmicos."], correct: 3 },
+        { id: 'b1_27', text: "¿Qué estructura de las que se citan a continuación derivan del mesodermo?", options: ["El esmalte.", "El hígado.", "El cristalino.", "Ninguna de las estructuras señaladas deriva del mesodermo."], correct: 3 },
+        { id: 'b1_28', text: "Uno de los siguientes elementos no deriva del endodermo:", options: ["Árbol traqueobranquial.", "Porción epitelial del tubo digestivo.", "Glandulas anejas al tubo digestivo como el páncreas y el hígado.", "Glandulas anejas al tubo digestivo como las glándulas salivales."], correct: 3 },
+        { id: 'b1_29', text: "¿En qué fase del desarrollo se producen los gemelos dicigóticos monocoriónicos monoamnióticos?", options: ["Una vez que se ha formado la línea primitiva y la cavidad amniótica.", "En fase de dos blastómeras.", "En fase de yema embrionaria.", "No existe ese tipo de gemelos."], correct: 3 },
+        { id: 'b1_30', text: "Si en un parto gemelar se producen dos hermanos siameses, se corresponde con:", options: ["Gemelos dicigóticos dicoriónicos diamnióticos.", "Gemelos monocigóticos dicoriónicos diamnióticos.", "Gemelos monocigóticos monocoriónicos diamnióticos.", "Gemelos monocigóticos monocoriónicos monoamnióticos."], correct: 3 },
+        { id: 'b1_31', text: "Si en un parto gemelar se producen dos hembras unidas por la cabeza, se corresponde con:", options: ["Gemelos dicigóticos dicoriónicos diamnióticos.", "Gemelos monocigóticos dicoriónicos diamnióticos.", "Gemelos monocigóticos monocoriónicos diamnióticos.", "Gemelos monocigóticos monocoriónicos monoamnióticos."], correct: 3 },
+        { id: 'b1_32', text: "Una de las afirmaciones sobre la placenta humana es falsa:", options: ["Es un órgano que segrega hormonas esteroideas y polipeptídicas.", "En una placenta madura, la estructura vellositaria siempre es terciaria.", "La placenta humana se define como endocorial, discoide, pseudocotiloidea y caduca.", "En otras, la placenta posee también funciones de barrera, por ejemplo, a proteínas y determinaos gérmenes."], correct: 2 },
+        { id: 'b1_33', text: "De las siguientes placentas ¿cuál se corresponde con la humana?", options: ["Epiteliocorial y difusa.", "Endoteliocorial y zonaria.", "Hemocorial y discoidea.", "Hemocorial y difusa."], correct: 2 },
+        { id: 'b1_34', text: "De las definiciones que a continuación se citan, ¿cuál se corresponde con la de embriología experimental?", options: ["Es la que observa las manifestaciones que se producen en la génesis del ser.", "Es la que se realiza sobre especies animales en las que se practican intervenciones y se estudia el resultado.", "Es la que intenta comprender los mecanismos y el determinismo del desarrollo.", "Es la que estudia las anomalías congénitas."], correct: 1 },
+        { id: 'b1_35', text: "Uno de los siguientes autores fue el primero en describir el proceso de anfimisis:", options: ["Anton van Leeuwenhaek.", "Regnier de Graaf.", "Oscar Hertwig.", "Von Baer."], correct: 2 },
+        { id: 'b1_36', text: "Qué afirmación es la correcta sobre la placenta humana:", options: ["Es hemocorial, pseudocotiledonea, zonaria y caduca.", "Es endocorial, discoidea, pseudocotiledonea y caduca.", "Es hemocorial, difusa, cotiledonea y caduca.", "Es hemocorial, caduca, discoidea y pseudocotiledonea."], correct: 3 },
+        { id: 'b1_37', text: "¿Cuál de las siguientes caducas establecen contacto entre sí, durante el desarrollo embrionario?", options: ["Caduca ovular y parietal.", "Caduca ovular y basilar.", "Caduca basilar y parietal.", "No establece contactos permanecen hasta el final del embarazo."], correct: 0 },
+        { id: 'b1_38', text: "Uno de los fenómenos que a continuación se citan no acontecen durante la segunda semana del desarrollo:", options: ["Aparición del divertículo atlantoideo.", "Aparición del celoma extraembrionario.", "Formación de la membrana de Heuser.", "Formación del lecitocele secundario."], correct: 0 },
+        { id: 'b1_39', text: "Conteste la afirmación correcta:", options: ["A principio de la 3ª semana se produce el contacto de líquidos entre cavidad amniótica y vitelina.", "A mediados de la 3ª semana aparecen los islotes vasculosanguíneos en el mesénquima extraembrionario.", "Al final de la 3ª semana se establece el nódulo de Hensen.", "Entre el principio y mediado de la 3ª semana aparecen alrededor del divertículo alantoideo los gonocitos primordiales."], correct: 1 },
+        { id: 'b1_40', text: "Una de las siguientes estructuras no deriva del ectodermo:", options: ["La glándula submaxilar.", "La adenohipófisis.", "Los ameloblastos.", "Las glándulas paratiroideas."], correct: 3 },
+        { id: 'b1_41', text: "Si en un parto gemelar, en el alumbramiento observamos una sola cavidad amniótica se corresponde con:", options: ["Gemelos dicigóticos, monocoriónicos, monoamnióticos.", "Gemelos monocigóticos, dicoriónicos, monoamnióticos.", "Gemelos monocigóticos, dicoriónicos, diamnióticos.", "Ninguna de las respuestas se corresponden."], correct: 1 }
+    ];
+
+    // BATERÍA 2: HISTOLOGÍA EPITELIAL (58 Preguntas)
+    const battery2 = [
+        { id: 'b2_1', text: "La membrana basal está constituida por:", options: ["Una lámina basal en contacto con células epiteliales.", "Una lámina reticular contina con el tejido conjuntivo.", "Los hemidemosomas de las células epiteliales basales.", "Una lámina basal y una lamina reticular."], correct: 3 },
+        { id: 'b2_2', text: "Los epitelios estratificados no se clasifican en función de:", options: ["Número de capas de células.", "Forma de las células.", "Forma de las células de la capa mas externa.", "Forma de las células de la capas intermedias."], correct: 3 },
+        { id: 'b2_3', text: "Una de las siguientes denominación respecto a los epitelios estratificados es incorrecta. Señala:", options: ["Epitelio pavimentoso estratificados queratinizado.", "Epitelio escamoso estratificado queratinizado.", "Epitelio escamoso cúbico.", "Epitelio estratificado cúbico."], correct: 2 },
+        { id: 'b2_4', text: "Señale la incorrecta en relación al tejido epitelial:", options: ["Descansa sobre una lamina basal.", "Está integrado por células polarizadas.", "La sustancia intercelular es abundante.", "Puede regenerarse a partir de células madre."], correct: 2 },
+        { id: 'b2_5', text: "Las placas densas son características del:", options: ["Epitelio pavimentoso simple.", "Epitelio pavimentoso estratificado.", "Urotelio.", "Epitelio pavimentoso estratificado queratinizado."], correct: 2 },
+        { id: 'b2_6', text: "El llamado epitelio respiratorio:", options: ["Está queratinizado.", "Es pseudoestraificado ciliado con células caliciformes.", "Recubre externamente la nariz.", "Es pavimentoso estratificado."], correct: 1 },
+        { id: 'b2_7', text: "Con respecto al epitelio cilíndrico psendoestratificado:", options: ["Presenta varias capas celulares.", "Está presente en el tubo digestivo.", "Todas las células se extienden hasta la superficie luminal.", "ES un epitelio simple."], correct: 3 },
+        { id: 'b2_8', text: "Con respecto al tejido epitelial señale la incorrecta:", options: ["Contiene citoqueratina C.", "Sus células están polarizadas.", "Está ricamente vascularizado.", "Presenta escasa o nula sustancia intracelular."], correct: 2 },
+        { id: 'b2_9', text: "El endotelio es:", options: ["El epitelio cúbico simple que tapiza los órganos.", "EI epitelio plano simple que tapiza la superficie interna de los vasos.", "El epitelio cilíndrico simple que forma las glándulas endocrinas.", "El tejido conectivo de los vasos sanguíneos."], correct: 1 },
+        { id: 'b2_10', text: "Las células caliciformes:", options: ["Son PAS +.", "Están presentes en el tubo digestivo.", "Secretan mucina.", "Todas son correctas."], correct: 3 },
+        { id: 'b2_11', text: "Las glándulas sudoríparas en la piel:", options: ["Son mixtas.", "Son tubulares simples.", "Son tubuloacinosas.", "Son tubulbalveolares."], correct: 1 },
+        { id: 'b2_12', text: "Las glándulas sebaceas presentan un mecanismo de secreción:", options: ["Merocrino.", "Apocrino.", "Holacrino.", "Paracrino."], correct: 2 },
+        { id: 'b2_13', text: "Los acinos mucsos presentan:", options: ["a) Luz poco evidente.", "b) Límites intracelulares difusos.", "c) Tinción basófila.", "d) Núcleos achatados contra la membrana basal. a) y d) son correctas."], correct: 3 },
+        { id: 'b2_14', text: "Los adenómeros glandulares:", options: ["Sintetizan compuestos inorgánicos de la secreción.", "Presentan células mioepiteliales.", "Solo pueden ser tubulares.", "Ninguna es correcta."], correct: 1 },
+        { id: 'b2_15', text: "¿Cómo se hace diagnóstico de epitelio plana estratificado?", options: ["Por la presencia de queratina.", "Por la forma poliédrica de las células.", "Por la forma de las células de la capa apical.", "Por la presencia de varias capas de células."], correct: 2 },
+        { id: 'b2_16', text: "¿Cuál de las siguientes es una glándula acinar compuesta no ramificada?", options: ["A.", "B.", "C.", "D."], correct: 0 },
+        { id: 'b2_17', text: "El tejido epitelial tiene:", options: ["Cilios para aumentar la superficie de absorción.", "Interdigitalizaciones para aumentar la adhesión intercelular.", "Uniones octuyentes para aumentar el paso intercelular de moléculas.", "Ninguna de las anteriores."], correct: 1 },
+        { id: 'b2_18', text: "En un epitelio de revestimiento:", options: ["La presencia de células caliciformes aporta un mecanismo de protección para la superficie libre.", "Las uniones ocluyentes impiden la absorción selectiva.", "Los hemidemosomas aumentan la adhesión entre sus células.", "Todas son ciertas."], correct: 0 },
+        { id: 'b2_19', text: "Localización de epitelios:", options: ["Plano simple en el asa de Henle.", "Cúbico simple en el intestino grueso.", "Cilíndrico simple en el intestino delgado.", "Todas son ciertas."], correct: 2 },
+        { id: 'b2_20', text: "Respecto a las glándulas:", options: ["En algunas del tipo endocrino hay sistema de conductos.", "Las de tipo exocrino tienen conexión con la superficie libre.", "Su parénquima corresponde a tejido conjuntivo.", "Ninguna es correcta."], correct: 1 },
+        { id: 'b2_21', text: "Típicamente se pueden identificar en un tejido epitelial células con la siguiente morfología excepto:", options: ["Planas.", "Estrelladas.", "Cúbicas.", "Cilíndricas."], correct: 1 },
+        { id: 'b2_22', text: "Los epitelios estratificados:", options: ["a) Se definen por la existencia de más de una capa de células.", "b) Contienen como máximo tres capas de células.", "c) Se nombran según las características de la última capa.", "d) a y c."], correct: 3 },
+        { id: 'b2_23', text: "El tejido epitelial:", options: ["a) Recubre superficies internas y externas del organismo.", "b) Solo se encuentran en la piel.", "c) Está integrado por epitelicitos.", "d) b y c son ciertas."], correct: 0 },
+        { id: 'b2_24', text: "El urotelio es:", options: ["Epitelio pavimentoso simple.", "Epitelio pavimentoso estratificado.", "Epitelio de transición.", "Epitelio pavimentoso estratificado queratinizado."], correct: 2 },
+        { id: 'b2_25', text: "El endotelio es el epitelio que reviste internamente los vasos. Lo definiríamos como:", options: ["Cúbico estratificado.", "Secretor.", "Pavimentoso.", "Cilíndrico ciliado."], correct: 2 },
+        { id: 'b2_26', text: "Son características de los epitelios de revestimiento:", options: ["a) Polaridad.", "b) Adhesión intercelular.", "c) Rica vascularización.", "d) a y b son ciertas."], correct: 3 },
+        { id: 'b2_27', text: "La nutrición y regeneración del tejido epitelial se realiza:", options: ["Mediante abundantes vasos que circulan entre las células madres.", "Por imbibición.", "Mediante epitelio respiratorio.", "No necesita nutrirse ni oxigenarse."], correct: 1 },
+        { id: 'b2_28', text: "Las células caliciformes:", options: ["Son glándulas unicelulares.", "Forman calcio.", "Son glándulas endocrinas.", "Todas son ciertas."], correct: 0 },
+        { id: 'b2_29', text: "Un epitelio con capacidad secretora:", options: ["Equivale a una glándula.", "Es siempre endocrino.", "Forma parte de las glándulas.", "No es capaz de renovarse."], correct: 2 },
+        { id: 'b2_30', text: "La característica que define a una glándula exocrina es:", options: ["Su tamaño.", "La presencia de conducto excretor.", "La ausencia de conducto excretor.", "La ausencia de porción secretora."], correct: 1 },
+        { id: 'b2_31', text: "Cuando hablamos de una glándula acinar compuesta nos referimos a una glándula:", options: ["Cuya porción secretora es endocrina.", "Con más de un conducto excretor.", "Con un conducto excretor revestido por varios tipos celulares.", "Cuya porción secretora tiene forma de tubo."], correct: 1 },
+        { id: 'b2_32', text: "Cuando hablamos de una glándula mixta nos referimos a una característica de:", options: ["Su porción secretora.", "Su porción excretora.", "El órgano en que se encuentra.", "Los vasos que la irrigan."], correct: 0 },
+        { id: 'b2_33', text: "Tipo de epitelio de la pleura, del corazón y del peritoneo:", options: ["Endotelio.", "Mesotelio.", "Epitelio simple cilíndrico.", "Epitelio simple cilíndrico."], correct: 1 },
+        { id: 'b2_34', text: "Epitelio que recubre el epidídimo y el conducto deferente:", options: ["Epitelio pseudoestratificado estereocilio.", "Epitelio estratificado pavimentoso.", "Epitelio estratificado cúbico.", "Epitelio estratificado cilíndrico."], correct: 0 },
+        { id: 'b2_35', text: "¿Cuál de las siguientes uniones entre las células no es complejo de unión?", options: ["Uniones gap.", "Uniones ocluyentes.", "Uniones de anclaje.", "Uniones estrechas."], correct: 0 },
+        { id: 'b2_36', text: "¿Qué proteína tienen los estereocilios?", options: ["Erzina.", "Claudina.", "Cadherinas.", "Desmoplaquina."], correct: 0 },
+        { id: 'b2_37', text: "¿Cuál de las siguientes glándulas tienen patrón túbulo acinar?", options: ["Glándula salival submandibular.", "Glándula sudorípara.", "Glándula salival sublingual.", "Glándula mamaria."], correct: 0 },
+        { id: 'b2_38', text: "¿Cuál de las siguientes glándulas tienen patrón túbulo alveolar?", options: ["Glándula mamaria durante la lactancia.", "Glándulas del páncreas exocrino.", "Glándula salival submandibular.", "Todas."], correct: 0 },
+        { id: 'b2_39', text: "En función del tipo de secreción, ¿de qué tipo es la glándula mamaria durante la lactancia?", options: ["Mixta.", "Mucosa.", "Serosa.", "Seromucosa."], correct: 0 },
+        { id: 'b2_40', text: "¿Cuál es el mecanismo de secreción de los acinos del páncreas?", options: ["Merocrino.", "Apocrino.", "Holocrino.", "Mixto."], correct: 0 },
+        { id: 'b2_41', text: "¿Cuál es el mecanismo de secreción de las glándulas sebáceas?", options: ["Merocrino.", "Apocrino.", "Holocrino.", "Mixto."], correct: 2 },
+        { id: 'b2_42', text: "¿Cuál es el mecanismo de secreción de las glándulas sudoríparas y ceruminosas del oido?", options: ["Merocrino.", "Apocrino.", "Holocrino.", "Mixto."], correct: 1 },
+        { id: 'b2_43', text: "Disposición de las células de las glándulas trabeculares de las glándulas endocrinas:", options: ["a) Formando hileras.", "b) Formando cordones.", "c) Dispersas.", "d) a y b."], correct: 3 },
+        { id: 'b2_44', text: "El tejido epitelial:", options: ["Carece de capacidad de renovación.", "Se nutre por imbibición del tejido subyacente.", "Sintetiza su propia matriz extracelular.", "Reviste las grandes articulaciones."], correct: 1 },
+        { id: 'b2_45', text: "El epitelio que reviste al tubo digestivo deriva de:", options: ["ectodermo.", "mesodermo.", "endodermo.", "cresta neural."], correct: 2 },
+        { id: 'b2_46', text: "Un epitelio se denomina simple cuando:", options: ["consta de una sola capa de células.", "todas sus células son iguales.", "no tiene lámina basal.", "no contiene vasos."], correct: 0 },
+        { id: 'b2_47', text: "Es localización característica de un epitelio pavimentoso simple:", options: ["pared interna de las arterias.", "pared interna de los capilares.", "pared interna de las venas.", "todas son ciertas."], correct: 3 },
+        { id: 'b2_48', text: "Los epitelios cúbicos simples se pueden encontrar en:", options: ["a) las capas exteriores de la epidermis.", "b) los conductos excretores de las glándulas.", "c) los túbulos renales.", "d) b y c son ciertas."], correct: 3 },
+        { id: 'b2_49', text: "El epitelio de transición se localiza en:", options: ["el esófago.", "el aparato digestivo.", "el aparato urinario.", "en la cavidad bucal."], correct: 2 },
+        { id: 'b2_50', text: "El \"ribete en cepillo\" es:", options: ["una diferenciación apical de células epiteliales planas.", "una hilera continua de microvellosidades en una célula epitelial cilíndrica.", "una rugosidad basal de las células epiteliales cúbicas.", "una acumulación de mitocondrias en la lámina basal."], correct: 1 },
+        { id: 'b2_51', text: "Un epitelio pavimentoso estratificado queratinizado:", options: ["se caracteriza por los grandes núcleos de células externas.", "tiene varias capas de células planas.", "se caracteriza por ausencia de lámina basal.", "es propio de la epidermis."], correct: 3 },
+        { id: 'b2_52', text: "No es un componente de la lámina basal:", options: ["laminina.", "glucógeno.", "fibronectina.", "colágeno lll."], correct: 3 },
+        { id: 'b2_53', text: "Cuando hablamos de una glándula merocrina, la estamos clasificando en función de:", options: ["el mecanismo de secreción.", "el número de células.", "el conducto excretor.", "la cantidad de vasos."], correct: 0 },
+        { id: 'b2_54', text: "Las células caliciformes:", options: ["son epiteliales.", "son glándulas unicelulares.", "no aparecen en la cavidad oral.", "todas son ciertas."], correct: 3 },
+        { id: 'b2_55', text: "Las glándulas sudoríparas son:", options: ["a) endocrinas.", "b) tubulares enrolladas.", "c) acinares.", "d) b y c son ciertas."], correct: 1 },
+        { id: 'b2_56', text: "El epitelio corneal deriva de:", options: ["mesodermo.", "endodermo.", "neuroectodermo.", "ectodermo."], correct: 3 },
+        { id: 'b2_57', text: "El epitelio constituido por células más anchas que altas se denomina:", options: ["escamoso.", "pavimentoso.", "plano.", "todas son ciertas."], correct: 3 },
+        { id: 'b2_58', text: "Un epitelio pseudoestratificado:", options: ["no existe.", "es el que forma las capas de la piel.", "no tiene lámina basal.", "contiene células de diferentes formas y tamaños."], correct: 3 },
+    ];
+
+    // BATERÍA 3: TEJIDOS CONJUNTIVO / MUSCULAR / NERVIOSO (54 Preguntas)
+    const battery3 = [
+        { id: 'b3_1', text: "Son células del tejido conjuntivo:", options: ["Fibroblastos.", "Hematíes.", "Astrocitos.", "Todas."], correct: 0 },
+        { id: 'b3_2', text: "Cuando hablamos de células emigranes en el tejido conjuntivo nos referimos a células procedentes de:", options: ["La sangre.", "El tejido adiposo.", "El tejido nervioso.", "No hay células que se denominen emigrantes."], correct: 0 },
+        { id: 'b3_3', text: "Una de las siguientes NO forma parte del tejido conjuntivo:", options: ["Sustancia fundamental amorfa.", "Matriz fibrilar.", "Plaquetas.", "Proteoglucanos."], correct: 2 },
+        { id: 'b3_4', text: "El tejido conjuntivo mucoso se caracteriza por:", options: ["la abundancia de fibras.", "la abundancia de células.", "la abundancia de matriz extracelular.", "la abundante secreción de moco."], correct: 2 },
+        { id: 'b3_5', text: "Las fibras del tejido conjuntivo con mayor resistencia tensional son las:", options: ["fibras de reticulina.", "fibras elásticas.", "fibras de carbono.", "fibras de colágeno."], correct: 3 },
+        { id: 'b3_6', text: "La fibrilina es un componente de:", options: ["las fibra reticulares.", "el ácido hialuronico.", "las fibras elásticas.", "la colágena."], correct: 2 },
+        { id: 'b3_7', text: "El escorbuto es una enfermedad relacionada con déficit de vitamina C que afecta al tejido conjuntivo porque dicha vitamina interviene en la síntesis de:", options: ["la sustancia fundamental.", "las fibras de colágeno.", "los proteoglucanos.", "no afecta a la síntesis de ningún componente."], correct: 1 },
+        { id: 'b3_8', text: "El fibroblasto es la célula responsable de la síntesis de:", options: ["las fibras de reticulina.", "las fibras de colágeno.", "la matriz extracelular amorfa.", "todas son ciertas."], correct: 3 },
+        { id: 'b3_9', text: "El tejido cartilaginoso está constituido por:", options: ["condrocitos, fibras y sustancia extracelular.", "fibroblastos y sustancia extracelular.", "únicamente condrocitos y sustancia fundamental amorfa.", "sustancia fundamental y osteocitos."], correct: 0 },
+        { id: 'b3_10', text: "Todas las siguientes son ciertas respecto al tejido cartilaginoso, excepto:", options: ["la sustancia fundamental está calcificada.", "los condrocitos se dividen dando lugar a grupos isogénicos.", "puede estar revestido por pericondrio en alguna de sus variedades.", "contiene fibras que se orientan en las direcciones de tensión."], correct: 0 },
+        { id: 'b3_11', text: "De entre las variedades de tejido cartilaginoso que se citan señale la opción falsa:", options: ["fibrocartílago.", "cartílago hialino.", "cartílago adiposo.", "cartílago elástico."], correct: 2 },
+        { id: 'b3_12', text: "Respecto al cartílago hialino es incorrecta:", options: ["está revestido por pericondrio.", "tiene un papel importante en la osificación membranosa.", "es la variedad más abundante.", "una de sus localizaciones es la articular."], correct: 1 },
+        { id: 'b3_13', text: "El tejido cartilaginoso:", options: ["a) contiene numerosos vasos.", "b) nunca se regenera.", "c) una de sus variedades se encuentra en el pabellón auricular.", "d) a y b son ciertas."], correct: 2 },
+        { id: 'b3_14', text: "Son células componentes del tejido óseo, excepto:", options: ["osteoblastos.", "osteocitos.", "osteoclastos.", "monocitos."], correct: 3 },
+        { id: 'b3_15', text: "Con respecto a los sistemas de Havers no es cierto:", options: ["son característicos del tejido óseo compacto.", "contienen conductos de Havers.", "contienen fibras de Sharpey.", "están formados por laminillas concéntricas."], correct: 2 },
+        { id: 'b3_16', text: "En una osteona encontraría:", options: ["osteocitos, fibras de colágeno y matriz calcificada.", "osteoblastos, fibras reticulares y grasa.", "periostio, osteocitos y endostio.", "todas son ciertas."], correct: 0 },
+        { id: 'b3_17', text: "Los sistemas intersticiales:", options: ["son redes vasculares.", "corresponden a la matriz territorial.", "son consecuencia de la remodelación ósea.", "rodean los vasos."], correct: 2 },
+        { id: 'b3_18', text: "El tejido óseo laminar:", options: ["no existe.", "constituye el hueso esponjoso.", "constituye las osteonas.", "contiene osteocitos y laminina."], correct: 2 },
+        { id: 'b3_19', text: "En la osificación endocondral:", options: ["el cartílago se convierte en hueso.", "los condrocitos se dividen e hipertrofian.", "no intervienen los osteocitos.", "todas son ciertas."], correct: 1 },
+        { id: 'b3_20', text: "En la osificación membranosa:", options: ["los osteoblastos maduran desde las lagunas vasculares.", "existe un molde cartilaginoso.", "se endurece la membrana plasmática de los osteoclastos.", "el hueso neoformado carece de colágeno."], correct: 0 },
+        { id: 'b3_21', text: "Señale el orden correcto en la osificación endocondral:", options: ["invasión vascular, fase hipertrófica, fase de proliferación.", "fase hipertrófica, invasión vascular, fase de proliferación.", "fase de proliferación, fase hipertrófica, invasión vascular.", "fase de proliferación, invasión vascular, fase hipertrófica."], correct: 2 },
+        { id: 'b3_22', text: "Señale la incorrecta:", options: ["el tejido óseo compacto se localiza en la metáfisis de los huesos largos.", "el tejido óseo compacto se localiza en la diáfisis de los huesos largos.", "el tejido óseo esponjoso se encuentra en las epífisis de los huesos largos.", "el tejido óseo esponjoso se encuentra en las epífisis de los huesos largos."], correct: 0 },
+        { id: 'b3_23', text: "Las fibras de Sharpey:", options: ["son fibras de colágena que unen el periostio al hueso subyacente.", "unen los conductos de Havers y de Volkmann.", "forman parte del cartílago hipertrófico.", "ninguna es cierta."], correct: 0 },
+        { id: 'b3_24', text: "El tejido muscular estriado de variedad esquelética:", options: ["contiene células musculares multinucleadas.", "presenta sarcómeros.", "se encuentra en la lengua.", "todas son ciertas."], correct: 3 },
+        { id: 'b3_25', text: "El sarcolema:", options: ["es el conjunto de sarcómeros de una fibra cardíaca.", "se relaciona con los tubos T.", "es un grupo de fibras musculares lisas.", "está compuesto por tejido conjuntivo."], correct: 1 },
+        { id: 'b3_26', text: "Con respecto al mecanismo que desencadena la contracción de la fibra muscular estriada, son diferencias entre la fibra esquelética y la cardíaca:", options: ["a) la estructura del sarcómero.", "b) el punto en el que se invagina la membrana para asociarse al retículo sarcoplásmico.", "c) la existencia de caveolas.", "d) b y c."], correct: 1 },
+        { id: 'b3_27', text: "Asociaría al músculo cardíaco:", options: ["la triada y el disco intercalar.", "la díada y el disco intercalar.", "la caveola y las placas densas.", "la morfología fusiforme."], correct: 1 },
+        { id: 'b3_28', text: "Las fibras musculares lisas:", options: ["necesitan calcio exógeno para iniciar la contracción y lo atrapan generando caveolas.", "no necesitan calcio para la contracción y por ello carecen de retículo sarcoplásmico.", "desarrollan filamentos de actina que se modifican para atrapar el calcio.", "al carecer de sarcómeros el calcio no es necesario para su contracción."], correct: 0 },
+        { id: 'b3_29', text: "Señale la incorrecta:", options: ["la fibra muscular cardíaca presenta un único núcleo en posición central y sarcómeros.", "la fibra muscular lisa presenta un único núcleo y sarcolema activo.", "las fibras musculares lisas se agrupan en haces envueltos por tejido conjuntivo.", "la fibra muscular esquelética carece de sarcolema."], correct: 3 },
+        { id: 'b3_30', text: "Señale la correcta en relación a las envolturas conjuntivas del músculo esquelético:", options: ["desde dentro hacia fuera: perimisio, endomisio, epimisio.", "desde dentro hacia fuera: epimisio, endomisio, perimisio.", "desde dentro hacia fuera: endomisio, perimisio, epimisio.", "la fibra muscular esquelética adulta carece de envolturas conjuntivas."], correct: 2 },
+        { id: 'b3_31', text: "En el tejido nervioso podemos encontrar:", options: ["neuronas.", "astrocitos.", "oligodendrocitos.", "todas son ciertas."], correct: 3 },
+        { id: 'b3_32', text: "Señale la incorrecta:", options: ["son partes de una neurona el soma, dendritas y axón.", "cada neurona posee tantos axones como sinapsis es capaz de recibir.", "una neurona puede tener más de una dendrita.", "cada neurona sólo tiene un axón."], correct: 1 },
+        { id: 'b3_33', text: "El neuropilo:", options: ["es el nombre que recibe un axón maduro.", "es el nombre que recibe el cuerpo de una neurona multipolar.", "es un conjunto de prolongaciones nerviosas que rodean al soma de las neuronas.", "es una neurona seudounipolar."], correct: 2 },
+        { id: 'b3_34', text: "El nódulo de Ranvier:", options: ["es una estructura característica de la fibra nerviosa amielínica.", "es una estructura característica de la fibra nerviosa mielínica.", "es una de las prolongaciones axonales más ramificadas.", "todas son ciertas."], correct: 1 },
+        { id: 'b3_35', text: "La célula responsable de la síntesis de mielina a nivel central es:", options: ["el oligodendrocito.", "la célula de Schwann.", "la neurona.", "el ependimocito."], correct: 0 },
+        { id: 'b3_36', text: "Los mastocitos intervienen en las reacciones de hipersensibilidad alérgica a través de:", options: ["sus características fagocíticas.", "la presentación de antígenos a los linfocitos.", "los mediadores vasoactivos contenidos en vesículas citoplasmáticas.", "la producción de citocinas."], correct: 2 },
+        { id: 'b3_37', text: "La principal función de la grasa blanca es:", options: ["disipar energía.", "almacenar energía.", "producir insulina.", "la biogénesis mitocondrial para producir energía."], correct: 1 },
+        { id: 'b3_38', text: "La membrana basal está constituida por:", options: ["una lámina basal en contacto con las células epiteliales.", "una lámina reticular continua con el tejido conjuntivo.", "las hemidesmosomas de las células epiteliales basales.", "una lámina basal y una lámina reticular."], correct: 3 },
+        { id: 'b3_39', text: "Con respecto al tejido conjuntivo las siguientes afirmaciones son ciertas, salvo:", options: ["las células de este tejido almacenan metabolitos.", "las células intervienen en la respuesta inflamatorias e inmunitarias.", "la matriz extracelular es una combinación de colágeno y proteoglucanos.", "las células no intervienen en la reparación tisular tras las lesiones."], correct: 3 },
+        { id: 'b3_40', text: "Respecto al tejido conjuntivo embrionario, señale la respuesta incorrecta:", options: ["contiene abundante matriz extracelular rica en proteoglucanos.", "contiene abundantes fibras de colágeno y reticulares.", "aparecen en el cordón umbilical.", "aparece en la pulpa del diente en desarrollo."], correct: 1 },
+        { id: 'b3_41', text: "¿Cuál de los siguientes cartílagos no tiene pericondrio?", options: ["Cartílagos artículares.", "Cartílagos de la vías aéreas superiores.", "Cartílagos costales.", "Cartílagos laríngeos."], correct: 0 },
+        { id: 'b3_42', text: "Señale la afirmación falsa sobre la histofisiología del cartílago:", options: ["La nutrición del cartílago se lleva a cabo por pequeños vasos que penetran desde el hueso subyacente.", "El crecimiento aposicional se lleva a cabo por la transformación en condrocitos de las células del pericondrio.", "El crecimiento intersticial produce grupos isogénicos axiales o coronarios.", "Existen determinadas hormonas que influyen sobre el crecimiento del cartílago como la tiroxina."], correct: 0 },
+        { id: 'b3_43', text: "Señale la localización del cartílago fibroso:", options: ["sínfisis del pubis.", "cartílagos nasales.", "cartílagos costales.", "cartílagos articulares."], correct: 0 },
+        { id: 'b3_44', text: "El colágeno no es sintetizado por:", options: ["Condroblasto.", "Adipoblasto.", "Osteoblasto.", "Odontoblasto."], correct: 1 },
+        { id: 'b3_45', text: "Una de las capas que a continuación se citan no se corresponde con el cartílago articular:", options: ["zona superficial.", "zona de cartílago seriado.", "zona intermedia o transicional.", "zona de cartílago calcificado."], correct: 1 },
+        { id: 'b3_46', text: "Señale la respuesta correcta en relación con los osteoclastos:", options: ["los osteoclastos derivan de los monocitos.", "los osteoclastos se encargan de producir el material orgánico de la matriz ósea.", "los osteoplasmas u osteoplastos están ocupados por los osteoclastos.", "los conductos calcóforos comunican osteoclastos vecinos."], correct: 0 },
+        { id: 'b3_47', text: "¿Qué afirmación es la correcta sobre osificación?", options: ["La osificación encondral se realiza sobre un molde conjuntivo.", "La formación de los huesos del cráneo se lleva a cabo por la osificación endocondral.", "El anillo óseo perióstico se forma en el proceso de osificación encondral.", "La yema vascular que penetra en el tejido cartilaginoso lleva células que se diferencian en osteoblastos."], correct: 2 },
+        { id: 'b3_48', text: "Los osteoplasmas son:", options: ["el hueco donde se asientan los osteocitos.", "el citoplasma de los osteocitos.", "el espacio no calcificado entre la matriz ósea y el osteoblasto.", "el lugar donde se asienten los osteoclastos."], correct: 0 },
+        { id: 'b3_49', text: "Señale la afirmación falsa respecto a los cardiomiocitos:", options: ["poseen un solo núcleo.", "el tubo T sale en un solo plano horizontal a nivel de la línea Z.", "forman diadas con las cisternas terminales del retículo sarcoplasmico.", "se unen a otros cardiomiocitos mediante estrías escalariformes."], correct: 3 },
+        { id: 'b3_50', text: "Señale la afirmación FALSA acerca de las células musculares lisas:", options: ["se denominan leiomiocitos.", "pueden medir entre 20 y 200 micras de longitud.", "son células fusiformes con núcleo excéntrico.", "en su sarcoplasma las miofibrillas no muestran estriación."], correct: 2 },
+        { id: 'b3_51', text: "Respecto a la nomenclatura específica para los grupos de neuronas y axones no es cierto que:", options: ["un núcleo es un agregado de neuronas en el sistema nervioso central.", "un ganglio es un agregado de neuronas del sistema nervioso periférico.", "el neuropilo es un agregado de neuronas en el sistema nervioso central.", "el neuropilo es un agregado de dendritas, axones y células gliales."], correct: 2 },
+        { id: 'b3_52', text: "Los neurotúbulos tienen una función importante en:", options: ["la transmisión del impulso nervioso.", "la formación de los cuerpos de Nissl.", "la formación del cono axónico.", "el transporte axonal retrogrado y anterógrado."], correct: 3 },
+        { id: 'b3_53', text: "Las células de la microglía:", options: ["participan en la mielinización de los axones dentro del sistema nervioso central.", "son fagocitarias y protegen a nivel neurológico la medula espinal y el encéfalo.", "constituyen los pies terminales de los astrocitos.", "participan en la mielinización de los axones dentro del sistema nervioso periférico."], correct: 1 },
+        { id: 'b3_54', text: "El tejido óseo no laminar se corresponde con:", options: ["Con el trabecular esponjoso.", "Con el trabecular compacto.", "Con el tejido óseo primario.", "Con el tejido óseo secundario."], correct: 2 }
+    ];
+
+    // BATERÍA 4: EXAMEN JUNIO 2023 (25 Preguntas)
+    const battery4 = [
+        { id: 'b4_1', text: "El fibroblasto sintetiza y secreta de forma continua:", options: ["Proteoglicanos, moléculas precursoras de colágeno y elastina.", "Fibronectina.", "Haces de colágeno.", "Proteoglucanos."], correct: 0 },
+        { id: 'b4_2', text: "En la osificación endocondral existen cuatro zonas principales a nivel del cartílago entre las cuales no se encuentra:", options: ["La zona proliferativa de cartílago hialino.", "La zona hipertrófica de cartílago hialino.", "La zona de reserva de cartílago hialino.", "La zona de cartílago hialino articular."], correct: 3 },
+        { id: 'b4_3', text: "La mielina es una estructura multilaminar muy organizada que rodea a los axones y:", options: ["Es característica de las fibras amielínicas.", "Su existencia impide la conducción saltatoria.", "Participa en la protección inmunológica de los axones.", "Rodea a los axones y facilita la conducción del impulso nervioso."], correct: 3 },
+        { id: 'b4_4', text: "La cisterna terminal del retículo sarcoplásmico en el músculo cardíaco forma una estructura denominada:", options: ["Díada.", "Tríada.", "Disco intercalado.", "Túbulo T."], correct: 0 },
+        { id: 'b4_5', text: "El sistema nervioso central monitoriza de forma continua la posición de los miembros y el estado de contracción de diversos músculos mediante:", options: ["La unión miotendinosa.", "Las fibras de Purkinje.", "La unión neuromuscular.", "El huso neuromuscular."], correct: 3 },
+        { id: 'b4_6', text: "Para las fibras nerviosas mielínicas señale la incorrecta:", options: ["Aparecen interrupciones a intervalos regulares llamadas Nódulos de Ranvier.", "El espacio internodal es constante en una fibra específica.", "Cada célula de Schwann está recubierta por lámina basal.", "La existencia de nodos impide la conducción saltatoria."], correct: 3 },
+        { id: 'b4_7', text: "No es correcta para el tejido muscular cardíaco:", options: ["Sus fibras son estriadas.", "Presentan control involuntario por el sistema nervioso autónomo.", "Su origen es mesodérmico.", "Sus fibras son multinucleadas."], correct: 3 },
+        { id: 'b4_8', text: "La formación de hueso esponjoso o membranoso necesita de:", options: ["La formación de hueso directamente en el tejido conjuntivo.", "Formación de hueso endocondral.", "La sustitución de cartílago preexistente por una matriz ósea.", "La formación de hueso directamente en el mesénquima."], correct: 0 },
+        { id: 'b4_9', text: "Señale la respuesta incorrecta sobre la placenta:", options: ["El intercambio placentario entre sangre materna y fetal se realiza a través de la barrera placentaria.", "La sangre materna se localiza en la cámara intervellosa.", "La sangre materna en condiciones normales no se pone en contacto directo con la sangre fetal.", "La sangre materna inicialmente está en contacto directo con el citotrofoblasto."], correct: 3 },
+        { id: 'b4_10', text: "Del mesodermo paraxial deriva:", options: ["Epitelio renal.", "Tejido cartilaginoso.", "Dermis.", "Músculo esquelético."], correct: 3 },
+        { id: 'b4_11', text: "Hans Spemann recibió en 1935 el premio Nobel por su descubrimiento del fenómeno de la inducción primaria. ¿En qué consiste este fenómeno?", options: ["Concepto según el cual las características generales anteceden a las características específicas.", "La diferenciación de las células se produce en un estadio fijo del desarrollo.", "Concepto según el cual todo el individuo ya está formado en el cigoto.", "Mecanismo a través del cual un tejido determina el destino de otro."], correct: 3 },
+        { id: 'b4_12', text: "En el cordón umbilical podemos encontrarnos con:", options: ["Revestimiento epitelial amniótico, Gelatina de Wharton, dos venas y una arteria.", "Revestimiento sincitiotrofoblástico, amnios, tejido conjuntivo, restos del conducto alantoideo, dos arterias y una vena.", "Revestimiento epitelial amniótico, tejido conjuntivo, quiste exocelómico, dos arterias y una vena.", "Revestimiento epitelial amniótico, tejido conjuntivo, restos del conducto onfalomesentérico, dos arterias y una vena."], correct: 3 },
+        { id: 'b4_13', text: "¿Cuál de las siguientes estructuras no deriva del mesodermo?", options: ["Testículos.", "Tejido conjuntivo.", "Retina.", "Músculo esquelético."], correct: 2 },
+        { id: 'b4_14', text: "Los somitos se constituyen a partir de:", options: ["Mesodermo axial.", "Mesodermo intermedio.", "Mesodermo lateral.", "Mesodermo paraaxial."], correct: 3 },
+        { id: 'b4_15', text: "¿Cuál de los siguientes acontecimiento sobre la tercera semana del desarrollo es incorrecto?", options: ["Aparece la línea primitiva y el nódulo de Hensen.", "Existe un momento en que la cavidad vitelina se comunica ampliamente con la cavidad amniótica.", "Se produce la emigración de células hacia la línea primitiva para formar el mesodermo.", "Las células que se introducen sobre el nódulo de Hensen dan lugar a la notocorda."], correct: 1 },
+        { id: 'b4_16', text: "Señale lo incorrecto respecto al cordón umbilical:", options: ["En el cordón umbilical se localizan dos arterias y una vena.", "Los vasos sanguíneos se encuentran rodeados por gelatina de Wharton.", "La pared de las arterias es más gruesa que la de la vena.", "Por las arterias umbilicales circula sangre oxigenada hacia el feto."], correct: 3 },
+        { id: 'b4_17', text: "Tras la fecundación el cigoto presenta:", options: ["Hematíes nucleados.", "Número haploide de cromosomas.", "Cilios para la migración tubárica.", "Membrana pelúcida."], correct: 3 },
+        { id: 'b4_18', text: "¿Cuál de las siguientes células son consideradas células libres del tejido conectivo?", options: ["Fibroblastos.", "Adipocitos.", "Neutrófilos, basófilos y eosinófilos.", "Células mesenquimales."], correct: 2 },
+        { id: 'b4_19', text: "Célula que presenta una gran cantidad de lisosomas en su citoplasma:", options: ["Fibroblasto.", "Macrófago.", "Adipocito.", "Mastocito."], correct: 1 },
+        { id: 'b4_20', text: "¿Para qué fibras o tejido se utiliza la tinción de orceína?", options: ["Fibras de colágeno.", "Fibras reticulares.", "Fibras elásticas.", "Sustancia fundamental."], correct: 2 },
+        { id: 'b4_21', text: "La osificación membranosa comienza con la diferenciación de células mesenquimatosas en:", options: ["Condrocitos.", "Osteoclastos.", "Osteoblastos.", "Osteocitos."], correct: 2 },
+        { id: 'b4_22', text: "¿Cuál de las siguientes afirmaciones sobre el tejido muscular liso es correcta?", options: ["Presenta estriaciones transversales.", "Sus células son multinucleadas.", "La contracción es voluntaria.", "Sus células son fusiformes y tienen un solo núcleo central."], correct: 3 },
+        { id: 'b4_23', text: "La unidad estructural y funcional básica del sistema nervioso es:", options: ["La neuroglia.", "El axón.", "La neurona.", "La sinapsis."], correct: 2 },
+        { id: 'b4_24', text: "¿Qué tipo de epitelio reviste la vejiga urinaria?", options: ["Epitelio plano estratificado.", "Epitelio cúbico simple.", "Epitelio de transición (urotelio).", "Epitelio cilíndrico simple."], correct: 2 },
+        { id: 'b4_25', text: "La principal función de los osteoclastos es:", options: ["Formación de matriz ósea.", "Mantenimiento de la matriz ósea.", "Reabsorción ósea.", "Producción de fibras de colágeno."], correct: 2 }
+    ];
+
+    // BATERÍA 5: CONCEPTOS EMBRIOLOGÍA (35 Preguntas)
+    const battery5 = [
+        { id: 'b5_1', text: "Las células luteínicas producen principalmente después de la ovulación:", options: ["Estrógenos.", "Andrógenos.", "Progesterona.", "Gonadotropinas."], correct: 2 },
+        { id: 'b5_2', text: "Para estimular el crecimiento y maduración de los folículos ováricos en la FIV se utilizan:", options: ["Estrógenos.", "Progesterona.", "Gonadotropinas.", "Andrógenos."], correct: 2 },
+        { id: 'b5_3', text: "Los experimentos de Chabry contribuyeron al concepto de:", options: ["Huevos de regulación.", "Huevos en mosaico.", "Inducción primaria.", "Totipotencia celular tardía."], correct: 1 },
+        { id: 'b5_4', text: "Si al destruir uno de los blastómeros se obtiene un hemiembrión, estamos ante un desarrollo de tipo:", options: ["Regulativo.", "Indeterminado.", "Mosaico.", "Totipotente."], correct: 2 },
+        { id: 'b5_5', text: "El concepto de determinación embrionaria implica que:", options: ["Las células mantienen su totipotencia indefinidamente.", "El destino celular es reversible en cualquier etapa.", "El material embrionario decide tomar un camino irreversible hacia su destino.", "La regulación es siempre posible."], correct: 2 },
+        { id: 'b5_6', text: "Cuando la regulación no es posible, se dice que la determinación es:", options: ["Labil.", "Estable.", "Inducida.", "Precoz."], correct: 1 },
+        { id: 'b5_7', text: "La teoría de Driesch se basó en experimentos con erizos de mar que demostraron la existencia de:", options: ["Huevos en mosaico.", "Desarrollo preformado.", "Huevos de regulación.", "Determinación irreversible temprana."], correct: 2 },
+        { id: 'b5_8', text: "Un huevo de regulación se caracteriza porque:", options: ["Cada blastómera tiene un destino fijo desde el inicio.", "La destrucción de una blastómera resulta en un embrión incompleto.", "Las blastómeras aisladas pueden formar un embrión completo pero más pequeño.", "No permite la formación de gemelos monocigóticos."], correct: 2 },
+        { id: 'b5_9', text: "¿Qué autor es conocido por sus estudios sobre la inducción primaria y el organizador?", options: ["Chabry.", "Roux.", "Spemann.", "Driesch."], correct: 2 },
+        { id: 'b5_10', text: "La reacción decidual en el endometrio se caracteriza por:", options: ["Acumulación de lípidos y glucógeno en las células estromales.", "Adelgazamiento del endometrio.", "Disminución de la vascularización.", "Apoptosis masiva de células epiteliales."], correct: 0 },
+        { id: 'b5_11', text: "El cierre del tubo neural comienza en la región:", options: ["Cefálica.", "Caudal.", "Cervical.", "Lumbar."], correct: 2 },
+        { id: 'b5_12', text: "Las crestas neurales dan origen a:", options: ["El sistema nervioso central.", "Los ganglios raquídeos y melanocitos.", "El tubo digestivo.", "El esqueleto axial."], correct: 1 },
+        { id: 'b5_13', text: "El mesodermo intermedio da origen a:", options: ["Sistema urogenital.", "Músculo esquelético.", "Dermis de la piel.", "Revestimiento del tubo digestivo."], correct: 0 },
+        { id: 'b5_14', text: "El celoma intraembrionario se forma por la delaminación del:", options: ["Mesodermo paraxial.", "Mesodermo intermedio.", "Mesodermo lateral.", "Endodermo."], correct: 2 },
+        { id: 'b5_15', text: "La membrana bucofaríngea está formada por:", options: ["Ectodermo y mesodermo.", "Endodermo y mesodermo.", "Ectodermo y endodermo.", "Solo ectodermo."], correct: 2 },
+        { id: 'b5_16', text: "La notocorda induce la formación de:", options: ["La placa neural.", "El intestino primitivo.", "El corazón.", "Las extremidades."], correct: 0 },
+        { id: 'b5_17', text: "El periodo embrionario abarca desde:", options: ["La fecundación hasta la 3ª semana.", "La 3ª semana hasta la 8ª semana.", "La 9ª semana hasta el nacimiento.", "La fecundación hasta el nacimiento."], correct: 1 },
+        { id: 'b5_18', text: "La gastrulación es el proceso mediante el cual:", options: ["Se forma el blastocisto.", "Se implantan el embrión.", "Se forman las tres capas germinativas.", "Se cierra el tubo neural."], correct: 2 },
+        { id: 'b5_19', text: "El trofoblasto se diferencia en:", options: ["Epiblasto e hipoblasto.", "Citotrofoblasto y sincitiotrofoblasto.", "Ectodermo y endodermo.", "Amnios y corion."], correct: 1 },
+        { id: 'b5_20', text: "La circulación uteroplacentaria primordial se establece cuando:", options: ["El sincitiotrofoblasto erosiona los capilares maternos.", "Se forma el cordón umbilical.", "Aparece la línea primitiva.", "Se cierra el tubo neural."], correct: 0 },
+        { id: 'b5_21', text: "¿Qué estructura produce la hormona gonadotropina coriónica humana (hCG)?", options: ["El cuerpo lúteo.", "El sincitiotrofoblasto.", "El epiblasto.", "El hipoblasto."], correct: 1 },
+        { id: 'b5_22', text: "La función principal de la hCG es:", options: ["Inducir la ovulación.", "Mantener el cuerpo lúteo.", "Estimular la contracción uterina.", "Inhibir la fecundación."], correct: 1 },
+        { id: 'b5_23', text: "El saco vitelino definitivo se forma a partir del:", options: ["Hipoblasto.", "Epiblasto.", "Mesodermo extraembrionario.", "Trofoblasto."], correct: 0 },
+        { id: 'b5_24', text: "El pedículo de fijación se convertirá posteriormente en:", options: ["La placenta.", "El cordón umbilical.", "El amnios.", "El corion."], correct: 1 },
+        { id: 'b5_25', text: "Las vellosidades coriónicas terciarias se caracterizan por tener:", options: ["Solo sincitiotrofoblasto.", "Sincitiotrofoblasto y citotrofoblasto.", "Núcleo de mesodermo.", "Núcleo de mesodermo con vasos sanguíneos."], correct: 3 },
+        { id: 'b5_26', text: "La decidua que cubre el blastocisto implantado se denomina:", options: ["Decidua basal.", "Decidua capsular.", "Decidua parietal.", "Decidua vera."], correct: 1 },
+        { id: 'b5_27', text: "La decidua que forma la parte materna de la placenta es:", options: ["Decidua basal.", "Decidua capsular.", "Decidua parietal.", "Decidua refleja."], correct: 0 },
+        { id: 'b5_28', text: "Los gemelos monocigóticos que se dividen en el estadio de blastocisto (días 4-8) son:", options: ["Dicoriónicos diamnióticos.", "Monocoriónicos diamnióticos.", "Monocoriónicos monoamnióticos.", "Siameses."], correct: 1 },
+        { id: 'b5_29', text: "Los gemelos monocigóticos que se dividen después del día 13 suelen ser:", options: ["Dicoriónicos.", "Diamnióticos.", "Siameses (unidos).", "Independientes."], correct: 2 },
+        { id: 'b5_30', text: "La placenta humana es de tipo:", options: ["Hemocorial.", "Endoteliocorial.", "Epiteliocorial.", "Sindesmocorial."], correct: 0 },
+        { id: 'b5_31', text: "La barrera placentaria en el primer trimestre consta de:", options: ["Sincitiotrofoblasto, citotrofoblasto, mesodermo y endotelio fetal.", "Solo sincitiotrofoblasto y endotelio.", "Decidua y corion.", "Amnios y corion."], correct: 0 },
+        { id: 'b5_32', text: "¿Qué sustancia atraviesa la placenta por difusión facilitada?", options: ["Oxígeno.", "Dióxido de carbono.", "Glucosa.", "Aminoácidos."], correct: 2 },
+        { id: 'b5_33', text: "La sangre oxigenada llega al feto a través de:", options: ["La vena umbilical.", "Las arterias umbilicales.", "La aorta fetal.", "La vena cava inferior."], correct: 0 },
+        { id: 'b5_34', text: "El conducto venoso conecta:", options: ["La vena umbilical con la vena cava inferior.", "La arteria pulmonar con la aorta.", "La aurícula derecha con la izquierda.", "La vena porta con la vena cava superior."], correct: 0 },
+        { id: 'b5_35', text: "El foramen oval permite el paso de sangre desde:", options: ["La aurícula derecha a la izquierda.", "La aurícula izquierda a la derecha.", "El ventrículo derecho al izquierdo.", "La arteria pulmonar a la aorta."], correct: 0 }
+    ];
+
+    // LÓGICA DEL QUIZ
+    let currentQuestions = [];
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentBatteryMode = 'all';
+
+    function selectBattery(mode) {
+        currentBatteryMode = mode;
+        if (mode === 'exam') {
+            startQuiz('random');
+        } else {
+            document.getElementById('order-options').style.display = 'block';
+            document.getElementById('order-options').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function startQuiz(orderMode) {
+        userAnswers = {};
+        markedQuestions.clear();
+        let rawSet = [];
+
+        if (currentBatteryMode === 'b1') rawSet = [...battery1];
+        else if (currentBatteryMode === 'b2') rawSet = [...battery2];
+        else if (currentBatteryMode === 'b3') rawSet = [...battery3];
+        else if (currentBatteryMode === 'b4') rawSet = [...battery4];
+        else if (currentBatteryMode === 'b5') rawSet = [...battery5];
+        else rawSet = [...battery1, ...battery2, ...battery3, ...battery4, ...battery5];
+
+        if (currentBatteryMode === 'exam') {
+            rawSet.sort(() => Math.random() - 0.5);
+            currentQuestions = rawSet.slice(0, 50); // Simulacro de 50 preguntas
+        } else {
+            currentQuestions = rawSet;
+            if (orderMode === 'random') {
+                currentQuestions.sort(() => Math.random() - 0.5);
+            }
+        }
+
+        loadQuestions();
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function loadQuestions() {
+        const container = document.getElementById('questions-list');
+        const navGrid = document.getElementById('nav-grid');
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            const displayIndex = index + 1;
+            const div = document.createElement('div');
+            div.className = 'question-container';
+            div.id = `q-${index}`; 
+            
+            let optionIndices = q.options.map((_, i) => i);
+            let batName = "B1";
+            if(q.id.startsWith('b2')) batName = "B2";
+            if(q.id.startsWith('b3')) batName = "B3";
+            if(q.id.startsWith('b4')) batName = "B4";
+            if(q.id.startsWith('b5')) batName = "B5";
+
+            let badgeColor = "var(--secondary)";
+            if(batName === "B4" || batName === "B5") badgeColor = "#8e44ad"; // Morado para nuevas
+
+            div.innerHTML = `
+                <div class="question-header">
+                    <span class="question-text">
+                        ${displayIndex}. ${q.text} 
+                        <span class="badge" style="background-color: ${badgeColor}">${batName}</span>
+                    </span>
+                    <span class="mark-check" onclick="toggleMark(${index})" id="mark-${index}" title="Marcar">★</span>
+                </div>
+                <div class="options-grid">
+                    ${optionIndices.map(optIdx => `
+                        <div class="option" onclick="selectAnswer(${index}, ${optIdx}, this, ${q.correct})">
+                            ${q.options[optIdx]}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="feedback" id="feedback-${index}"></div>
+            `;
+            container.appendChild(div);
+
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.innerText = displayIndex;
+            navBtn.id = `nav-${index}`;
+            navBtn.onclick = () => document.getElementById(`q-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            navGrid.appendChild(navBtn);
+        });
+    }
+
+    function selectAnswer(index, selectedOptIdx, optionElem, correctOptIdx) {
+        if (userAnswers[index]) return;
+
+        const q = currentQuestions[index];
+        const isCorrect = selectedOptIdx === correctOptIdx;
+        userAnswers[index] = { selectedOption: selectedOptIdx, isCorrect: isCorrect };
+
+        const parent = optionElem.parentNode;
+        const options = parent.getElementsByClassName('option');
+        
+        for(let opt of options) {
+            opt.classList.add('disabled');
+            if (opt.innerText.trim() === q.options[correctOptIdx].trim()) {
+                opt.classList.add('correct');
+            }
+        }
+
+        if (!isCorrect) optionElem.classList.add('incorrect');
+
+        const feedbackEl = document.getElementById(`feedback-${index}`);
+        feedbackEl.style.display = 'block';
+        feedbackEl.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Incorrecto'}</strong>`;
+        feedbackEl.classList.add(isCorrect ? 'success' : 'error');
+
+        const navBtn = document.getElementById(`nav-${index}`);
+        navBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(index) {
+        if (markedQuestions.has(index)) {
+            markedQuestions.delete(index);
+            document.getElementById(`mark-${index}`).classList.remove('marked');
+            document.getElementById(`nav-${index}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(index);
+            document.getElementById(`mark-${index}`).classList.add('marked');
+            document.getElementById(`nav-${index}`).classList.add('marked');
+        }
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = total > 0 ? ((correct / total) * 10).toFixed(1) : 0.0;
+        
+        document.getElementById('score-display').innerText = score;
+        document.getElementById('stats-display').innerText = `Aciertos: ${correct} / ${total}`;
+        
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+    }
+
+    function resetQuiz(criteria) {
+        if (criteria === 'all') {
+            userAnswers = {};
+            currentQuestions.sort(() => Math.random() - 0.5);
+            document.getElementById('results-screen').classList.remove('active');
+            document.getElementById('quiz-screen').classList.add('active');
+            loadQuestions();
+            return;
+        }
+
+        let subset = [];
+        if (criteria === 'failed') {
+            subset = currentQuestions.filter((q, i) => userAnswers[i] && !userAnswers[i].isCorrect);
+        } else if (criteria === 'marked') {
+            subset = currentQuestions.filter((q, i) => markedQuestions.has(i));
+        } else if (criteria === 'failed_marked') {
+            subset = currentQuestions.filter((q, i) => 
+                (userAnswers[i] && !userAnswers[i].isCorrect) || markedQuestions.has(i)
+            );
+        }
+
+        if (subset.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        currentQuestions = subset;
+        userAnswers = {}; 
+        markedQuestions.clear();
+        
+        currentQuestions.sort(() => Math.random() - 0.5);
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+        loadQuestions();
+    }
+</script>
+</body>
+</html>

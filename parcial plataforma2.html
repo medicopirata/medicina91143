@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Aparato Genital Femenino</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e91e63;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #fdf2f5;
+            --sidebar-w: 70px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral compacto */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 32px;
+            height: 32px;
+            background: #34495e;
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        /* Pestaña Reiniciar Izquierda */
+        .restart-tab {
+            width: 100%;
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+            transition: 0.3s;
+        }
+        .restart-tab:hover { background: var(--accent); color: white; }
+
+        /* Contenido principal */
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid var(--accent);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px 18px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--accent); background: #fff8fa; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95em;
+            line-height: 1.5;
+            background: #fdf2f5;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Aparato Genital Femenino - Anatomía I</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados del Intento</h2>
+        <p id="score-text" style="font-size: 1.2rem;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const questionsData = [
+        {
+            id: 1,
+            q: "Cuál de los siguientes elementos no delimitan la fosa ovárica",
+            options: [
+                { text: "Bordes laterales del recto intraperitoneal", isCorrect: true, r: "La fosa ovárica (de Krause) está limitada por los vasos ilíacos, el uréter y el ligamento ancho, pero el recto no constituye un límite directo." },
+                { text: "Ligamento ancho del útero", isCorrect: false, r: "Forma parte del límite anterior/inferior." },
+                { text: "Vasos iliacos", isCorrect: false, r: "Los vasos ilíacos internos y externos delimitan la fosa superior y posteriormente." },
+                { text: "Trompa uterina", isCorrect: false, r: "La trompa se relaciona estrechamente con la fosa ovárica." }
+            ]
+        },
+        {
+            id: 2,
+            q: "La glandula seromucosa que se fija a la membrana del seno urogenital es",
+            options: [
+                { text: "Bartholin", isCorrect: true, r: "Las glándulas de Bartholin (vestibulares mayores) son las glándulas seromucosas principales del periné posterior femenino." },
+                { text: "Gardner", isCorrect: false, r: "Restos del conducto de Wolff." },
+                { text: "Skeene", isCorrect: false, r: "Glándulas parauretrales." },
+                { text: "Cooper", isCorrect: false, r: "Exclusivas del varón." }
+            ]
+        },
+        {
+            id: 3,
+            q: "De la lámina posterior del mesometrio se forma",
+            options: [
+                { text: "mesovario", isCorrect: true, r: "El mesovario es el pliegue peritoneal que se desprende de la hoja posterior del ligamento ancho." },
+                { text: "Ligamento redondo", isCorrect: false, r: "Sale del ángulo del útero hacia el conducto inguinal." },
+                { text: "Tabique rectovaginal", isCorrect: false, r: "Es una fascia de separación." },
+                { text: "Ligamento cardinal", isCorrect: false, r: "Refuerzo fibroso en la base." }
+            ]
+        },
+        {
+            id: 4,
+            q: "El déficit embriogénico de fusión en la línea media de los conductos paramesonéfricos de Múller dan lugar a",
+            options: [
+                { text: "útero didelfo o tabicado", isCorrect: true, r: "La falta de fusión de los conductos de Müller provoca duplicidades o tabiques uterinos." },
+                { text: "Quiste de Gardner", isCorrect: false, r: "Deriva del conducto mesonéfrico." },
+                { text: "Atresia vaginal", isCorrect: false, r: "Fallo de canalización." },
+                { text: "Agenesia unilateral tubárica", isCorrect: false, r: "Falta de desarrollo, no de fusión." }
+            ]
+        },
+        {
+            id: 5,
+            q: "El homólogo de la bolsa escrotal en la mujer es",
+            options: [
+                { text: "labios mayores", isCorrect: true, r: "Ambos provienen de los mismos rodetes labioscrotales embrionarios." },
+                { text: "Introito vaginal", isCorrect: false, r: "Entrada vaginal." },
+                { text: "Seno urogenital", isCorrect: false, r: "Precursor de vejiga y uretra." },
+                { text: "Labios menores", isCorrect: false, r: "Homólogos de la piel del pene." }
+            ]
+        },
+        {
+            id: 6,
+            q: "El músculo transverso profundo del periné",
+            options: [
+                { text: "Se origina en la espina ciática", isCorrect: true, r: "Se extiende desde la rama isquiopubiana y tuberosidad isquiática hacia el centro tendinoso." },
+                { text: "superficial a él se sitúa el diafragma urogenital", isCorrect: false, r: "Él mismo lo conforma." },
+                { text: "Se inserta alrededor de la porción distal vaginal", isCorrect: false, r: "Función del pubovaginal." },
+                { text: "Está por debajo del transverso superficial", isCorrect: false, r: "Está por encima (es profundo)." }
+            ]
+        },
+        {
+            id: 7,
+            q: "El principal soporte uterino depende de",
+            options: [
+                { text: "ligamento cardinal", isCorrect: true, r: "El ligamento de Mackenrodt es el principal soporte pasivo del cuello uterino." },
+                { text: "Músculo pubococcigeo", isCorrect: false, r: "Soporte dinámico." },
+                { text: "Ligamento redondo", isCorrect: false, r: "Mantiene la anteversión." },
+                { text: "Tendon perineal central", isCorrect: false, r: "Sostiene el suelo pélvico." }
+            ]
+        },
+        {
+            id: 8,
+            q: "En la mujer, el uréter",
+            options: [
+                { text: "Se encuentra dorsal al borde lateral de la vagina", isCorrect: true, r: "Pasa cerca de los fórnix vaginales antes de su entrada en la vejiga." },
+                { text: "Pasa a través del ligamento ancho", isCorrect: false, r: "Pasa por el parametrio (base)." },
+                { text: "Está cruzado por la arteria uterina superiormente", isCorrect: false, r: "La arteria pasa por ENCIMA del uréter." },
+                { text: "Se acompaña de la arteria uterina", isCorrect: false, r: "Solo se cruzan." }
+            ]
+        },
+        {
+            id: 9,
+            q: "La arteria ovárica alcanza el ovario apoyándose en qué estructura",
+            options: [
+                { text: "Ligamento suspensorio", isCorrect: true, r: "El ligamento infundíbulo-pélvico conduce los vasos ováricos." },
+                { text: "Ligamento propio", isCorrect: false, r: "Une ovario y útero." },
+                { text: "Lig cardinales", isCorrect: false, r: "Base del útero." },
+                { text: "Lig redondo", isCorrect: false, r: "Llega al conducto inguinal." }
+            ]
+        },
+        {
+            id: 10,
+            q: "La arteria uterina es rama de",
+            options: [
+                { text: "A. iliaca interna", isCorrect: true, r: "Rama visceral de la división anterior de la hipogástrica." },
+                { text: "A. iliaca externa", isCorrect: false, r: "Da la femoral." },
+                { text: "A. Obturatriz", isCorrect: false, r: "Rama independiente." },
+                { text: "A rectal media", isCorrect: false, r: "Rama independiente." }
+            ]
+        },
+        {
+            id: 11,
+            q: "Las columnas rugosas de la vagina",
+            options: [
+                { text: "son pliegues transversales", isCorrect: true, r: "Son rugosidades de la mucosa que permiten la distensión del conducto." },
+                { text: "Paredes laterales", isCorrect: false, r: "Paredes anterior y posterior." },
+                { text: "Solo jóvenes", isCorrect: false, r: "Están presentes siempre, aunque varían." },
+                { text: "Solo caudal", isCorrect: false, r: "En todo el conducto." }
+            ]
+        },
+        {
+            id: 12,
+            q: "Qué elemento no participa del sostenimiento del ovario in situ",
+            options: [
+                { text: "mesosalpinx", isCorrect: true, r: "Sostiene la trompa, no el ovario." },
+                { text: "Mesovario", isCorrect: false, r: "Meso propio del ovario." },
+                { text: "Ligamento propio", isCorrect: false, r: "Fijación al útero." },
+                { text: "Ligamento suspensorio", isCorrect: false, r: "Fijación a la pelvis." }
+            ]
+        },
+        {
+            id: 13,
+            q: "Sobre la vagina, señale la opción incorrecta",
+            options: [
+                { text: "el fórnix anterior es más profundo coincidiendo con su mayor profundidad.", isCorrect: true, r: "Incorrecto. El fórnix POSTERIOR es el más profundo por la inclinación del cuello." },
+                { text: "Cresta uretral", isCorrect: false, r: "Marca real en la cara anterior." },
+                { text: "Relación con el recto", isCorrect: false, r: "Correcto, vía tabique rectovaginal." },
+                { text: "Tubo elástico", isCorrect: false, r: "Definición correcta." }
+            ]
+        },
+        {
+            id: 14,
+            q: "Sobre los labios menores de la vulva, señale la incorrecta",
+            options: [
+                { text: "contienen un tejido graso", isCorrect: true, r: "Incorrecto. Los labios menores no tienen grasa, solo los mayores." },
+                { text: "Frenillo del clitoris", isCorrect: false, r: "Correcto." },
+                { text: "Prepucio del clitoris", isCorrect: false, r: "Correcto." },
+                { text: "Vestíbulo vaginal", isCorrect: false, r: "Correcto." }
+            ]
+        },
+        {
+            id: 15,
+            q: "Un útero anteverso y en anteflexión relaciona su cara anterior con",
+            options: [
+                { text: "Cara anterosuperior de la vejiga urinaria", isCorrect: true, r: "El útero descansa sobre la vejiga en su posición anatómica normal." },
+                { text: "Espacio de Retzius", isCorrect: false, r: "La vejiga está en medio." },
+                { text: "Sinfisis púbica", isCorrect: false, r: "Relación de la vejiga." },
+                { text: "Cara anterior del recto", isCorrect: false, r: "Relación posterior." }
+            ]
+        }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...questionsData];
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            feedback.id = `fb-${q.id}`;
+
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${option.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = questionsData.find(q => q.id === qId).options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Has acertado <strong>${correctas}</strong> de <strong>${total}</strong> preguntas.`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...questionsData];
+        else if (mode === 'failed') next = questionsData.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = questionsData.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = questionsData.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    initQuiz(questionsData);
+</script>
+
+</body>
+</html>

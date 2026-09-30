@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cuestionario: Tema 6 - Hormonas, GH y Prolactina (Pistas Prof.)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      margin: 0;
+      height: 100vh;
+      background: #f4f7f6;
+      color: #333;
+    }
+
+    /* Pantallas de superposición (Inicio y Fin) */
+    .overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000; flex-direction: column;
+    }
+    .modal-box {
+      background: #fff;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .modal-box h2 { margin-top: 0; color: #2c3e50; }
+    .btn {
+      padding: 12px 24px;
+      margin: 8px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #3498db;
+      color: white;
+      font-size: 16px;
+      transition: background 0.3s;
+      width: 100%;
+      max-width: 300px;
+    }
+    .btn:hover { background: #2980b9; }
+    .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+    .btn-warning { background: #e67e22; }
+    .btn-warning:hover { background: #d35400; }
+
+    /* Estructura Principal */
+    #sidebar {
+      width: 280px;
+      background: #2c3e50;
+      color: white;
+      overflow-y: auto;
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    #sidebar h3 {
+      text-align: center;
+      margin-top: 0;
+      border-bottom: 1px solid #34495e;
+      padding-bottom: 15px;
+    }
+    .index-btn {
+      width: 100%;
+      text-align: left;
+      padding: 10px;
+      background: #34495e;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+      font-size: 14px;
+    }
+    .index-btn:hover { background: #415b76; }
+    .index-btn.correct { border-left: 6px solid #2ecc71; background: #27ae6033; }
+    .index-btn.incorrect { border-left: 6px solid #e74c3c; background: #c0392b33; }
+    .index-btn .mark-indicator { color: #f1c40f; font-weight: bold; font-size: 16px; display: none; }
+    .index-btn.is-marked .mark-indicator { display: inline; }
+
+    #main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px;
+      position: relative;
+      scroll-behavior: smooth;
+    }
+    .question-container {
+      background: white;
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      border: 1px solid #e0e0e0;
+    }
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      gap: 20px;
+    }
+    .question-text {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+      line-height: 1.5;
+      color: #2c3e50;
+    }
+
+    .mark-btn {
+      background: none;
+      border: 2px solid #f1c40f;
+      color: #f1c40f;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .mark-btn:hover { background: #fef9e7; }
+    .mark-btn.marked { background: #f1c40f; color: white; }
+
+    .options-list { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn {
+      width: 100%;
+      text-align: left;
+      padding: 15px;
+      background: #f8f9f9;
+      border: 2px solid #d5d8dc;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+      color: #333;
+      line-height: 1.4;
+    }
+    .option-btn:hover:not(:disabled) { background: #ebedef; border-color: #bdc3c7; }
+    .option-btn:disabled { cursor: default; }
+    .option-btn.correct { background: #d5f5e3; border-color: #2ecc71; color: #1e8449; font-weight: bold; }
+    .option-btn.incorrect { background: #fadbd8; border-color: #e74c3c; color: #922b21; }
+
+    .explanation {
+      margin-top: 20px;
+      padding: 15px 20px;
+      background: #e8f8f5;
+      border-left: 5px solid #1abc9c;
+      border-radius: 4px;
+      display: none;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #0e6251;
+    }
+    .explanation strong { color: #117a65; }
+
+    .floating-finish { position: fixed; bottom: 30px; right: 30px; z-index: 100; }
+    .floating-finish button { box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 18px; padding: 15px 30px; border-radius: 30px; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+  </style>
+</head>
+
+<body>
+  <div id="start-screen" class="overlay">
+    <div class="modal-box">
+      <h2>Tema 6: Hormonas, GH y Prolactina</h2>
+      <p>60 Preguntas (Versión: Pistas Profesora)</p>
+      <div>
+        <button class="btn" onclick="startQuiz('all', false)">Orden Preestablecido</button>
+        <button class="btn" onclick="startQuiz('all', true)">Mezcladas Aleatoriamente</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="end-screen" class="overlay" style="display: none;">
+    <div class="modal-box">
+      <h2>Resumen del Cuestionario</h2>
+      <p id="results-text" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></p>
+
+      <button class="btn" onclick="startQuiz('all', false)">Repetir Cuestionario Completo (Original)</button>
+      <button class="btn" onclick="startQuiz('all', true)">Repetir Cuestionario Completo (Aleatorio)</button>
+      <button class="btn btn-warning" id="btn-retry-failed" onclick="startQuiz('failed', false)">Repetir Solo Falladas</button>
+      <button class="btn btn-warning" id="btn-retry-marked" onclick="startQuiz('marked', false)">Repetir Solo Marcadas</button>
+      <button class="btn btn-warning" id="btn-retry-both" onclick="startQuiz('both', false)">Repetir Falladas + Marcadas</button>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <h3>Índice</h3>
+    <div id="index-container"></div>
+  </div>
+
+  <div id="main-content">
+    <div id="questions-container"></div>
+  </div>
+
+  <div class="floating-finish" id="finish-btn-container" style="display: none;">
+    <button class="btn btn-warning" onclick="finishQuiz()">Finalizar Cuestionario</button>
+  </div>
+
+  <script>
+    const rawText = `BATERÍA DE PREGUNTAS: TEMA 6
+1. ¿Cuál es la diferencia fundamental entre una glándula endocrina y una glándula exocrina según lo explicado en clase? (¡Pista Profesora!)
+A) Las endocrinas secretan proteínas y las exocrinas lípidos.
+B) Las endocrinas liberan hormonas al torrente sanguíneo sin conducto, mientras que las exocrinas liberan sus sustancias a través de un conducto hacia una superficie o lumen.
+C) Las endocrinas actúan sobre la misma célula que las secreta.
+D) Las exocrinas solo se encuentran en el sistema nervioso.
+Respuesta correcta: B.
+
+2. Una hormona "paracrina" es aquella que:
+A) Es liberada al torrente sanguíneo para viajar largas distancias.
+B) Actúa sobre la propia célula que la secreta.
+C) Actúa sobre células próximas o vecinas a aquellas que la secretan.
+D) Se secreta exclusivamente en el páncreas.
+Respuesta correcta: C.
+
+3. Desde el punto de vista de su estructura química, ¿por qué las hormonas de naturaleza esteroidea o lipídica no suelen necesitar receptores en la membrana plasmática? (¡Pista Profesora!)
+A) Porque son moléculas demasiado grandes.
+B) Porque pueden atravesar la membrana lipídica de la célula y unirse a receptores intracelulares o nucleares.
+C) Porque viajan libres en la sangre sin transportadores.
+D) Porque actúan como segundos mensajeros directamente.
+Respuesta correcta: B.
+
+4. ¿Qué requieren las hormonas hidrofóbicas (como el cortisol o la tiroxina) para poder circular adecuadamente por el torrente sanguíneo?
+A) Unirse a otras proteínas transportadoras plasmáticas específicas.
+B) Convertirse en hormonas exocrinas.
+C) Ser degradadas por lisosomas.
+D) Unirse a receptores de membrana en el torrente sanguíneo.
+Respuesta correcta: A.
+
+5. ¿Qué dos órganos/glándulas destacan por tener un papel central regulando al resto del sistema endocrino al estar directamente conectados con el sistema nervioso?
+A) Páncreas e Hígado.
+B) Hipotálamo e Hipófisis.
+C) Tiroides y Gónadas.
+D) Timo y Glándula Pineal.
+Respuesta correcta: B.
+
+6. Además de las glándulas clásicas, existen tejidos endocrinológicamente activos. ¿Qué hormona es producida por el tejido adiposo blanco para mandar señales de los depósitos energéticos?
+A) Grelina.
+B) Leptina.
+C) Gastrina.
+D) Melatonina.
+Respuesta correcta: B.
+
+7. El concepto de "retroalimentación (feedback) negativa" en endocrinología significa que:
+A) Una hormona estimula la liberación de más cantidad de sí misma.
+B) La hormona destruye su propio receptor.
+C) La acción de una hormona o sus altos niveles inhiben su propia producción o la de sus hormonas estimuladoras.
+D) La hormona carece de efecto fisiológico.
+Respuesta correcta: C.
+
+8. La profesora distingue entre hormonas tróficas y no tróficas. Una hormona TRÓFICA es aquella que: (¡Pista Profesora!)
+A) Actúa directamente sobre la célula diana periférica (ej. músculo).
+B) Inhibe siempre el crecimiento.
+C) Actúa estimulando a otras glándulas para que liberen otras hormonas.
+D) No necesita receptores para actuar.
+Respuesta correcta: C.
+
+9. La hipófisis está conectada al hipotálamo mediante el tallo hipofisario. ¿Qué porcentaje aproximado de la glándula representa la adenohipófisis (hipófisis anterior)?
+A) 20%.
+B) 50%.
+C) 80%.
+D) 100%.
+Respuesta correcta: C.
+
+10. ¿Dónde se sintetizan realmente las hormonas que son liberadas por la neurohipófisis (hipófisis posterior)?
+A) En el núcleo arcuato de la adenohipófisis.
+B) En los núcleos supraóptico y paraventricular del hipotálamo.
+C) En el cerebelo.
+D) En la propia glándula mamaria.
+Respuesta correcta: B.
+
+11. ¿Cuáles son las dos hormonas secretadas por la neurohipófisis (hipófisis posterior)?
+A) Prolactina y GH.
+B) ACTH y TSH.
+C) Oxitocina y Vasopresina (ADH).
+D) Insulina y Glucagón.
+Respuesta correcta: C.
+
+12. En la clase se hizo una distinción MUY IMPORTANTE respecto a la lactancia. ¿Qué hormona se encarga de la SÍNTESIS o producción de leche y cuál de la CONTRACCIÓN (eyección)? (¡Pista Profesora!)
+A) Oxitocina produce leche / Prolactina la expulsa.
+B) Prolactina produce leche / Oxitocina estimula la contracción de la glándula mamaria para la eyección.
+C) Dopamina produce leche / Oxitocina la expulsa.
+D) TRH produce leche / Prolactina la expulsa.
+Respuesta correcta: B.
+
+13. ¿Qué tipo de células de la adenohipófisis son las encargadas de producir la Hormona del Crecimiento (GH)?
+A) Corticótropas.
+B) Gonadótropas.
+C) Somatótropas.
+D) Lactótropas.
+Respuesta correcta: C.
+
+14. Las hormonas adenohipofisarias son glucoproteínas o péptidos. Respecto al número de aminoácidos, la profesora recalcó que: (¡Pista Profesora!)
+A) Es vital memorizar el número exacto para el examen.
+B) No va a preguntar el número de aminoácidos, pero es importante saber que la GH es monocatenaria y otras como la TSH son bicatenarias.
+C) Todas las hormonas hipofisarias tienen exactamente 191 aminoácidos.
+D) Son de naturaleza lipídica.
+Respuesta correcta: B.
+
+15. En el eje de la Hormona del Crecimiento (GH), ¿qué hormona hipotalámica estimula su liberación?
+A) Somatostatina (GHIH).
+B) Dopamina.
+C) GHRH o Somatocrinina.
+D) TRH.
+Respuesta correcta: C.
+
+16. ¿Qué acción intracelular desencadena la unión de la GHRH (somatocrinina) a su receptor en la hipófisis?
+A) Inhibición de la adenilato ciclasa.
+B) Activación del sistema adenilato ciclasa y del sistema de calciocalmodulina.
+C) Autofosforilación de JAK2.
+D) Translocación de STAT5 al núcleo.
+Respuesta correcta: B.
+
+17. ¿Qué hormona producida en el hipotálamo INHIBE la síntesis y secreción de la Hormona del Crecimiento (GH)?
+A) Somatostatina (GHIH).
+B) Grelina.
+C) GHRH.
+D) Prolactina.
+Respuesta correcta: A.
+
+18. La Somatostatina inhibe la secreción de GH mediante su receptor acoplado a proteína G inhibitoria, lo que provoca:
+A) Un aumento masivo de AMPc.
+B) Un descenso de AMPc y de calcio intracelular.
+C) La apertura de canales de sodio.
+D) La síntesis de IGF-1.
+Respuesta correcta: B.
+
+19. El patrón de secreción de la Hormona del Crecimiento (GH) se caracteriza por:
+A) Ser constante durante las 24 horas del día.
+B) Liberarse en pulsos (cada 3-4 horas), sobre todo durante el sueño.
+C) Secretarse únicamente al ingerir hidratos de carbono.
+D) Aumentar drásticamente en la vejez.
+Respuesta correcta: B.
+
+20. La profesora explicó que hay una situación metabólica específica que actúa como un POTENTE ESTÍMULO para la liberación de GH. ¿Cuál es? (¡Pista Profesora!)
+A) La hiperglucemia.
+B) La hipoglucemia.
+C) La alta concentración de IGF-1.
+D) El exceso de tejido adiposo.
+Respuesta correcta: B.
+
+21. ¿Por qué se dice que la GH tiene una acción directa "antiinsulina"? (¡Pista Profesora!)
+A) Porque bloquea la síntesis de proteínas.
+B) Porque disminuye bruscamente los niveles de glucosa en sangre.
+C) Porque en hipoglucemia, la GH estimula mecanismos para elevar la glucosa (ej. promueve gluconeogénesis) en contraposición a lo que hace la insulina.
+D) Porque destruye las células beta del páncreas.
+Respuesta correcta: C.
+
+22. En una situación de hipoglucemia, ¿cuál es el efecto directo de la GH sobre el tejido adiposo?
+A) Estimula la lipogénesis (crear grasa).
+B) Estimula la lipólisis para que los tejidos periféricos usen ácidos grasos como energía, "ahorrando" la glucosa para el cerebro.
+C) Transforma los ácidos grasos en proteínas.
+D) Inhibe la degradación de triglicéridos.
+Respuesta correcta: B.
+
+23. ¿Cuál es el efecto directo de la GH sobre el metabolismo de las proteínas durante el crecimiento?
+A) Fomenta la degradación proteica (catabolismo).
+B) Estimula la captación de aminoácidos y la síntesis de proteínas.
+C) Convierte las proteínas en glucógeno directamente.
+D) Inhibe el crecimiento muscular.
+Respuesta correcta: B.
+
+24. El efecto TRÓFICO (indirecto) de la GH ocurre principalmente al actuar sobre el hígado. ¿Qué molécula estimula que produzca el hígado?
+A) Glucagón.
+B) Cortisol.
+C) Factor de Crecimiento Similar a la Insulina I (IGF-1).
+D) Somatostatina.
+Respuesta correcta: C.
+
+25. A nivel celular, ¿qué tipo de receptor utiliza la GH?
+A) Receptor nuclear.
+B) Receptor acoplado a proteína G (GPCR).
+C) Receptor homodimérico de membrana que se une a la tirosín quinasa JAK2.
+D) Canal iónico dependiente de voltaje.
+Respuesta correcta: C.
+
+26. Tras la unión de la GH a su receptor, ¿cuál es la secuencia de activación intracelular?
+A) Adenilato ciclasa -> AMPc -> PKA.
+B) JAK2 se autofosforila, activa al factor de transcripción STAT5 (que dimeriza) y este se transloca al núcleo para unirse al ADN.
+C) Apertura de canales de calcio y exocitosis.
+D) Activación de caspasas y apoptosis.
+Respuesta correcta: B.
+
+27. ¿Por qué el IGF-1 (Factor de Crecimiento Similar a la Insulina) recibe este nombre?
+A) Porque se sintetiza en el páncreas.
+B) Porque se utiliza para tratar la diabetes mellitus tipo 1.
+C) Porque es un péptido cuya estructura molecular es muy similar a la proinsulina.
+D) Porque viaja libre en sangre igual que la insulina.
+Respuesta correcta: C.
+
+28. ¿Cómo circula mayoritariamente el IGF-1 por el torrente sanguíneo?
+A) Libre, sin unirse a nada.
+B) Unido a albúmina exclusivamente.
+C) Unido a proteínas de transporte específicas (siendo la IGFBP-3 la más abundante) a menudo formando un complejo trimolecular.
+D) En el interior de los glóbulos rojos.
+Respuesta correcta: C.
+
+29. En la regulación del eje GH/IGF-1, el IGF-1 puede:
+A) Estimular infinitamente la liberación de GH (retroalimentación positiva).
+B) Inhibir la secreción de GH modulando su función mediante retroalimentación negativa sobre el hipotálamo/hipófisis.
+C) Inhibir la síntesis de glucógeno.
+D) Activar directamente a la somatocrinina (GHRH).
+Respuesta correcta: B.
+
+30. ¿En qué etapa del ciclo vital humano los niveles de IGF-1 en sangre alcanzan sus valores más altos?
+A) En recién nacidos (0-1 año).
+B) Disminuyen durante toda la vida desde el nacimiento.
+C) Son mayores en adultos (20-60 años), tomando el relevo en las funciones de crecimiento y mantenimiento tisular.
+D) Solo están presentes en la senectud.
+Respuesta correcta: C.
+
+31. Si se comparan el IGF-1 y la Insulina, una diferencia clave es:
+A) La insulina promueve el crecimiento celular y el IGF-1 la homeostasis de glucosa.
+B) La insulina se produce en el hígado y el IGF-1 en el páncreas.
+C) La insulina viaja libre en la sangre (y busca la homeostasis de la glucosa), mientras que el IGF-1 viaja unido a proteínas (y busca la proliferación celular).
+D) Ambos viajan unidos a IGFBP-3.
+Respuesta correcta: C.
+
+32. ¿Qué vía intracelular utiliza el receptor de IGF-1?
+A) La vía JAK2/STAT5 exclusivamente.
+B) Tiene actividad tirosín quinasa intrínseca (similar al receptor de insulina) activando cascadas como MAPK y PKB.
+C) Es un receptor acoplado a proteína Gs.
+D) Es un receptor nuclear.
+Respuesta correcta: B.
+
+33. Un déficit severo de secreción de GH durante la etapa infantil (antes de que se cierren las epífisis óseas) da lugar a:
+A) Acromegalia.
+B) Talla baja (deficiencia del crecimiento/enanismo hipofisario).
+C) Gigantismo.
+D) Pubertad precoz.
+Respuesta correcta: B.
+
+34. Por el contrario, ¿qué síndrome clínico clásico desarrolla un ADULTO con un tumor hipofisario secretor de un exceso de GH?
+A) Gigantismo.
+B) Talla baja.
+C) Acromegalia (crecimiento excesivo de zonas acras, rasgos faciales toscos).
+D) Galactorrea.
+Respuesta correcta: C.
+
+35. ¿Cuál es el principal estímulo FISIOLÓGICO (nervioso) que desencadena la secreción aguda de Prolactina en una mujer durante la etapa postparto?
+A) El aumento de glucosa.
+B) La succión del pezón por parte del bebé.
+C) La disminución de oxitocina.
+D) El estrés visual.
+Respuesta correcta: B.
+
+36. A nivel del eje hipotálamo-hipófisis, la secreción de Prolactina se caracteriza por estar sometida a una INHIBICIÓN constante. ¿Qué molécula ejerce esta inhibición?
+A) Serotonina.
+B) Somatostatina.
+C) Dopamina.
+D) TRH.
+Respuesta correcta: C.
+
+37. ¿A qué receptor de la célula lactótropa hipofisaria se une la Dopamina para inhibir la síntesis de prolactina?
+A) Receptor D2 (inhibe la adenilato ciclasa).
+B) Receptor JAK2.
+C) Receptor tirosín quinasa.
+D) Receptor intracelular de esteroides.
+Respuesta correcta: A.
+
+38. Además de la succión, ¿qué otra hormona hipotalámica (cuya función principal es otra) actúa como un potente ESTIMULADOR de la secreción de Prolactina?
+A) GHRH.
+B) TRH (Hormona liberadora de tirotropina).
+C) GnRH.
+D) CRH.
+Respuesta correcta: B.
+
+39. La Prolactina tiene un efecto directo sobre el ciclo menstrual de la mujer. Durante la lactancia, niveles altos de Prolactina:
+A) Estimulan la liberación de GnRH provocando ovulaciones múltiples.
+B) Bloquean la acción de FSH y LH, provocando anovulación y amenorrea (falta de regla).
+C) Aumentan los niveles de testosterona.
+D) No tienen ningún efecto sobre las gónadas.
+Respuesta correcta: B.
+
+40. La "galactorrea" es un síntoma clínico patológico que la profesora mencionó específicamente. ¿En qué consiste? (¡Pista Profesora!)
+A) Cese total de la menstruación.
+B) Crecimiento exagerado de las mamas (ginecomastia).
+C) Producción de leche fuera de un periodo de lactancia o embarazo, indicativo de hiperprolactinemia.
+D) Incapacidad para producir leche postparto.
+Respuesta correcta: C.
+
+41. Si una paciente (no embarazada) presenta hiperprolactinemia, galactorrea e irregularidad menstrual debido a un "prolactinoma" (tumor hipofisario), el tratamiento farmacológico lógico sería el uso de:
+A) Agonistas de la dopamina (fármacos antidopaminérgicos).
+B) Antagonistas de la dopamina.
+C) Inyecciones de TRH.
+D) Inhibidores de la GHRH.
+Respuesta correcta: A.
+
+42. Estructuralmente, la Prolactina (PRL) se parece mucho a:
+A) La Oxitocina.
+B) La Insulina.
+C) La Hormona del Crecimiento (GH) (es una proteína de 23KDa, monocatenaria).
+D) La TSH.
+Respuesta correcta: C.
+
+43. En la circulación sanguínea, ¿qué forma de la Prolactina es la predominante o más abundante (85-95%)?
+A) Forma monomérica.
+B) Dímeros.
+C) Trímeros.
+D) Macro-prolactina (complejos con IgG).
+Respuesta correcta: A.
+
+44. Respecto a la regulación neuroendocrina general, ¿qué eje funcional termina liberando cortisol desde la corteza suprarrenal?
+A) Eje hipotálamo-hipófisis-tiroides.
+B) Eje hipotálamo-hipófisis-gonadal.
+C) Eje hipotálamo-hipófisis-suprarrenal (CRH -> ACTH -> Cortisol).
+D) Eje de la Prolactina.
+Respuesta correcta: C.
+
+45. ¿Cuáles de las siguientes hormonas de la adenohipófisis son de naturaleza glucoproteica bicatenaria (tienen una subunidad alfa común y una beta específica)?
+A) GH y Prolactina.
+B) ACTH.
+C) TSH, FSH y LH.
+D) Oxitocina y Vasopresina.
+Respuesta correcta: C.
+
+46. El hipotálamo pertenece a una estructura del cerebro esencial para integrar respuestas emocionales, ambientales y hormonales. ¿A qué sistema nos referimos?
+A) Sistema límbico.
+B) Cerebelo.
+C) Médula espinal.
+D) Corteza motora primaria.
+Respuesta correcta: A.
+
+47. El concepto de "amplificación de la señal" en la cascada hormonal significa que:
+A) La señal eléctrica inicial se va haciendo más débil.
+B) Nanogramos de hormonas liberadoras hipotalámicas provocan la liberación de microgramos de hormonas hipofisarias y miligramos de hormonas de la glándula diana.
+C) El hipotálamo destruye a la glándula diana.
+D) La hormona viaja más rápido por la sangre.
+Respuesta correcta: B.
+
+48. El tejido adiposo blanco no solo almacena grasa, sino que secreta leptina, una hormona que manda señales de saciedad al cerebro. Por tanto, se considera que tiene una función:
+A) Puramente estructural.
+B) Exocrina.
+C) Endocrinológicamente activa.
+D) Nerviosa simpática.
+Respuesta correcta: C.
+
+49. De las siguientes opciones, ¿qué hormona es capaz de inhibir directamente la secreción de insulina, glucagón y gastrina en el sistema digestivo?
+A) GHRH.
+B) Somatostatina (GHIH).
+C) TRH.
+D) Prolactina.
+Respuesta correcta: B.
+
+50. ¿Cómo es el comportamiento de la GH frente a la insulina respecto a la "gluconeogénesis" hepática?
+A) Ambas la inhiben.
+B) La GH promueve la gluconeogénesis (comportamiento antiinsulina), mientras que la insulina la inhibe.
+C) Ambas la promueven.
+D) La GH no tiene efecto sobre el hígado.
+Respuesta correcta: B.
+
+51. En un paciente sano, durante un pico de hipoglucemia severo, los niveles plasmáticos de GH e IGF-1 tenderán a:
+A) Disminuir la GH para ahorrar energía.
+B) Aumentar la secreción de GH para estimular la lipólisis y la gluconeogénesis.
+C) La hipoglucemia no afecta al eje somatotrópico.
+D) Destruir los receptores de IGF-1.
+Respuesta correcta: B.
+
+52. Durante el embarazo, ¿cuál es el papel principal de la Prolactina en las glándulas mamarias (previo a la lactancia)?
+A) Mantener al feto dormido.
+B) Inducir la diferenciación de las células secretoras y el desarrollo de la glándula.
+C) Contraer el útero para provocar el parto.
+D) Disminuir los niveles de estrógenos.
+Respuesta correcta: B.
+
+53. Si un factor estimula masivamente las neuronas dopaminérgicas en el hipotálamo, ¿qué efecto se observará en sangre?
+A) Un aumento enorme de la prolactina.
+B) Una disminución en los niveles de prolactina.
+C) Un aumento de la GH.
+D) La eyección inmediata de leche.
+Respuesta correcta: B.
+
+54. El complejo de señalización STAT5 activado por la GH cumple su función final en:
+A) La mitocondria.
+B) El aparato de Golgi.
+C) El núcleo, uniéndose al ADN para actuar como factor de transcripción.
+D) El lisosoma.
+Respuesta correcta: C.
+
+55. Sobre las hormonas derivadas del colesterol (esteroideas), como el cortisol o la testosterona, la profesora insistió en que:
+A) Se secretan siempre por un conducto.
+B) Suelen tener receptores a nivel intracelular (citoplasma o núcleo) porque atraviesan la membrana lipídica celular.
+C) Son hidrofílicas y viajan libres en sangre.
+D) Tienen naturaleza peptídica monocatenaria.
+Respuesta correcta: B.
+
+56. La Vasopresina (Hormona Antidiurética o ADH), liberada por la neurohipófisis, tiene como función principal:
+A) Contraer el útero.
+B) Promover la lipólisis.
+C) Controlar la reabsorción de agua por los riñones para regular el metabolismo hídrico (evitar perder líquido por la orina).
+D) Inhibir a la Dopamina.
+Respuesta correcta: C.
+
+57. En el contexto del eje de la Prolactina, ¿qué ocurre si la fecundación NO se da en el ciclo de una mujer?
+A) La prolactina sigue bloqueando la FSH para siempre.
+B) Los niveles de progesterona bajan y vuelve el ciclo menstrual.
+C) La oxitocina inicia un pseudo-embarazo.
+D) Se produce galactorrea fisiológica.
+Respuesta correcta: B.
+
+58. ¿Qué fracción de la hormona del crecimiento (GH) viaja libremente en plasma?
+A) El 100%.
+B) Aproximadamente 1/3, ya que los 2/3 restantes viajan asociados a una proteína de unión (GHBP) que prolonga su vida media.
+C) Ninguna, el 100% va unida a la albúmina.
+D) Solo la forma bicatenaria es libre.
+Respuesta correcta: B.
+
+59. En el tejido muscular, ¿qué interacción tienen la GH y el IGF-1?
+A) Tienen efectos opuestos (la GH lo destruye y el IGF-1 lo crea).
+B) Actúan de forma conjunta: ambos atenúan la atrofia, promueven el crecimiento celular y la diferenciación.
+C) La GH induce resistencia a la insulina en el músculo causando atrofia constante.
+D) El IGF-1 bloquea la entrada de aminoácidos al músculo.
+Respuesta correcta: B.
+
+60. Para terminar la integración de conceptos: La glándula diana de la hormona adrenocorticotropa (ACTH) es:
+A) La glándula tiroides.
+B) El hígado.
+C) La corteza suprarrenal (para formar glucocorticoides como el cortisol).
+D) Las gónadas.
+Respuesta correcta: C.`;
+
+    let allQuestions = [];
+    let currentQuestions = [];
+    let userState = {};
+
+    function initData() {
+      try {
+        allQuestions = [];
+        userState = {};
+
+        // Recortar todo lo que esté antes de "1."
+        const trimmed = ("\n" + rawText).replace(/^[\s\S]*?(?=\n1\.\s)/, "");
+
+        // Separar bloques por salto antes de "n."
+        const blocks = trimmed.split(/\n(?=\d+\.\s)/);
+
+        blocks.forEach((block) => {
+          block = block.trim();
+          if (!block) return;
+
+          const regex =
+            /^(\d+)\.\s*([\s\S]*?)\n\s*A\)\s*([\s\S]*?)\n\s*B\)\s*([\s\S]*?)\n\s*C\)\s*([\s\S]*?)\n\s*D\)\s*([\s\S]*?)\n\s*Respuesta correcta:\s*([A-D])/i;
+
+          const match = block.match(regex);
+          if (!match) return;
+
+          const id = parseInt(match[1], 10);
+          const correctLetter = match[7].toUpperCase();
+
+          let expText = `<strong>La opción correcta es la ${correctLetter}.</strong>`;
+
+          // Diagramas como placeholders entre corchetes (se pintan como "cajita")
+          if (id === 3) expText += `\n\n[Image of steroid hormone receptor mechanism in cell]`;
+          if (id === 7) expText += `\n\n[Image of endocrine negative feedback loop]`;
+          if (id === 44) expText += `\n\n[Image of Hypothalamic Pituitary Adrenal HPA axis]`;
+
+          allQuestions.push({
+            originalId: id,
+            q: match[2].trim(),
+            options: [
+              { text: match[3].trim(), correct: correctLetter === "A" },
+              { text: match[4].trim(), correct: correctLetter === "B" },
+              { text: match[5].trim(), correct: correctLetter === "C" },
+              { text: match[6].trim(), correct: correctLetter === "D" },
+            ],
+            exp: expText,
+          });
+
+          userState[id] = { answered: false, failed: false, marked: false };
+        });
+
+        if (allQuestions.length === 0) {
+          alert("No se ha podido parsear ninguna pregunta. Revisa que todas tengan A) B) C) D) y 'Respuesta correcta: X'.");
+        }
+      } catch (error) {
+        alert("Error crítico al procesar las preguntas: " + error.message);
+      }
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function startQuiz(mode, isRandom) {
+      document.getElementById("start-screen").style.display = "none";
+      document.getElementById("end-screen").style.display = "none";
+      document.getElementById("finish-btn-container").style.display = "block";
+
+      let pool = [];
+      if (mode === "all") pool = [...allQuestions];
+      else if (mode === "failed") pool = allQuestions.filter((q) => userState[q.originalId].failed);
+      else if (mode === "marked") pool = allQuestions.filter((q) => userState[q.originalId].marked);
+      else if (mode === "both") pool = allQuestions.filter((q) => userState[q.originalId].failed || userState[q.originalId].marked);
+
+      if (isRandom) shuffleArray(pool);
+      currentQuestions = pool;
+
+      currentQuestions.forEach((q) => {
+        userState[q.originalId].answered = false;
+        userState[q.originalId].failed = false; // si quieres mantener fallos entre sesiones, quita esta línea
+        shuffleArray(q.options);
+      });
+
+      renderUI();
+      document.getElementById("main-content").scrollTop = 0;
+    }
+
+    function renderUI() {
+      const indexContainer = document.getElementById("index-container");
+      const questionsContainer = document.getElementById("questions-container");
+
+      indexContainer.innerHTML = "";
+      questionsContainer.innerHTML = "";
+
+      if (currentQuestions.length === 0) {
+        questionsContainer.innerHTML = "<h2>No hay preguntas en esta categoría.</h2>";
+        return;
+      }
+
+      currentQuestions.forEach((q) => {
+        const id = q.originalId;
+        const isMarked = userState[id].marked;
+
+        const idxBtn = document.createElement("button");
+        idxBtn.className = `index-btn ${isMarked ? "is-marked" : ""}`;
+        idxBtn.id = `idx-btn-${id}`;
+        idxBtn.innerHTML = `Pregunta ${id} <span class="mark-indicator">★</span>`;
+        idxBtn.onclick = () =>
+          document.getElementById(`q-container-${id}`).scrollIntoView({ behavior: "smooth" });
+        indexContainer.appendChild(idxBtn);
+
+        const qDiv = document.createElement("div");
+        qDiv.className = "question-container";
+        qDiv.id = `q-container-${id}`;
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "question-header";
+
+        const qText = document.createElement("h3");
+        qText.className = "question-text";
+        qText.textContent = `${id}. ${q.q}`;
+
+        const markBtn = document.createElement("button");
+        markBtn.className = `mark-btn ${isMarked ? "marked" : ""}`;
+        markBtn.id = `mark-btn-${id}`;
+        markBtn.innerHTML = isMarked ? "★ Marcada" : "☆ Marcar";
+        markBtn.onclick = () => toggleMark(id);
+
+        headerDiv.appendChild(qText);
+        headerDiv.appendChild(markBtn);
+        qDiv.appendChild(headerDiv);
+
+        const optsDiv = document.createElement("div");
+        optsDiv.className = "options-list";
+
+        q.options.forEach((opt, optIndex) => {
+          const optBtn = document.createElement("button");
+          optBtn.className = "option-btn";
+          optBtn.id = `opt-${id}-${optIndex}`;
+          optBtn.textContent = opt.text;
+          optBtn.onclick = () => handleAnswer(id, optIndex, opt.correct);
+          optsDiv.appendChild(optBtn);
+        });
+
+        qDiv.appendChild(optsDiv);
+
+        const expDiv = document.createElement("div");
+        expDiv.className = "explanation";
+        expDiv.id = `exp-${id}`;
+
+        // Convertir saltos de línea y [texto] a caja bonita
+        let finalExpHTML = q.exp
+          .replace(/\n/g, "<br>")
+          .replace(
+            /\[(.*?)\]/g,
+            `<div style="margin: 15px 0; padding: 15px; background: #fff; border: 1px dashed #3498db; border-radius: 8px; text-align: center; font-style: italic; color: #7f8c8d;">Diagrama referencial: $1</div>`
+          );
+
+        expDiv.innerHTML = finalExpHTML;
+        qDiv.appendChild(expDiv);
+
+        questionsContainer.appendChild(qDiv);
+      });
+    }
+
+    function handleAnswer(qId, optIndex, isCorrect) {
+      if (userState[qId].answered) return;
+
+      userState[qId].answered = true;
+      userState[qId].failed = !isCorrect;
+
+      const idxBtn = document.getElementById(`idx-btn-${qId}`);
+      idxBtn.classList.add(isCorrect ? "correct" : "incorrect");
+
+      const question = currentQuestions.find((q) => q.originalId === qId);
+
+      question.options.forEach((opt, i) => {
+        const btn = document.getElementById(`opt-${qId}-${i}`);
+        btn.disabled = true;
+        if (opt.correct) btn.classList.add("correct");
+        else if (i === optIndex && !isCorrect) btn.classList.add("incorrect");
+      });
+
+      document.getElementById(`exp-${qId}`).style.display = "block";
+    }
+
+    function toggleMark(qId) {
+      userState[qId].marked = !userState[qId].marked;
+      const isMarked = userState[qId].marked;
+
+      const markBtn = document.getElementById(`mark-btn-${qId}`);
+      markBtn.classList.toggle("marked", isMarked);
+      markBtn.innerHTML = isMarked ? "★ Marcada" : "☆ Marcar";
+
+      const idxBtn = document.getElementById(`idx-btn-${qId}`);
+      idxBtn.classList.toggle("is-marked", isMarked);
+    }
+
+    function finishQuiz() {
+      let correctCount = 0;
+      let failedCount = 0;
+      let unansweredCount = 0;
+
+      currentQuestions.forEach((q) => {
+        if (!userState[q.originalId].answered) unansweredCount++;
+        else if (userState[q.originalId].failed) failedCount++;
+        else correctCount++;
+      });
+
+      const total = currentQuestions.length;
+      const resText = document.getElementById("results-text");
+      resText.innerHTML = `Aciertos: <span style="color:#2ecc71">${correctCount}</span> |
+        Fallos: <span style="color:#e74c3c">${failedCount}</span> |
+        Sin responder: <span style="color:#f39c12">${unansweredCount}</span><br>
+        Total en esta sesión: ${total}`;
+
+      const totalMarked = Object.values(userState).filter((st) => st.marked).length;
+      const totalFailed = Object.values(userState).filter((st) => st.failed).length;
+
+      document.getElementById("btn-retry-failed").disabled = totalFailed === 0;
+      document.getElementById("btn-retry-marked").disabled = totalMarked === 0;
+      document.getElementById("btn-retry-both").disabled = totalFailed === 0 && totalMarked === 0;
+
+      document.getElementById("end-screen").style.display = "flex";
+    }
+
+    window.onload = () => {
+      initData();
+    };
+  </script>
+</body>
+</html>

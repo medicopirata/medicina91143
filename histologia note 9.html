@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Histología: Tejido Muscular</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Pantallas */
+        #start-screen, #end-screen {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        /* Layout del Quiz */
+        #quiz-container {
+            display: none;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        /* Sidebar (Índice) */
+        #sidebar {
+            position: sticky;
+            top: 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .index-btn {
+            padding: 8px 4px;
+            text-align: center;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; border-color: var(--success); color: #166534; }
+        .index-btn.incorrect { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+        .index-btn.marked::after {
+            content: '★';
+            position: absolute;
+            top: -5px;
+            right: -2px;
+            color: var(--warning);
+            font-size: 1.2em;
+        }
+
+        /* Botones generales */
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin: 5px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+        .btn-finish {
+            width: 100%;
+            background-color: var(--danger);
+        }
+        .btn-finish:hover { background-color: #b91c1c; }
+
+        /* Lista de preguntas */
+        #questions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 0;
+            padding-right: 15px;
+        }
+
+        .mark-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #fffbeb;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #fde68a;
+            font-size: 0.9em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 10px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-label:hover:not(.disabled) { background: #f1f5f9; }
+        .option-label input { margin-top: 5px; margin-right: 10px; cursor: pointer; }
+        .option-label.disabled { cursor: default; opacity: 0.8; }
+        .option-label.correct-anim { border-color: var(--success); background: #dcfce7; }
+        .option-label.incorrect-anim { border-color: var(--danger); background: #fee2e2; }
+
+        /* Explicación */
+        .feedback {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            animation: fadeIn 0.4s ease;
+        }
+        .feedback.correct { background: #dcfce7; border-left: 4px solid var(--success); }
+        .feedback.incorrect { background: #fee2e2; border-left: 4px solid var(--danger); }
+        
+        .feedback-title { font-weight: bold; margin-bottom: 5px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #quiz-container { grid-template-columns: 1fr; }
+            #sidebar { position: static; max-height: none; margin-bottom: 20px; }
+            .index-grid { grid-template-columns: repeat(5, 1fr); }
+            .question-header { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h2>Quiz: Tejido Muscular (Histología)</h2>
+        <p>40 preguntas disponibles. ¿Cómo deseas realizar el cuestionario?</p>
+        <button onclick="startQuiz('original')">Orden Preestablecido</button>
+        <button onclick="startQuiz('random')">Orden Aleatorio</button>
+    </div>
+
+    <div id="quiz-container">
+        <div id="sidebar">
+            <h3>Índice de Preguntas</h3>
+            <div id="index-grid" class="index-grid"></div>
+            <button class="btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="questions-container"></div>
+    </div>
+
+    <div id="end-screen">
+        <h2>Resultados del Cuestionario</h2>
+        <h1 id="score-display" style="font-size: 3em; margin: 10px 0; color: var(--primary);"></h1>
+        <p id="stats-display"></p>
+        
+        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="resetApp('all')">Repetir Completo (Todas las 40)</button>
+            <button id="btn-repeat-failed" onclick="resetApp('failed')">Repetir SOLO Falladas/No respondidas</button>
+            <button id="btn-repeat-marked" onclick="resetApp('marked')">Repetir SOLO Marcadas</button>
+            <button id="btn-repeat-failed-marked" onclick="resetApp('failed_marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// BASE DE DATOS LITERAL DE LAS 40 PREGUNTAS
+const database = [
+{
+    id: 1,
+    q: 'De acuerdo con la clasificación del tejido muscular, ¿cuál de las siguientes combinaciones de características define al tejido muscular estriado esquelético?',
+    opts: [
+        { t: "Involuntario y sin estriaciones citoplásmicas.", c: false },
+        { t: "Voluntario, con estriaciones y formando la gruesa capa del miocardio.", c: false },
+        { t: "Involuntario, con estriaciones y bajo control del sistema nervioso autónomo.", c: false },
+        { t: "Voluntario, con estriaciones citoplásmicas y constituyendo los músculos del aparato locomotor.", c: true }
+    ],
+    exp: "Según el PDF y la clase, el músculo esquelético se caracteriza morfológicamente por su estriación y funcionalmente por estar bajo el control de la voluntad."
+},
+{
+    id: 2,
+    q: 'En la nomenclatura histológica específica del tejido muscular (donde se emplea el prefijo "sarco"), ¿qué nombre recibe la membrana plasmática de la célula muscular?',
+    opts: [
+        { t: "Sarcoplasma.", c: false },
+        { t: "Sarcolema.", c: true },
+        { t: "Sarcosoma.", c: false },
+        { t: "Retículo sarcoplásmico.", c: false }
+    ],
+    exp: "La profesora enumera claramente las equivalencias: sarcolema (membrana), sarcoplasma (citoplasma), sarcosomas (mitocondrias)."
+},
+{
+    id: 3,
+    q: 'Cuando observamos un músculo estructurado en distintos niveles, el tejido conjuntivo que rodea de forma individual a cada FIBRA (célula) muscular y por donde discurren los capilares más finos se denomina:',
+    opts: [
+        { t: "Epimisio.", c: false },
+        { t: "Fascículo.", c: false },
+        { t: "Perimisio.", c: false },
+        { t: "Endomisio.", c: true }
+    ],
+    exp: "El endomisio es la capa más íntima de conectivo reticular que recubre cada célula de forma individual."
+},
+{
+    id: 4,
+    q: 'Si observamos una sección transversal de un músculo y vemos grupos de fibras musculares envueltas en conjunto formando un "fascículo", ¿cómo se llama el tejido conjuntivo que delimita este fascículo?',
+    opts: [
+        { t: "Endomisio.", c: false },
+        { t: "Perimisio.", c: true },
+        { t: "Epimisio.", c: false },
+        { t: "Aponeurosis.", c: false }
+    ],
+    exp: "El perimisio es la vaina de tejido conjuntivo que envuelve a varios grupos de fibras constituyendo los fascículos."
+},
+{
+    id: 5,
+    q: '🚨 TRAMPA DE DIAGNÓSTICO VISUAL: La profesora señala que el tejido muscular esquelético cortado longitudinalmente puede confundirse a bajos aumentos con el tejido conjuntivo denso orientado (como un tendón). ¿Qué rasgo nos da la clave definitiva de que estamos viendo MÚSCULO y no conjuntivo?',
+    opts: [
+        { t: "La presencia de fibroblastos con núcleos centrales y redondos.", c: false },
+        { t: "La ausencia total de vasos sanguíneos en el músculo.", c: false },
+        { t: "La presencia de múltiples núcleos en posición periférica, abombando bajo el sarcolema en cada fibra, además de espacios blancos entre ellas (endomisio/perimisio).", c: true },
+        { t: "El color azul intenso que toma el músculo con la técnica de H-E.", c: false }
+    ],
+    exp: "La profesora hace mucho hincapié en esto. El conjuntivo denso orientado tendría núcleos de fibroblastos muy aplastados entre las fibras colágenas y sería una masa sólida rosa sin los \"huecos blancos\" de las cubiertas musculares."
+},
+{
+    id: 6,
+    q: '🚨 PREGUNTA DE EXAMEN ANUNCIADA: Si observamos una microfotografía de un corte transversal de tejido muscular y vemos células relativamente grandes en las que se aprecian 3 o 4 núcleos situados "pegados" a la membrana externa de una sola célula, estamos indudablemente ante:',
+    opts: [
+        { t: "Varias células musculares lisas agrupadas.", c: false },
+        { t: "Una única célula muscular estriada esquelética (que es multinucleada y de núcleos periféricos).", c: true },
+        { t: "Una fibra muscular cardíaca en fase de división.", c: false },
+        { t: "Un macrófago multinucleado.", c: false }
+    ],
+    exp: "La profesora advierte literalmente en el audio: \"Esto es una célula sola... Acordaros que son células multinucleadas y esos núcleos lo tienen en periferia... esta foto os va a caer\"."
+},
+{
+    id: 7,
+    q: '¿Qué órgano pone la profesora como ejemplo excepcional de músculo estriado esquelético (de contracción voluntaria) que NO pertenece al aparato locomotor y cuyas fibras se disponen en múltiples direcciones transversales y longitudinales?',
+    opts: [
+        { t: "El miocardio.", c: false },
+        { t: "El diafragma.", c: false },
+        { t: "La lengua.", c: true },
+        { t: "El esófago distal.", c: false }
+    ],
+    exp: "Menciona explícitamente a la lengua como el único órgano de estas características que movemos a voluntad para hablar/deglutir, pero que no une dos huesos."
+},
+{
+    id: 8,
+    q: 'En caso de una lesión muscular, el tejido muscular estriado esquelético de un adulto posee una capacidad de regeneración (limitada) gracias a una población de células de reserva situadas en la periferia de la fibra, por dentro de su lámina basal. Estas células son:',
+    opts: [
+        { t: "Los mioblastos embrionarios.", c: false },
+        { t: "Las células satélite.", c: true },
+        { t: "Los fibroblastos del endomisio.", c: false },
+        { t: "Las células mioendocrinas.", c: false }
+    ],
+    exp: "La profesora describe a las células satélite como células que acompañan al músculo desde el desarrollo y \"se activan cuando hay una lesión muscular\" para regenerar el tejido."
+},
+{
+    id: 9,
+    q: 'La membrana plasmática de la célula muscular (sarcolema) presenta unas invaginaciones que penetran hacia el interior de la fibra a intervalos constantes. ¿Cómo se denominan estas estructuras y cuál es su función?',
+    opts: [
+        { t: "Conductos de Volkmann, para llevar sangre al interior celular.", c: false },
+        { t: "Túbulos T, y sirven para que los fenómenos de despolarización (la orden de contracción) alcancen simultáneamente todo el espesor de la fibra.", c: true },
+        { t: "Retículo sarcoplásmico liso, encargado de sintetizar proteínas.", c: false },
+        { t: "Discos intercalares, para unir una célula con otra.", c: false }
+    ],
+    exp: "La profesora explica que el sarcolema no se queda en la superficie, sino que se invagina (Túbulos T) para que la señal eléctrica penetre hasta las miofibrillas profundas."
+},
+{
+    id: 10,
+    q: 'En el interior del sarcoplasma, los túbulos T están envueltos y acompañados por:',
+    opts: [
+        { t: "El aparato de Golgi.", c: false },
+        { t: "Exclusivamente por cadenas de mitocondrias.", c: false },
+        { t: "Las cisternas terminales del retículo sarcoplásmico (retículo endoplásmico liso).", c: true },
+        { t: "El retículo endoplásmico rugoso.", c: false }
+    ],
+    exp: "El retículo sarcoplásmico adopta una forma ordenada abrazando al túbulo T por ambos lados con sus cisternas terminales."
+},
+{
+    id: 11,
+    q: 'La estructura fundamental para la contracción en el músculo esquelético se denomina TRIADA. ¿De qué elementos anatómicos está compuesta exactamente?',
+    opts: [
+        { t: "Un túbulo T y una única cisterna del retículo sarcoplásmico.", c: false },
+        { t: "Dos túbulos T y una cisterna central del retículo.", c: false },
+        { t: "Un túbulo T central flanqueado por dos cisternas del retículo sarcoplásmico.", c: true },
+        { t: "Tres túbulos T concéntricos.", c: false }
+    ],
+    exp: "Definición exacta de la profesora: \"A esta estructura que está formada por estos tres elementos, dos cisternas del retículo y un tubo T, se le llama triada\"."
+},
+{
+    id: 12,
+    q: 'DETALLE TOPOGRÁFICO: En la fibra muscular estriada ESQUELÉTICA, ¿en qué punto exacto del sarcómero se localiza siempre la triada?',
+    opts: [
+        { t: "Justo a nivel de la línea Z.", c: false },
+        { t: "En el centro exacto de la banda H.", c: false },
+        { t: "En la unión entre la banda clara (I) y la banda oscura (A).", c: true },
+        { t: "En la línea M.", c: false }
+    ],
+    exp: "La profesora recalca que en el músculo esquelético la triada tiene una localización constante: \"siempre está entre una línea clara y una oscura, en la unión A-I\". (En el corazón será en la línea Z)."
+},
+{
+    id: 13,
+    q: 'El Sarcómero es la unidad contráctil y repetitiva de la miofibrilla. ¿Qué límites anatómicos definen exactamente dónde empieza y dónde acaba un único sarcómero?',
+    opts: [
+        { t: "De banda A a banda A.", c: false },
+        { t: "De línea Z a línea Z.", c: true },
+        { t: "De banda H a banda H.", c: false },
+        { t: "De línea M a línea M.", c: false }
+    ],
+    exp: "\"Los sarcómeros van de línea Z a línea Z\", siendo estos los puntos de apoyo o anclaje de los filamentos finos."
+},
+{
+    id: 14,
+    q: 'Al microscopio de luz polarizada, la banda central del sarcómero se ve oscura y refleja la luz (es anisótropa). ¿Cómo se denomina a esta banda y qué filamentos contiene en su anchura máxima?',
+    opts: [
+        { t: "Banda I; contiene solo filamentos de actina.", c: false },
+        { t: "Banda A; abarca toda la longitud de los filamentos gruesos de miosina (e incluye zonas donde se solapan con los de actina).", c: true },
+        { t: "Banda H; contiene solo filamentos de actina.", c: false },
+        { t: "Banda M; contiene filamentos de desmina.", c: false }
+    ],
+    exp: "La banda A (anisótropa) es la zona oscura central del sarcómero y está definida por la extensión total de los filamentos de miosina."
+},
+{
+    id: 15,
+    q: 'A ambos lados de la banda A, encontramos unas zonas más claras que dejan pasar la luz (isótropas). Estas son las Bandas I. ¿Qué tipo de filamentos contráctiles encontramos EXCLUSIVAMENTE en una Banda I en reposo?',
+    opts: [
+        { t: "Filamentos gruesos de miosina.", c: false },
+        { t: "Filamentos finos de actina.", c: true },
+        { t: "Filamentos de tropomiosina libres.", c: false },
+        { t: "Cadenas de reticulina.", c: false }
+    ],
+    exp: "La banda I (clara) solo contiene los filamentos finos (actina) que nacen desde la línea Z."
+},
+{
+    id: 16,
+    q: 'En el centro exacto de la Banda A oscura, existe una pequeña zona ligeramente más clara (cuando el músculo está relajado) donde solo hay filamentos gruesos de miosina y NO llegan los filamentos de actina. Esta zona se llama:',
+    opts: [
+        { t: "Zona o Banda H.", c: true },
+        { t: "Línea Z.", c: false },
+        { t: "Banda I.", c: false },
+        { t: "Banda T.", c: false }
+    ],
+    exp: "\"En el centro de la banda oscura nos vamos a encontrar una zona que se llama zona H... donde está la parte más gruesa de los filamentos de miosina\"."
+},
+{
+    id: 17,
+    q: 'Fisiológicamente, cuando se produce la contracción muscular visible al microscopio, ¿qué cambio experimentan las líneas Z de un sarcómero?',
+    opts: [
+        { t: "Se separan enormemente, alargando el sarcómero.", c: false },
+        { t: "Desaparecen completamente siendo disueltas por calcio.", c: false },
+        { t: "Se acercan progresivamente entre sí, ya que los filamentos de actina penetran más hacia el centro de la banda A (achicando el sarcómero).", c: true },
+        { t: "Permanecen inmóviles, solo se mueve la banda H hacia los lados.", c: false }
+    ],
+    exp: "La profesora detalla el deslizamiento: la actina se desliza sobre la miosina hacia el centro, \"la línea Z va progresivamente acercándose y el sarcómero se achica\"."
+},
+{
+    id: 18,
+    q: 'En un corte TRANSVERSAL del sarcómero, si a nivel ultraestructural observamos una disposición geométrica mixta donde cada filamento grueso está rodeado de filamentos finos, podemos asegurar que el corte ha pasado exactamente por:',
+    opts: [
+        { t: "La Banda H (centro exacto).", c: false },
+        { t: "Los extremos de la Banda I (cerca de la línea Z).", c: false },
+        { t: "Las zonas laterales de la Banda A (donde actina y miosina se solapan).", c: true },
+        { t: "La línea M.", c: false }
+    ],
+    exp: "La profesora explica que dependiendo del corte se ven cosas distintas. Si se ven ambos filamentos (gruesos y finos), el corte pasa por la parte de la Banda A donde se solapan. Si solo se ve miosina, es la banda H. Si solo actina, es la banda I."
+},
+{
+    id: 19,
+    q: 'El filamento grueso del sarcómero, que posee un núcleo central y unas "aletas o cabezas" en sus extremos (similar a la parte trasera de una flecha), está formado por la proteína:',
+    opts: [
+        { t: "Actina.", c: false },
+        { t: "Troponina.", c: false },
+        { t: "Desmina.", c: false },
+        { t: "Miosina.", c: true }
+    ],
+    exp: "La miosina conforma los filamentos gruesos responsables del enganche y tracción."
+},
+{
+    id: 20,
+    q: 'El filamento fino del sarcómero está compuesto por monómeros globulares (Actina G) que se polimerizan formando una cadena fibrosa (Actina F). Sin embargo, la actina no está sola; se asocia funcionalmente a dos proteínas fundamentales llamadas:',
+    opts: [
+        { t: "Miosina y Titina.", c: false },
+        { t: "Troponina y Tropomiosina.", c: true },
+        { t: "Desmina y Cristalina.", c: false },
+        { t: "Tubulina y Dineína.", c: false }
+    ],
+    exp: "En el músculo, la actina está indisolublemente asociada al complejo troponina-tropomiosina para regular la contracción."
+},
+{
+    id: 21,
+    q: '🚨 ATENCIÓN A LA EXPLICACIÓN EN CLASE: Durante el mecanismo de inicio de la contracción muscular por la llegada de calcio, la profesora indica textualmente que el ión Calcio es "atrapado" directamente por:',
+    opts: [
+        { t: "La Actina G.", c: false },
+        { t: "La Miosina de la banda H.", c: false },
+        { t: "La Tropomiosina (que a su vez se fija a la troponina para liberar los filamentos).", c: true },
+        { t: "El retículo endoplásmico liso de forma irreversible.", c: false }
+    ],
+    exp: "OJO, bioquímicamente es la Troponina C quien fija el calcio, pero la profesora dice textualmente en la clase: \"la tropomiosina es la que atrapa el calcio. El calcio se fija a la tropomiosina, la tropomiosina a la troponina y eso permite liberar los filamentos\". Para su examen, hay que seguir su dictado."
+},
+{
+    id: 22,
+    q: 'Para mantener a los sarcómeros y las miofibrillas ordenadas y ancladas "como si estuvieran colgadas de una red", la fibra muscular posee un citoesqueleto de soporte especializado. La principal proteína que forma espirales anclándose a las líneas Z para sujetar la estructura es:',
+    opts: [
+        { t: "La Cristalina.", c: false },
+        { t: "La Desmina.", c: true },
+        { t: "La Miosina.", c: false },
+        { t: "El Colágeno tipo IV.", c: false }
+    ],
+    exp: "La profesora describe a la desmina como una proteína que forma una hélice o espiral (\"como de red\") en cuyos bucles encajan las líneas Z de las miofibrillas."
+},
+{
+    id: 23,
+    q: 'PROTEÍNAS DE SOPORTE: Entre las proteínas que asisten a la desmina, la profesora menciona una que actúa como una "tachuela" fijando y reforzando las uniones a la línea Z. Además, esta proteína es de la familia del "estrés térmico" y previene el daño por oxidación celular durante la contracción. Se trata de:',
+    opts: [
+        { t: "La Alfa-actinina.", c: false },
+        { t: "La Tropomiosina.", c: false },
+        { t: "La Cristalina.", c: true },
+        { t: "La Dineína.", c: false }
+    ],
+    exp: "Destaca el papel protector de la cristalina, definiéndola como proteína de estrés térmico (\"heat shock protein\") que estabiliza contra la oxidación metabólica local."
+},
+{
+    id: 24,
+    q: 'Clínicamente, las alteraciones genéticas en la síntesis o estructura de estas proteínas de adhesión y anclaje (desmina, etc.) conducen a enfermedades graves conocidas genéricamente como:',
+    opts: [
+        { t: "Carcinomas musculares.", c: false },
+        { t: "Miopatías o distrofias musculares.", c: true },
+        { t: "Osteoporosis.", c: false },
+        { t: "Aneurismas reticulares.", c: false }
+    ],
+    exp: "La profesora hace la correlación clínica indicando que los fallos en este \"andamio\" de proteínas generan musculopatías/miopatías de origen genético."
+},
+{
+    id: 25,
+    q: 'Al realizar una técnica enzimática sobre un músculo esquelético, observamos que las fibras tienen distintas intensidades metabólicas. Las denominadas "Fibras Rojas" (Tipo I) se caracterizan fisiológicamente por:',
+    opts: [
+        { t: "Ser muy grandes, de contracción muy rápida pero fácilmente fatigables (alta glucólisis).", c: false },
+        { t: "Ser fibras de contracción lenta, sostenida en el tiempo, con gran actividad oxidativa y mucha riqueza de mitocondrias.", c: true },
+        { t: "No poseer mitocondrias en absoluto.", c: false },
+        { t: "Estar inervadas por el sistema nervioso autónomo.", c: false }
+    ],
+    exp: "Las fibras rojas están diseñadas para la resistencia (ej. mantener la postura), por lo que usan metabolismo oxidativo y abundan las mitocondrias."
+},
+{
+    id: 26,
+    q: 'Por el contrario, las "Fibras Blancas" (Tipo II) predominan en músculos que requieren movimientos de precisión, fuerza y rapidez. ¿Cuál de estas NO es una de sus características?',
+    opts: [
+        { t: "Se cansan (fatigan) más rápidamente.", c: false },
+        { t: "Su metabolismo es preferentemente glucolítico, almacenando mucho glucógeno.", c: false },
+        { t: "Tienen muchísimas más mitocondrias que las fibras rojas.", c: true },
+        { t: "El retículo sarcoplásmico está muy desarrollado.", c: false }
+    ],
+    exp: "Al no depender predominantemente del metabolismo oxidativo mantenido, las fibras blancas tienen muchas menos mitocondrias que las rojas."
+},
+{
+    id: 27,
+    q: 'La inervación MOTORA del músculo esquelético (la que da la orden voluntaria de contracción) se realiza a través de una estructura especializada en la que la terminal axónica de una motoneurona contacta con el sarcolema para liberar neurotransmisores. Esta estructura es:',
+    opts: [
+        { t: "El nódulo sinusal.", c: false },
+        { t: "El disco intercalar.", c: false },
+        { t: "El huso neuromuscular.", c: false },
+        { t: "La placa motora (o unión neuromuscular).", c: true }
+    ],
+    exp: "La placa motora es la sinapsis específica entre el nervio motor y la fibra muscular."
+},
+{
+    id: 28,
+    q: 'Además de inervación motora, el músculo estriado esquelético posee una inervación SENSORIAL que informa al cerebro sobre el grado de estiramiento del músculo. ¿Qué estructura compleja cumple esta función?',
+    opts: [
+        { t: "El Huso neuromuscular.", c: true },
+        { t: "La placa motora sensitiva.", c: false },
+        { t: "Las Células de Purkinje.", c: false },
+        { t: "El tendón aponeurótico.", c: false }
+    ],
+    exp: "La profesora menciona explícitamente al huso neuromuscular como la estructura receptora que detecta y transmite el estado de tensión muscular."
+},
+{
+    id: 29,
+    q: 'En comparación histológica directa, ¿qué rasgo citológico nos permite diferenciar rápidamente el músculo cardíaco del músculo esquelético?',
+    opts: [
+        { t: "El cardíaco no presenta estriaciones de ningún tipo.", c: false },
+        { t: "El cardíaco está formado por células individuales que, aunque estriadas, tienen un NÚCLEO ÚNICO de posición CENTRAL.", c: true },
+        { t: "El cardíaco carece por completo de tejido conjuntivo a su alrededor.", c: false },
+        { t: "El cardíaco está dominado por fibroblastos y colágeno denso.", c: false }
+    ],
+    exp: "Aunque ambos son estriados, el cardíaco es mononucleado (núcleo en el medio) y el esquelético es un sincitio multinucleado periférico."
+},
+{
+    id: 30,
+    q: 'Topográficamente, las células miocárdicas tienen una forma peculiar que les permite crear una red funcional tridimensional en las paredes del corazón. La profesora describe su forma como:',
+    opts: [
+        { t: "Esferas perfectas apiladas.", c: false },
+        { t: "Cilindros larguísimos rectos sin uniones.", c: false },
+        { t: "Células menos largas, con formas ramificadas o irregulares (\"en Y\", \"en V\") que encajan unas con otras mediante uniones especializadas.", c: true },
+        { t: "Discos bicóncavos enlazados.", c: false }
+    ],
+    exp: "Su forma irregular y ramificada es esencial para abrazar la cámara cardíaca en 3D."
+},
+{
+    id: 31,
+    q: 'La unión especializada entre los extremos de dos células musculares cardíacas contiguas (que se observa a microscopía óptica como una línea gruesa oscura) recibe el nombre de:',
+    opts: [
+        { t: "Línea Z compartida.", c: false },
+        { t: "Disco intercalar (o estría escalariforme).", c: true },
+        { t: "Placa motora de relevo.", c: false },
+        { t: "Línea de cemento de von Ebner.", c: false }
+    ],
+    exp: "Los discos intercalares son los complejos de unión intercelular exclusivos del miocardio (mencionados en los objetivos del PDF)."
+},
+{
+    id: 32,
+    q: 'Funcionalmente, el músculo cardíaco se diferencia del esquelético en que:',
+    opts: [
+        { t: "Su contracción es completamente voluntaria si se entrena.", c: false },
+        { t: "No requiere iones de calcio para contraerse.", c: false },
+        { t: "Su inervación de control primario no recae en placas motoras voluntarias, sino en su propio sistema interno automatizado y el sistema nervioso autónomo.", c: true },
+        { t: "No posee mitocondrias.", c: false }
+    ],
+    exp: "Es involuntario, mediado por nódulos (marcapasos) internos y regulado por el sistema nervioso vegetativo."
+},
+{
+    id: 33,
+    q: 'El tejido muscular LISO se denomina así debido a una característica fundamental visible al microscopio óptico:',
+    opts: [
+        { t: "No posee núcleo en absoluto.", c: false },
+        { t: "Sus membranas son lisas y carecen de cualquier receptor nervioso.", c: false },
+        { t: "No presenta las estriaciones transversales citoplásmicas (bandas A e I) típicas del esquelético y el cardíaco.", c: true },
+        { t: "Su capa de colágeno exterior brilla intensamente.", c: false }
+    ],
+    exp: "La falta de organización en sarcómeros alineados en registro hace que no presente el patrón clásico de estrías transversales (\"rayitas\")."
+},
+{
+    id: 34,
+    q: 'Morfológicamente, ¿cuál es la descripción clásica de una fibra/célula muscular lisa?',
+    opts: [
+        { t: "Célula gigante y multinucleada.", c: false },
+        { t: "Célula fusiforme (forma de huso, afilada en los extremos y ensanchada en el centro) con un único núcleo oval central.", c: true },
+        { t: "Célula ramificada en Y con múltiples núcleos.", c: false },
+        { t: "Célula cúbica rodeada de lámina basal.", c: false }
+    ],
+    exp: "Es la descripción citológica estándar del músculo liso en histología."
+},
+{
+    id: 35,
+    q: '¿En qué localizaciones del organismo encontraremos primariamente tejido muscular liso cumpliendo una función de contracción involuntaria?',
+    opts: [
+        { t: "En la pared del ventrículo izquierdo del corazón.", c: false },
+        { t: "Uniendo los huesos del antebrazo.", c: false },
+        { t: "En la pared de estructuras viscerales huecas (aparato gastrointestinal, vasos sanguíneos, útero, vejiga urinaria).", c: true },
+        { t: "En la lengua humana.", c: false }
+    ],
+    exp: "Es la \"musculatura visceral\" por excelencia, descrita textualmente en la primera página del PDF."
+},
+{
+    id: 36,
+    q: 'Si en un examen práctico la profesora presenta una microfotografía teñida con H-E donde se ven células fusiformes muy empaquetadas, sin estrías, agrupadas en fascículos orientados en capas perpendiculares entre sí (como ocurre en la pared del intestino), el diagnóstico es:',
+    opts: [
+        { t: "Tejido muscular estriado cardíaco.", c: false },
+        { t: "Tejido muscular liso.", c: true },
+        { t: "Tejido conjuntivo denso no orientado.", c: false },
+        { t: "Tejido muscular estriado esquelético.", c: false }
+    ],
+    exp: "Las dos capas musculares perpendiculares (circular y longitudinal) sin estrías son el patrón clásico del músculo liso gastrointestinal (y se ilustra así en el PDF)."
+},
+{
+    id: 37,
+    q: 'En una preparación de músculo estriado esquelético vista A GRANDES AUMENTOS con microscopía electrónica o tinciones argénticas, si vemos que una línea oscura transversal marca el límite entre un "vagón" contráctil y el siguiente, identificamos dicha estructura como:',
+    opts: [
+        { t: "Banda H.", c: false },
+        { t: "Línea Z.", c: true },
+        { t: "Línea M.", c: false },
+        { t: "Banda A.", c: false }
+    ],
+    exp: "La línea Z es el límite real y visual entre dos sarcómeros contiguos."
+},
+{
+    id: 38,
+    q: 'La Unión Miotendinosa (donde el músculo esquelético se ancla al tendón de tejido conjuntivo) es una estructura crítica. Histológicamente, si usamos la tinción de Tricrómico (como aparece en el PDF), ¿cómo se visualizan típicamente ambos tejidos?',
+    opts: [
+        { t: "El músculo de color negro y el tendón de color rosa pálido.", c: false },
+        { t: "El músculo de color rojo intenso y el tejido conjuntivo del tendón de color azul intenso.", c: true },
+        { t: "Ambos se ven idénticos, indistinguibles al teñirse de amarillo oscuro.", c: false },
+        { t: "El músculo se ve vacío (blanco) y el tendón rojo brillante.", c: false }
+    ],
+    exp: "La leyenda de las imágenes del PDF indica que con el tricrómico se \"nos muestra el músculo de color rojo, y el tejido conjuntivo, de azul intenso, que se interpone y une fuertemente el músculo a la pieza\"."
+},
+{
+    id: 39,
+    q: 'Sobre los Sarcómeros y su tamaño: Cuando un músculo esquelético experimenta su fase de RELAJACIÓN máxima, a nivel microscópico podemos comprobar que:',
+    opts: [
+        { t: "Las líneas Z desaparecen.", c: false },
+        { t: "La banda H desaparece por completo al invadirla los filamentos finos.", c: false },
+        { t: "La banda I (clara) y la banda H se hacen más anchas al separarse las líneas Z.", c: true },
+        { t: "La banda A (oscura) se reduce a la mitad de su tamaño original.", c: false }
+    ],
+    exp: "Al revertirse el deslizamiento de actina sobre miosina, los filamentos finos salen del centro, ensanchando la zona H pura de miosina y la zona I pura de actina (separando las líneas Z)."
+},
+{
+    id: 40,
+    q: 'De forma resumida, ¿cuáles son los tres organelos celulares clave a recordar en la fisiología de la fibra estriada esquelética y su nombre específico "sarco-"?',
+    opts: [
+        { t: "Ribosomas (sarcosomas), Golgi (sarcogolgi) y Núcleo (sarconúcleo).", c: false },
+        { t: "Mitocondrias (sarcosomas), Citoplasma (sarcoplasma) y Membrana plasmática (sarcolema) junto con el Retículo liso (sarcoplásmico).", c: true },
+        { t: "Lisosomas (sarcolisos), Cilios (sarcocilios) y Retículo rugoso (sarcorugoso).", c: false },
+        { t: "Microtúbulos (sarcomicro), Cloroplastos (sarcoplastos) y Peroxisomas (sarcoperox).", c: false }
+    ],
+    exp: "Es la recapitulación del vocabulario esencial insistida por la profesora para no perderse en las lecturas histológicas."
+}
+];
+
+// ESTADOS GLOBALES
+let activeQuestions = [];
+let markedQuestions = new Set();
+let userAnswers = {}; 
+
+function shuffleArray(array) {
+    let newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function startQuiz(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'grid';
+
+    activeQuestions = [...database];
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    
+    renderQuiz();
+}
+
+function resetApp(mode) {
+    document.getElementById('end-screen').style.display = 'none';
+    
+    let newPool = [];
+    if (mode === 'all') {
+        newPool = [...database];
+    } else if (mode === 'failed') {
+        newPool = database.filter(q => {
+            return !userAnswers[q.id] || !userAnswers[q.id].correct;
+        });
+    } else if (mode === 'marked') {
+        newPool = database.filter(q => markedQuestions.has(q.id));
+    } else if (mode === 'failed_marked') {
+        newPool = database.filter(q => {
+            const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+            const marked = markedQuestions.has(q.id);
+            return failed || marked;
+        });
+    }
+
+    activeQuestions = newPool;
+    
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('start-screen').innerHTML = `
+        <h2>Se han seleccionado ${activeQuestions.length} preguntas.</h2>
+        <p>¿Cómo deseas ordenarlas para este intento?</p>
+        <button onclick="startSpecificPool('original')">Orden Original</button>
+        <button onclick="startSpecificPool('random')">Orden Aleatorio</button>
+    `;
+    document.getElementById('start-screen').style.display = 'block';
+}
+
+function startSpecificPool(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    userAnswers = {}; 
+    document.getElementById('quiz-container').style.display = 'grid';
+    renderQuiz();
+}
+
+function renderQuiz() {
+    const sidebarGrid = document.getElementById('index-grid');
+    const questionsContainer = document.getElementById('questions-container');
+    
+    sidebarGrid.innerHTML = '';
+    questionsContainer.innerHTML = '';
+
+    activeQuestions.forEach((q, displayIndex) => {
+        const num = displayIndex + 1;
+        
+        const btn = document.createElement('a');
+        btn.href = `#q-${q.id}`;
+        btn.className = 'index-btn';
+        btn.id = `btn-index-${q.id}`;
+        btn.innerText = num;
+        if(markedQuestions.has(q.id)) btn.classList.add('marked');
+        sidebarGrid.appendChild(btn);
+
+        const shuffledOpts = shuffleArray(q.opts);
+
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.id}`;
+
+        let optionsHTML = shuffledOpts.map((opt, i) => `
+            <div class="option-item">
+                <label class="option-label" id="label-${q.id}-${i}">
+                    <input type="radio" name="q-${q.id}" value="${opt.c}" onchange="checkAnswer(${q.id}, ${opt.c}, ${i}, this)">
+                    <span>${opt.t}</span>
+                </label>
+            </div>
+        `).join('');
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${num}. ${q.q}</h3>
+                <label class="mark-container">
+                    <input type="checkbox" ${markedQuestions.has(q.id) ? 'checked' : ''} onchange="toggleMark(${q.id}, this)">
+                    Marcar/Flag
+                </label>
+            </div>
+            <div class="options-list">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.id}">
+                <div class="feedback-title" id="feedback-title-${q.id}"></div>
+                <div><strong>Explicación:</strong> ${q.exp}</div>
+            </div>
+        `;
+
+        questionsContainer.appendChild(card);
+    });
+}
+
+function toggleMark(id, checkbox) {
+    const btn = document.getElementById(`btn-index-${id}`);
+    if (checkbox.checked) {
+        markedQuestions.add(id);
+        if(btn) btn.classList.add('marked');
+    } else {
+        markedQuestions.delete(id);
+        if(btn) btn.classList.remove('marked');
+    }
+}
+
+function checkAnswer(questionId, isCorrect, optIndex, radioElement) {
+    if (userAnswers[questionId]) return;
+
+    userAnswers[questionId] = { answered: true, correct: isCorrect };
+
+    const radios = document.querySelectorAll(`input[name="q-${questionId}"]`);
+    radios.forEach(r => {
+        r.disabled = true;
+        r.parentElement.classList.add('disabled');
+        if(r.value === 'true') {
+            r.parentElement.style.border = "2px solid var(--success)";
+        }
+    });
+
+    const selectedLabel = document.getElementById(`label-${questionId}-${optIndex}`);
+    const feedbackDiv = document.getElementById(`feedback-${questionId}`);
+    const feedbackTitle = document.getElementById(`feedback-title-${questionId}`);
+    const indexBtn = document.getElementById(`btn-index-${questionId}`);
+
+    feedbackDiv.style.display = 'block';
+
+    if (isCorrect) {
+        selectedLabel.classList.add('correct-anim');
+        feedbackDiv.classList.add('correct');
+        feedbackTitle.innerText = "¡Correcto!";
+        feedbackTitle.style.color = "var(--success)";
+        if(indexBtn) indexBtn.classList.add('correct');
+    } else {
+        selectedLabel.classList.add('incorrect-anim');
+        feedbackDiv.classList.add('incorrect');
+        feedbackTitle.innerText = "Incorrecto";
+        feedbackTitle.style.color = "var(--danger)";
+        if(indexBtn) indexBtn.classList.add('incorrect');
+    }
+}
+
+function finishQuiz() {
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'block';
+
+    let correctCount = 0;
+    let answeredCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (userAnswers[q.id]) {
+            answeredCount++;
+            if (userAnswers[q.id].correct) correctCount++;
+        }
+    });
+
+    const unattempted = activeQuestions.length - answeredCount;
+    const scoreDisplay = document.getElementById('score-display');
+    const statsDisplay = document.getElementById('stats-display');
+
+    scoreDisplay.innerText = `${correctCount} / ${activeQuestions.length}`;
+    statsDisplay.innerHTML = `
+        <strong>Aciertos:</strong> ${correctCount}<br>
+        <strong>Fallos:</strong> ${answeredCount - correctCount}<br>
+        <strong>No respondidas:</strong> ${unattempted}<br>
+        <strong>Marcadas para revisión:</strong> ${markedQuestions.size}
+    `;
+
+    const btnFailed = document.getElementById('btn-repeat-failed');
+    const btnMarked = document.getElementById('btn-repeat-marked');
+    const btnFailedMarked = document.getElementById('btn-repeat-failed-marked');
+
+    const totalFailedOrUnanswered = activeQuestions.length - correctCount;
+    
+    btnFailed.disabled = totalFailedOrUnanswered === 0;
+    btnMarked.disabled = markedQuestions.size === 0;
+    
+    let combinedCount = 0;
+    database.forEach(q => {
+        const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+        const marked = markedQuestions.has(q.id);
+        if(failed || marked) combinedCount++;
+    });
+    btnFailedMarked.disabled = combinedCount === 0;
+}
+</script>
+
+</body>
+</html>

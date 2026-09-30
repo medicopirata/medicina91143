@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Glúcidos y Digestión (Tema 3)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Pantalla de Inicio --- */
+        #setup-screen, #results-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .config-box {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            max-width: 550px;
+            width: 90%;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.85rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-secondary { background-color: #475569; }
+        .btn-secondary:hover { background-color: #334155; }
+        .btn-marked { background-color: var(--marked); color: #fff; }
+        .btn-marked:hover { background-color: #d97706; }
+
+        /* --- Layout Principal --- */
+        #quiz-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            grid-template-columns: 280px 1fr;
+        }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 1rem;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.03);
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .index-item {
+            width: 100%;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.35rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.1s;
+        }
+
+        .index-item:hover { transform: scale(1.05); }
+        .index-item.answered-correct { background-color: var(--correct); color: white; border-color: var(--correct); }
+        .index-item.answered-incorrect { background-color: var(--incorrect); color: white; border-color: var(--incorrect); }
+        .index-item.is-marked { box-shadow: 0 0 0 3px var(--marked); }
+
+        /* --- Contenido --- */
+        #main-content {
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .mark-toggle {
+            cursor: pointer;
+            background: none;
+            border: 2px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #64748b;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .mark-toggle:hover { background-color: #f1f5f9; }
+        .mark-toggle.active {
+            background-color: #fffbeb;
+            color: var(--marked);
+            border-color: var(--marked);
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .option-btn {
+            width: 100%;
+            text-align: left;
+            padding: 1rem 1.2rem;
+            border: 2px solid var(--border);
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background-color: #dcfce7 !important; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2 !important; border-color: var(--incorrect); }
+        .option-btn.missed { border-color: var(--correct); border-style: dashed; background-color: #dcfce7; }
+
+        .explanation {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.2rem;
+            background-color: #f8fafc;
+            border-left: 4px solid var(--primary);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .footer-nav {
+            margin-top: 3rem;
+            text-align: center;
+            padding-bottom: 5rem;
+        }
+
+        @media (max-width: 768px) {
+            #quiz-container { grid-template-columns: 1fr; }
+            #sidebar { 
+                flex-direction: row; 
+                overflow-x: auto; 
+                overflow-y: hidden; 
+                height: 80px; 
+                padding: 0.5rem;
+                align-items: center;
+                gap: 1rem;
+            }
+            .index-grid { display: flex; margin-bottom: 0; }
+            .index-item { width: 40px; height: 40px; flex-shrink: 0; }
+            .sidebar-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="config-box">
+            <h1>Tema 3: Glúcidos y Digestión</h1>
+            <p>Configura tu sesión de repaso (60 preguntas):</p>
+            <div style="margin-top: 2rem;">
+                <button class="btn" onclick="initQuiz('original')">Iniciar (Orden Original)</button>
+                <button class="btn" onclick="initQuiz('random')">Iniciar (Orden Aleatorio)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display:none;">
+        <div class="config-box">
+            <h2>Cuestionario Finalizado</h2>
+            <div id="stats" style="font-size: 1.2rem; margin: 1.5rem 0; line-height: 1.8;"></div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button class="btn" onclick="restart('all')">Repetir Completo</button>
+                <button class="btn btn-secondary" onclick="restart('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-marked" onclick="restart('marked')">Repetir Solo Marcadas</button>
+                <button class="btn" onclick="restart('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-container">
+        <aside id="sidebar">
+            <h3 style="margin-top:0; margin-bottom:1rem; font-size:1rem; text-align:center;">Índice</h3>
+            <div class="index-grid" id="index-grid"></div>
+            <button class="btn btn-secondary sidebar-btn" onclick="showResults()" style="margin-top: auto; width: 100%;">Finalizar Test</button>
+        </aside>
+
+        <main id="main-content">
+            <div id="questions-wrapper"></div>
+            <div class="footer-nav">
+                <button class="btn btn-secondary" onclick="showResults()">Finalizar y ver resultados</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Data parsing: Removing A), B), C), D) for clean shuffling, keeping the exact literal text.
+        const rawData = [
+            { n: 1, q: "Según la clase, ¿cuál es la principal función subyacente de la digestión de los alimentos?", opts: ["Regular la temperatura corporal.", "Extraer y asimilar recursos como fuente de energía (ATP) y materiales para mantener y duplicar las células.", "Eliminar toxinas del torrente sanguíneo.", "Sintetizar vitaminas de forma endógena."], c: 1, e: "La profesora recalcó que el objetivo final de digerir carbohidratos, lípidos y proteínas es obtener la energía necesaria para la supervivencia y función celular." },
+            { n: 2, q: "¿Cuál es la diferencia fundamental entre los procesos de 'digestión' y 'absorción'?", opts: ["Son exactamente el mismo proceso fisiológico.", "La digestión ocurre solo en la boca, y la absorción solo en el colon.", "La digestión es la degradación de macromoléculas en componentes más simples, y la absorción es la captación de estos por los enterocitos.", "La digestión capta nutrientes y la absorción los destruye."], c: 2, e: "Digerir es 'cortar/degradar' mediante enzimas, y absorber es 'meter' el producto final dentro de la célula." },
+            { n: 3, q: "(¡Pista Profesora!) ¿Qué estructura celular es la encargada de aumentar enormemente la superficie de absorción en el intestino, alcanzando unos 250 m²?", opts: ["Las glándulas salivales.", "Las microvellosidades de los enterocitos.", "Los vasos quilíferos.", "La mucosa gástrica."], c: 1, e: "La profesora destacó que el intestino tiene invaginaciones (microvellosidades) que proporcionan una superficie de absorción equivalente a casi una pista de tenis." },
+            { n: 4, q: "(¡Pista Profesora!) En una endoscopia a un paciente con problemas graves de malabsorción y diarrea, ¿qué alteración anatómica es muy común observar a nivel celular?", opts: ["Un aumento del tamaño del estómago.", "Las microvellosidades intestinales totalmente atrofiadas (destruidas).", "Un exceso de células de Kupffer.", "Células del epitelio sin núcleo."], c: 1, e: "Puso el ejemplo de que la atrofia de las microvellosidades (por defectos genéticos o daño) impide la absorción, causando deshidratación y pérdida de peso." },
+            { n: 5, q: "(¡Pista Profesora!) La profesora destacó que el sistema digestivo tiene una gran 'adaptabilidad'. ¿Qué significa esto en la práctica clínica?", opts: ["Que las enzimas cambian de nombre según lo que comamos.", "Que si un órgano falla (ej. si se extirpa parte del estómago), el resto del tracto gastrointestinal (intestino) puede compensar la digestión para mantener la absorción.", "Que podemos absorber proteínas enteras si hace falta.", "Que el estómago puede absorber lípidos."], c: 1, e: "Explicó que el sistema está tan bien diseñado que compensa los fallos de un órgano empleando las enzimas de los siguientes." },
+            { n: 6, q: "¿Qué sistema nervioso controla los movimientos de mezcla e inicio de digestión (peristaltismo) en el estómago?", opts: ["Sistema nervioso simpático.", "Sistema nervioso parasimpático.", "Sistema nervioso somático.", "Sistema nervioso entérico de forma exclusiva."], c: 1, e: "Se mencionó explícitamente en el audio que el peristaltismo y el avance del alimento está bajo control parasimpático." },
+            { n: 7, q: "(¡Pista Profesora!) Un dato 'curioso e interesante' sobre el volumen de fluidos: ¿Qué cantidad de líquido (secreciones + ingesta) entra y sale aproximadamente por el tracto GI cada día?", opts: ["2 litros.", "5 litros.", "Cerca de 10 litros.", "20 litros."], c: 2, e: "La profesora hizo mucho hincapié en el enorme volumen de intercambio diario (casi 10 L), lo que explica la gravedad de las diarreas." },
+            { n: 8, q: "De este enorme volumen de líquido que pasa por el intestino, ¿cuánto se excreta finalmente en las heces en condiciones normales?", opts: ["5 litros.", "2 litros.", "Entre 150 y 250 ml (la mayor parte se reabsorbe).", "Nada, el 100% se reabsorbe."], c: 2, e: "El colon es extremadamente activo absorbiendo agua, perdiendo solo una mínima cantidad en las heces." },
+            { n: 9, q: "¿Qué tipo de reacción química catalizan de forma general las enzimas digestivas (proteasas, lipasas, amilasas)?", opts: ["Oxidorreducción.", "Isomerización.", "Hidrólisis (escisión de enlaces utilizando agua).", "Fosforilación."], c: 2, e: "Las enzimas se denominan 'hidrolasas' porque rompen las moléculas introduciendo una molécula de agua." },
+            { n: 10, q: "(¡Pista Profesora!) ¿Qué es un zimógeno?", opts: ["Una enzima que degrada agua.", "Una hormona que activa la vesícula biliar.", "Una proenzima inactiva que solo adquiere su función degradadora cuando llega a la luz intestinal o gástrica (ej. pepsinógeno).", "Un tipo de carbohidrato complejo."], c: 2, e: "Explicó que las células las segregan de forma inactiva para no autodigerirse, activándose solo en el lumen (ej. con el pH ácido)." },
+            { n: 11, q: "¿Cuáles son los principales polisacáridos presentes en la dieta humana?", opts: ["Sacarosa y Lactosa.", "Glucosa y Fructosa.", "Almidón (vegetal) y Glucógeno (animal).", "Celulosa y Quitina."], c: 2, e: "Son las grandes cadenas de múltiples monosacáridos que ingerimos a través de patatas, arroz, carne, etc." },
+            { n: 12, q: "En la estructura del almidón y el glucógeno, ¿qué tipo de enlace une la cadena lineal principal?", opts: ["Enlaces alfa (1-6).", "Enlaces alfa (1-4).", "Enlaces beta (1-4).", "Enlaces peptídicos."], c: 1, e: "Las cadenas lineales están formadas por enlaces 1-4, mientras que las ramificaciones son 1-6." },
+            { n: 13, q: "¿Qué enzima se encarga específicamente de romper los enlaces alfa (1-4) internos de los polisacáridos complejos?", opts: ["Isomaltasa.", "Lactasa.", "Alfa-amilasa (salival y pancreática).", "Pepsina."], c: 2, e: "Las amilasas actúan como 'tijeras' rompiendo el interior de las cadenas grandes." },
+            { n: 14, q: "¿Por qué la alfa-amilasa no puede degradar un polisacárido ramificado (como la amilopectina) por completo hasta glucosa libre?", opts: ["Porque el estómago la destruye inmediatamente.", "Porque no es capaz de romper los enlaces de las ramificaciones alfa (1-6) ni los enlaces terminales.", "Porque requiere de lípidos para funcionar.", "Porque solo corta sacarosa."], c: 1, e: "Al no poder cortar las ramas (1-6), deja 'dextrinas límite' que requieren de la isomaltasa para seguir rompiéndose." },
+            { n: 15, q: "¿Qué enzima del ribete en cepillo es la responsable de romper los enlaces alfa (1-6) de las ramificaciones?", opts: ["Lactasa.", "Sacarasa.", "Isomaltasa.", "Amilasa salival."], c: 2, e: "Es la enzima desramificante clave en la digestión de carbohidratos." },
+            { n: 16, q: "¿Qué disacárido está formado por la unión de una Glucosa y una Fructosa?", opts: ["Lactosa.", "Maltosa.", "Sacarosa.", "Almidón."], c: 2, e: "La sacarosa (azúcar de mesa) se hidroliza en estos dos monosacáridos." },
+            { n: 17, q: "La lactosa, azúcar principal de la leche, se degrada mediante la lactasa en:", opts: ["Dos moléculas de glucosa.", "Glucosa y Galactosa.", "Glucosa y Fructosa.", "Dos moléculas de galactosa."], c: 1, e: "La lactasa rompe el enlace liberando ambos monosacáridos para su absorción." },
+            { n: 18, q: "¿Dónde se localizan físicamente las disacaridasas (oligosacaridasas) como la lactasa o la sacarasa?", opts: ["Flotando libres en el jugo gástrico.", "En el interior del núcleo del enterocito.", "Ancladas (ligadas) a la membrana plasmática del enterocito orientadas hacia la luz intestinal.", "En la saliva."], c: 2, e: "La profesora insistió en que están en la membrana de las microvellosidades, esperando que llegue el disacárido." },
+            { n: 19, q: "(¡Pista Profesora!) Sobre la regulación de estas enzimas, se dice que la mayoría son 'inducibles' por la dieta. ¿Qué importante excepción NO se induce aunque se consuma mucho de su sustrato?", opts: ["La sacarasa.", "La amilasa.", "La lactasa.", "La pepsina."], c: 2, e: "Lo repitió claramente: 'la lactasa, aunque yo tome mucha mucha leche, no se va a activar más. Es lo que pueda llegar'." },
+            { n: 20, q: "(¡Pista Profesora!) La profesora comparó la especificidad de las disacaridasas con el modelo de 'llave y cerradura'. Esto significa que:", opts: ["Una misma enzima puede degradar cualquier azúcar.", "La lactasa solo reconoce y degrada a la lactosa, y no puede compensar el déficit de otra enzima (ej. sacarasa).", "Se necesitan lípidos para abrir la enzima.", "Solo funcionan si el estómago está cerrado."], c: 1, e: "Son altamente específicas. No puedes usar sacarasa para digerir lactosa." },
+            { n: 21, q: "¿En qué estado molecular EXACTO deben encontrarse los hidratos de carbono para poder cruzar la membrana y entrar al enterocito?", opts: ["Como disacáridos.", "Como polisacáridos pequeños.", "Como monosacáridos (Glucosa, Fructosa, Galactosa).", "Como glucógeno."], c: 2, e: "'El polisacárido no entra en la célula... El fin último es obtener monosacáridos', indicó la profesora." },
+            { n: 22, q: "¿Qué transportador utiliza la GLUCOSA y la GALACTOSA para entrar desde la luz intestinal al enterocito (membrana apical)?", opts: ["GLUT1.", "SGLT1.", "GLUT5.", "GLUT4."], c: 1, e: "Según las diapositivas, usan el simportador SGLT1, que es un transporte activo secundario acoplado a sodio." },
+            { n: 23, q: "¿Por qué el transporte a través de SGLT1 se considera 'Transporte Activo Secundario'?", opts: ["Porque gasta ATP directamente en el propio transportador.", "Porque introduce glucosa EN CONTRA de su gradiente, aprovechando la energía del sodio que entra A FAVOR de su gradiente.", "Porque solo funciona por la noche.", "Porque transporta el azúcar hacia la luz intestinal."], c: 1, e: "La concentración de glucosa es mayor dentro de la célula, así que necesita la 'fuerza' del sodio entrando para arrastrarla." },
+            { n: 24, q: "(¡Pista Profesora!) Para mantener el gradiente de sodio que permite funcionar al SGLT1, es imprescindible la acción continua de:", opts: ["La bomba de protones gástrica.", "La bomba Na+/K+ ATPasa situada en la membrana basolateral.", "El transportador GLUT2.", "La amilasa pancreática."], c: 1, e: "Gasta ATP para sacar el sodio que entró. Si falla la bomba, se igualan las concentraciones y se frena la absorción de glucosa." },
+            { n: 25, q: "A diferencia de la glucosa, la FRUCTOSA entra al enterocito mediante difusión facilitada. ¿Qué transportador específico utiliza?", opts: ["SGLT1.", "GLUT2.", "GLUT5.", "GLUT3."], c: 2, e: "La fructosa no usa sodio, entra a través del transportador GLUT5 independiente de energía." },
+            { n: 26, q: "Una vez que los monosacáridos (Glucosa, Galactosa y Fructosa) están dentro del enterocito, ¿cómo salen hacia los capilares sanguíneos?", opts: ["A través del SGLT1.", "Mediante difusión facilitada utilizando todos el transportador GLUT2 en la membrana basolateral.", "A través de la bomba de sodio/potasio.", "Se empaquetan en quilomicrones."], c: 1, e: "El GLUT2 es el transportador de salida común hacia el torrente sanguíneo." },
+            { n: 27, q: "¿Qué características definen al transportador GLUT1?", opts: ["Baja afinidad, presente solo en intestino.", "Alta afinidad, presente en cerebro, eritrocitos y tejidos fetales.", "Dependiente de insulina.", "Solo transporta fructosa."], c: 1, e: "Es el encargado de asegurar el suministro basal de glucosa a órganos vitales." },
+            { n: 28, q: "¿Cuál es el papel del transportador GLUT2 en las células beta del páncreas y el hígado?", opts: ["Transporta fructosa activamente.", "Al tener baja afinidad, actúa como un 'sensor de glucosa', captándola solo cuando los niveles en sangre son muy altos (después de comer).", "Absorbe lactosa.", "Depende de insulina para funcionar."], c: 1, e: "Su alta Km (baja afinidad) permite que el páncreas 'mida' cuánta glucosa hay para saber si debe secretar insulina." },
+            { n: 29, q: "¿Qué transportador es el primario para suministrar glucosa específicamente a las NEURONAS?", opts: ["GLUT1.", "GLUT2.", "GLUT3.", "GLUT5."], c: 2, e: "El GLUT3 es el de alta afinidad neuronal." },
+            { n: 30, q: "¿Qué particularidad tiene el transportador GLUT4 (presente en músculo y tejido adiposo)?", opts: ["Es el único que transporta fructosa.", "Es insulín-dependiente (la insulina provoca que se exponga en la membrana para captar glucosa y reducir la glucemia).", "Está en el intestino delgado.", "Es una enzima hidrolítica."], c: 1, e: "En estado de hiperglucemia, la insulina ordena a estos tejidos que usen el GLUT4 para absorber el exceso de azúcar." },
+            { n: 31, q: "Si en una analítica sanguínea la concentración de glucosa es de 130 mg/dl (en ayunas), la situación clínica se denomina:", opts: ["Normoglucemia.", "Hipoglucemia.", "Hiperglucemia.", "Aterogénesis."], c: 2, e: "Las cifras normales son 80-115 mg/dl. Por encima de 115 se considera hiperglucemia." },
+            { n: 32, q: "Ante una hiperglucemia tras una ingesta de carbohidratos, ¿qué hormona se secreta y qué efecto tiene?", opts: ["Glucagón, promueve la glucogenolisis.", "Insulina, actúa como hipoglucemiante promoviendo la glucólisis y glucogenogénesis (almacenamiento).", "Adrenalina, eleva más el azúcar.", "CCK, digiere grasas."], c: 1, e: "La insulina busca 'guardar' y 'quemar' la glucosa para retirarla de la sangre." },
+            { n: 33, q: "Por el contrario, en situación de ayuno (hipoglucemia), ¿qué hormona hepática busca elevar los niveles de azúcar en sangre?", opts: ["Insulina.", "Leptina.", "Glucagón (promoviendo la glucogenolisis y gluconeogénesis).", "Lactasa."], c: 2, e: "El glucagón ordena al hígado liberar la glucosa almacenada." },
+            { n: 34, q: "De los siguientes tejidos, ¿cuál es un tejido INSULIN-INDEPENDIENTE (capta glucosa sin necesidad de insulina)?", opts: ["Músculo esquelético.", "Cerebro y eritrocitos.", "Tejido adiposo.", "Glándula mamaria."], c: 1, e: "El cerebro necesita glucosa constantemente, por lo que sus transportadores (GLUT1/3) no dependen de insulina." },
+            { n: 35, q: "(¡Pista Profesora!) Si un paciente tiene Intolerancia a la Lactosa, ¿qué ocurre con la lactosa en el intestino?", opts: ["Se absorbe inmediatamente como disacárido tóxico.", "Se acumula en la luz intestinal porque no hay lactasa, atrayendo agua (diarrea) y siendo fermentada por bacterias (gases y ácidos).", "Se transforma en almidón.", "Se excreta por la orina."], c: 1, e: "Al no degradarse, actúa como soluto osmótico y es pasto de la flora bacteriana." },
+            { n: 36, q: "¿Qué prueba diagnóstica no invasiva se menciona en las diapositivas para detectar patologías de absorción de carbohidratos como la intolerancia?", opts: ["Resonancia magnética.", "Detección de lactosa en orina (y biopsia en casos severos).", "Medición de insulina capilar.", "Análisis genético exclusivo."], c: 1, e: "Las intolerancias pueden estudiarse detectando azúcares anómalos o mediante biopsia de la mucosa (atrofia)." },
+            { n: 37, q: "Un paciente presenta diarrea, deshidratación y gases severos tras consumir azúcar de mesa o frutas muy dulces. ¿Qué deficiencia enzimática es más probable?", opts: ["Deficiencia de lactasa.", "Deficiencia de sacarasa e isomaltasa.", "Falta de pepsina.", "Atrofia de la glándula pineal."], c: 1, e: "Si no digiere sacarosa (azúcar de mesa), el problema radica en la sacarasa, con síntomas osmóticos idénticos a los de la lactosa." },
+            { n: 38, q: "Observando el esquema de absorción, ¿cómo entran los ÁCIDOS GRASOS de CADENA CORTA al interior del enterocito?", opts: ["Por simportador de Sodio.", "Por difusión facilitada.", "Por difusión simple (atraviesan la membrana directamente).", "Endocitosis de micelas."], c: 2, e: "Los ácidos grasos cortos y libres pueden difundir simplemente por la bicapa lipídica sin requerir transportadores proteicos." },
+            { n: 39, q: "¿Qué destino tienen los ácidos grasos de cadena corta una vez salen del enterocito?", opts: ["Se unen a quilomicrones.", "Pasan directamente por difusión a los capilares sanguíneos de las vellosidades.", "Viajan al vaso quilífero linfático.", "Vuelven al lumen intestinal."], c: 1, e: "No necesitan empaquetamiento; difunden directo a la sangre." },
+            { n: 40, q: "Para que los ácidos grasos de CADENA LARGA y los monoglicéridos puedan ser absorbidos por el enterocito, primero deben formar en la luz intestinal una estructura llamada:", opts: ["Quilomicrón.", "Micela (emulsión con sales biliares).", "Ribosoma.", "Vesícula de clatrina."], c: 1, e: "Las micelas solubilizan los lípidos complejos para acercarlos a la membrana apical." },
+            { n: 41, q: "Una vez que los ácidos grasos de cadena larga entran al enterocito, ¿qué hace la célula con ellos?", opts: ["Los manda directamente a la sangre.", "Los vuelve a unir (resíntesis) formando de nuevo Triglicéridos.", "Los transforma en glucosa.", "Los destruye en el lisosoma."], c: 1, e: "El esquema muestra claramente cómo se ensamblan nuevamente en un 'Triglicérido' dentro del enterocito." },
+            { n: 42, q: "Tras resintetizar los triglicéridos dentro de la célula, ¿en qué gran partícula se empaquetan para poder ser expulsados?", opts: ["HDL.", "VLDL.", "Quilomicrón.", "Albúmina."], c: 2, e: "El enterocito forma el quilomicrón para transportar las grasas exógenas." },
+            { n: 43, q: "(¡Pista Profesora/Esquema!) A diferencia de la glucosa y los aminoácidos que van a los capilares, ¿hacia dónde se dirigen los Quilomicrones al salir por la superficie basolateral?", opts: ["A la vena porta directamente.", "Al vaso quilífero (circulación linfática) de la vellosidad.", "Al interior de las glándulas intestinales.", "Al colon."], c: 1, e: "Por su gran tamaño, los quilomicrones se vierten al sistema linfático central de la vellosidad." },
+            { n: 44, q: "Respecto a la digestión de PROTEÍNAS, según el esquema integrador, los AMINOÁCIDOS libres entran al enterocito utilizando:", opts: ["Difusión simple.", "Transporte activo secundario con Na+ (muy similar a la glucosa).", "Quilomicrones.", "Bomba de protones exclusivamente."], c: 1, e: "Los aminoácidos libres usan el gradiente de sodio, igual que los monosacáridos." },
+            { n: 45, q: "Sin embargo, los DIPÉPTIDOS y TRIPÉPTIDOS entran a la célula mediante un transportador secundario dependiente de:", opts: ["Sodio (Na+).", "Potasio (K+).", "Protones (H+).", "Calcio (Ca2+)."], c: 2, e: "Los péptidos pequeños usan un cotransportador acoplado al movimiento de protones." },
+            { n: 46, q: "¿Qué debe ocurrir con los dipéptidos y tripéptidos dentro del enterocito antes de salir a la sangre?", opts: ["Salen intactos.", "Son hidrolizados intracelularmente hasta aminoácidos libres, que son los únicos que salen por difusión a los capilares.", "Se transforman en urea.", "Se unen a grasas."], c: 1, e: "La célula tiene peptidasas internas que finalizan el trabajo; a la sangre solo pasan los aminoácidos libres." },
+            { n: 47, q: "¿Qué enzima gástrica inicia la hidrólisis y desnaturalización de las proteínas en el estómago?", opts: ["Tripsina.", "Pepsina (procedente del pepsinógeno).", "Elastasa.", "Colipasa."], c: 1, e: "Ayudada por el HCl, la pepsina es la principal proteasa gástrica." },
+            { n: 48, q: "¿De dónde procede el bicarbonato (NaHCO3) que neutraliza el pH ácido al llegar el alimento al duodeno?", opts: ["Del estómago.", "De la vesícula biliar.", "De la secreción del páncreas.", "De las glándulas salivales."], c: 2, e: "El páncreas secreta sus enzimas acompañadas de un jugo muy rico en bicarbonato para alcalinizar el medio." },
+            { n: 49, q: "Según la imagen del esquema de los órganos, ¿qué enzima pancreática se encarga de ayudar a la digestión final de los carbohidratos en el duodeno?", opts: ["Amilasa pancreática.", "Tripsina.", "Elastasa.", "Lipasa."], c: 0, e: "El páncreas aporta su propia amilasa para continuar el trabajo que empezó la saliva." },
+            { n: 50, q: "El tracto gastrointestinal no es solo un tubo digestivo, sino que tiene una importante conexión 'enterohepática'. Esto se refiere principalmente a:", opts: ["La absorción de oxígeno.", "La circulación y recaptación de los ácidos biliares desde el íleon de vuelta al hígado.", "La digestión de glucosa.", "El transporte neuronal de fructosa."], c: 1, e: "Las sales biliares se reciclan volviendo al hígado tras hacer su trabajo emulsionante." },
+            { n: 51, q: "En la degradación del almidón, quedan 'maltotriosas' (3 glucosas) y 'maltosas' (2 glucosas). ¿Qué enzima corta la maltosa para dar dos glucosas libres?", opts: ["Lactasa.", "Amilasa.", "Maltasa (una alfa-glucosidasa).", "Isomaltasa."], c: 2, e: "Aunque el PDF habla genéricamente de glucosidasas, la maltasa es la que hidroliza específicamente la maltosa." },
+            { n: 52, q: "(¡Pista Profesora!) En la clase insistió: ¿Por qué cortamos los enlaces de las grandes moléculas (como el glucógeno)?", opts: ["Para gastar agua del cuerpo.", "Para liberar la energía contenida en esos enlaces químicos y poder reutilizar esas unidades básicas.", "Porque son tóxicos si no se cortan.", "Para aumentar nuestro peso."], c: 1, e: "'De grado, obtengo energía y aparte me sirve para volver a construir en la célula', explicó de forma sencilla la base termodinámica de la digestión." },
+            { n: 53, q: "¿Por qué se dice que el transporte de agua en el intestino es secundario?", opts: ["Porque el agua viaja por las neuronas.", "Porque el agua se mueve libremente por ósmosis siguiendo a los solutos (como el sodio, la glucosa y los aminoácidos) que se absorben activamente.", "Porque requiere bombas de ATP de agua.", "Porque el agua no se absorbe, se secreta toda."], c: 1, e: "El equilibrio osmótico ('allí donde va el soluto, va el agua') justifica el volumen de absorción y los problemas de las diarreas." },
+            { n: 54, q: "¿A qué nivel estructural de un carbohidrato corresponden las dextrinas alfa-límite resultantes de la digestión con amilasa?", opts: ["Monosacáridos libres.", "Oligosacáridos ramificados (contienen los enlaces 1-6 no rotos).", "Polímeros de mil glucosas.", "Proteínas conjugadas."], c: 1, e: "Son los restos ramificados que la amilasa no ha podido cortar, a la espera de la enzima desramificante." },
+            { n: 55, q: "Si la célula epitelial (enterocito) se queda sin ATP (energía), ¿qué absorción de azúcar se vería interrumpida PRIMERO de forma dramática?", opts: ["La de Fructosa.", "La de Galactosa y Glucosa.", "Ninguna, entrarían pasivamente.", "La de quilomicrones."], c: 1, e: "Al quedarse sin ATP, la bomba Na+/K+ se para, el gradiente de sodio desaparece, y el SGLT1 (Glucosa/Galactosa) deja de funcionar. (Fructosa entraría por difusión)." },
+            { n: 56, q: "La celulosa es un polisacárido vegetal (fibra). ¿Por qué no podemos extraer energía (glucosa) de ella?", opts: ["Porque no tenemos dientes fuertes.", "Porque sus enlaces son Beta (1-4), y nuestras amilasas solo cortan enlaces Alfa (1-4).", "Porque no contiene glucosa.", "Porque inhibe a la lactasa."], c: 1, e: "Es un concepto clásico de bioquímica. Nos falta la enzima celulasa, por lo que actúa como fibra no digerible." },
+            { n: 57, q: "Además de la digestión química, ¿cuál es el primer paso físico de la digestión en la boca que 'prepara' el alimento?", opts: ["La secreción de pepsina.", "La masticación (procesamiento mecánico) y la hidratación.", "La absorción de grasas.", "La emulsificación biliar."], c: 1, e: "Es vital para romper el alimento en trozos pequeños y mezclarlo con la saliva (y su amilasa)." },
+            { n: 58, q: "Durante el ayuno, el cerebro sigue necesitando glucosa, pero NO insulina. ¿Por qué esto es una ventaja evolutiva?", opts: ["Porque el cerebro produce su propia insulina.", "Porque permite que el cerebro capte la poca glucosa circulante sin competir con el músculo (que sí necesita insulina para meter la glucosa).", "Porque el cerebro prefiere usar lactosa.", "Porque el cerebro almacena toneladas de glucógeno."], c: 1, e: "Al ser insulín-independiente (GLUT1/3), el cerebro tiene prioridad absoluta sobre la glucosa cuando esta escasea." },
+            { n: 59, q: "¿En qué estado (forma activa o inactiva) se secreta la Tripsina desde el páncreas y por qué?", opts: ["Activa (Tripsina) para actuar rápido.", "Inactiva (Tripsinógeno), es un zimógeno para evitar que autodigiera las proteínas del propio páncreas.", "Inactiva, porque necesita de la amilasa para funcionar.", "Secreta lipasa en su lugar."], c: 1, e: "Refuerzo del concepto vital de 'zimógeno' explicado en clase." },
+            { n: 60, q: "Para asentar conceptos: ¿Cuál de las siguientes agrupaciones representa CORRECTAMENTE el emparejamiento enzima-sustrato?", opts: ["Amilasa - Lactosa.", "Pepsina - Almidón.", "Lactasa - Sacarosa.", "Lipasa - Triacilgliceroles (Triglicéridos)."], c: 3, e: "La amilasa va con almidón, la pepsina con proteínas, la lactasa con lactosa y la lipasa con los triglicéridos." }
+        ];
+
+        let quizQuestions = [];
+        let markedQuestions = new Set();
+        let userAnswers = {};
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initQuiz(mode) {
+            // Deep copy to reset state
+            const dataCopy = JSON.parse(JSON.stringify(rawData));
+            
+            if (mode === 'random') {
+                quizQuestions = shuffle(dataCopy);
+            } else {
+                quizQuestions = dataCopy;
+            }
+
+            // Shuffle options for each question, preserving correct index
+            quizQuestions.forEach(q => {
+                const originalCorrectText = q.opts[q.c];
+                shuffle(q.opts);
+                q.c = q.opts.indexOf(originalCorrectText);
+            });
+
+            renderQuiz();
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'grid';
+        }
+
+        function renderQuiz() {
+            const wrapper = document.getElementById('questions-wrapper');
+            const grid = document.getElementById('index-grid');
+            wrapper.innerHTML = '';
+            grid.innerHTML = '';
+
+            quizQuestions.forEach((q, i) => {
+                // Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-card-${i}`;
+                
+                const isMarked = markedQuestions.has(q.n);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <h3 class="question-text">${i + 1}. ${q.q}</h3>
+                        <button class="mark-toggle ${isMarked ? 'active' : ''}" onclick="toggleMark(${i}, ${q.n})">
+                            ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <ul class="options-list" id="opts-${i}">
+                        ${q.opts.map((opt, optIdx) => `
+                            <li>
+                                <button class="option-btn" onclick="checkAnswer(${i}, ${optIdx})">${opt}</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <div class="explanation" id="exp-${i}">
+                        <strong>¡Corección!</strong><br><br>${q.e}
+                    </div>
+                `;
+                wrapper.appendChild(card);
+
+                // Index item
+                const indexItem = document.createElement('a');
+                indexItem.href = `#q-card-${i}`;
+                indexItem.className = 'index-item';
+                indexItem.id = `nav-${i}`;
+                indexItem.innerText = i + 1;
+                if (isMarked) indexItem.classList.add('is-marked');
+                grid.appendChild(indexItem);
+            });
+            
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function checkAnswer(qIdx, optIdx) {
+            if (userAnswers[qIdx]) return; // Already answered
+
+            const q = quizQuestions[qIdx];
+            const isCorrect = optIdx === q.c;
+            userAnswers[qIdx] = { selected: optIdx, correct: isCorrect };
+
+            // Update UI
+            const buttons = document.querySelectorAll(`#opts-${qIdx} .option-btn`);
+            buttons.forEach((btn, idx) => {
+                btn.disabled = true;
+                if (idx === q.c) {
+                    btn.classList.add('correct');
+                } else if (idx === optIdx && !isCorrect) {
+                    btn.classList.add('incorrect');
+                } else if (!isCorrect && idx === q.c) {
+                     // Not strictly needed since q.c logic catches it, but for safety.
+                }
+            });
+
+            // Show explanation with dynamic color
+            const expDiv = document.getElementById(`exp-${qIdx}`);
+            expDiv.style.display = 'block';
+            expDiv.style.borderLeftColor = isCorrect ? 'var(--correct)' : 'var(--incorrect)';
+            expDiv.style.backgroundColor = isCorrect ? '#f0fdf4' : '#fef2f2';
+            
+            // Update Sidebar
+            const navItem = document.getElementById(`nav-${qIdx}`);
+            navItem.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+        }
+
+        function toggleMark(qIdx, qID) {
+            const btn = document.querySelector(`#q-card-${qIdx} .mark-toggle`);
+            const navItem = document.getElementById(`nav-${qIdx}`);
+            
+            if (markedQuestions.has(qID)) {
+                markedQuestions.delete(qID);
+                btn.classList.remove('active');
+                btn.innerText = '☆ Marcar';
+                navItem.classList.remove('is-marked');
+            } else {
+                markedQuestions.add(qID);
+                btn.classList.add('active');
+                btn.innerText = '★ Marcada';
+                navItem.classList.add('is-marked');
+            }
+        }
+
+        function showResults() {
+            const total = quizQuestions.length;
+            let correctas = 0;
+            let respondidas = Object.keys(userAnswers).length;
+
+            Object.values(userAnswers).forEach(a => {
+                if (a.correct) correctas++;
+            });
+
+            document.getElementById('stats').innerHTML = `
+                Preguntas respondidas: <strong>${respondidas} / ${total}</strong><br>
+                Aciertos: <strong style="color:var(--correct)">${correctas}</strong><br>
+                Fallos: <strong style="color:var(--incorrect)">${respondidas - correctas}</strong>
+            `;
+            document.getElementById('results-screen').style.display = 'flex';
+        }
+
+        function restart(filter) {
+            let nextQuestions = [];
+            
+            if (filter === 'all') {
+                nextQuestions = rawData;
+            } else if (filter === 'failed') {
+                const failedIDs = quizQuestions
+                    .filter((q, i) => userAnswers[i] && !userAnswers[i].correct)
+                    .map(q => q.n);
+                nextQuestions = rawData.filter(q => failedIDs.includes(q.n));
+            } else if (filter === 'marked') {
+                nextQuestions = rawData.filter(q => markedQuestions.has(q.n));
+            } else if (filter === 'failed_marked') {
+                const failedIDs = quizQuestions
+                    .filter((q, i) => userAnswers[i] && !userAnswers[i].correct)
+                    .map(q => q.n);
+                nextQuestions = rawData.filter(q => failedIDs.includes(q.n) || markedQuestions.has(q.n));
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("¡No hay preguntas en esta categoría para repetir!");
+                return;
+            }
+
+            // Reset state for new round
+            userAnswers = {};
+            quizQuestions = JSON.parse(JSON.stringify(nextQuestions));
+            
+            // Go back to setup screen to ask for order
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>

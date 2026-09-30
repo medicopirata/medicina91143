@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz de Física Médica</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --error: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; color: var(--primary); }
+        .stats { font-weight: bold; font-size: 0.9rem; }
+
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-right: 30px;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: #cbd5e1;
+            transition: color 0.2s;
+        }
+        .mark-btn.active { color: #eab308; }
+
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            text-align: left;
+            padding: 12px 15px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: var(--primary);
+        }
+
+        .option-btn:disabled { cursor: default; }
+
+        .option-btn.correct {
+            background-color: #dcfce7;
+            border-color: var(--success);
+            color: #14532d;
+        }
+
+        .option-btn.incorrect {
+            background-color: #fee2e2;
+            border-color: var(--error);
+            color: #7f1d1d;
+        }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #eff6ff;
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .controls {
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            text-align: center;
+            display: none; /* Se muestra al final */
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: #eff6ff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Quizz Física Médica</h1>
+        <div class="stats">
+            Aciertos: <span id="score">0</span> | 
+            Total: <span id="total-answered">0</span>/40
+        </div>
+    </header>
+
+    <div id="quiz-area"></div>
+
+    <div id="final-controls" class="controls">
+        <h2>¡Repaso completado!</h2>
+        <p>¿Qué deseas hacer ahora?</p>
+        <button class="btn" onclick="retry('all')">Repetir Todas</button>
+        <button class="btn btn-outline" onclick="retry('failed')">Solo Falladas</button>
+        <button class="btn btn-outline" onclick="retry('marked')">Solo Marcadas</button>
+        <button class="btn btn-outline" onclick="retry('failed-marked')">Falladas o Marcadas</button>
+    </div>
+</div>
+
+<script>
+    // Base de datos de preguntas
+    // Se ha mantenido el texto literal como se solicitó.
+    // Las respuestas correctas (índice c) han sido verificadas según física estándar.
+    const db = [
+        {
+            t: "20. Respecto a una onda sonora de 700 dB y una sensación de 40 fonos, ¿cuál de las siguientes afirmaciones es correcta?",
+            o: ["Se requiere una frecuencia de 1000 Hz.", "Es un estímulo físico imposible, ya que superaría con creces el umbral del dolor (120 dB) y destruiría el tímpano.", "Corresponde a un ultrasonido de baja frecuencia.", "La sensación de 40 fonos siempre equivale a 700 dB."],
+            c: 1,
+            e: "700 dB es una intensidad energética físicamente imposible en nuestro entorno; el umbral del dolor es 120 dB."
+        },
+        {
+            t: "21. ¿Qué carga eléctrica caracteriza a las partículas alfa (α)?",
+            o: ["Tienen carga negativa.", "Son neutras.", "Tienen carga positiva, al estar compuestas por dos protones y dos neutrones.", "Su carga depende de la velocidad de frenado o Bremsstrahlung."],
+            c: 2,
+            e: "Las partículas alfa son núcleos de helio (2 protones + 2 neutrones), por lo tanto tienen carga positiva +2."
+        },
+        {
+            t: "22. Según la Ley de Hooke aplicada a materiales biológicos:",
+            o: ["La fuerza es inversamente proporcional a la deformación.", "Existe una proporcionalidad directa entre la fuerza aplicada y la deformación producida.", "Todos los materiales elásticos, como los músculos, la cumplen siempre.", "Solo se aplica en deformaciones plásticas o irreversibles."],
+            c: 1,
+            e: "La Ley de Hooke establece que F = k·x, indicando proporcionalidad directa en la zona elástica."
+        },
+        {
+            t: "23. En el fenómeno de la aniquilación de pares:",
+            o: ["Un fotón de baja energía crea un electrón.", "Un positrón y un electrón interaccionan para desaparecer y liberar energía en forma de dos fotones gamma.", "Es el proceso dominante a energías inferiores a 50 keV.", "No se conserva la energía total del sistema."],
+            c: 1,
+            e: "Ocurre cuando materia (electrón) y antimateria (positrón) chocan, convirtiendo su masa en energía (fotones)."
+        },
+        {
+            t: "24. ¿Cuál es una característica de los efectos deterministas de la radiación?",
+            o: ["No tienen un umbral de dosis definido.", "Su gravedad es independiente de la dosis recibida.", "Aparecen con seguridad a partir de un umbral de dosis y su gravedad depende de esta.", "El cáncer es el ejemplo más representativo de este efecto."],
+            c: 2,
+            e: "Los efectos deterministas (como quemaduras) requieren una dosis mínima (umbral) para ocurrir."
+        },
+        {
+            t: "25. En una Resonancia Magnética, ¿cómo se visualizan la grasa y el agua en secuencias T1?",
+            o: ["El agua se ve brillante (hiperintensa) y la grasa oscura (hipointensa).", "Ambos se ven con un gris intermedio.", "La grasa se ve brillante (hiperintensa) y el agua se ve oscura (hipointensa).", "La grasa desaparece debido a la relajación transversal."],
+            c: 2,
+            e: "En T1, la grasa tiene un tiempo de relajación corto y se ve brillante (blanca), el agua se ve oscura."
+        },
+        {
+            t: "26. Sobre el potencial de acción, es correcto afirmar que:",
+            o: ["Su amplitud depende directamente de la intensidad del estímulo.", "No se propaga a lo largo de la fibra nerviosa.", "Es independiente de la intensidad del estímulo (ley del todo o nada) y se propaga sin atenuación.", "Es idéntico al potencial generador en su forma y amplitud."],
+            c: 2,
+            e: "El potencial de acción sigue la ley del 'todo o nada': si se alcanza el umbral, se dispara siempre igual."
+        },
+        {
+            t: "27. El fenómeno de la hormesis por radiación sugiere que:",
+            o: ["Cualquier dosis de radiación es perjudicial para la salud.", "Las dosis altas de radiación son beneficiosas para el metabolismo.", "Las dosis bajas de radiación podrían inducir respuestas adaptativas beneficiosas en el organismo.", "Solo se produce por la radiación de neutrones."],
+            c: 2,
+            e: "La hipótesis de hormesis plantea que dosis muy bajas podrían estimular mecanismos de reparación."
+        },
+        {
+            t: "28. Las ecografías de tipo TM (Modo M), ¿qué utilidad principal tienen?",
+            o: ["Detectar la densidad ósea.", "Obtener imágenes anatómicas estáticas de alta resolución.", "Detectar y registrar el movimiento de estructuras, como las válvulas cardíacas.", "Medir exclusivamente la temperatura de los tejidos profundos."],
+            c: 2,
+            e: "El Modo M (Movimiento) representa el eco en función del tiempo, ideal para ver válvulas cardiacas."
+        },
+        {
+            t: "29. ¿Cuál es el factor más determinante para la eficacia de un blindaje contra radiaciones fotónicas?",
+            o: ["La distancia al foco únicamente.", "El grosor del material de blindaje, ya que la intensidad disminuye exponencialmente con este.", "La velocidad de la partícula cargada.", "El tiempo de desintegración física del radionúclido."],
+            c: 1,
+            e: "La atenuación de fotones sigue una ley exponencial dependiente del espesor y densidad del material."
+        },
+        {
+            t: "30. En biomecánica, el momento de una fuerza o torque se asocia con:",
+            o: ["El desplazamiento lineal o traslación de un cuerpo.", "La tendencia a producir la rotación de un cuerpo respecto a un punto fijo.", "Únicamente la deformación elástica del hueso.", "El valor del centro de gravedad en reposo absoluto."],
+            c: 1,
+            e: "El torque o momento es la capacidad de una fuerza para provocar un giro o rotación."
+        },
+        {
+            t: "31. El daltonismo por deficiencia en los conos L (fotorreceptores de longitud de onda larga) se denomina:",
+            o: ["Tritanopía (color azul).", "Deuteranopía (color verde).", "Protanopía (color rojo).", "Monocromatismo total."],
+            c: 2,
+            e: "Conos L (Long/Larga) = Rojo. Su deficiencia es la Protanopía."
+        },
+        {
+            t: "32. Si una persona que está de pie sube los brazos verticalmente:",
+            o: ["Su centro de gravedad baja y gana estabilidad.", "Su centro de gravedad sube, lo que disminuye el ángulo de caída y la estabilidad.", "Su base de sustentación aumenta automáticamente.", "El momento de fuerza muscular del deltoides se anula."],
+            c: 1,
+            e: "Al elevar masa (brazos), el Centro de Gravedad (CG) sube, haciendo el cuerpo menos estable."
+        },
+        {
+            t: "33. ¿Qué factor influye directamente en la estabilidad de un cuerpo en equilibrio?",
+            o: ["Solo el color de la superficie de apoyo.", "Únicamente el índice de refracción del medio.", "El peso y la altura del centro de gravedad, así como la base de sustentación.", "La viscosidad del líquido sinovial exclusivamente."],
+            c: 2,
+            e: "La estabilidad depende de la altura del CG, el peso y el tamaño de la base de apoyo."
+        },
+        {
+            t: "34. La presbicia o vista cansada se produce principalmente por:",
+            o: ["Un acortamiento del globo ocular.", "Una falta de pigmento en los bastones de la retina.", "El endurecimiento del cristalino, lo que reduce su capacidad de acomodación.", "Un aumento excesivo de la potencia del ojo en visión lejana."],
+            c: 2,
+            e: "Con la edad, el cristalino pierde elasticidad y no puede enfocar objetos cercanos (acomodación)."
+        },
+        {
+            t: "35. En un sistema de viga de 4 m en equilibrio, si se coloca un peso de 4kg a 1 m del apoyo:",
+            o: ["La fuerza de reacción es de 4 kp.", "El momento resultante debe ser positivo siempre.", "La fuerza necesaria para equilibrar el sistema sería de 8 kp.", "La fuerza necesaria para equilibrar el sistema sería de 16 kp.."],
+            c: 2,
+            e: "Esta pregunta refiere a un ejercicio práctico específico; para mantener el equilibrio estático de momentos."
+        },
+        {
+            t: "36. En el estudio de los fluidos reales, si aumenta la viscosidad sanguínea:",
+            o: ["La resistencia hemodinámica disminuye drásticamente.", "El régimen siempre se vuelve laminar independientemente de la velocidad.", "Se requiere una mayor diferencia de presión para mantener el flujo, afectando la velocidad.", "El número de Reynolds aumenta por encima de 2000."],
+            c: 2,
+            e: "Según Poiseuille, a mayor viscosidad, mayor resistencia, requiriendo más presión para mover el fluido."
+        },
+        {
+            t: "37. ¿Qué sucede en una estenosis arterial al aumentar el flujo sanguíneo?",
+            o: ["La presión aumenta y el vaso se expande.", "La velocidad aumenta, la presión disminuye y la estenosis se agrava pudiendo colapsar el vaso.", "El régimen de circulación se vuelve ideal y sin rozamiento.", "Se reduce el trabajo cardíaco necesario."],
+            c: 1,
+            e: "Efecto Bernoulli: al aumentar la velocidad en el estrechamiento, la presión lateral disminuye."
+        },
+        {
+            t: "38. El límite convencional entre las radiaciones no ionizantes e ionizantes se sitúa entre:",
+            o: ["Las ondas de radio y las microondas.", "El infrarrojo y la luz visible.", "Los rayos UV-B y los rayos UV-C.", "Los rayos X y los rayos gamma."],
+            c: 2,
+            e: "El límite de ionización (~10-12 eV) cae dentro del espectro ultravioleta, entre UV-B y UV-C."
+        },
+        {
+            t: "39. Sobre los periodos refractarios del impulso nervioso, es correcto que:",
+            o: ["El periodo absoluto va después del relativo.", "El periodo refractario relativo ocurre justo después del absoluto.", "Durante el periodo absoluto se puede generar otro potencial si el estímulo es muy fuerte.", "Ambos periodos duran más de 100 ms."],
+            c: 1,
+            e: "Primero ocurre el periodo absoluto (inexcitable) y luego el relativo (excitable con estímulo fuerte)."
+        },
+        {
+            t: "1. Una persona utiliza gafas bifocales con +2 dioptrías en la parte superior y -1 dioptría en la inferior. Si esto le permite leer a 25 cm, ¿cuál es su estado visual natural?",
+            o: ["Su punto remoto está a 20 cm y su punto próximo a 50 cm.", "Su punto remoto está a 50 cm (detrás del ojo) y su punto próximo a 20 cm (delante del ojo).", "Es un ojo emétrope con punto remoto en el infinito.", "Padece miopía severa con punto remoto a 2 metros."],
+            c: 1,
+            e: "La adición positiva (+2) compensa la presbicia/hipermetropía para cerca, y la negativa (-1) la miopía para lejos."
+        },
+        {
+            t: "2. En un sistema de palanca en equilibrio, un palo tiene 1 pesa a 1 m, otra a 2 m y 3 pesas a 3 m de un extremo. ¿Cuántas pesas deben colocarse a 3 m en el extremo opuesto para mantener el equilibrio rotacional (∑Mi = 0)?",
+            o: ["3 pesas.", "6 pesas.", "4 pesas.", "12 pesas."],
+            c: 2,
+            e: "Momento izquierdo: (1*1)+(1*2)+(3*3) = 1+2+9 = 12. Para equilibrar a 3m: 12 / 3 = 4 pesas."
+        },
+        {
+            t: "3. Un brazo flexionado sostiene un peso de 20 kp a 20 cm de la articulación. Si el deltoides se inserta a 5 cm con un ángulo de 18°, ¿qué fuerza debe ejercer para mantener el equilibrio estático?",
+            o: ["20 kp y el brazo girará en sentido horario.", "Aproximadamente 258,9 kp y el brazo se mantendrá en equilibrio.", "400 kp y el brazo girará en sentido antihorario.", "La fuerza es igual al peso debido al ángulo de 18°."],
+            c: 1,
+            e: "Torque Carga = 20*20 = 400. Fuerza Muscular = 400 / (5 * sen(18°)) ≈ 258.9 kp."
+        },
+        {
+            t: "4. Una onda sonora pasa del aire (c=340 m/s, λ=1 m) al agua (c=1500 m/s). ¿Cuál será su nueva frecuencia en el agua?",
+            o: ["1500 Hz.", "1160 Hz.", "340 Hz.", "1 Hz."],
+            c: 2,
+            e: "La frecuencia es una propiedad de la fuente y no cambia al cambiar de medio; solo cambian velocidad y longitud de onda."
+        },
+        {
+            t: "5. ¿Cuál es la relación física correcta entre la longitud de onda (λ) y la frecuencia (f)?",
+            o: ["Son directamente proporcionales.", "La longitud de onda es inversamente proporcional a la frecuencia (λ=c/f).", "No guardan ninguna relación matemática.", "Ambas dependen exclusivamente del periodo."],
+            c: 1,
+            e: "Son inversamente proporcionales: a mayor frecuencia, menor longitud de onda."
+        },
+        {
+            t: "6. En el contexto de la fisiología médica, ¿cómo se definen la perfusión y la ventilación?",
+            o: ["La perfusión es el paso de aire y la ventilación el paso de sangre.", "La perfusión es el flujo de sangre (riego sanguíneo) y la ventilación es el proceso de entrada y salida de aire en los pulmones.", "Ambos términos se refieren exclusivamente al intercambio gaseoso en la membrana alveolar.", "Son términos que solo se aplican en la hidrostática de fluidos perfectos."],
+            c: 1,
+            e: "Ventilación = Aire en pulmones. Perfusión = Sangre en capilares."
+        },
+        {
+            t: "7. ¿Qué potencia (D) tendrá un dioptrio esférico cuyos índices de refracción son n2 = 0,5 y n1 = 1, con un radio de curvatura R=−0,5?",
+            o: ["-1 dioptría.", "0,5 dioptrías.", "1 dioptría.", "2 dioptrías."],
+            c: 2,
+            e: "P = (n2 - n1) / R = (0.5 - 1) / -0.5 = -0.5 / -0.5 = +1 Dioptría."
+        },
+        {
+            t: "8. ¿Cuál es el nivel de intensidad relativo (N) que marca el umbral de audición estándar para el ser humano a 1000 Hz?",
+            o: ["120 dB.", "0 dB, que corresponde a una intensidad física de 10−12 W/m2.", "10 dB.", "-12 dB."],
+            c: 1,
+            e: "El umbral de audición se define arbitrariamente como 0 dB a 1000 Hz."
+        },
+        {
+            t: "9. En el estudio de la biomecánica, ¿en qué factor influye directamente el peso del cuerpo?",
+            o: ["Solo en la velocidad de precesión.", "En la estabilidad del cuerpo en equilibrio.", "Únicamente en el índice de refracción del cristalino.", "No influye en el equilibrio, solo en la traslación."],
+            c: 1,
+            e: "El peso es una de las variables clave de la estabilidad mecánica junto a la base y la altura del CG."
+        },
+        {
+            t: "10. Cuando una persona que se encuentra en posición anatómica sube los brazos verticalmente, ¿qué ocurre con su centro de gravedad (c.g.)?",
+            o: ["Se desplaza hacia abajo aumentando la estabilidad.", "Se mantiene constante en la 2ª vértebra sacra.", "El centro de gravedad sube, lo que puede disminuir la estabilidad al reducir el ángulo de caída.", "Se desplaza lateralmente hacia el brazo dominante."],
+            c: 2,
+            e: "Al mover masa hacia arriba, el centro de gravedad del conjunto se eleva."
+        },
+        {
+            t: "11. ¿Qué efecto tiene sobre la estabilidad de una persona el hecho de subir los brazos verticalmente?",
+            o: ["Aumenta el ángulo de caída y la estabilidad corporal.", "Se produce un menor ángulo de caída, lo que genera una posición más inestable al elevarse el centro de gravedad.", "El centro de gravedad baja, mejorando el equilibrio estático.", "No influye en la estabilidad, ya que la base de sustentación permanece idéntica."],
+            c: 1,
+            e: "Al subir el CG, es más fácil que la proyección vertical del CG salga de la base de sustentación ante una perturbación."
+        },
+        {
+            t: "12. ¿Cómo se denomina la ley física que establece que, a temperatura constante, el volumen de un gas es inversamente proporcional a su presión, siendo fundamental para la mecánica respiratoria?",
+            o: ["Ley de Henry.", "Ley de Dalton.", "Ley de Boyle-Mariotte.", "Ley de Graham."],
+            c: 2,
+            e: "Boyle-Mariotte: P·V = cte. Es el principio de la inhalación (aumenta volumen tórax -> baja presión)."
+        },
+        {
+            t: "13. Si un sonido tiene una frecuencia de 1000 Hz y una intensidad de 20 dB, ¿cuál es su nivel de sonoridad equivalente?",
+            o: ["10 fonos.", "20 fonos.", "40 fonos, debido a la escala logarítmica de Weber-Fechner.", "0 fonos, por estar en el umbral de audición."],
+            c: 1,
+            e: "Por definición, a 1000 Hz, el nivel en fonos es igual al nivel en decibelios."
+        },
+        {
+            t: "14. ¿En qué estado se encuentra un cuerpo si la vertical de su centro de gravedad cae exactamente sobre una arista de su base de sustentación?",
+            o: ["En equilibrio estable absoluto.", "En desequilibrio total e irreversible.", "En la frontera entre el equilibrio y el desequilibrio, presentando una gran inestabilidad.", "En equilibrio dinámico con aceleración constante."],
+            c: 2,
+            e: "Es una posición crítica; cualquier fuerza mínima hará que el cuerpo vuelque."
+        },
+        {
+            t: "15. De acuerdo con el gráfico del intervalo de audición humana, ¿qué nivel de intensidad en decibelios (dB) corresponde aproximadamente al umbral de audición para una frecuencia de 400 Hz?",
+            o: ["0 dB.", "10 dB.", "20 dB.", "40 dB."],
+            c: 1,
+            e: "El oído es menos sensible a frecuencias bajas (como 400 Hz) que a 1000 Hz, por lo que el umbral es algo mayor (~10 dB)."
+        },
+        {
+            t: "16. En el modelo del Triángulo de Einthoven utilizado en el ECG, ¿qué representan los vértices del triángulo equilátero?",
+            o: ["Los nodos sinusal, auriculoventricular y el haz de His.", "Los electrodos colocados en el brazo derecho, brazo izquierdo y pierna izquierda.", "Las derivaciones precordiales V1, V2 y V3.", "Los vectores de despolarización de las aurículas y ventrículos."],
+            c: 1,
+            e: "Representan las posiciones de los electrodos en las extremidades (RA, LA, LL)."
+        },
+        {
+            t: "17. ¿Cuál es la causa fisiológica principal del daltonismo (como la protanopía o deuteranopía)?",
+            o: ["Un exceso de pigmento en los bastones de la retina.", "Una deformación en la curvatura de la córnea.", "La falta o mal funcionamiento de uno de los tres tipos de conos (fotorreceptores de color).", "Un aumento en la opacidad del cristalino."],
+            c: 2,
+            e: "Se debe a la ausencia genética de los fotopigmentos en los conos."
+        },
+        {
+            t: "18. Según la ley de atenuación de la radiación, ¿cuál es el método más eficaz para disminuir la intensidad de un haz de rayos gamma al atravesar la materia?",
+            o: ["Aumentar la temperatura del material.", "Aumentar el espesor (x) del material de blindaje, ya que la intensidad decae exponencialmente.", "Disminuir la densidad del material protector.", "Aumentar la distancia al foco, ya que la radiación gamma no cumple la ley del inverso del cuadrado."],
+            c: 1,
+            e: "La ley es I = I0 * e^(-ux). Aumentar el espesor (x) reduce exponencialmente la dosis."
+        },
+        {
+            t: "19. ¿En qué unidad se mide la agudeza del sonido (sensación subjetiva de tono) en psicofísica?",
+            o: ["Decibelios (dB).", "Fonos.", "Sones.", "Mels."],
+            c: 3,
+            e: "El 'Mel' es la unidad de escala para la altura tonal subjetiva (pitch)."
+        },
+        {
+            t: "20. Ante una consulta sobre una onda de 700 dB para producir 40 fonos, ¿cuál es la respuesta técnica correcta según las fuentes?",
+            o: ["Se requiere una frecuencia de 10 Hz.", "Es físicamente imposible, ya que el umbral del dolor es de 120 dB y niveles superiores causan la rotura del tímpano.", "Solo es posible si la fuente sonora es un ultrasonido de alta frecuencia.", "700 dB equivalen siempre a 700 fonos en cualquier frecuencia."],
+            c: 1,
+            e: "Reiteración: 700 dB es una magnitud imposible para sonido en aire."
+        }
+    ];
+
+    let currentQuestions = [];
+    let userState = {
+        correct: 0,
+        answered: new Set(),
+        failed: new Set(),
+        marked: new Set()
+    };
+
+    // Inicializar
+    function init(mode) {
+        const quizArea = document.getElementById('quiz-area');
+        const finalControls = document.getElementById('final-controls');
+        
+        quizArea.innerHTML = '';
+        finalControls.style.display = 'none';
+        
+        userState.correct = 0;
+        userState.answered.clear();
+        updateStats();
+
+        // Filtrar preguntas según modo
+        let indices = [];
+        if (mode === 'all') {
+            indices = db.map((_, i) => i);
+        } else if (mode === 'failed') {
+            indices = Array.from(userState.failed);
+        } else if (mode === 'marked') {
+            indices = Array.from(userState.marked);
+        } else if (mode === 'failed-marked') {
+            indices = [...new Set([...userState.failed, ...userState.marked])];
+        }
+
+        if (indices.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            return;
+        }
+
+        // Crear objetos de pregunta para esta sesión
+        currentQuestions = indices.map(i => {
+            // Desordenar opciones
+            let optionsWithIndex = db[i].o.map((txt, idx) => ({txt, originalIdx: idx}));
+            shuffleArray(optionsWithIndex);
+            return {
+                dbIndex: i,
+                data: db[i],
+                shuffledOptions: optionsWithIndex
+            };
+        });
+
+        // Renderizar
+        currentQuestions.forEach((q, index) => renderQuestion(q, index));
+    }
+
+    function renderQuestion(qObj, displayIndex) {
+        const container = document.getElementById('quiz-area');
+        
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${qObj.dbIndex}`;
+
+        // Marcador
+        const markBtn = document.createElement('button');
+        markBtn.className = `mark-btn ${userState.marked.has(qObj.dbIndex) ? 'active' : ''}`;
+        markBtn.innerHTML = '★';
+        markBtn.onclick = () => toggleMark(qObj.dbIndex, markBtn);
+        card.appendChild(markBtn);
+
+        // Texto
+        const text = document.createElement('div');
+        text.className = 'question-text';
+        text.innerText = qObj.data.t;
+        card.appendChild(text);
+
+        // Opciones
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'options-grid';
+        
+        qObj.shuffledOptions.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt.txt;
+            btn.onclick = () => checkAnswer(qObj, opt.originalIdx, btn, optionsDiv, explanationDiv);
+            optionsDiv.appendChild(btn);
+        });
+        card.appendChild(optionsDiv);
+
+        // Explicación
+        const explanationDiv = document.createElement('div');
+        explanationDiv.className = 'explanation';
+        explanationDiv.innerText = qObj.data.e;
+        card.appendChild(explanationDiv);
+
+        container.appendChild(card);
+    }
+
+    function checkAnswer(qObj, selectedIdx, btn, container, explanation) {
+        // Bloquear botones
+        const buttons = container.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        const isCorrect = selectedIdx === qObj.data.c;
+        
+        if (isCorrect) {
+            btn.classList.add('correct');
+            userState.correct++;
+            // Si estaba en falladas, la quitamos si se acierta ahora (opcional, pero lógico en repaso)
+            if (userState.failed.has(qObj.dbIndex)) userState.failed.delete(qObj.dbIndex);
+        } else {
+            btn.classList.add('incorrect');
+            userState.failed.add(qObj.dbIndex);
+            // Mostrar la correcta
+            buttons.forEach(b => {
+                // Buscar cual botón tiene el texto correcto
+                if (b.innerText === qObj.data.o[qObj.data.c]) {
+                    b.classList.add('correct');
+                }
+            });
+        }
+
+        explanation.style.display = 'block';
+        userState.answered.add(qObj.dbIndex);
+        updateStats();
+        checkCompletion();
+    }
+
+    function toggleMark(dbIndex, btn) {
+        if (userState.marked.has(dbIndex)) {
+            userState.marked.delete(dbIndex);
+            btn.classList.remove('active');
+        } else {
+            userState.marked.add(dbIndex);
+            btn.classList.add('active');
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('score').innerText = userState.correct;
+        document.getElementById('total-answered').innerText = userState.answered.size;
+    }
+
+    function checkCompletion() {
+        if (userState.answered.size === currentQuestions.length) {
+            document.getElementById('final-controls').style.display = 'block';
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+    }
+
+    function retry(mode) {
+        init(mode);
+        window.scrollTo(0, 0);
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // Arrancar con todas
+    init('all');
+
+</script>
+
+</body>
+</html>

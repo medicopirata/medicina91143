@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Visual Histología - 51 Preguntas</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #e67e22;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --bg: #fdfefe;
+        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; height: 100vh; background-color: var(--bg); color: #333; }
+        
+        #sidebar { width: 320px; background: var(--primary); color: white; display: flex; flex-direction: column; padding: 15px; border-right: 1px solid #1a252f; }
+        #nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; overflow-y: auto; padding-right: 5px; flex-grow: 1; align-content: start; }
+        .nav-btn { aspect-ratio: 1; border: none; background: rgba(255,255,255,0.1); color: #bdc3c7; cursor: pointer; font-size: 11px; font-weight: bold; border-radius: 3px; transition: all 0.2s; }
+        .nav-btn:hover { background: var(--secondary); color: white; transform: scale(1.1); }
+        .nav-btn.active { background: var(--secondary); border: 2px solid white; color: white; }
+        .nav-btn.correct { background: var(--success); color: white; }
+        .nav-btn.incorrect { background: var(--danger); color: white; }
+        
+        #main { flex-grow: 1; padding: 30px; overflow-y: auto; position: relative; }
+        .question-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; max-width: 900px; margin: 0 auto; border: 1px solid #eee; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 2px solid #f5f5f5; padding-bottom: 10px; }
+        .question-text { font-size: 1.3em; font-weight: 600; color: var(--primary); }
+        
+        /* Estilo de Imagen */
+        .img-wrapper { text-align: center; margin: 20px 0; background: #000; border-radius: 8px; overflow: hidden; padding: 5px; }
+        .q-img { max-width: 100%; max-height: 500px; object-fit: contain; }
+        .img-error { color: #e74c3c; padding: 30px; border: 2px dashed #e74c3c; display: none; background: #fdf2f2; }
+
+        .options-grid { display: grid; gap: 10px; }
+        .option { padding: 15px 20px; border: 2px solid #ecf0f1; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 1.05em; position: relative; }
+        .option:hover:not(.disabled) { background: #f4f6f7; border-color: #bdc3c7; }
+        .option.correct { background: #d5f5e3; border-color: var(--success); color: #196f3d; font-weight: bold; }
+        .option.correct::after { content: '✓'; position: absolute; right: 15px; }
+        .option.incorrect { background: #fadbd8; border-color: var(--danger); color: #922b21; opacity: 0.8; }
+        .option.incorrect::after { content: '✕'; position: absolute; right: 15px; }
+        .option.disabled { pointer-events: none; }
+
+        /* Pantallas */
+        .screen { display: none; }
+        .screen.active { display: block; animation: fade 0.3s; }
+        @keyframes fade { from{opacity:0} to{opacity:1} }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3 style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px; margin-top:0;">Navegación</h3>
+    <div id="nav-grid"></div>
+</div>
+
+<div id="main">
+    
+    <div id="start-screen" class="screen active">
+        <div class="question-container" style="text-align:center; padding: 50px;">
+            <h1 style="color:var(--primary)">Quiz Visual Histología</h1>
+            <p style="font-size:1.2em; color:#7f8c8d;">51 Preguntas con Imagen</p>
+            <button onclick="startQuiz()" style="padding:15px 40px; font-size:1.2em; background:var(--success); color:white; border:none; border-radius:8px; cursor:pointer; margin-top:20px;">Comenzar Test</button>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="screen">
+        <div id="question-area"></div>
+        <div style="text-align:center; margin-top:30px;">
+            <button onclick="finishQuiz()" style="padding:12px 30px; background:var(--danger); color:white; border:none; border-radius:6px; cursor:pointer;">Finalizar</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="question-container" style="text-align:center;">
+            <h2>Resultados</h2>
+            <div id="final-score" style="font-size:4em; font-weight:800; color:var(--primary); margin:20px 0;"></div>
+            <button onclick="location.reload()" style="padding:12px 30px; background:var(--secondary); color:white; border:none; border-radius:6px; cursor:pointer;">Reiniciar</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // BASE DE DATOS EXACTA (51 Preguntas + 51 Imágenes en orden)
+    const questions = [
+        {
+            id: 1,
+            text: "La imagen muestra un epitelio:",
+            image: "Captura de pantalla 2026-02-07 a las 23.41.21.png",
+            options: ["Epitelio pavimentoso estratificado", "Epitelio cúbico simple", "Epitelio cilíndrico pseudoestratificado", "Epitelio cúbico estratificado"],
+            correct: 1
+        },
+        {
+            id: 2,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.41.28.png",
+            options: ["La imagen muestra células de morfología cilíndrica procedente de frotis de mucosa oral", "La imagen muestra células ciliadas procedentes de frotis de mucosa respiratoria", "La imagen muestra células conjuntivas procedentes de frotis vagina", "La imagen muestra células pavimentosas de contorno poligonal procedentes de frotis de mucosa oral"],
+            correct: 3
+        },
+        {
+            id: 3,
+            text: "La imagen nos muestra un epitelio estratificado",
+            image: "Captura de pantalla 2026-02-07 a las 23.41.35.png",
+            options: ["Falso", "Verdadero"],
+            correct: 1
+        },
+        {
+            id: 4,
+            text: "La placenta que muestra la imagen se encuentra entre la tercera semana y cuarto mes de embarazo:",
+            image: "Captura de pantalla 2026-02-07 a las 23.41.44.png",
+            options: ["Falso", "Verdadero"],
+            correct: 1
+        },
+        {
+            id: 5,
+            text: "La vellosidad mostrada se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.41.52.png",
+            options: ["Vellosidad primaria", "Vellosidad terciaria", "Vellosidad secundaria", "Vellosidad a término"],
+            correct: 2
+        },
+        {
+            id: 6,
+            text: "La imagen muestra una glándula alveolar compuesta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.01.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 7,
+            text: "La vellosidad que se muestra en la imagen se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.10.png",
+            options: ["Vellosidad terciaria", "Vellosidad a término", "Vellosidad secundaria", "Vellosidad primaria"],
+            correct: 3
+        },
+        {
+            id: 8,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.17.png",
+            options: ["Epitelio secretor de polo mucoso cerrado teñido con H-E", "Epitelio prismático simple con células caliciformes teñido con PAS", "Epitelio prismático simple con células caliciformes teñido con H-E", "Epitelio secretor de polo mucoso cerrado teñido con PAS"],
+            correct: 3
+        },
+        {
+            id: 9,
+            text: "La vellosidad mostrada se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.26.png",
+            options: ["Vellosidad a término", "Vellosidad secundaria", "Vellosidad primaria", "Vellosidad terciaria"],
+            correct: 0
+        },
+        {
+            id: 10,
+            text: "En la presente placenta a término el nº1 indica:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.34.png",
+            options: ["Tronco vellositario de segundo orden", "Tronco vellositario de primer orden", "Tronco vellositario de tercer orden", "Vellosidad libre"],
+            correct: 1
+        },
+        {
+            id: 11,
+            text: "La imagen muestra un epitelio de revestimiento de tipo:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.42.png",
+            options: ["Cúbico estratificado", "Pavimentoso estratificado no queratinizado", "Cilíndrico pseudoestratificado", "Pavimentoso estratificado y queratinizado"],
+            correct: 1
+        },
+        {
+            id: 12,
+            text: "La vellosidad que muestra la imagen se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.48.png",
+            options: ["Vellosidad a término", "Vellosidad terciaria", "Vellosidad primaria", "Vellosidad secundaria"],
+            correct: 3
+        },
+        {
+            id: 13,
+            text: "El conducto de la imagen se encuentra revestido por un epitelio:",
+            image: "Captura de pantalla 2026-02-07 a las 23.42.57.png",
+            options: ["Cilíndrico simple", "Cúbico biestratificado", "Cúbico ciliado simple", "Pavimentoso estratificado"],
+            correct: 1
+        },
+        {
+            id: 14,
+            text: "La flecha nos señala un elemento citotrofoblástico:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.04.png",
+            options: ["Falso", "Verdadero"],
+            correct: 1
+        },
+        {
+            id: 15,
+            text: "Señale la respuesta correcta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.11.png",
+            options: ["Epitelio pseudoestratificado con estereocilios", "Epitelio estratificado pavimentoso", "Epitelio estratificado cúbico", "Epitelio transicional"],
+            correct: 2
+        },
+        {
+            id: 16,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.18.png",
+            options: ["Glándula acinosa compuesta. H-E", "Glándula endocrina de patrón trabecular. H-E", "Glándula acinosa anfícrina. PAS", "Glándula acinosa compuesta con formaciones endocrinas. H-E"],
+            correct: 3
+        },
+        {
+            id: 17,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.25.png",
+            options: ["Glándula túbulo alveolar compuesta", "Glándula tubular compuesta", "Glándula acinosa compuesta", "Glándula túbulo acinosa compuesta"],
+            correct: 0
+        },
+        {
+            id: 18,
+            text: "Señale la respuesta correcta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.35.png",
+            options: ["Epitelio estratificado cúbico", "Epitelio pseudoestratificado con estereocilios", "Epitelio transicional", "Epitelio simple prismático con células caliciformes"],
+            correct: 3
+        },
+        {
+            id: 19,
+            text: "La imagen muestra acinos seromucosos:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.45.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 20,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.43.55.png",
+            options: ["Glándula trabecular compuesta", "Glándula vesicular compuesta", "Glándula acinosa compuesta", "Glándula alveolar compuesta"],
+            correct: 3
+        },
+        {
+            id: 21,
+            text: "Señale la respuesta correcta sobre la zona seleccionada:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.03.png",
+            options: ["Corion frondoso", "Mucosa endometrial", "Cámara intervellosa", "Corion calvo/leve"],
+            correct: 0
+        },
+        {
+            id: 22,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.15.png",
+            options: ["Acino seromucoso", "Acino oxíntico", "Acino mucoso", "Acino seroso"],
+            correct: 3
+        },
+        {
+            id: 23,
+            text: "La imagen muestra un epitelio de polo mucoso cerrado teñido con hematoxilina-eosina:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.24.png",
+            options: ["Verdadero", "Falso"],
+            correct: 1
+        },
+        {
+            id: 24,
+            text: "La imagen muestra un epitelio de revestimiento de tipo:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.36.png",
+            options: ["Cilíndrico pseudoestratificado con estereocilios", "Cúbico pseudoestratificado ciliado", "Cilíndrico estratificado con microvellosidades", "Cúbico estratificado ciliado"],
+            correct: 0
+        },
+        {
+            id: 25,
+            text: "El asterisco se encuentra situado sobre:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.50.png",
+            options: ["Pared vena umbilical", "Gelatina de Wharton", "Revestimiento amniótico", "Pared arteria umbilical"],
+            correct: 1
+        },
+        {
+            id: 26,
+            text: "El epitelio que muestra la imagen es de tipo transicional o urotelio:",
+            image: "Captura de pantalla 2026-02-07 a las 23.44.57.png",
+            options: ["Falso", "Verdadero"],
+            correct: 1
+        },
+        {
+            id: 27,
+            text: "Los capilares como los de la imagen se encuentran tapizados por:",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.07.png",
+            options: ["Epitelio plano simple que se denomina mesotelio", "Epitelio cúbico simple que se denomina endotelio", "Epitelio pavimentoso simple que se denomina endotelio", "Epitelio plano pseudoestratificado"],
+            correct: 2
+        },
+        {
+            id: 28,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.15.png",
+            options: ["Glándula túbulo acinosa simple", "Glándula túbulo alveolar compuesta", "Glándula túbulo acinosa compuesta", "Glándula tubular compuesta"],
+            correct: 3
+        },
+        {
+            id: 29,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.22.png",
+            options: ["Glándula endocrina de patrón vesicular", "Glándula anfícrina de patrón trabecular", "Glándula endocrina de patrón acinoso", "Glándula endocrina de patrón trabecular"],
+            correct: 3
+        },
+        {
+            id: 30,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.31.png",
+            options: ["Epitelio estratificado prismático con células caliciformes", "Epitelio prismático simple con glándula intraepitelial mucosa", "Epitelio estratificado prismático con glándula intraepitelial mucosa", "Epitelio prismático ciliado con células caliciformes. H-E"],
+            correct: 2
+        },
+        {
+            id: 31,
+            text: "La imagen muestra la cara fetal de la placenta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.46.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 32,
+            text: "La zona indicada con la letra A corresponde con la cara materna",
+            image: "Captura de pantalla 2026-02-07 a las 23.45.54.png",
+            options: ["Verdadero", "Falso"],
+            correct: 1
+        },
+        {
+            id: 33,
+            text: "La imagen de la izquierda se corresponde con una vena umbilical:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.03.png",
+            options: ["Falso", "Verdadero"],
+            correct: 1
+        },
+        {
+            id: 34,
+            text: "La imagen muestra una glándula anfícrina:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.11.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 35,
+            text: "La imagen muestra una porción del tracto respiratorio observándose un epitelio de revestimiento de tipo:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.20.png",
+            options: ["Cúbico simple ciliado y con células caliciformes", "Cúbico estratificado ciliado", "Pavimentoso estratificado con células caliciformes", "Cilíndrico pseudoestratificado ciliado y con células caliciformes"],
+            correct: 3
+        },
+        {
+            id: 36,
+            text: "La imagen nos muestra un conducto glandular endocrino:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.30.png",
+            options: ["Falso", "Verdadero"],
+            correct: 0
+        },
+        {
+            id: 37,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.41.png",
+            options: ["Glándula exocrina alveolar", "Glándula endocrina trabecular", "Glándula anfícrina", "Glándula endocrina folicular"],
+            correct: 3
+        },
+        {
+            id: 38,
+            text: "La flecha nos indica células deciduales de la mucosa endometrial de una embarazada:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.51.png",
+            options: ["Verdadero", "Falso"],
+            correct: 1
+        },
+        {
+            id: 39,
+            text: "La imagen muestra una glándula endocrina de patrón trabecular:",
+            image: "Captura de pantalla 2026-02-07 a las 23.46.58.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 40,
+            text: "La vellosidad que muestra la imagen se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.07.png",
+            options: ["Vellosidad primaria", "Vellosidad secundaria", "Vellosidad a término", "Vellosidad terciaria"],
+            correct: 3
+        },
+        {
+            id: 41,
+            text: "Señale la respuesta correcta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.16.png",
+            options: ["Epitelio pseudoestratificado con estereocilios", "Epitelio estratificado cúbico", "Epitelio transicional", "Epitelio estratificado pavimentoso"],
+            correct: 2
+        },
+        {
+            id: 42,
+            text: "La imagen muestra la cara fetal de la placenta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.27.png",
+            options: ["Verdadero", "Falso"],
+            correct: 1
+        },
+        {
+            id: 43,
+            text: "El asterisco se encuentra en la cámara intervellosa:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.35.png",
+            options: ["Falso", "Verdadera"],
+            correct: 1
+        },
+        {
+            id: 44,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.44.png",
+            options: ["Glándula acinosa compuesta holocrina", "Glándula acinosa compuesta merocrina", "Glándula alveolar compuesta holocrina", "Glándula alveolar compuesta merocrina"],
+            correct: 2
+        },
+        {
+            id: 45,
+            text: "Seleccione una:",
+            image: "Captura de pantalla 2026-02-07 a las 23.47.53.png",
+            options: ["Epitelio prismático simple con borde estriado. H-E", "Epitelio prismático simple con células caliciformes. PAS", "Epitelio prismático ciliado con células caliciformes. PAS", "Epitelio prismático ciliado con células caliciformes. H-E"],
+            correct: 1
+        },
+        {
+            id: 46,
+            text: "En la presente placenta a término el asterisco indica:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.01.png",
+            options: ["Tronco vellositario de tercer orden", "Cámara intervellosa", "Vellosidad libre", "Cavidad celomática extraembrionaria"],
+            correct: 1
+        },
+        {
+            id: 47,
+            text: "La imagen nos muestra un tipo de unión intercelular típica de los epitelios, mácula adherens:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.09.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 48,
+            text: "El epitelio que muestra la imagen es típico de exocérvix uterino:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.17.png",
+            options: ["Verdadero", "Falso"],
+            correct: 0
+        },
+        {
+            id: 49,
+            text: "La imagen nos muestra una glándula alveolar compuesta:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.26.png",
+            options: ["Verdad", "Falso"],
+            correct: 1
+        },
+        {
+            id: 50,
+            text: "La vellosidad que muestra la imagen se corresponde con:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.36.png",
+            options: ["Vellosidad primaria", "Vellosidad terciaria", "Vellosidad a término", "Vellosidad secundaria"],
+            correct: 2
+        },
+        {
+            id: 51,
+            text: "La imagen muestra un epitelio:",
+            image: "Captura de pantalla 2026-02-07 a las 23.48.52.png",
+            options: ["Epitelio cúbico estratificado ciliado", "Epitelio cúbico estratificado", "Epitelio pavimentoso estratificado queratinizado", "Epitelio cilíndrico pseudoestratificado queratinizado"],
+            correct: 2
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+    let userAnswers = {};
+
+    function startQuiz() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        buildSidebar();
+        loadQuestion(0);
+    }
+
+    function buildSidebar() {
+        const nav = document.getElementById('nav-grid');
+        nav.innerHTML = '';
+        questions.forEach((q, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.innerText = i + 1;
+            btn.id = `nav-${i}`;
+            btn.onclick = () => loadQuestion(i);
+            nav.appendChild(btn);
+        });
+    }
+
+    function loadQuestion(index) {
+        currentQuestionIndex = index;
+        const q = questions[index];
+        const area = document.getElementById('question-area');
+        
+        // Actualizar sidebar
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`nav-${index}`).classList.add('active');
+
+        area.innerHTML = `
+            <div class="question-container">
+                <div class="question-header">
+                    <span class="question-text">${index + 1}. ${q.text}</span>
+                </div>
+                <div class="img-wrapper">
+                    <img src="${q.image}" class="q-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                    <div class="img-error">
+                        ⚠️ <strong>Imagen no encontrada:</strong> ${q.image}<br>
+                        <small>Asegúrate de que este archivo HTML está en la misma carpeta que las imágenes.</small>
+                    </div>
+                </div>
+                <div class="options-grid">
+                    ${q.options.map((opt, i) => `
+                        <div class="option ${userAnswers[index] !== undefined ? (i === q.correct ? 'correct' : (i === userAnswers[index].selected ? 'incorrect' : 'disabled')) : ''}" 
+                             onclick="selectOption(${index}, ${i}, this)">
+                            ${opt}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                <button onclick="prevQuestion()" style="padding:10px 20px; cursor:pointer; background:#eee; border:none; border-radius:5px;" ${index === 0 ? 'disabled style="opacity:0.5"' : ''}>Anterior</button>
+                <button onclick="nextQuestion()" style="padding:10px 20px; cursor:pointer; background:var(--primary); color:white; border:none; border-radius:5px;" ${index === questions.length - 1 ? 'disabled style="opacity:0.5"' : ''}>Siguiente</button>
+            </div>
+        `;
+    }
+
+    function selectOption(qIndex, optIndex, element) {
+        if (userAnswers[qIndex] !== undefined) return;
+
+        const isCorrect = optIndex === questions[qIndex].correct;
+        userAnswers[qIndex] = { selected: optIndex, isCorrect: isCorrect };
+
+        const options = element.parentElement.children;
+        const correctIndex = questions[qIndex].correct;
+
+        if (isCorrect) {
+            element.classList.add('correct');
+            document.getElementById(`nav-${qIndex}`).classList.add('correct');
+        } else {
+            element.classList.add('incorrect');
+            options[correctIndex].classList.add('correct');
+            document.getElementById(`nav-${qIndex}`).classList.add('incorrect');
+        }
+
+        for (let opt of options) opt.classList.add('disabled');
+    }
+
+    function nextQuestion() {
+        if (currentQuestionIndex < questions.length - 1) loadQuestion(currentQuestionIndex + 1);
+    }
+
+    function prevQuestion() {
+        if (currentQuestionIndex > 0) loadQuestion(currentQuestionIndex - 1);
+    }
+
+    function finishQuiz() {
+        const total = questions.length;
+        const correctCount = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = ((correctCount / total) * 10).toFixed(1);
+
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        
+        document.getElementById('final-score').innerText = score;
+    }
+</script>
+
+</body>
+</html>

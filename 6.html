@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Biología Celular - Capítulo 6 (Extendido)</title>
+    <script>
+    
+    <style>
+        :root { --primary: #8e44ad; --secondary: #2c3e50; --bg: #f4f6f7; --card: #ffffff; --success: #27ae60; --error: #c0392b; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--secondary); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 900px; background: var(--card); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px; position: relative; }
+        
+        header { border-bottom: 2px solid #ecf0f1; padding-bottom: 20px; margin-bottom: 20px; text-align: center; }
+        h1 { margin: 0; color: var(--primary); font-size: 1.8rem; }
+        .stats { display: flex; justify-content: space-between; margin-top: 10px; color: #7f8c8d; font-weight: bold; font-size: 0.9rem; }
+        
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); gap: 6px; margin-bottom: 25px; max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; }
+        .nav-btn { background: white; border: 1px solid #bdc3c7; padding: 6px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: #7f8c8d; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.1); }
+        .nav-btn.correct { background: var(--success); color: white; border-color: var(--success); }
+        .nav-btn.incorrect { background: var(--error); color: white; border-color: var(--error); }
+        .nav-btn.marked { border: 2px solid #f1c40f; }
+
+        .question-card { animation: fadeIn 0.3s ease-out; }
+        .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .q-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .mark-btn { background: none; border: 1px solid #f1c40f; color: #f39c12; padding: 4px 12px; border-radius: 15px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.2s; }
+        .mark-btn.active { background: #f1c40f; color: white; }
+
+        .question-text { font-size: 1.15rem; line-height: 1.5; margin-bottom: 20px; font-weight: 500; }
+        
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option { background: white; border: 2px solid #e0e0e0; padding: 12px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; }
+        .option:hover:not(.disabled) { border-color: var(--primary); background: #fdfefe; }
+        .option.correct { border-color: var(--success); background: #eafaf1; color: #145a32; }
+        .option.incorrect { border-color: var(--error); background: #fdedec; color: #7b241c; }
+        .option.disabled { opacity: 0.7; cursor: default; }
+
+        .feedback { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; }
+        .feedback.success { background: #d5f5e3; border-left: 5px solid var(--success); }
+        .feedback.error { background: #fadbd8; border-left: 5px solid var(--error); }
+
+        .controls { margin-top: 25px; display: flex; justify-content: space-between; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        .btn-prev { background: #95a5a6; }
+        .btn-next { background: var(--primary); }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #results-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 40px; border-radius: 15px; text-align: center; max-width: 400px; width: 90%; }
+        .score-circle { width: 100px; height: 100px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin: 0 auto 20px; }
+        .modal-btns { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px; }
+        .modal-btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🧬 Cap. 6: Replicación (Completo)</h1>
+        <div class="stats">
+            <span id="progress-text">Pregunta 1 / 59</span>
+            <span>Aciertos: <strong id="score-text" style="color: var(--success)">0</strong></span>
+        </div>
+    </header>
+
+    <div class="nav-grid" id="nav-grid"></div>
+
+    <div class="question-card">
+        <div class="q-header">
+            <span class="q-badge" id="q-id">Q1</span>
+            <button class="mark-btn" onclick="toggleMark()">Marcar ★</button>
+        </div>
+        <div class="question-text" id="q-text">Cargando...</div>
+        <div class="options-list" id="options-list"></div>
+        <div class="feedback" id="feedback">
+            <h4 id="fb-title"></h4>
+            <p id="fb-msg"></p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-prev" id="btn-prev" onclick="move(-1)">Anterior</button>
+        <button class="btn btn-next" id="btn-next" onclick="move(1)">Siguiente</button>
+    </div>
+</div>
+
+<div id="results-modal">
+    <div class="modal-content">
+        <h2>Resultados</h2>
+        <div class="score-circle" id="final-score">0%</div>
+        <p id="final-msg"></p>
+        <div class="modal-btns">
+            <button class="modal-btn" style="background:var(--secondary)" onclick="restart('all')">Repetir Todo</button>
+            <button class="modal-btn" style="background:var(--error)" onclick="restart('failed')">Repetir Fallos</button>
+            <button class="modal-btn" style="background:#f39c12" onclick="restart('marked')">Repetir Marcadas</button>
+        </div>
+        <button onclick="document.getElementById('results-modal').style.display='none'" style="margin-top:15px; background:none; border:none; color:#7f8c8d; text-decoration:underline; cursor:pointer;">Cerrar</button>
+    </div>
+</div>
+
+<script>
+const db = [
+  {
+    "id": 1,
+    "q": "El proceso de replicación del ADN requiere que cada una de las cadenas de ADN parental produzca un duplicado de la cadena opuesta. ¿Qué afirmación describe el modelo correcto?",
+    "options": ["Modelo conservativo: la doble hélice original permanece intacta.", "Modelo semiconservativo: cada molécula hija tiene una hebra vieja y una nueva.", "Modelo dispersivo: el ADN se fragmenta.", "Modelo aditivo: se añaden bases al azar."],
+    "correct": 1,
+    "exp": "Meselson y Stahl confirmaron que la replicación es semiconservativa."
+  },
+  {
+    "id": 2,
+    "q": "La replicación del ADN se considera semiconservadora porque:",
+    "options": ["Cada célula hija recibe una hebra original y una nueva.", "Solo se replica la mitad del genoma.", "La célula madre conserva su ADN intacto.", "Se utilizan cebadores de ARN."],
+    "correct": 0,
+    "exp": "Semiconservativa implica que la molécula hija conserva la mitad (una hebra) de la madre."
+  },
+  {
+    "id": 3,
+    "q": "Los experimentos de Meselson y Stahl usaron isótopos de ______ para distinguir el ADN nuevo del viejo.",
+    "options": ["Carbono", "Nitrógeno", "Oxígeno", "Hidrógeno"],
+    "correct": 1,
+    "exp": "Utilizaron 14N (ligero) y 15N (pesado)."
+  },
+  {
+    "id": 4,
+    "q": "¿Qué grupo químico NO se usa para construir ADN?",
+    "options": ["Azúcar de cinco carbonos", "Fosfato", "Base nitrogenada", "Azúcar de seis carbonos"],
+    "correct": 3,
+    "exp": "La desoxirribosa es una pentosa (5 carbonos)."
+  },
+  {
+    "id": 5,
+    "q": "Si el genoma de E. coli tarda 20 min en replicarse, ¿cómo puede Drosophila replicar su genoma mucho más grande en solo 3 minutos?",
+    "options": ["Drosophila tiene múltiples orígenes de replicación activos simultáneamente.", "La polimerasa de Drosophila es 100 veces más rápida.", "Drosophila no replica su ADN, lo importa.", "El ADN de Drosophila es monocatenario."],
+    "correct": 0,
+    "exp": "Los eucariotas activan miles de orígenes de replicación a la vez para copiar grandes genomas rápidamente."
+  },
+  {
+    "id": 6,
+    "q": "¿Qué enzima separa las cadenas de ADN en la horquilla de replicación?",
+    "options": ["ADN polimerasa", "Helicasa", "Primasa", "Ligasa"],
+    "correct": 1,
+    "exp": "La helicasa rompe los puentes de hidrógeno."
+  },
+  {
+    "id": 7,
+    "q": "La ADN polimerasa sintetiza ADN en la dirección:",
+    "options": ["5' a 3'", "3' a 5'", "Ambas", "Aleatoria"],
+    "correct": 0,
+    "exp": "Solo añade nucleótidos al extremo 3'-OH libre."
+  },
+  {
+    "id": 8,
+    "q": "¿Qué significa que la replicación sea bidireccional?",
+    "options": ["Las horquillas se mueven en direcciones opuestas desde el origen.", "Se replica en dos células a la vez.", "La polimerasa lee en ambas direcciones.", "Ocurre en el núcleo y citoplasma."],
+    "correct": 0,
+    "exp": "Desde el origen, dos horquillas avanzan en sentidos contrarios."
+  },
+  {
+    "id": 9,
+    "q": "Los fragmentos de Okazaki se encuentran en:",
+    "options": ["La hebra conductora", "La hebra rezagada (lagging)", "El ARNm", "El centrómero"],
+    "correct": 1,
+    "exp": "La hebra rezagada se sintetiza de forma discontinua debido a la dirección 5'-3'."
+  },
+  {
+    "id": 10,
+    "q": "¿Qué molécula sirve como cebador para el inicio de la síntesis de ADN?",
+    "options": ["Un fragmento corto de ARN", "Una proteína", "Un nucleótido de ADN", "Un lípido"],
+    "correct": 0,
+    "exp": "La primasa sintetiza un cebador de ARN de unos 10 nucleótidos."
+  },
+  {
+    "id": 11,
+    "q": "La actividad de corrección de pruebas (proofreading) de la ADN polimerasa es:",
+    "options": ["Exonucleasa 3' a 5'", "Exonucleasa 5' a 3'", "Endonucleasa", "Ligasa"],
+    "correct": 0,
+    "exp": "Si detecta un error, retrocede (3'->5') y corta el último nucleótido mal apareado."
+  },
+  {
+    "id": 13,
+    "q": "¿Qué enzima une los fragmentos de Okazaki?",
+    "options": ["ADN Ligasa", "ADN Polimerasa", "Helicasa", "Topoisomerasa"],
+    "correct": 0,
+    "exp": "La ligasa sella las mellas en el esqueleto azúcar-fosfato."
+  },
+  {
+    "id": 15,
+    "q": "La anemia de células falciformes es causada por:",
+    "options": ["Una mutación puntual (cambio de una base)", "Una deleción cromosómica", "Un virus", "Falta de hierro"],
+    "correct": 0,
+    "exp": "Cambio de A por T en el gen de la beta-globina."
+  },
+  {
+    "id": 16,
+    "q": "La radiación UV causa principalmente:",
+    "options": ["Dímeros de timina", "Despurinización", "Desaminación", "Roturas de doble cadena"],
+    "correct": 0,
+    "exp": "Enlace covalente entre dos timinas adyacentes."
+  },
+  {
+    "id": 17,
+    "q": "La despurinización resulta en:",
+    "options": ["Pérdida de una base A o G", "Pérdida de C o T", "Cambio de C a U", "Rotura de la cadena"],
+    "correct": 0,
+    "exp": "Se pierde la base purina, dejando un sitio abásico."
+  },
+  {
+    "id": 18,
+    "q": "La desaminación de la Citosina la convierte en:",
+    "options": ["Uracilo", "Adenina", "Guanina", "Timina"],
+    "correct": 0,
+    "exp": "La pérdida del grupo amino transforma C en U."
+  },
+  {
+    "id": 20,
+    "q": "¿Qué enzima alivia la tensión torsional (superenrollamiento) del ADN?",
+    "options": ["Topoisomerasa", "Helicasa", "Polimerasa", "Ligasa"],
+    "correct": 0,
+    "exp": "Corta y vuelve a unir el ADN para relajar la tensión."
+  },
+  {
+    "id": 22,
+    "q": "La telomerasa es necesaria para:",
+    "options": ["Replicar los extremos de los cromosomas lineales", "Replicar cromosomas circulares", "Reparar errores", "Iniciar la transcripción"],
+    "correct": 0,
+    "exp": "Resuelve el problema del acortamiento de los telómeros en la hebra rezagada."
+  },
+  {
+    "id": 23,
+    "q": "Sin telomerasa, los cromosomas:",
+    "options": ["Se acortarían con cada división", "Se alargarían infinitamente", "Se circularizarían", "Se romperían"],
+    "correct": 0,
+    "exp": "Lleva a la senescencia celular."
+  },
+  {
+    "id": 24,
+    "q": "La tasa de error final de la replicación del ADN es aproximadamente:",
+    "options": ["1 en 10^9 (mil millones)", "1 en 10^5", "1 en 100", "1 en 10^7"],
+    "correct": 0,
+    "exp": "Gracias a la corrección de pruebas y al mismatch repair."
+  },
+  {
+    "id": 25,
+    "q": "El sistema de reparación de apareamientos erróneos (Mismatch Repair) corrige errores:",
+    "options": ["Que escapan a la corrección de pruebas de la polimerasa", "Causados por rayos UV", "De roturas de doble cadena", "De la transcripción"],
+    "correct": 0,
+    "exp": "Es la segunda línea de defensa post-replicación."
+  },
+  {
+    "id": 26,
+    "q": "En bacterias, el mismatch repair identifica la hebra nueva porque:",
+    "options": ["No está metilada todavía", "Está metilada", "Tiene cebadores de ARN", "Está rota"],
+    "correct": 0,
+    "exp": "La hebra molde antigua tiene grupos metilo en las Adeninas (GATC)."
+  },
+  {
+    "id": 27,
+    "q": "La enfermedad Xeroderma pigmentosum se debe a un defecto en:",
+    "options": ["Reparación por escisión de nucleótidos (NER)", "Reparación de roturas dobles", "Mismatch repair", "Telomerasa"],
+    "correct": 0,
+    "exp": "No pueden reparar los dímeros de timina causados por UV."
+  },
+  {
+    "id": 29,
+    "q": "La recombinación homóloga repara roturas de doble cadena:",
+    "options": ["Sin pérdida de nucleótidos (perfectamente)", "Con pérdida de nucleótidos", "Usando ARN como molde", "Solo en bacterias"],
+    "correct": 0,
+    "exp": "Usa la cromátida hermana intacta como molde exacto."
+  },
+  {
+    "id": 30,
+    "q": "La unión de extremos no homólogos (NHEJ):",
+    "options": ["Es propensa a errores y causa pequeñas deleciones", "Es perfecta", "Requiere homología", "Ocurre solo en meiosis"],
+    "correct": 0,
+    "exp": "Simplemente une los extremos rotos, perdiendo a menudo bases."
+  },
+  {
+    "id": 31,
+    "q": "Las proteínas SSB (Single-strand binding):",
+    "options": ["Evitan que el ADN monocatenario se renaturalice o forme horquillas", "Sintetizan ARN", "Unen los fragmentos de Okazaki", "Cortan el ADN"],
+    "correct": 0,
+    "exp": "Mantienen el ADN estirado para la polimerasa."
+  },
+  {
+    "id": 32,
+    "q": "La abrazadera deslizante (sliding clamp):",
+    "options": ["Aumenta la procesividad de la ADN polimerasa", "Separa las hebras", "Sintetiza cebadores", "Repara errores"],
+    "correct": 0,
+    "exp": "Mantiene a la polimerasa unida al ADN por más tiempo."
+  },
+  {
+    "id": 34,
+    "q": "¿Qué proceso convierte ARN en ADN?",
+    "options": ["Transcripción inversa", "Traducción", "Replicación", "Splicing"],
+    "correct": 0,
+    "exp": "Usado por retrovirus y retrotransposones."
+  },
+  {
+    "id": 35,
+    "q": "Los retrotransposones L1 y Alu en humanos:",
+    "options": ["Se mueven mediante un intermediario de ARN", "Se mueven como ADN directo", "Son virus infecciosos", "No existen en humanos"],
+    "correct": 0,
+    "exp": "Usan transcriptasa inversa para copiarse a nuevos sitios."
+  },
+  {
+    "id": 36,
+    "q": "Aproximadamente, ¿qué porcentaje del genoma humano son elementos móviles?",
+    "options": ["Casi el 50%", "Menos del 2%", "100%", "0%"],
+    "correct": 0,
+    "exp": "L1 (15%) y Alu (10%) más otros suman cerca de la mitad del genoma."
+  },
+  {
+    "id": 37,
+    "q": "La primasa es un tipo de:",
+    "options": ["ARN polimerasa", "ADN polimerasa", "Ligasa", "Proteasa"],
+    "correct": 0,
+    "exp": "Sintetiza ARN usando ADN como molde."
+  },
+  {
+    "id": 38,
+    "q": "¿Qué ocurre primero en la reparación por escisión de bases (BER)?",
+    "options": ["Una glicosilasa elimina la base dañada", "La ligasa sella", "La polimerasa rellena", "La helicasa abre"],
+    "correct": 0,
+    "exp": "La ADN glicosilasa específica reconoce y corta la base alterada."
+  },
+  {
+    "id": 40,
+    "q": "La desaminación no reparada de C a U, tras la replicación, resultará en un par:",
+    "options": ["U-A (y luego T-A)", "G-C", "C-G", "A-T"],
+    "correct": 0,
+    "exp": "El Uracilo se empareja con Adenina. Al final, el par C-G original se convierte en T-A."
+  },
+  {
+    "id": 41,
+    "q": "El cáncer suele ser resultado de:",
+    "options": ["Acumulación de múltiples mutaciones somáticas", "Una sola mutación", "Mutaciones en células germinales solamente", "Exceso de reparación de ADN"],
+    "correct": 0,
+    "exp": "Se requiere la acumulación progresiva de daños en genes de control celular."
+  },
+  {
+    "id": 44,
+    "q": "La mayoría de las mutaciones son:",
+    "options": ["Neutras o deletéreas", "Beneficiosas", "Intencionales", "Reparadas incorrectamente siempre"],
+    "correct": 0,
+    "exp": "Rara vez una mutación mejora la aptitud; la selección natural elimina las dañinas."
+  },
+  {
+    "id": 45,
+    "q": "¿Qué base se empareja con Adenina en el ADN?",
+    "options": ["Timina", "Uracilo", "Guanina", "Citosina"],
+    "correct": 0,
+    "exp": "A-T (2 puentes H) y G-C (3 puentes H)."
+  },
+  {
+    "id": 46,
+    "q": "Si una cadena es 5'-AGCT-3', su complementaria es:",
+    "options": ["3'-TCGA-5'", "5'-TCGA-3'", "3'-AGCT-5'", "5'-AGCT-3'"],
+    "correct": 0,
+    "exp": "Antiparalela y complementaria (A-T, G-C)."
+  },
+  {
+    "id": 47,
+    "q": "La replicación comienza en secuencias específicas llamadas:",
+    "options": ["Orígenes de replicación", "Promotores", "Terminadores", "Intrones"],
+    "correct": 0,
+    "exp": "Son ricos en A-T para facilitar la apertura."
+  },
+  {
+    "id": 48,
+    "q": "En eucariotas, la replicación ocurre durante la fase:",
+    "options": ["S (Síntesis)", "M (Mitosis)", "G1", "G2"],
+    "correct": 0,
+    "exp": "La duplicación del ADN define la fase S del ciclo celular."
+  },
+  {
+    "id": 50,
+    "q": "Los cebadores de ARN son eliminados por:",
+    "options": ["Una nucleasa (y actividad polimerasa reparadora)", "La ligasa", "La primasa", "La helicasa"],
+    "correct": 0,
+    "exp": "En eucariotas, la FEN1 o RNasa H degradan el cebador."
+  },
+  {
+    "id": 51,
+    "q": "La transcriptasa inversa es característica de:",
+    "options": ["Retrovirus (VIH)", "Bacterias", "Hongos", "Todos los virus"],
+    "correct": 0,
+    "exp": "Permite integrar su genoma de ARN en el ADN del huésped."
+  },
+  {
+    "id": 53,
+    "q": "¿Qué afirmación es FALSA sobre la ADN polimerasa?",
+    "options": ["Puede iniciar una cadena desde cero (de novo)", "Necesita un extremo 3'-OH", "Requiere un molde", "Usa dNTPs"],
+    "correct": 0,
+    "exp": "No puede empezar de cero; necesita un cebador (primer)."
+  },
+  {
+    "id": 54,
+    "q": "La energía para la unión de nucleótidos proviene de:",
+    "options": ["La hidrólisis de los fosfatos del dNTP entrante", "ATP externo", "La luz", "Calor"],
+    "correct": 0,
+    "exp": "La liberación de pirofosfato (PPi) impulsa la reacción."
+  },
+  {
+    "id": 55,
+    "q": "Una mutación en la línea germinal:",
+    "options": ["Se transmite a la descendencia", "Afecta solo al individuo", "No tiene consecuencias", "Desaparece al morir"],
+    "correct": 0,
+    "exp": "Afecta a óvulos/espermatozoides, por lo que pasa a la siguiente generación."
+  },
+  {
+    "id": 57,
+    "q": "¿Qué mecanismo repara daños masivos o 'bypassa' lesiones durante la replicación?",
+    "options": ["Polimerasas translesión (de emergencia)", "Polimerasa III", "Ligasa", "Primasa"],
+    "correct": 0,
+    "exp": "Son menos fieles pero permiten pasar por encima del daño para evitar la muerte celular."
+  },
+  {
+    "id": 59,
+    "q": "La heterocromatina:",
+    "options": ["Se replica tarde en la fase S", "Se replica temprano", "No se replica", "Se replica en mitosis"],
+    "correct": 0,
+    "exp": "Al estar más condensada, tarda más en ser accesible."
+  },
+  {
+    "id": 60,
+    "q": "¿Cuál es el papel del molde (template) en la replicación?",
+    "options": ["Determinar la secuencia de la nueva cadena por apareamiento de bases", "Proveer energía", "Unir los nucleótidos", "Proteger el ADN"],
+    "correct": 0,
+    "exp": "La fidelidad depende del apareamiento correcto con el molde."
+  },
+  {
+    "id": 61,
+    "q": "Las mutaciones somáticas:",
+    "options": ["No se heredan", "Se heredan siempre", "Afectan a todas las células", "Son la base de la evolución"],
+    "correct": 0,
+    "exp": "Solo afectan al clon de células del individuo, pudiendo causar cáncer, pero no pasan a hijos."
+  },
+  {
+    "id": 62,
+    "q": "¿Qué estructura se forma en los extremos de los cromosomas para protegerlos?",
+    "options": ["Bucle T (T-loop)", "Horquilla", "Plásmido", "Intrón"],
+    "correct": 0,
+    "exp": "El extremo 3' largo del telómero se inserta hacia atrás formando un bucle protector."
+  },
+  {
+    "id": 63,
+    "q": "La técnica PCR utiliza ciclos de:",
+    "options": ["Desnaturalización, Hibridación (Annealing), Extensión", "Transcripción, Traducción, Replicación", "Corte, Empalme, Ligación", "Ninguna"],
+    "correct": 0,
+    "exp": "Calor para separar, enfriar para unir cebadores, temperatura media para polimerasa."
+  },
+  {
+    "id": 65,
+    "q": "Un nucleosoma está formado por ADN envuelto alrededor de:",
+    "options": ["Un octámero de histonas", "Una polimerasa", "Ribosomas", "ARN"],
+    "correct": 0,
+    "exp": "Es la unidad básica de cromatina, relevante porque debe desensamblarse/reensamblarse al replicar."
+  },
+  {
+    "id": 67,
+    "q": "Las histonas H3 y H4 se distribuyen en la replicación:",
+    "options": ["Al azar entre las hebras hijas", "Se quedan en la hebra vieja", "Se van a la nueva", "Se degradan"],
+    "correct": 0,
+    "exp": "Los tetrámeros H3-H4 parentales se reparten al azar, facilitando la herencia epigenética."
+  },
+  {
+    "id": 68,
+    "q": "La carga de la abrazadera deslizante (Clamp Loader):",
+    "options": ["Usa ATP para abrir y colocar el anillo", "Usa GTP", "Es pasiva", "No requiere energía"],
+    "correct": 0,
+    "exp": "El complejo cargador requiere ATP para abrir el anillo PCNA."
+  },
+  {
+    "id": 69,
+    "q": "La tasa de mutación en virus de ARN (como VIH o Gripe) es:",
+    "options": ["Muy alta", "Muy baja", "Igual que humanos", "Cero"],
+    "correct": 0,
+    "exp": "Sus polimerasas no tienen corrección de pruebas (proofreading)."
+  },
+  {
+    "id": 70,
+    "q": "¿Qué es un transposón de ADN?",
+    "options": ["Se mueve como ADN (cortar y pegar)", "Usa ARN intermedio", "Es un virus", "Es una bacteria"],
+    "correct": 0,
+    "exp": "A diferencia de los retrotransposones, no usan ARN."
+  },
+  {
+    "id": 71,
+    "q": "La familia Alu es un ejemplo de:",
+    "options": ["SINE (Elemento nuclear intercalado corto)", "LINE", "Transposón de ADN", "Retrovirus"],
+    "correct": 0,
+    "exp": "Es el elemento SINE más abundante en humanos."
+  },
+  {
+    "id": 82,
+    "q": "¿Qué permite a la ADN polimerasa ser tan precisa?",
+    "options": ["Cambio conformacional al unir el nucleótido correcto y proofreading", "Solo la suerte", "La helicasa", "La temperatura"],
+    "correct": 0,
+    "exp": "La enzima 'aprieta' el par correcto antes de catalizar."
+  },
+  {
+    "id": 85,
+    "q": "La recombinación homóloga es crucial en meiosis para:",
+    "options": ["Generar diversidad genética (crosing over)", "Reparar errores solamente", "Duplicar el genoma", "Eliminar intrones"],
+    "correct": 0,
+    "exp": "El intercambio de brazos cromosómicos crea nuevas combinaciones de alelos."
+  }
+];
+
+// Lógica del Quiz
+let current = 0;
+let state = new Array(db.length).fill(null);
+let marked = new Set();
+let subset = []; // indices activos
+
+function init() {
+    subset = db.map((_, i) => i);
+    renderNav();
+    loadQ(0);
+}
+
+function renderNav() {
+    const grid = document.getElementById('nav-grid');
+    grid.innerHTML = '';
+    subset.forEach((realIdx, viewIdx) => {
+        const btn = document.createElement('div');
+        const s = state[realIdx];
+        let cls = 'nav-btn';
+        if (viewIdx === current) cls += ' active';
+        if (s) cls += s.ok ? ' correct' : ' incorrect';
+        if (marked.has(realIdx)) cls += ' marked';
+        
+        btn.className = cls;
+        btn.innerText = viewIdx + 1;
+        btn.onclick = () => loadQ(viewIdx);
+        grid.appendChild(btn);
+    });
+    
+    // Stats
+    const okCount = state.filter(x => x && x.ok).length;
+    document.getElementById('score-text').innerText = okCount;
+    document.getElementById('progress-text').innerText = `Pregunta ${current + 1} / ${subset.length}`;
+}
+
+function loadQ(idx) {
+    current = idx;
+    const realIdx = subset[idx];
+    const data = db[realIdx];
+    const s = state[realIdx];
+
+    document.getElementById('q-id').innerText = `Q${idx + 1}`;
+    document.getElementById('q-text').innerText = data.q;
+    
+    // Mark btn
+    const mBtn = document.querySelector('.mark-btn');
+    mBtn.className = marked.has(realIdx) ? 'mark-btn active' : 'mark-btn';
+    mBtn.innerText = marked.has(realIdx) ? 'Marcada ★' : 'Marcar ☆';
+
+    // Options
+    const list = document.getElementById('options-list');
+    list.innerHTML = '';
+    data.options.forEach((opt, i) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        div.innerText = opt;
+        
+        if (s) {
+            div.classList.add('disabled');
+            if (i === data.correct) div.classList.add('correct');
+            else if (i === s.sel) div.classList.add('incorrect');
+        } else {
+            div.onclick = () => answer(realIdx, i);
+        }
+        list.appendChild(div);
+    });
+
+    // Feedback
+    const fb = document.getElementById('feedback');
+    if (s) {
+        fb.style.display = 'block';
+        fb.className = `feedback ${s.ok ? 'success' : 'error'}`;
+        document.getElementById('fb-title').innerText = s.ok ? '¡Correcto!' : 'Incorrecto';
+        document.getElementById('fb-msg').innerText = data.exp;
+    } else {
+        fb.style.display = 'none';
+    }
+
+    // Buttons
+    document.getElementById('btn-prev').disabled = idx === 0;
+    document.getElementById('btn-next').innerText = idx === subset.length - 1 ? 'Resultados' : 'Siguiente';
+
+    renderNav();
+}
+
+function answer(realIdx, sel) {
+    const data = db[realIdx];
+    const ok = sel === data.correct;
+    state[realIdx] = { sel, ok };
+    loadQ(current);
+}
+
+function toggleMark() {
+    const realIdx = subset[current];
+    if (marked.has(realIdx)) marked.delete(realIdx);
+    else marked.add(realIdx);
+    loadQ(current);
+}
+
+function move(dir) {
+    const next = current + dir;
+    if (next >= 0 && next < subset.length) loadQ(next);
+    else if (next >= subset.length) showRes();
+}
+
+function showRes() {
+    let ok = 0;
+    subset.forEach(i => { if (state[i] && state[i].ok) ok++; });
+    const pct = Math.round((ok / subset.length) * 100) || 0;
+    
+    document.getElementById('final-score').innerText = pct + '%';
+    document.getElementById('final-msg').innerText = `Has acertado ${ok} de ${subset.length}.`;
+    document.getElementById('results-modal').style.display = 'flex';
+}
+
+function restart(mode) {
+    document.getElementById('results-modal').style.display = 'none';
+    if (mode === 'all') {
+        subset = db.map((_, i) => i);
+        state.fill(null);
+    } else if (mode === 'failed') {
+        const fail = [];
+        db.forEach((_, i) => { if (state[i] && !state[i].ok) fail.push(i); });
+        if (!fail.length) return alert("¡No hay fallos!");
+        subset = fail;
+        subset.forEach(i => state[i] = null);
+    } else if (mode === 'marked') {
+        const m = Array.from(marked).sort((a,b)=>a-b);
+        if (!m.length) return alert("¡No hay marcadas!");
+        subset = m;
+        subset.forEach(i => state[i] = null);
+    }
+    loadQ(0);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-width=1.0">
+<title>Quiz Interactivo</title>
+<style>
+    :root {
+        --primary: #2c3e50;
+        --secondary: #34495e;
+        --accent: #3498db;
+        --correct: #27ae60;
+        --correct-bg: #eaeded;
+        --incorrect: #e74c3c;
+        --incorrect-bg: #fdedec;
+        --marked: #f39c12;
+        --bg: #f8f9fa;
+        --card-bg: #ffffff;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        display: flex;
+        color: #333;
+    }
+
+    /* Sidebar - Índice numérico */
+    #sidebar {
+        width: 300px;
+        background-color: var(--primary);
+        color: white;
+        height: 100vh;
+        position: fixed;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+
+    #sidebar h2 {
+        text-align: center;
+        font-size: 1.2rem;
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .index-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .index-btn {
+        background-color: var(--secondary);
+        color: white;
+        border: 2px solid transparent;
+        padding: 10px 0;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        text-align: center;
+        text-decoration: none;
+    }
+
+    .index-btn:hover {
+        background-color: var(--accent);
+    }
+
+    .index-btn.answered-correct { background-color: var(--correct); }
+    .index-btn.answered-incorrect { background-color: var(--incorrect); }
+    .index-btn.is-marked { border-color: var(--marked); }
+
+    .finish-btn {
+        width: 100%;
+        padding: 15px;
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    .finish-btn:hover { background-color: #2980b9; }
+
+    /* Área Principal de Preguntas */
+    #main-content {
+        margin-left: 300px;
+        padding: 40px;
+        width: calc(100% - 300px);
+        box-sizing: border-box;
+    }
+
+    .question-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        scroll-margin-top: 20px;
+        position: relative;
+    }
+
+    .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .question-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.5;
+        flex-grow: 1;
+        padding-right: 20px;
+    }
+
+    .mark-toggle {
+        background: none;
+        border: 2px solid var(--marked);
+        color: var(--marked);
+        padding: 5px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .mark-toggle.active {
+        background-color: var(--marked);
+        color: white;
+    }
+
+    .options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .option-btn {
+        background-color: var(--bg);
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: left;
+        font-size: 1rem;
+        transition: all 0.2s;
+        line-height: 1.4;
+    }
+
+    .option-btn:hover:not(:disabled) {
+        background-color: #e9ecef;
+    }
+
+    .option-btn.correct {
+        background-color: var(--correct-bg);
+        border-color: var(--correct);
+        color: #1e8449;
+        font-weight: bold;
+    }
+
+    .option-btn.incorrect {
+        background-color: var(--incorrect-bg);
+        border-color: var(--incorrect);
+        color: #c0392b;
+    }
+
+    .option-btn:disabled {
+        cursor: default;
+        opacity: 0.8;
+    }
+
+    .explanation {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #eaf2f8;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 5px 5px 0;
+        display: none;
+        line-height: 1.5;
+    }
+
+    /* Modales */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-content h2 { margin-top: 0; }
+
+    .modal-btn {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        margin: 15px 0;
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .modal-btn:hover { background-color: #2980b9; }
+    
+    #end-modal .modal-btn { background-color: var(--primary); }
+    #end-modal .modal-btn:hover { background-color: var(--secondary); }
+
+    .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="sidebar" class="hidden">
+    <h2>Navegación</h2>
+    <div id="index-container" class="index-grid"></div>
+    <button class="finish-btn" onclick="showEndModal()">Finalizar Cuestionario</button>
+</div>
+
+<div id="main-content" class="hidden">
+    <div id="questions-container"></div>
+</div>
+
+<div id="start-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Configuración del Cuestionario</h2>
+        <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+        <button class="modal-btn" onclick="initQuiz(false)">Orden Preestablecido</button>
+        <button class="modal-btn" onclick="initQuiz(true)">Orden Aleatorio</button>
+    </div>
+</div>
+
+<div id="end-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="results-summary"></p>
+        <p>Elige una opción para continuar:</p>
+        <button class="modal-btn" onclick="retakeQuiz('all')">Repetir TODO el cuestionario</button>
+        <button class="modal-btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir SOLO falladas</button>
+        <button class="modal-btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir SOLO marcadas</button>
+        <button class="modal-btn" id="btn-retake-mixed" onclick="retakeQuiz('failed_marked')">Repetir falladas + marcadas</button>
+    </div>
+</div>
+
+<script>
+// Base de datos de todas las preguntas extraídas literalmente
+const masterData = [
+    {
+        id: 1,
+        question: "1. ¡Aviso de clase! ¿Cuál de las siguientes afirmaciones define correctamente el concepto fisiológico de \"Hemostasia\"?",
+        options: [
+            { text: "A) Es el conjunto de mecanismos para el mantenimiento de unas condiciones estables del medio interno (pH, temperatura).", isCorrect: false },
+            { text: "B) Es el conjunto de acontecimientos que ocurren tras la lesión de un vaso para evitar la pérdida de sangre, sin llegar a ocluir el flujo sanguíneo basal.", isCorrect: true },
+            { text: "C) Es la lisis de los eritrocitos viejos en el bazo.", isCorrect: false },
+            { text: "D) Es el proceso exclusivo de vasoconstricción local sin implicación celular.", isCorrect: false }
+        ],
+        explanation: "Explicación: El profesor advirtió explícitamente no confundir Hemostasia (detener hemorragias) con Homeostasis (opción A, equilibrio del medio interno)."
+    },
+    {
+        id: 2,
+        question: "2. Tras la lesión de un vaso sanguíneo, el primer evento inmediato (antes de la formación del tapón) que ocurre para minimizar la pérdida de sangre es:",
+        options: [
+            { text: "A) La formación de la red de fibrina.", isCorrect: false },
+            { text: "B) La vasoconstricción local, mediada por reflejos nerviosos, lesión del músculo liso y factores locales como la serotonina.", isCorrect: true },
+            { text: "C) La liberación de prostaciclina (PGI2) endotelial.", isCorrect: false },
+            { text: "D) La disolución de la lámina basal.", isCorrect: false }
+        ],
+        explanation: "Explicación: La hemostasia comienza con una vasoconstricción inmediata para reducir el flujo sanguíneo a la zona lesionada. Posteriormente llegan las plaquetas."
+    },
+    {
+        id: 3,
+        question: "3. Teniendo en cuenta la ultraestructura de la plaqueta, ¿qué elementos vitales libera desde sus gránulos DENSOS para retroalimentar la agregación?",
+        options: [
+            { text: "A) Fibrinógeno y factor de von Willebrand.", isCorrect: false },
+            { text: "B) Factor V de coagulación y fibronectina.", isCorrect: false },
+            { text: "C) Serotonina, ADP, ATP y Calcio.", isCorrect: true },
+            { text: "D) Exclusivamente Óxido Nítrico.", isCorrect: false }
+        ],
+        explanation: "Explicación: Los gránulos densos (opacos) contienen Serotonina (vasoconstrictor), ADP y ATP (activadores plaquetarios) y Calcio (vital para la coagulación posterior). El fibrinógeno y vWF están en los gránulos Alfa."
+    },
+    {
+        id: 4,
+        question: "4. Durante la agregación plaquetaria, ¿qué integrina de membrana utiliza el Fibrinógeno como \"puente\" para enlazar firmemente una plaqueta con otra adyacente?",
+        options: [
+            { text: "A) L-Selectina.", isCorrect: false },
+            { text: "B) Glicoproteína Ib-IX-V (GP Ib).", isCorrect: false },
+            { text: "C) Glicoproteína IIb-IIIa (GP IIb-IIIa).", isCorrect: true },
+            { text: "D) Integrina alfa-5 beta-1.", isCorrect: false }
+        ],
+        explanation: "Explicación: Detalle clave de las diapositivas y la clase. La GP IIb/IIIa se une al fibrinógeno para unir plaquetas entre sí. La GP Ib se une al factor de von Willebrand para unir la plaqueta al colágeno expuesto."
+    },
+    {
+        id: 5,
+        question: "5. ¡Pregunta debatida en clase! ¿Cuál es el fundamento fisiológico por el cual se receta Ácido Acetilsalicílico (Aspirina) a DOSIS BAJAS para prevenir la formación de trombos espontáneos?",
+        options: [
+            { text: "A) A dosis bajas inhibe exclusivamente la COX-2 del endotelio, bloqueando la prostaciclina.", isCorrect: false },
+            { text: "B) Inhibe la COX-1 plaquetaria (reduciendo el tromboxano A2 proagregante), pero respeta la COX-2 del endotelio sano (manteniendo la prostaciclina antiagregante).", isCorrect: true },
+            { text: "C) Bloquea el receptor GP IIb/IIIa directamente.", isCorrect: false },
+            { text: "D) Destruye enzimáticamente la red de fibrina recién formada.", isCorrect: false }
+        ],
+        explanation: "Explicación: El profesor dedicó mucho tiempo a esto. Si das mucha dosis, inhibes ambas enzimas y te quedas sin la PGI2 endotelial protectora. Dando dosis bajas (\"aspirina infantil\"), bloqueas a la plaqueta sin quitarle el freno natural al endotelio."
+    },
+    {
+        id: 6,
+        question: "6. El proceso de formación del tapón plaquetario es una cascada de retroalimentación positiva. Sin embargo, este tapón no se expande infinitamente por todo el vaso sanguíneo debido a que:",
+        options: [
+            { text: "A) Las plaquetas tienen una vida media de solo 2 horas.", isCorrect: false },
+            { text: "B) El endotelio intacto circundante secreta Óxido Nítrico (NO) y Prostaciclina (PGI2), que son potentes inhibidores de la adhesión y agregación plaquetaria.", isCorrect: true },
+            { text: "C) El hígado secreta continuamente heparina para disolverlo.", isCorrect: false },
+            { text: "D) Se agota el ATP circulante.", isCorrect: false }
+        ],
+        explanation: "Explicación: El endotelio sano ejerce de barrera \"anti-agregante\" limitando la extensión del tapón a la zona estrictamente dañada."
+    },
+    {
+        id: 7,
+        question: "7. Un paciente acude a consulta presentando múltiples manchas rojizas puntiformes bajo la piel que desaparecen al presionarlas. El hemograma revela 30.000 plaquetas/mm3 (trombocitopenia grave). A estos signos clínicos se les denomina:",
+        options: [
+            { text: "A) Puntos rubí o dilataciones capilares seniles.", isCorrect: false },
+            { text: "B) Edemas tisulares.", isCorrect: false },
+            { text: "C) Petequias.", isCorrect: true },
+            { text: "D) Eritroblastosis cutánea.", isCorrect: false }
+        ],
+        explanation: "Explicación: El profesor aclara que estos pequeños sangrados por fallo plaquetario se llaman petequias, diferenciándolos de los \"puntos rojos\" fisiológicos por envejecimiento."
+    },
+    {
+        id: 8,
+        question: "8. En la hemostasia primaria, ¿qué potente agente derivado del metabolismo del ácido araquidónico intracelular es sintetizado por la enzima COX-1 dentro de la plaqueta para potenciar el reclutamiento plaquetario y la vasoconstricción?",
+        options: [
+            { text: "A) Tromboxano A2 (TXA2).", isCorrect: true },
+            { text: "B) Prostaciclina (PGI2).", isCorrect: false },
+            { text: "C) Óxido Nítrico (NO).", isCorrect: false },
+            { text: "D) Calmodulina.", isCorrect: false }
+        ],
+        explanation: "Explicación: El TXA2 sale de la plaqueta y actúa como un potente activador de nuevas plaquetas (proagregante)."
+    },
+    {
+        id: 9,
+        question: "9. Al comparar la actividad del Óxido Nítrico (NO) estudiado en el bloque de inmunidad (macrófagos) con el NO secretado por el endotelio sano durante la hemostasia, es CIERTO que:",
+        options: [
+            { text: "A) Ambos son producidos en cantidades masivas tóxicas.", isCorrect: false },
+            { text: "B) El NO del endotelio es sintetizado por la eNOS regulada estrictamente por el Calcio, actuando localmente a bajas dosis como vasodilatador y antiagregante.", isCorrect: true },
+            { text: "C) El NO del endotelio es producido por la enzima iNOS (inducible) de forma constitutiva y citotóxica.", isCorrect: false },
+            { text: "D) El NO promueve la formación de la red de fibrina.", isCorrect: false }
+        ],
+        explanation: "Explicación: Espléndida conexión intertemática del profesor. Aclara que el NO endotelial (eNOS) sí depende del calcio y son niveles bajitos regulatorios, en contraposición a la iNOS destructiva y descontrolada del macrófago."
+    },
+    {
+        id: 10,
+        question: "10. Fisiológicamente, ¿por qué la disfunción plaquetaria (ej. Enfermedad de von Willebrand) se traduce en un \"tiempo de hemorragia\" anormalmente elevado?",
+        options: [
+            { text: "A) Porque el paciente carece de eritrocitos para coagular.", isCorrect: false },
+            { text: "B) Porque se bloquea la síntesis hepática de albúmina.", isCorrect: false },
+            { text: "C) Porque falla la hemostasia primaria (formación del tapón laxo) y la plaqueta no puede anclarse al colágeno expuesto de la lámina basal.", isCorrect: true },
+            { text: "D) Porque el endotelio secreta exceso de tromboxano.", isCorrect: false }
+        ],
+        explanation: "Explicación: Sin el factor de von Willebrand, la GP Ib de la plaqueta no tiene a qué agarrarse en el subendotelio; el tapón no se forma y la herida sigue sangrando."
+    },
+    {
+        id: 11,
+        question: "**(REPASO INTEGRADO DE ALTA RENTABILIDAD) ** 11. Cuidado con el falso Fenotipo Bombay. Si un paciente tiene genotipo hh, carece genéticamente del antígeno H en sus glóbulos rojos. En caso de transfusión de urgencia:",
+        options: [
+            { text: "A) Puede recibir sangre tipo O, ya que es el donante universal.", isCorrect: false },
+            { text: "B) No puede recibir sangre tipo O, puesto que la sangre O normal posee altas cantidades de antígeno H, frente al cual el Bombay posee potentes anticuerpos \"Anti-H\".", isCorrect: true },
+            { text: "C) Puede recibir sangre AB positiva.", isCorrect: false },
+            { text: "D) No necesita transfusión porque su hemoglobina es más afín al oxígeno.", isCorrect: false }
+        ],
+        explanation: "Explicación: Trampa de clase repetida. El paciente Bombay destruirá la sangre 'O' porque la sangre 'O' es esencialmente antígeno H puro."
+    },
+    {
+        id: 12,
+        question: "12. En la estructura de los anticuerpos del sistema ABO, las aglutininas \"Anti-A\" y \"Anti-B\" naturales no causan eritroblastosis fetal en la mujer embarazada porque:",
+        options: [
+            { text: "A) El líquido amniótico inactiva los anticuerpos.", isCorrect: false },
+            { text: "B) Son inmunoglobulinas de tipo IgG que cruzan la placenta pero no dañan al feto.", isCorrect: false },
+            { text: "C) Son inmunoglobulinas de tipo IgM, estructuralmente pentaméricas y tan grandes que no pueden atravesar la barrera placentaria.", isCorrect: true },
+            { text: "D) El sistema ABO no se expresa en humanos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Este es el motivo fisiológico principal. La IgM es gigantesca frente a la IgG (sistema Rh) que sí es capaz de cruzar por transcitosis."
+    },
+    {
+        id: 13,
+        question: "13. Si introducimos glóbulos rojos sanos (~300 mOsm) en una solución que contiene 300 mOsm totales pero conformados principalmente por UREA, la consecuencia física será:",
+        options: [
+            { text: "A) Estabilidad absoluta, la solución es isotónica.", isCorrect: false },
+            { text: "B) Crenación o encogimiento celular.", isCorrect: false },
+            { text: "C) La entrada pasiva de la Urea hacia la célula, arrastrando agua por ósmosis y provocando la lisis (rotura) del eritrocito.", isCorrect: true },
+            { text: "D) Salida de glucosa compensatoria.", isCorrect: false }
+        ],
+        explanation: "Explicación: La urea es un soluto penetrante. Destruye la isosmolaridad original entrando a la célula y convirtiendo el medio exterior en hipotónico, por lo que el agua inunda la célula."
+    },
+    {
+        id: 14,
+        question: "14. Según la definición fisiológica exacta mencionada por el profesor en clase, un paciente tiene \"Anemia\" fundamentalmente cuando:",
+        options: [
+            { text: "A) Su recuento absoluto de eritrocitos baja de 5 millones.", isCorrect: false },
+            { text: "B) Sufre una disminución de su capacidad de transportar oxígeno hacia los tejidos (por ejemplo, por metahemoglobina o déficit de hierro).", isCorrect: true },
+            { text: "C) Aumenta su viscosidad sanguínea por exceso de plaquetas.", isCorrect: false },
+            { text: "D) Su volumen de plasma es anormalmente alto.", isCorrect: false }
+        ],
+        explanation: "Explicación: El profesor fue tajante: la anemia no es solo tener pocos glóbulos, sino \"una disminución en la capacidad de transporte de oxígeno\". Una metahemoglobinemia (con glóbulos rojos en número normal pero inútiles) cursa con hipoxia tisular."
+    },
+    {
+        id: 15,
+        question: "15. ¿Qué órgano es el responsable principal de censar la hipoxia tisular (mediante el factor HIF-1) y sintetizar el 90% de la hormona Eritropoyetina (EPO) modulable para aumentar la eritropoyesis?",
+        options: [
+            { text: "A) El hígado.", isCorrect: false },
+            { text: "B) La médula ósea.", isCorrect: false },
+            { text: "C) El bazo.", isCorrect: false },
+            { text: "D) El riñón.", isCorrect: true }
+        ],
+        explanation: "Explicación: El riñón produce la EPO dependiente de hipoxia (90%), mientras que el hígado mantiene una cuota basal (10%) que no responde a la falta de oxígeno."
+    },
+    {
+        id: 16,
+        question: "16. ¿Qué ocurre fisiológicamente en el músculo esquelético si administramos una toxina que bloquea específicamente a las bombas SERCA del retículo sarcoplásmico?",
+        options: [
+            { text: "A) El músculo será incapaz de contraerse (parálisis flácida).", isCorrect: false },
+            { text: "B) El músculo quedará permanentemente contraído o espasmado al ser incapaz de recaptar activamente el Calcio libre citosólico necesario para la relajación.", isCorrect: true },
+            { text: "C) Aumentará la actividad de la acetilcolinesterasa.", isCorrect: false },
+            { text: "D) Los túbulos T dejarán de conducir el voltaje.", isCorrect: false }
+        ],
+        explanation: "Explicación: La relajación del músculo estriado es un proceso ACTIVO. Requiere ATP y la bomba SERCA para barrer el calcio. Sin ella, los puentes cruzados no se sueltan."
+    },
+    {
+        id: 17,
+        question: "17. Un paciente acude con choque anafiláctico (liberación sistémica de histamina por los mastocitos). El cuadro clínico incluirá vasodilatación periférica masiva y broncoconstricción. El tratamiento inmediato para antagonizar estos efectos es inyectar:",
+        options: [
+            { text: "A) Serotonina pura.", isCorrect: false },
+            { text: "B) Óxido Nítrico.", isCorrect: false },
+            { text: "C) Adrenalina.", isCorrect: true },
+            { text: "D) Antihistamínicos orales.", isCorrect: false }
+        ],
+        explanation: "Explicación: La adrenalina contrae los vasos (recuperando la presión sanguínea) y dilata los bronquios, revirtiendo exactamente los síntomas mortales de la histamina."
+    },
+    {
+        id: 18,
+        question: "18. En la neurotransmisión presináptica, el evento físico-químico estrictamente necesario para que el complejo SNARE permita la exocitosis de las vesículas a la hendidura es:",
+        options: [
+            { text: "A) La hiperpolarización del terminal.", isCorrect: false },
+            { text: "B) La entrada masiva del ión Calcio (Ca2+) a través de canales voltaje-dependientes.", isCorrect: true },
+            { text: "C) La apertura de canales de fuga de potasio.", isCorrect: false },
+            { text: "D) La síntesis in situ de óxido nítrico.", isCorrect: false }
+        ],
+        explanation: "Explicación: El potencial de acción llega al botón, abre canales de Ca2+ de voltaje, y ese calcio es la \"llave\" que ordena a la vesícula fusionarse con la membrana."
+    },
+    {
+        id: 19,
+        question: "19. El neurotransmisor inhibidor más abundante en el sistema nervioso central (GABA) ejerce sus efectos inhibidores al unirse a su receptor ionotrópico y permitir:",
+        options: [
+            { text: "A) La salida explosiva de iones Sodio.", isCorrect: false },
+            { text: "B) La entrada masiva del anión Cloro (Cl-), hiperpolarizando (IPSP) la célula y alejándola del umbral.", isCorrect: true },
+            { text: "C) La apertura de canales de Calcio.", isCorrect: false },
+            { text: "D) El cierre de canales de Potasio pasivos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Introducir cargas negativas (Cl-) hunde el voltaje basal, haciendo a la neurona resistente a la excitación."
+    },
+    {
+        id: 20,
+        question: "20. El Efecto Bohr en la curva de saturación de la hemoglobina es un mecanismo adaptativo brillante. Al aumentar el CO2, el ácido (H+), la temperatura y el 2,3-DPG en un tejido ejercitándose, la curva:",
+        options: [
+            { text: "A) Se desplaza hacia la izquierda, bloqueando la liberación de O2.", isCorrect: false },
+            { text: "B) Se vuelve completamente lineal.", isCorrect: false },
+            { text: "C) Se desplaza hacia la DERECHA, reduciendo la afinidad de la Hemoglobina y forzando la liberación de mucho más Oxígeno para el tejido asfixiado.", isCorrect: true },
+            { text: "D) Cambia de forma sigmoidea a forma hiperbólica como la mioglobina.", isCorrect: false }
+        ],
+        explanation: "Explicación: El tejido con alto metabolismo requiere oxígeno extra. El entorno ácido y rico en CO2 modifica la hemoglobina para que \"suelte\" el oxígeno que llevaba."
+    },
+    {
+        id: 21,
+        question: "21. ¿Qué catión intracelular es el más abundante en el interior de una célula somática normal en reposo y posee el mayor número de canales de fuga abiertos en la membrana?",
+        options: [
+            { text: "A) Sodio (Na+)", isCorrect: false },
+            { text: "B) Calcio (Ca2+)", isCorrect: false },
+            { text: "C) Potasio (K+)", isCorrect: true },
+            { text: "D) Cloro (Cl-)", isCorrect: false }
+        ],
+        explanation: "Explicación: El Potasio domina el citoplasma celular y sus constantes canales pasivos abiertos dictaminan el potencial de membrana basal acercándolo a su valor de Nernst."
+    },
+    {
+        id: 22,
+        question: "22. La principal toxina liberada por los eosinófilos en reacciones inmunitarias prolongadas tiene la capacidad perjudicial de atacar a la vaina de mielina de los axones. La consecuencia electrofisiológica inmediata de esta pérdida de mielina será:",
+        options: [
+            { text: "A) Una conducción saltatoria hiperacelerada.", isCorrect: false },
+            { text: "B) La disminución o fracaso de la velocidad de conducción del potencial de acción por aumento de las fugas de corriente (caída de la Rm).", isCorrect: true },
+            { text: "C) Un aumento de los periodos refractarios absolutos.", isCorrect: false },
+            { text: "D) La conversión del impulso en una corriente analógica.", isCorrect: false }
+        ],
+        explanation: "Explicación: Detalle magistral del audio. Sin la vaina aislante lipídica, la corriente eléctrica se fuga (baja la resistencia de membrana) y el axón no puede transmitir la señal velozmente."
+    },
+    {
+        id: 23,
+        question: "23. Cuando hablamos de \"Diapédesis\", la unión FIRME necesaria para que el leucocito detenga su rodamiento en el endotelio y comience a atravesarlo hacia el tejido está mediada por proteínas de la familia de:",
+        options: [
+            { text: "A) Las Selectinas.", isCorrect: false },
+            { text: "B) Las Integrinas celulares.", isCorrect: true },
+            { text: "C) Las Porinas de membrana.", isCorrect: false },
+            { text: "D) Las Cadherinas exclusivas de músculo liso.", isCorrect: false }
+        ],
+        explanation: "Explicación: Selectinas = rolling o unión débil. Integrinas = anclaje firme (frenada en seco para pasar al tejido)."
+    },
+    {
+        id: 24,
+        question: "24. El receptor celular NMDA de Glutamato es una pieza fundamental para la Potenciación a Largo Plazo (LTP). Su singularidad biológica reside en que:",
+        options: [
+            { text: "A) Sólo responde a catecolaminas.", isCorrect: false },
+            { text: "B) Actúa exclusivamente mediante proteína Gq.", isCorrect: false },
+            { text: "C) En reposo, su poro acuoso está físicamente taponado por un ión Magnesio (Mg2+), exigiendo a la célula estar previamente despolarizada para repelerlo y dejar entrar el Calcio.", isCorrect: true },
+            { text: "D) Permite la entrada selectiva del anión Cloro.", isCorrect: false }
+        ],
+        explanation: "Explicación: Es un canal que exige voltaje Y ligando simultáneamente. Si la célula no se despolariza previamente (vía receptores AMPA), el magnesio no sale del conducto del NMDA."
+    },
+    {
+        id: 25,
+        question: "25. A diferencia del músculo estriado, la contracción del músculo liso vascular no obedece al complejo de Troponina. En su lugar, el Calcio libre en el citoplasma se une a la proteína:",
+        options: [
+            { text: "A) Calmodulina (que posteriormente activa a la enzima MLCK).", isCorrect: true },
+            { text: "B) Calsecuestrina.", isCorrect: false },
+            { text: "C) Actina G.", isCorrect: false },
+            { text: "D) Titina.", isCorrect: false }
+        ],
+        explanation: "Explicación: El músculo liso no tiene sarcómeros ni troponina. Su sensor de Ca2+ es la Calmodulina, que regula a la enzima quinasa encargada de fosforilar las cabezas de miosina."
+    },
+    {
+        id: 26,
+        question: "26. El principio hemodinámico de la \"Ley del Corazón de Frank-Starling\" evidencia biomecánicamente que:",
+        options: [
+            { text: "A) La bradicardia mejora el gasto energético.", isCorrect: false },
+            { text: "B) A mayor llenado de sangre ventricular (precarga), mayor es el estiramiento fisiológico del músculo y, por ende, mayor será la fuerza de la contracción y el volumen sistólico expulsado.", isCorrect: true },
+            { text: "C) El corazón posee latido autónomo espontáneo en el nodo sinusal.", isCorrect: false },
+            { text: "D) La contracción auricular es inútil en reposo.", isCorrect: false }
+        ],
+        explanation: "Explicación: Cuanto más estires la sarcómera cardíaca (por la llegada de más sangre), mejor se acoplan las proteínas contráctiles y con más rabia expulsa la sangre en el siguiente latido."
+    },
+    {
+        id: 27,
+        question: "27. Una célula presentadora de antígenos clásica y \"profesional\", capaz de fagocitar un patógeno hasta 100 veces, destruir sus restos y mostrarlos mediante su complejo MHC-II a los linfocitos T, es el:",
+        options: [
+            { text: "A) Linfocito B.", isCorrect: false },
+            { text: "B) Basófilo.", isCorrect: false },
+            { text: "C) Macrófago (derivado del monocito circulante).", isCorrect: true },
+            { text: "D) Eosinófilo maduro.", isCorrect: false }
+        ],
+        explanation: "Explicación: El macrófago es el basurero y centinela tisular. Fagocita enormemente (hasta 100 bacterias) y es el presentador de antígenos profesional por excelencia para la inmunidad adaptativa."
+    },
+    {
+        id: 28,
+        question: "28. En farmacología cardiovascular y autonómica, la Atropina se usa de urgencia para revertir bradicardias. Su mecanismo de acción principal consiste en:",
+        options: [
+            { text: "A) Ser agonista de los receptores beta-adrenérgicos del corazón.", isCorrect: false },
+            { text: "B) Antagonizar (bloquear) competitivamente los receptores muscarínicos colinérgicos del corazón, anulando el \"freno\" continuo que ejerce el nervio Vago parasimpático.", isCorrect: true },
+            { text: "C) Bloquear los canales L de calcio del nodo.", isCorrect: false },
+            { text: "D) Destruir la acetilcolinesterasa.", isCorrect: false }
+        ],
+        explanation: "Explicación: Al tapar los receptores, la Acetilcolina frenadora del vago no puede actuar, \"soltando\" las riendas al corazón que automáticamente sube su frecuencia."
+    },
+    {
+        id: 29,
+        question: "29. En el estudio de soluciones osmóticas, ¿por qué es letal administrar intravenosamente agua destilada (0 mOsm) pura a un ser humano?",
+        options: [
+            { text: "A) Porque provocaría una crenación masiva en segundos.", isCorrect: false },
+            { text: "B) Porque saturaría los transportadores de glucosa plasmática.", isCorrect: false },
+            { text: "C) Al ser una solución extremadamente hipotónica, el agua penetraría masivamente por ósmosis hacia el interior celular (hiperosmótico) hasta hacer estallar los hematíes (lisis osmótica).", isCorrect: true },
+            { text: "D) Porque disolvería el calcio iónico afectando a los huesos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Clásico de primero. El agua huye de lo diluido (0 mOsm) hacia lo concentrado (interior de la célula 300 mOsm). La célula se hincha como un globo y estalla."
+    },
+    {
+        id: 30,
+        question: "30. La \"Sinergia\" biológica entre moléculas (como dos citoquinas actuando a la vez) se define estrictamente porque:",
+        options: [
+            { text: "A) Se unen al mismo receptor estéricamente.", isCorrect: false },
+            { text: "B) Una inactiva enzimáticamente a la otra.", isCorrect: false },
+            { text: "C) El efecto biológico celular producido es inmensamente mayor que la simple suma aritmética de sus efectos administrados individualmente.", isCorrect: true },
+            { text: "D) Comparten idéntica secuencia de aminoácidos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Refuerzo exponencial mutuo; 1 + 1 en biología celular sinérgica no son 2, sino que pueden ser 10."
+    },
+    {
+        id: 31,
+        question: "31. La fase vertiginosa ascendente o de despolarización de un Potencial de Acción en la membrana neuronal ocurre fisiológicamente gracias a:",
+        options: [
+            { text: "A) Salida masiva y pasiva de iones Potasio.", isCorrect: false },
+            { text: "B) Cierre abrupto de los canales de fuga iónicos.", isCorrect: false },
+            { text: "C) Apertura brusca de canales dependientes de voltaje para el ión Sodio (Na+), que entra arrolladoramente al citoplasma.", isCorrect: true },
+            { text: "D) Inversión rotatoria de la bomba Na/K ATPasa.", isCorrect: false }
+        ],
+        explanation: "Explicación: El sodio está loco por entrar a la célula (gradiente eléctrico y químico). En cuanto el umbral abre los canales, entra una avalancha que positiviza el voltaje celular interior."
+    },
+    {
+        id: 32,
+        question: "32. La captación de glucosa celular \"en contra\" de su gradiente (como ocurre desde la luz del intestino al enterocito) se logra de forma muy eficiente energéticamente empleando:",
+        options: [
+            { text: "A) Transporte activo primario en el mismo receptor.", isCorrect: false },
+            { text: "B) Co-transporte o simporte secundario dependiente de Sodio (receptores SGLT).", isCorrect: true },
+            { text: "C) Difusión simple cruzando los fosfolípidos directamente.", isCorrect: false },
+            { text: "D) Canales aniónicos inespecíficos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Parasitismo metabólico brillante. El transportador usa la energía del sodio cayendo a favor de gradiente para obligar a la glucosa a \"subir\" la cuesta de su propio gradiente."
+    },
+    {
+        id: 33,
+        question: "33. La eliminación fisiológica del neurotransmisor Acetilcolina (ACh) de la hendidura sináptica neuromuscular se distingue de la inactivación de la Noradrenalina simpática principalmente en que:",
+        options: [
+            { text: "A) La ACh se elimina mediante su destrucción enzimática fulminante por la Acetilcolinesterasa in situ, mientras que la Noradrenalina es mayoritariamente recaptada entera por el terminal presináptico.", isCorrect: true },
+            { text: "B) La ACh difunde lentamente a los capilares, sin enzimas implicadas.", isCorrect: false },
+            { text: "C) Ambas moléculas se degradan exactamente igual mediante la MAO mitocondrial.", isCorrect: false },
+            { text: "D) La ACh ingresa al músculo estriado a través del receptor nicotínico.", isCorrect: false }
+        ],
+        explanation: "Explicación: Las aminas son difíciles de sintetizar y se reciclan (NET recaptador). La ACh es barata de armar, y se prefiere dar un \"tijeretazo\" enzimático rapidísimo para frenar la contracción."
+    },
+    {
+        id: 34,
+        question: "34. ¿Qué suceso letal ocurre si inyectamos Tetrodotoxina (veneno clásico del pez globo) en una preparación con nervios somáticos viables?",
+        options: [
+            { text: "A) Provocará descargas epilépticas constantes.", isCorrect: false },
+            { text: "B) Se unirá irreversiblemente a las cabezas de miosina.", isCorrect: false },
+            { text: "C) Taponará físicamente el poro de los canales de Sodio voltaje dependientes, bloqueando por completo la generación y conducción del impulso nervioso (parálisis).", isCorrect: true },
+            { text: "D) Inducirá apoptosis de los astrocitos.", isCorrect: false }
+        ],
+        explanation: "Explicación: La TTX es el bloqueador de Na+ por excelencia en investigación electrofisiológica."
+    },
+    {
+        id: 35,
+        question: "35. Cuando ocurre una hemorragia tisular que expone el Factor Tisular o el colágeno subendotelial, ¿qué enzima maestra es la meta final de la cascada de coagulación, responsable de transformar el Fibrinógeno soluble (liberado por plaquetas) en hebras de Fibrina insoluble?",
+        options: [
+            { text: "A) Plasmina.", isCorrect: false },
+            { text: "B) Trombina.", isCorrect: true },
+            { text: "C) COX-2.", isCorrect: false },
+            { text: "D) Factor de von Willebrand.", isCorrect: false }
+        ],
+        explanation: "Explicación: El objetivo último de la hemostasia secundaria. La protrombina se convierte en trombina, la cual es la encargada directa de \"cuajar\" el fibrinógeno y estabilizar el trombo."
+    },
+    {
+        id: 36,
+        question: "36. A nivel del filtrado y control circulatorio del glomérulo renal, una VASOCONSTRICCIÓN EXCLUSIVA de la Arteriola EFERENTE (el vaso de salida) producirá hemodinámicamente:",
+        options: [
+            { text: "A) El cese inmediato de la Tasa de Filtrado Glomerular (TFG).", isCorrect: false },
+            { text: "B) La lisis de los glóbulos rojos por atrapamiento.", isCorrect: false },
+            { text: "C) Un embalsamiento de sangre intraglomerular que aumentará bruscamente la presión hidrostática del ovillo, elevando de forma forzada la TFG.", isCorrect: true },
+            { text: "D) Un estímulo negativo en el aparato yuxtaglomerular.", isCorrect: false }
+        ],
+        explanation: "Explicación: Si cierras el tubo de desagüe pero la manguera sigue metiendo sangre, el glomérulo se presuriza como un globo, filtrando plasma con enorme fuerza."
+    },
+    {
+        id: 37,
+        question: "37. El mecanismo fisiológico de \"Inhibición Lateral\" ejecutado en las vías aferentes sensoriales o visuales, sirve fundamentalmente al cerebro para:",
+        options: [
+            { text: "A) Desconectar estímulos dolorosos continuos (Habituación).", isCorrect: false },
+            { text: "B) Sumar temporalmente impulsos repetitivos de baja intensidad.", isCorrect: false },
+            { text: "C) Silenciar las neuronas periféricas al estímulo central, aumentando drásticamente el contraste para afinar y precisar al máximo la localización del estímulo original.", isCorrect: true },
+            { text: "D) Prevenir la isquemia periférica en los dedos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Si te pinchan con un compás, el punto central de dolor inhibe lateralmente a los mecanorreceptores de la zona adyacente para que el cerebro identifique la localización exacta."
+    },
+    {
+        id: 38,
+        question: "38. La Integración o sumación de estímulos múltiples y simultáneos procedentes de diversas terminaciones nerviosas anatómicamente alejadas entre sí, que convergen sobre el soma o árbol dendrítico de una neurona, se denomina:",
+        options: [
+            { text: "A) Sumación temporal rítmica.", isCorrect: false },
+            { text: "B) Sumación espacial.", isCorrect: true },
+            { text: "C) Convergencia divergente.", isCorrect: false },
+            { text: "D) Plasticidad axónica terminal.", isCorrect: false }
+        ],
+        explanation: "Explicación: Espacial = estímulos que chocan al mismo tiempo provenientes de distintos \"espacios\" de la neurona. Temporal = ráfaga continua y rápida por el mismo botón sináptico."
+    },
+    {
+        id: 39,
+        question: "39. Si fisiológicamente el volumen plasmático o vascular de un paciente disminuye drásticamente (ej. hemorragia grave), los Barorreceptores de alta presión aórticos y carotídeos reaccionarán mecánicamente:",
+        options: [
+            { text: "A) Estirándose aún más y secretando acetilcolina.", isCorrect: false },
+            { text: "B) Aumentando su frecuencia de disparo eléctrico rítmico.", isCorrect: false },
+            { text: "C) Disminuyendo el estiramiento de su pared, reduciendo su frecuencia de disparo y provocando una retirada del freno vagal (se induce taquicardia y vasoconstricción simpática refleja).", isCorrect: true },
+            { text: "D) Induciendo liberación de histamina.", isCorrect: false }
+        ],
+        explanation: "Explicación: Son tónicos mecánicos. Con alta presión se tensan y avisan para frenar el corazón. Al bajar la volemia, se aflojan, y el cerebro entiende que tiene que activar las alarmas de bombeo (taquicardia simpática)."
+    },
+    {
+        id: 40,
+        question: "40. Teniendo en consideración las proporciones celulares correctas de un individuo adulto fisiológicamente sano, un hemograma general reportará un volumen de leucocitos (células blancas totales) que rondará los:",
+        options: [
+            { text: "A) 300.000 / mm3.", isCorrect: false },
+            { text: "B) 5.000.000 / mm3.", isCorrect: false },
+            { text: "C) 6.000 - 10.000 / mm3.", isCorrect: true },
+            { text: "D) Menos de 500 / mm3 en cualquier condición.", isCorrect: false }
+        ],
+        explanation: "Explicación: Números dorados fisiológicos: Eritrocitos 5 millones, Plaquetas en torno a 300.000 y Leucocitos \"pocos\", unos 6 mil a 10 mil patrullando la sangre de base."
+    }
+];
+
+// Estado global
+let activeQuestions = [];
+let quizState = {}; // { id: { answered: bool, correct: bool, marked: bool } }
+
+// Inicializar el estado de masterData la primera vez
+masterData.forEach(q => {
+    quizState[q.id] = { answered: false, correct: false, marked: false };
+});
+
+function shuffleArray(array) {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+function initQuiz(randomize) {
+    document.getElementById('start-modal').classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+    
+    // Preparar lista de preguntas activas
+    if (!activeQuestions.length) {
+        activeQuestions = [...masterData]; // Si está vacío, cargar todo
+    }
+
+    if (randomize) {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    renderQuiz();
+}
+
+function renderQuiz() {
+    const indexContainer = document.getElementById('index-container');
+    const questionsContainer = document.getElementById('questions-container');
+    
+    indexContainer.innerHTML = '';
+    questionsContainer.innerHTML = '';
+
+    activeQuestions.forEach((q, loopIndex) => {
+        const visualNum = loopIndex + 1;
+        
+        // --- 1. Crear Botón Índice ---
+        const idxBtn = document.createElement('a');
+        idxBtn.href = `#q-${q.id}`;
+        idxBtn.className = 'index-btn';
+        idxBtn.id = `idx-${q.id}`;
+        idxBtn.textContent = visualNum;
+        
+        // Restaurar estilos de estado anterior
+        if (quizState[q.id].marked) idxBtn.classList.add('is-marked');
+        if (quizState[q.id].answered) {
+            idxBtn.classList.add(quizState[q.id].correct ? 'answered-correct' : 'answered-incorrect');
+        }
+        indexContainer.appendChild(idxBtn);
+
+        // --- 2. Crear Tarjeta de Pregunta ---
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.id}`;
+
+        const header = document.createElement('div');
+        header.className = 'question-header';
+        
+        const title = document.createElement('h3');
+        title.className = 'question-title';
+        // Reemplazar el número original por el de la secuencia actual
+        title.textContent = `Pregunta ${visualNum}: ${q.question.replace(/^\**\(*REPASO INTEGRADO DE ALTA RENTABILIDAD\)*\**\s*/, '').replace(/^\d+\.\s*/, '')}`;
+        
+        const markBtn = document.createElement('button');
+        markBtn.className = `mark-toggle ${quizState[q.id].marked ? 'active' : ''}`;
+        markBtn.textContent = quizState[q.id].marked ? '★ Desmarcar' : '☆ Marcar';
+        markBtn.onclick = () => toggleMark(q.id, markBtn, idxBtn);
+
+        header.appendChild(title);
+        header.appendChild(markBtn);
+        card.appendChild(header);
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'options-list';
+        optionsDiv.id = `opts-${q.id}`;
+
+        // Mezclar opciones
+        const shuffledOptions = shuffleArray(q.options);
+        
+        shuffledOptions.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt.text;
+            
+            // Si ya fue respondida en una sesión anterior pero se volvió a cargar sin resetear su state
+            if (quizState[q.id].answered) {
+                btn.disabled = true;
+                if (opt.isCorrect) btn.classList.add('correct');
+            } else {
+                btn.onclick = () => handleAnswer(q.id, opt.isCorrect, btn, optionsDiv);
+            }
+            optionsDiv.appendChild(btn);
+        });
+        
+        card.appendChild(optionsDiv);
+
+        // Explicación
+        const expDiv = document.createElement('div');
+        expDiv.className = 'explanation';
+        expDiv.id = `exp-${q.id}`;
+        expDiv.textContent = q.explanation;
+        if (quizState[q.id].answered) expDiv.style.display = 'block';
+        card.appendChild(expDiv);
+
+        questionsContainer.appendChild(card);
+    });
+}
+
+function toggleMark(qId, btnEl, idxEl) {
+    quizState[qId].marked = !quizState[qId].marked;
+    if (quizState[qId].marked) {
+        btnEl.classList.add('active');
+        btnEl.textContent = '★ Desmarcar';
+        idxEl.classList.add('is-marked');
+    } else {
+        btnEl.classList.remove('active');
+        btnEl.textContent = '☆ Marcar';
+        idxEl.classList.remove('is-marked');
+    }
+}
+
+function handleAnswer(qId, isCorrect, clickedBtn, optionsDiv) {
+    quizState[qId].answered = true;
+    quizState[qId].correct = isCorrect;
+
+    // Deshabilitar botones y mostrar colores
+    const buttons = optionsDiv.querySelectorAll('.option-btn');
+    buttons.forEach(b => {
+        b.disabled = true;
+        // Buscar cuál era la correcta en los datos
+        const qData = masterData.find(x => x.id === qId);
+        const correctText = qData.options.find(o => o.isCorrect).text;
+        
+        if (b.textContent === correctText) {
+            b.classList.add('correct');
+        } else if (b === clickedBtn && !isCorrect) {
+            b.classList.add('incorrect');
+        }
+    });
+
+    // Mostrar explicación
+    document.getElementById(`exp-${qId}`).style.display = 'block';
+
+    // Actualizar índice numérico
+    const idxBtn = document.getElementById(`idx-${qId}`);
+    idxBtn.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+}
+
+function showEndModal() {
+    const total = activeQuestions.length;
+    let correctCount = 0;
+    let answeredCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (quizState[q.id].answered) answeredCount++;
+        if (quizState[q.id].correct) correctCount++;
+    });
+
+    document.getElementById('results-summary').textContent = 
+        `Has respondido ${answeredCount} de ${total} preguntas. Aciertos: ${correctCount}.`;
+    
+    // Calcular si hay falladas o marcadas en general para habilitar/deshabilitar botones
+    const hasFailed = masterData.some(q => quizState[q.id].answered && !quizState[q.id].correct);
+    const hasMarked = masterData.some(q => quizState[q.id].marked);
+
+    document.getElementById('btn-retake-failed').disabled = !hasFailed;
+    document.getElementById('btn-retake-marked').disabled = !hasMarked;
+    document.getElementById('btn-retake-mixed').disabled = !(hasFailed || hasMarked);
+
+    document.getElementById('end-modal').classList.remove('hidden');
+}
+
+function retakeQuiz(mode) {
+    document.getElementById('end-modal').classList.add('hidden');
+    
+    // Filtrar masterData según el modo
+    if (mode === 'all') {
+        activeQuestions = [...masterData];
+    } else if (mode === 'failed') {
+        activeQuestions = masterData.filter(q => quizState[q.id].answered && !quizState[q.id].correct);
+    } else if (mode === 'marked') {
+        activeQuestions = masterData.filter(q => quizState[q.id].marked);
+    } else if (mode === 'failed_marked') {
+        activeQuestions = masterData.filter(q => quizState[q.id].marked || (quizState[q.id].answered && !quizState[q.id].correct));
+    }
+
+    // Resetear el estado 'answered' solo para las preguntas activas
+    activeQuestions.forEach(q => {
+        quizState[q.id].answered = false;
+        quizState[q.id].correct = false;
+        // No reseteamos 'marked' para que no pierdan la marca si la quieren conservar
+    });
+
+    // Volver a preguntar el orden
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('main-content').classList.add('hidden');
+    document.getElementById('start-modal').classList.remove('hidden');
+}
+
+// Iniciar
+window.onload = () => {
+    document.getElementById('start-modal').classList.remove('hidden');
+};
+</script>
+</body>
+</html>

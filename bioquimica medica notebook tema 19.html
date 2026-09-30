@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Fisiología: Hueso y Calcio</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --light: #ecf0f1;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: var(--text);
+        }
+
+        /* Pantalla de Inicio */
+        #setup-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .setup-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 400px;
+        }
+
+        /* Sidebar con Índice en 3 Columnas */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 15px;
+            overflow-y: auto;
+        }
+
+        .index-item {
+            background: var(--secondary);
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 2px solid transparent;
+            transition: 0.2s;
+        }
+
+        .index-item:hover { background: #455a64; }
+        .index-item.active { border-color: #3498db; }
+        .index-item.correct { background: var(--accent) !important; }
+        .index-item.wrong { background: var(--error) !important; }
+        .index-item.marked { border-color: var(--marked) !important; }
+
+        /* Área Principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .question-card {
+            background: white;
+            max-width: 850px;
+            width: 100%;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            padding: 15px 20px;
+            border: 1px solid #dcdde1;
+            border-radius: 8px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #3498db;
+        }
+
+        .option-btn.correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724; }
+        .option-btn.wrong { background: #f8d7da !important; border-color: #dc3545 !important; color: #721c24; }
+
+        .explanation-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-left: 5px solid #2196f3;
+            border-radius: 4px;
+            display: none;
+        }
+
+        /* Botones de control */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-primary { background: #3498db; color: white; }
+        .btn-finish { background: var(--error); color: white; margin-top: auto; }
+        .btn-mark { 
+            background: none; 
+            border: 1px solid var(--marked); 
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-mark.active { background: var(--marked); color: white; }
+
+        /* Pantalla Final */
+        #results-screen {
+            display: none;
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        .retry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+        sup { top: -0.5em; }
+        sub { bottom: -0.25em; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <h2 style="margin-top:0">Configuración</h2>
+            <p>¿Cómo prefieres realizar el cuestionario hoy?</p>
+            <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="initQuiz(false)">Orden Preestablecido (1-60)</button>
+            <button class="btn btn-primary" style="width:100%;" onclick="initQuiz(true)">Mezclar Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3 style="margin-top:0">Índice Numérico</h3>
+        <div id="index-container" class="index-grid"></div>
+        <button class="btn btn-finish" onclick="showResults()">Finalizar y Corregir</button>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-area"></div>
+        
+        <div id="results-screen">
+            <div class="question-card">
+                <h2>Resultados</h2>
+                <h1 id="score-display">0/60</h1>
+                <p id="feedback-msg"></p>
+                <div class="retry-grid">
+                    <button class="btn btn-primary" onclick="location.reload()">Reiniciar Todo</button>
+                    <button class="btn btn-primary" onclick="retry('failed')">Repetir Falladas</button>
+                    <button class="btn btn-primary" onclick="retry('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-primary" onclick="retry('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const database = [
+            // BLOQUE I
+            { n: 1, q: "Anatómicamente y estructuralmente, el hueso se divide en dos grandes tipos. ¿Cuál es la característica principal del hueso trabecular?", a: ["Es la parte más externa, sólida y densamente calcificada.", "Es una estructura delgada, en forma de panel de abeja, también conocida como hueso esponjoso.", "Es la zona puramente cartilaginosa sin calcificar.", "Carece totalmente de células en su interior."], c: 1, e: "La profesora distingue el hueso cortical (externo, grueso, sólido) del trabecular (interno, esponjoso, en panel de abeja)." },
+            { n: 2, q: "La matriz ósea está compuesta por una parte orgánica y otra inorgánica. ¿Cuál es el componente PRINCIPAL de la parte orgánica (90%)?", a: ["Cristales de hidroxiapatita.", "Colágeno tipo 1.", "Proteoglucanos.", "Células hematopoyéticas."], c: 1, e: "El 90% de la parte orgánica de la matriz es colágeno tipo 1. El resto son proteínas como la osteocalcina." },
+            { n: 3, q: "¿Cómo se denomina a la estructura mineral de la parte inorgánica del hueso, donde el calcio se encuentra intercalado con fosfato (Ca<sub>10</sub>[PO<sub>4</sub>]<sub>6</sub>[OH]<sub>2</sub>)?", a: ["Osteoide.", "Cristales de hidroxiapatita.", "Calcitonina libre.", "Fosfatasa ácida."], c: 1, e: "El calcio se almacena en el esqueleto formando estos cristales minerales duros." },
+            { n: 4, q: "Durante la formación del hueso, existe una matriz o parte de la estructura que TODAVÍA NO está mineralizada ni calcificada. A esta porción se le conoce como:", a: ["Hueso cortical.", "Médula ósea.", "Osteoide.", "Trabécula."], c: 2, e: "La parte de la matriz que no está mineralizada... la conoceréis como osteoide." },
+            { n: 5, q: "El hueso actúa como el gran almacén de minerales del organismo. ¿Qué porcentaje aproximado del calcio total del cuerpo humano se encuentra en el esqueleto?", a: ["50%", "75%", "85%", "99%"], c: 3, e: "Remarcado varias veces: el 99% del calcio está en el hueso, quedando solo un 1% circulante." },
+            { n: 6, q: "Además del calcio, el hueso es el principal reservorio de FOSFATO. ¿Qué porcentaje del fosfato corporal total se almacena en el esqueleto?", a: ["50%", "85%", "99%", "10%"], c: 1, e: "La profesora dice explícitamente en el audio: 'el 85% de todo el fosfato, igual que el 99% del calcio...'." },
+            { n: 7, q: "Si a un paciente le detectan niveles séricos disminuidos prolongados de calcio o fosfato en la dieta, ¿qué alteración histológica esperaríamos encontrar en su tejido óseo?", a: ["Un aumento del hueso cortical sólido.", "Una desaparición total del colágeno.", "Un aumento del osteoide (matriz no mineralizada).", "Una hiperplasia de células hematopoyéticas."], c: 2, e: "La diapositiva 'Deficiencia de calcio o fosfato:' indica directamente que esto provoca un 'aumento de osteoide', ya que el hueso se forma pero no puede calcificarse adecuadamente." },
+            { n: 8, q: "En cuanto a la función del Fosfato (cuyo reservorio principal es el hueso), la profesora destacó su importancia vital en la célula para:", a: ["Formar la hemoglobina de la sangre.", "Ser la fuente de energía principal (formando ATP, GTP) y actuar en la señalización celular (fosforilación de enzimas).", "Conducir el impulso nervioso exclusivamente.", "Transportar la vitamina D."], c: 1, e: "Si os viene a la mente... ATP, GTP, todo eso tiene fosfato y esas son nuestras fuentes de energía y señalización." },
+            { n: 9, q: "¿A qué se refiere la profesora cuando define al hueso como un tejido 'muy activo metabólicamente y muy dinámico'?", a: ["A que se desplaza físicamente dentro del cuerpo.", "A que sus células sufren un proceso continuo de 'remodelación ósea' (reabsorción y formación) a lo largo de toda la vida.", "A que no contiene calcio en su interior.", "A que sintetiza la vitamina D endógena."], c: 1, e: "El hueso no es una piedra inerte; se está destruyendo y reconstruyendo continuamente gracias a los osteoclastos y osteoblastos." },
+            { n: 10, q: "¿Cuál es el estímulo fisiológico básico que incrementa la carga y estimula directamente la FORMACIÓN del hueso (adaptación mecánica constante)?", a: ["La inmovilidad absoluta.", "La sobrecarga mecánica (ejercicio, peso).", "La exposición al frío.", "El aumento de calcitonina en la dieta."], c: 1, e: "Cuando tenemos una sobrecarga mecánica se estimula. Somos capaces de estimular su formación..." },
+            
+            // BLOQUE II
+            { n: 11, q: "Los OSTEOCLASTOS son las células encargadas de la resorción (reabsorción o destrucción) del hueso. ¿Cuál es su origen celular?", a: ["Células del mesénquima embrionario.", "Células endoteliales.", "Células hematopoyéticas de la médula ósea (linaje de macrófagos).", "Condrocitos maduros."], c: 2, e: "Se originan en la médula ósea (línea hematopoyética) y son estimuladas por factores estimulantes de colonias de macrófagos (M-CSF)." },
+            { n: 12, q: "Citológicamente, ¿cómo se describe a un OSTEOCLASTO activado?", a: ["Célula pequeña y mononucleada.", "Célula estrellada parecida a una neurona.", "Célula gigante y multinucleada.", "Célula anucleada, como los eritrocitos."], c: 2, e: "Son células gigantes multinucleadas que se 'comen' el hueso." },
+            { n: 13, q: "Si queremos medir en el laboratorio cuánta RESORCIÓN (destrucción) ósea está ocurriendo, ¿qué marcadores bioquímicos buscaremos?", a: ["Fosfatasa alcalina y osteocalcina.", "Hidroxiprolina, fragmentos de colágeno y fosfatasa ácida.", "Albúmina y creatinina.", "Vitamina D pura."], c: 1, e: "Como destruyen colágeno y usan ácidos, los marcadores de los osteoclastos son la hidroxiprolina y la fosfatasa ácida." },
+            { n: 14, q: "Los OSTEOBLASTOS son las células formadoras de hueso. ¿De qué linaje celular provienen?", a: ["Del mesénquima.", "De células hematopoyéticas.", "De los linfocitos T.", "De las células estrelladas de Kupffer."], c: 0, e: "A diferencia de los osteoclastos, los osteoblastos (pequeños y mononucleados) tienen origen mesenquimal." },
+            { n: 15, q: "¿Qué proteínas sintetizan los OSTEOBLASTOS para conformar la matriz orgánica inicial del hueso?", a: ["Fosfatasa ácida y queratina.", "Colágeno tipo 1, osteocalcina y proteoglucanos.", "Hemoglobina y albúmina.", "RANKL libre en sangre."], c: 1, e: "Los osteoblastos fabrican la matriz proteica: colágeno 1, osteocalcina, proteínas de adhesión, etc." },
+            { n: 16, q: "En una analítica de sangre, ¿qué enzima es el MARCADOR CLÁSICO y principal para medir la 'actividad osteoblástica'?", a: ["Fosfatasa ácida.", "Fosfatasa alcalina.", "Peptidasa tipo C.", "Transaminasa ALT."], c: 1, e: "La diapositiva remarca con asteriscos la fosfatasa alcalina como el gran medidor de actividad formadora." },
+            { n: 17, q: "Cuando un osteoblasto termina de formar matriz y queda atrapado y mineralizado, se convierte en:", a: ["Osteoclasto.", "Célula C.", "Osteocito.", "Condrocito."], c: 2, e: "Los osteocitos son células estrelladas maduras que quedan atrapadas en la estructura mineralizada." },
+            { n: 18, q: "Fisiológicamente, durante un ciclo de remodelación ósea, ¿qué diferencia temporal clave existe entre las dos fases?", a: ["La formación es inmediata (horas) y la reabsorción dura años.", "Ambos procesos duran exactamente 5 días.", "La resorción por osteoclastos es rápida (semanas), mientras que la formación y mineralización es lenta (meses).", "Actúan en segundos mediante impulsos eléctricos."], c: 2, e: "La profesora hace mucho énfasis: la resorción dura semanas, pero la formación y mineralización suele durar meses." },
+            { n: 19, q: "El recambio continuo de calcio entre el hueso y el LEC es altísimo. ¿Cuántos mmoles se intercambian aproximadamente cada 24 horas?", a: ["5 mmoles.", "500 mmoles.", "10.000 mmoles.", "0,5 mmoles."], c: 1, e: "Hay un intercambio continuo de 500 mmoles al día entre el hueso y el espacio extracelular." },
+            { n: 20, q: "A nivel renal, ¿cuántos mmoles de calcio ionizado se EXCRETAN diariamente por la orina de manera normal?", a: ["500 mmoles.", "100 mmoles.", "6 mmoles.", "Ninguno."], c: 2, e: "Diariamente se excretan unos 6 mmoles de calcio ionizado por el riñón." },
+
+            // BLOQUE III
+            { n: 21, q: "En el sistema RANK / RANKL / OPG, ¿en qué célula se encuentra ubicado el RECEPTOR RANK?", a: ["En la membrana de los osteoclastos (o sus precursores).", "En la membrana de los osteoblastos.", "En los osteocitos.", "Flotando libre en la sangre."], c: 0, e: "El receptor RANK está en la superficie celular de los osteoclastos (los que destruyen)." },
+            { n: 22, q: "¿En qué célula se encuentra expresado el ligando RANKL?", a: ["En los propios osteoclastos.", "En la superficie de los OSTEOBLASTOS.", "En el riñón.", "En los glóbulos rojos."], c: 1, e: "RANKL está en los osteoblastos. El que construye tiene la llave para activar al que destruye." },
+            { n: 23, q: "¿Qué ocurre cuando RANKL (osteoblasto) se une a RANK (osteoclasto)?", a: ["El osteoclasto se autodestruye.", "Se activa una cascada nuclear en el osteoclasto que hace que madure y comience a reabsorber hueso.", "El osteoblasto secreta colágeno.", "Se forma vitamina D activa."], c: 1, e: "Al unirse, la señal altera su expresión génica para que 'madure como osteoclasto'." },
+            { n: 24, q: "Los OSTEOBLASTOS secretan una proteína soluble que actúa como 'freno' o 'señuelo'. ¿Cómo se llama?", a: ["Calcitonina.", "Proteína OPG (Osteoprotegerina).", "Colagenasa.", "Fosfatasa alcalina."], c: 1, e: "La OPG es secretada por los propios osteoblastos para regular el proceso que ellos mismos inician." },
+            { n: 25, q: "¿Cuál es el mecanismo de acción exacto de la OPG para detener la resorción ósea?", a: ["Destruye a los osteoclastos.", "Bloquea el calcio en sangre.", "Se une al RANKL bloqueándolo como una 'cerradura falsa', impidiendo que se una a RANK.", "Se une al osteoide."], c: 2, e: "Inhibe la maduración de los osteoclastos al competir por el sitio de unión del RANKL." },
+            { n: 26, q: "¿Qué estrategia utilizan fármacos para la osteoporosis basados en la OPG?", a: ["Destruyen la OPG.", "Bloquean el calcio.", "Imitan a la OPG, uniéndose a RANKL para frenar la destrucción ósea.", "Píldoras de colágeno."], c: 2, e: "Se diseñan moléculas para bloquear esa señalización de destrucción, igual que hace la OPG natural." },
+            { n: 27, q: "Cuando el receptor RANK se activa, el mensaje final llega a:", a: ["Las mitocondrias.", "Al núcleo (ADN), activando un 'transcriptoma' específico.", "A los lisosomas.", "A las reservas de grasa."], c: 1, e: "Un receptor de membrana siempre busca activar la síntesis de proteínas nuevas en el núcleo." },
+            { n: 28, q: "Si hay una incapacidad genética de producir OPG, ¿cuál será la consecuencia?", a: ["Huesos gigantes.", "Osteopetrosis.", "Reabsorción ósea masiva y continua por falta de 'freno'.", "No habrá efecto."], c: 2, e: "Sin OPG, el RANKL estimula a RANK sin cesar, destruyendo el hueso." },
+            { n: 29, q: "La homeostasis ósea normal se mantiene gracias a:", a: ["Ausencia de osteoclastos.", "Balance estricto entre señalización de RANKL y secreción de OPG.", "Producción de colagenasas.", "Exclusivamente vitamina D."], c: 1, e: "La secreción de OPG por el osteoblasto marca la dinámica de cuándo degradar y formar." },
+            { n: 30, q: "En la resorción, los osteoclastos liberan enzimas. ¿Cuál es característica?", a: ["Fosfatasa alcalina.", "Amilasa.", "Fosfatasa ácida.", "Transaminasas."], c: 2, e: "La fosfatasa ácida actúa en el microambiente ácido para disolver el mineral." },
+
+            // BLOQUE IV
+            { n: 31, q: "¿Qué fracción del calcio extracelular representa el 50% y es metabólicamente ACTIVA?", a: ["Calcio unido a albúmina.", "Calcio con citrato.", "Calcio ionizado (libre).", "Calcio unido a glóbulos rojos."], c: 2, e: "El calcio ionizado es el que la célula detecta y usa para señalización." },
+            { n: 32, q: "¿Qué porcentaje del calcio plasmático viaja UNIDO a proteínas (albúmina)?", a: ["10%", "40-45%", "99%", "0%"], c: 1, e: "Casi la mitad del calcio va unido a proteínas como transporte y reserva." },
+            { n: 33, q: "La fracción complejada del calcio plasmático (10%) viaja:", a: ["Como hidroxiapatita.", "Con iones como fosfato, bicarbonato o citrato.", "En quilomicrones.", "Con hemoglobina."], c: 1, e: "Es la fracción que no es libre ni está unida a proteínas grandes." },
+            { n: 34, q: "Si la albúmina está muy DISMINUIDA por desnutrición, ¿qué ocurre en la analítica?", a: ["Calcio total aumenta.", "Calcio total DISMINUIDO, pero calcio ionizado probablemente NORMAL.", "Calcio ionizado letalmente bajo.", "Sin variación."], c: 1, e: "Disminuye el transporte pero no la fracción libre funcional, que se mantiene constante." },
+            { n: 35, q: "En deshidratación severa (hemoconcentración), ¿qué ocurre con el calcio total?", a: ["Parecerá hipercalcemia debido a la alta concentración de proteínas.", "Tendrá déficit de calcio ionizado.", "Se cristalizará.", "Dar PTH urgente."], c: 0, e: "Es un artefacto por la concentración de proteínas; el metabolismo real suele estar bien." },
+            { n: 36, q: "¿Qué parámetro matemático se usa en clínica ante alteraciones de la albúmina?", a: ["Calcio radiactivo.", "Calcio complejado.", "Calcio Corregido.", "Brecha de calcio."], c: 2, e: "Se usa para saber si realmente el metabolismo del calcio está alterado." },
+            { n: 37, q: "¿Qué ocurre ante un influjo rápido de calcio al interior celular?", a: ["Mitosis.", "Se activan cascadas de señalización, neurotransmisores o contracción muscular.", "Degradación de ADN.", "Bloqueo de ATP."], c: 1, e: "Al haber tan poco dentro, su entrada actúa como un mensajero explosivo." },
+            { n: 38, q: "¿Qué mecanismos permiten la absorción intestinal de calcio?", a: ["Bomba Na/K.", "Difusión pasiva y transporte activo dependiente de Vitamina D.", "Endocitosis.", "Albúmina intestinal."], c: 1, e: "La vitamina D es vital porque pone los transportadores para el paso activo." },
+            { n: 39, q: "¿Qué tres órganos regulan la homeostasis del calcio?", a: ["Corazón, Pulmón, Cerebro.", "Estómago, Páncreas, Bazo.", "Intestino, Riñón y Hueso.", "Hígado, Músculo, Grasa."], c: 2, e: "Controlan entrada (intestino), salida (riñón) y almacén (hueso)." },
+            { n: 40, q: "¿Cuál es el requerimiento MÍNIMO de ingesta diaria de calcio en un adulto?", a: ["1 mmol.", "12,5 mmoles.", "500 mmoles.", "1000 mmoles."], c: 1, e: "Dato de la diapositiva: Ingesta mínima de 12,5 mmoles." },
+
+            // BLOQUE V
+            { n: 41, q: "¿En qué situación las paratiroides secretan PTH?", a: ["Hipercalcemia plasmática.", "Hipocalcemia (bajada) plasmática.", "Niveles altos de Vitamina D.", "Estómago lleno."], c: 1, e: "Se libera cuando baja el calcio para intentar subirlo de nuevo." },
+            { n: 42, q: "¿Qué fragmento de la molécula de PTH es la parte ACTIVA?", a: ["El péptido de 84 AA entero.", "Fragmento 35-84.", "Parte N-terminal, péptido PTH (1-34).", "Residuo de triptófano."], c: 2, e: "El fragmento 1-34 es el activo funcional; el resto es inactivo." },
+            { n: 43, q: "Acción que NO realiza la PTH:", a: ["Estimula osteoclastos.", "Aumenta reabsorción renal de calcio.", "Disminuye eliminación renal de fosfato.", "Estimula formación de Vitamina D activa."], c: 2, e: "La PTH aumenta la excreción de fosfato para evitar que se una al calcio liberado." },
+            { n: 44, q: "¿Qué hormona es ANTAGONISTA directa de la PTH ante la hipercalcemia?", a: ["Adrenalina.", "Osteocalcina.", "Calcitonina.", "Aldosterona."], c: 2, e: "Inhibe la reabsorción ósea y favorece a los osteoblastos." },
+            { n: 45, q: "¿Donde se secreta la Calcitonina?", a: ["Riñón.", "Médula ósea.", "Células paratiroideas.", "Células C (parafoliculares) del tiroides."], c: 3, e: "Se sintetiza en el tiroides, específicamente en las células C." },
+            { n: 46, q: "¿Qué se necesita para convertir 7-deshidrocolesterol en Colecalciferol en la piel?", a: ["Mucha sal.", "Radiación Ultravioleta (sol).", "Sistema linfático.", "Osteoclastos."], c: 1, e: "Es fundamental tomar el sol para iniciar la síntesis de vitamina D3." },
+            { n: 47, q: "¿Cómo viaja la Vitamina D3 por sangre al ser hidrofóbica?", a: ["Disuelta libre.", "En glóbulos rojos.", "Unida a Proteína Fijadora (DBP) o quilomicrones.", "Mediante PTH."], c: 2, e: "Al ser lipídica requiere transportadores proteicos." },
+            { n: 48, q: "¿En qué órgano ocurre la PRIMERA hidroxilación de la Vitamina D3?", a: ["Piel.", "Riñón.", "Hueso.", "Hígado."], c: 3, e: "El hígado realiza el primer paso hacia el Calcidiol (25-OH)." },
+            { n: 49, q: "¿Dónde ocurre la SEGUNDA hidroxilación para formar Calcitriol (forma activa)?", a: ["Páncreas.", "Intestino.", "Riñón (enzima 1-alfa-hidroxilasa).", "Bazo."], c: 2, e: "El riñón activa la hormona bajo el estímulo de la PTH." },
+            { n: 50, q: "Función principal del Calcitriol (Vitamina D activa):", a: ["Bloquear receptores.", "Aumentar absorción de calcio y fósforo en el intestino.", "Destruir cristales directamente.", "Excretar calcio."], c: 1, e: "Su diana es el intestino, garantizando el aprovechamiento del calcio dietético." },
+
+            // BLOQUE VI
+            { n: 51, q: "¿Cuál es el rango normal de calcio en sangre según las diapositivas?", a: ["0.5 - 1.0 mmol/L", "2.1 - 2.5 mmol/L", "5.0 - 6.5 mmol/L", "8.0 - 10.0 mmol/L"], c: 1, e: "Valores base para definir patologías de calcio." },
+            { n: 52, q: "¿Causa MÁS FRECUENTE (90%) de Hipercalcemia?", a: ["Exceso de lácteos.", "Metástasis ósea.", "Hiperparatiroidismo primario.", "Infección renal."], c: 2, e: "El exceso de PTH por tumor o hiperplasia paratiroidea dispara el calcio." },
+            { n: 53, q: "Causa de hipercalcemia en Mieloma Múltiple:", a: ["Absorción gástrica.", "Resorción ósea masiva por citoquinas tumorales.", "Exceso de albúmina.", "Fallo de vit D."], c: 1, e: "Las células tumorales activan osteoclastos que 'perforan' el hueso." },
+            { n: 54, q: "PTH alta pero cuerpo no responde (resistencia receptores):", a: ["Hipoparatiroidismo primario.", "Raquitismo.", "Seudohipoparatiroidismo.", "Enfermedad de Paget."], c: 2, e: "La glándula responde, pero el receptor falla (seudo)." },
+            { n: 55, q: "¿Por qué el riesgo de osteoporosis sube tras la menopausia?", a: ["Atrofia tiroidea.", "Disminuyen estrógenos (que frenaban la resorción).", "Fallo de absorción.", "Colágeno tóxico."], c: 1, e: "Sin el freno de los estrógenos, los osteoclastos destruyen hueso más rápido." },
+            { n: 56, q: "Mineralización defectuosa en NIÑOS por falta de Vitamina D:", a: ["Osteomalacia.", "Osteopetrosis.", "Raquitismo.", "Enfermedad de Paget."], c: 2, e: "En adultos se llama osteomalacia; en niños raquitismo por afectar al crecimiento." },
+            { n: 57, q: "Patología orgánica causante de Osteomalacia:", a: ["Fallo hepático o renal crónico.", "Extirpación de bazo.", "Apendicitis.", "Cirrosis pancreática."], c: 0, e: "Al no poder hidroxilar la vitamina D, no se mineraliza el hueso." },
+            { n: 58, q: "Recambio óseo 100 veces superior al normal con estructura anormal:", a: ["Raquitismo senil.", "Enfermedad de Paget.", "Osteopenia.", "Mieloma."], c: 1, e: "Caos absoluto entre destrucción y formación ósea." },
+            { n: 59, q: "Marcadores en Enfermedad de Paget:", a: ["Glucosa baja.", "Hidroxiprolina ALTA y Fosfatasa alcalina ALTA.", "Fosfatasa ácida baja.", "OPG indetectable."], c: 1, e: "Indican actividad frenética de destrucción y formación a la vez." },
+            { n: 60, q: "Secuencia ante dieta baja en calcio prolongada:", a: ["Sube Calcitonina.", "Baja calcio -> Sube PTH -> Activa Vit D -> Sube absorción y resorción.", "Sube PTH -> Destruye Vit D.", "Paratiroides se apagan."], c: 1, e: "Es el mecanismo maestro de supervivencia para mantener el calcio en sangre." }
+        ];
+
+        let quizQuestions = [];
+        let answersState = {}; // { index: { answered: bool, choice: int, marked: bool, correct: bool } }
+        let currentIdx = 0;
+
+        function initQuiz(shuffle) {
+            document.getElementById('setup-screen').style.display = 'none';
+            quizQuestions = [...database];
+            if (shuffle) quizQuestions.sort(() => Math.random() - 0.5);
+            
+            quizQuestions.forEach((_, i) => {
+                answersState[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            renderIndex();
+            renderQuestion(0);
+        }
+
+        function renderIndex() {
+            const container = document.getElementById('index-container');
+            container.innerHTML = '';
+            quizQuestions.forEach((q, i) => {
+                const item = document.createElement('div');
+                item.className = 'index-item';
+                item.id = `idx-${i}`;
+                item.innerText = q.n;
+                item.onclick = () => renderQuestion(i);
+                container.appendChild(item);
+            });
+        }
+
+        function renderQuestion(idx) {
+            currentIdx = idx;
+            const q = quizQuestions[idx];
+            const state = answersState[idx];
+            
+            // Actualizar UI del índice
+            document.querySelectorAll('.index-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`idx-${idx}`).classList.add('active');
+
+            // Mezclar opciones para esta carga específica
+            const options = q.a.map((txt, i) => ({txt, i}));
+            options.sort(() => Math.random() - 0.5);
+
+            const area = document.getElementById('quiz-area');
+            area.innerHTML = `
+                <div class="question-card">
+                    <div class="question-header">
+                        <span style="font-weight:bold; color:var(--primary)">Pregunta ${q.n}</span>
+                        <button class="btn btn-mark ${state.marked ? 'active' : ''}" onclick="toggleMark(${idx})">
+                            ${state.marked ? '★ Marcada' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <p style="font-size:1.2rem; line-height:1.4">${q.q}</p>
+                    <div class="options-list">
+                        ${options.map(opt => `
+                            <button class="option-btn ${getOptionClass(idx, opt.i)}" 
+                                    onclick="handleAnswer(${idx}, ${opt.i})" 
+                                    ${state.answered ? 'disabled' : ''}>
+                                ${opt.txt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation-box" id="exp-${idx}" style="display: ${state.answered ? 'block' : 'none'}">
+                        <strong>Explicación:</strong> ${q.e}
+                    </div>
+                    <div style="margin-top:25px; display:flex; gap:10px">
+                        <button class="btn btn-primary" onclick="changeQ(-1)" ${idx === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="btn btn-primary" onclick="changeQ(1)" ${idx === quizQuestions.length - 1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getOptionClass(qIdx, optIdx) {
+            const state = answersState[qIdx];
+            if (!state.answered) return '';
+            if (optIdx === quizQuestions[qIdx].c) return 'correct';
+            if (optIdx === state.choice) return 'wrong';
+            return '';
+        }
+
+        function handleAnswer(qIdx, choice) {
+            const isCorrect = choice === quizQuestions[qIdx].c;
+            answersState[qIdx].answered = true;
+            answersState[qIdx].choice = choice;
+            answersState[qIdx].correct = isCorrect;
+
+            const idxItem = document.getElementById(`idx-${qIdx}`);
+            idxItem.classList.add(isCorrect ? 'correct' : 'wrong');
+            
+            renderQuestion(qIdx);
+        }
+
+        function toggleMark(idx) {
+            answersState[idx].marked = !answersState[idx].marked;
+            document.getElementById(`idx-${idx}`).classList.toggle('marked');
+            renderQuestion(idx);
+        }
+
+        function changeQ(step) {
+            const next = currentIdx + step;
+            if (next >= 0 && next < quizQuestions.length) renderQuestion(next);
+        }
+
+        function showResults() {
+            document.getElementById('quiz-area').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'block';
+            
+            const total = quizQuestions.length;
+            const correctas = Object.values(answersState).filter(s => s.correct).length;
+            
+            document.getElementById('score-display').innerText = `${correctas} / ${total}`;
+            document.getElementById('feedback-msg').innerText = correctas > (total * 0.8) 
+                ? "¡Excelente nivel! Estás listo para el examen." 
+                : "Sigue repasando los bloques donde hubo más fallos.";
+        }
+
+        function retry(mode) {
+            let filtered = [];
+            if (mode === 'failed') {
+                filtered = quizQuestions.filter((_, i) => !answersState[i].correct && answersState[i].answered);
+            } else if (mode === 'marked') {
+                filtered = quizQuestions.filter((_, i) => answersState[i].marked);
+            } else if (mode === 'both') {
+                filtered = quizQuestions.filter((_, i) => (!answersState[i].correct && answersState[i].answered) || answersState[i].marked);
+            }
+
+            if (filtered.length === 0) {
+                alert("No hay preguntas en esa categoría.");
+                return;
+            }
+
+            quizQuestions = filtered;
+            answersState = {};
+            quizQuestions.forEach((_, i) => {
+                answersState[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            document.getElementById('quiz-area').style.display = 'block';
+            document.getElementById('results-screen').style.display = 'none';
+            renderIndex();
+            renderQuestion(0);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Cuarta Semana, Hojas Germinativas y Placenta</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary); }
+
+        .btn {
+            background: var(--primary); color: white; border: none;
+            padding: 10px 20px; border-radius: 6px; cursor: pointer;
+            font-size: 1rem; margin: 5px; transition: background 0.2s;
+        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width); background: var(--card-bg);
+            border-right: 1px solid var(--border); display: flex;
+            flex-direction: column; overflow-y: auto; padding: 1rem; box-sizing: border-box;
+        }
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 8px;
+        }
+        .index-btn {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+            padding: 8px 0; text-align: center; text-decoration: none; color: var(--text);
+            font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+        }
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content {
+            flex: 1; overflow-y: auto; padding: 2rem; scroll-behavior: smooth;
+        }
+        .quiz-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
+        }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .question-header {
+            display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;
+        }
+        .question-title { font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1; }
+
+        .mark-btn {
+            background: transparent; border: 1px solid #cbd5e1; padding: 5px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 1rem;
+            transition: background 0.2s;
+        }
+        .mark-btn.active { background: #fef08a; border-color: #eab308; color: #854d0e; }
+
+        .options-list { list-style: none; padding: 0; margin: 0; }
+        .option-item { margin-bottom: 0.5rem; }
+        .option-label {
+            display: flex; align-items: center; padding: 10px 15px;
+            border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .option-label:hover { background: var(--bg); }
+        .option-label input { margin-right: 10px; }
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback {
+            margin-top: 1rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.95rem;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        #finish-btn-container { text-align: center; margin-top: 2rem; padding-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario: Embriología</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        <div id="questions-container"></div>
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        const dbQuestions = [
+            { id: 1, text: "El cambio morfológico principal de la cuarta semana, donde el embrión pasa de ser un disco plano a una estructura cilíndrica tridimensional, se denomina:", options: [ { text: "a) Gastrulación.", isCorrect: false }, { text: "b) Delimitación o plegamiento.", isCorrect: true }, { text: "c) Neurulación.", isCorrect: false }, { text: "d) Segmentación.", isCorrect: false } ], explanation: "La profesora subraya que la delimitación o plegamiento (craneocaudal y lateral) da la forma tubular y de \"C\" al embrión." },
+            { id: 2, text: "Durante el plegamiento, la cavidad amniótica crece rápidamente. ¿Qué le ocurre al saco vitelino?", options: [ { text: "a) Crece al mismo ritmo.", isCorrect: false }, { text: "b) Se convierte en el amnios.", isCorrect: false }, { text: "c) Detiene su crecimiento y es \"estrangulado\".", isCorrect: true }, { text: "d) Forma la placenta.", isCorrect: false } ], explanation: "La cavidad amniótica lo rodea y presiona, dividiéndolo en tres partes funcionales." },
+            { id: 3, text: "La porción superior del saco vitelino que queda englobada en el interior del embrión tras el plegamiento formará:", options: [ { text: "a) El corazón.", isCorrect: false }, { text: "b) El conducto onfalomesentérico.", isCorrect: false }, { text: "c) El intestino primitivo.", isCorrect: true }, { text: "d) La vejiga.", isCorrect: false } ], explanation: "El techo del saco vitelino (endodermo) se pliega hacia adentro formando el tubo digestivo primitivo." },
+            { id: 4, text: "¿Qué estructura comunica el intestino primitivo con la vesícula umbilical externa?", options: [ { text: "a) El uraco.", isCorrect: false }, { text: "b) El conducto vitelino (u onfalomesentérico).", isCorrect: true }, { text: "c) El alantoides.", isCorrect: false }, { text: "d) El neuroporo.", isCorrect: false } ], explanation: "Es la zona media y estrecha del saco vitelino estrangulado." },
+            { id: 5, text: "En el adulto, la falta de involución del conducto onfalomesentérico puede dar lugar a una anomalía muy frecuente llamada:", options: [ { text: "a) Teratoma sacrococcígeo.", isCorrect: false }, { text: "b) Hernia diafragmática.", isCorrect: false }, { text: "c) Divertículo de Meckel.", isCorrect: true }, { text: "d) Onfalocele.", isCorrect: false } ], explanation: "Mencionada como la anomalía del conducto vitelino más común (90%)." },
+            { id: 6, text: "Al producirse el plegamiento craneocaudal, ¿dónde pasa a situarse la placa cardiogénica (esbozo del corazón) que inicialmente estaba por delante de la cabeza?", options: [ { text: "a) En la espalda.", isCorrect: false }, { text: "b) Ventralmente, en la región torácica.", isCorrect: true }, { text: "c) En el cordón umbilical.", isCorrect: false }, { text: "d) En la pelvis.", isCorrect: false } ], explanation: "El tubo cardíaco rota 180º y se ubica debajo de la membrana bucofaríngea." },
+            { id: 7, text: "A partir de la cuarta semana, aparecen en la futura región del cuello y cara unas barras de tejido conocidas como:", options: [ { text: "a) Somitas cefálicos.", isCorrect: false }, { text: "b) Arcos faríngeos (o branquiales).", isCorrect: true }, { text: "c) Placodas óticas.", isCorrect: false }, { text: "d) Rayos digitales.", isCorrect: false } ], explanation: "La profesora prefiere el término \"faríngeos\" en humanos, que originarán mandíbula, huesos del oído, hioides y laringe." },
+            { id: 8, text: "El primer arco faríngeo (arco mandibular) dará lugar a:", options: [ { text: "a) La tiroides.", isCorrect: false }, { text: "b) El hueso maxilar y la mandíbula.", isCorrect: true }, { text: "c) La tráquea.", isCorrect: false }, { text: "d) Las vértebras.", isCorrect: false } ], explanation: "Forma la estructura básica de la mandíbula y zona maxilar de la cara." },
+            { id: 9, text: "¿Qué proceso celular biológico es imprescindible hacia el día 42 para que se separen los rayos digitales y se formen los dedos independientes?", options: [ { text: "a) Segmentación mitótica.", isCorrect: false }, { text: "b) Apoptosis del tejido interdigital.", isCorrect: true }, { text: "c) Necrosis isquémica.", isCorrect: false }, { text: "d) Gastrulación.", isCorrect: false } ], explanation: "La muerte celular programada (apoptosis) elimina el tejido entre los dedos." },
+            { id: 10, text: "Si la apoptosis interdigital falla o es incompleta, la malformación resultante se llama:", options: [ { text: "a) Sindactilia.", isCorrect: true }, { text: "b) Polidactilia.", isCorrect: false }, { text: "c) Focomelia.", isCorrect: false }, { text: "d) Amelia.", isCorrect: false } ], explanation: "\"Dedos pegados\". Punto clínico destacado en clase." },
+            { id: 11, text: "¿Por qué el periodo entre la cuarta y octava semana es considerado el más \"crítico\" de la gestación?", options: [ { text: "a) Porque el embrión se implanta.", isCorrect: false }, { text: "b) Porque se produce la organogénesis (esbozos de todos los órganos).", isCorrect: true }, { text: "c) Porque el feto gana el 80% de su peso.", isCorrect: false }, { text: "d) Porque se define el sexo.", isCorrect: false } ], explanation: "Cualquier agente teratógeno en este periodo provocará malformaciones congénitas mayores." },
+            { id: 12, text: "En la cuarta semana, el embrión adopta una forma característica visible externamente, similar a:", options: [ { text: "a) Una \"C\".", isCorrect: true }, { text: "b) Una \"S\".", isCorrect: false }, { text: "c) Un disco plano.", isCorrect: false }, { text: "d) Una esfera.", isCorrect: false } ], explanation: "Por el fuerte plegamiento craneocaudal." },
+            { id: 13, text: "El final del periodo embrionario y el inicio del periodo fetal ocurre en la:", options: [ { text: "a) 4ª semana.", isCorrect: false }, { text: "b) 8ª semana.", isCorrect: true }, { text: "c) 12ª semana.", isCorrect: false }, { text: "d) 20ª semana.", isCorrect: false } ], explanation: "Tras la 8ª semana ya están los esbozos; comienza el crecimiento y maduración." },
+            { id: 14, text: "¿Qué son las placodas óticas y ópticas que aparecen en la 4ª semana?", options: [ { text: "a) Esbozos del corazón.", isCorrect: false }, { text: "b) Engrosamientos ectodérmicos que formarán el oído interno y el cristalino del ojo.", isCorrect: true }, { text: "c) Restos del saco vitelino.", isCorrect: false }, { text: "d) Zonas del riñón primitivo.", isCorrect: false } ], explanation: "Aparecen en la región craneal para formar los órganos de los sentidos." },
+            { id: 15, text: "Las náuseas y vómitos matutinos de la embarazada (que pueden llegar a hiperemesis gravídica) comienzan típicamente en:", options: [ { text: "a) La 1ª semana.", isCorrect: false }, { text: "b) La 4ª semana.", isCorrect: true }, { text: "c) El 5º mes.", isCorrect: false }, { text: "d) El parto.", isCorrect: false } ], explanation: "Coinciden con la falta de regla (amenorrea) y los picos ascendentes de hCG en la 4ª semana." },
+            { id: 16, text: "[TRAMPA CLÁSICA] ¿De qué capa germinativa deriva la EPIDERMIS de la piel?", options: [ { text: "a) Endodermo.", isCorrect: false }, { text: "b) Ectodermo superficial.", isCorrect: true }, { text: "c) Mesodermo.", isCorrect: false }, { text: "d) Cresta neural.", isCorrect: false } ], explanation: "La profesora hace mucho énfasis en distinguir la epidermis (ectodermo) de la dermis." },
+            { id: 17, text: "[TRAMPA CLÁSICA] ¿De qué capa germinativa deriva la DERMIS (tejido conjuntivo de la piel)?", options: [ { text: "a) Ectodermo.", isCorrect: false }, { text: "b) Mesodermo.", isCorrect: true }, { text: "c) Endodermo.", isCorrect: false }, { text: "d) Trofoblasto.", isCorrect: false } ], explanation: "Específicamente del dermatomo (parte del somita mesodérmico)." },
+            { id: 18, text: "Todo el Sistema Nervioso (Central y Periférico) deriva de:", options: [ { text: "a) Ectodermo (neuroectodermo).", isCorrect: true }, { text: "b) Mesodermo paraxial.", isCorrect: false }, { text: "c) Endodermo.", isCorrect: false }, { text: "d) Notocorda.", isCorrect: false } ], explanation: "La placa neural y las crestas derivan del ectodermo invaginado." },
+            { id: 19, text: "Las células de la CRESTA NEURAL tienen un origen ectodérmico, pero originan estructuras muy diversas como:", options: [ { text: "a) Músculo liso y estriado.", isCorrect: false }, { text: "b) Ganglios nerviosos, médula suprarrenal y melanocitos.", isCorrect: true }, { text: "c) Hígado y páncreas.", isCorrect: false }, { text: "d) Epidermis.", isCorrect: false } ], explanation: "Especial mención en clase a los melanocitos (células pigmentarias) y a la médula suprarrenal." },
+            { id: 20, text: "Los anexos cutáneos (pelo, uñas, glándulas sudoríparas y glándula mamaria) proceden de:", options: [ { text: "a) Mesodermo.", isCorrect: false }, { text: "b) Endodermo.", isCorrect: false }, { text: "c) Invaginaciones del Ectodermo.", isCorrect: true }, { text: "d) Notocorda.", isCorrect: false } ], explanation: "Son invaginaciones de la epidermis (ectodermo) hacia la dermis." },
+            { id: 21, text: "El esmalte de los dientes se origina a partir del:", options: [ { text: "a) Mesodermo.", isCorrect: false }, { text: "b) Ectodermo.", isCorrect: true }, { text: "c) Endodermo.", isCorrect: false }, { text: "d) Saco vitelino.", isCorrect: false } ], explanation: "Es una especialización de origen ectodérmico." },
+            { id: 22, text: "Todo el sistema musculoesquelético (hueso, cartílago, músculo) deriva del:", options: [ { text: "a) Ectodermo.", isCorrect: false }, { text: "b) Endodermo.", isCorrect: false }, { text: "c) Mesodermo.", isCorrect: true }, { text: "d) Trofoblasto.", isCorrect: false } ], explanation: "Principalmente del mesodermo paraxial (somitas: esclerotomo y miotomo)." },
+            { id: 23, text: "El tejido conjuntivo (presente en todo el organismo, sangre, vasos) deriva del:", options: [ { text: "a) Mesodermo.", isCorrect: true }, { text: "b) Endodermo.", isCorrect: false }, { text: "c) Ectodermo.", isCorrect: false }, { text: "d) Amnioblastos.", isCorrect: false } ], explanation: "El mesénquima primitivo es de origen mesodérmico." },
+            { id: 24, text: "El sistema cardiovascular (corazón, vasos sanguíneos y células sanguíneas) se forma a partir del:", options: [ { text: "a) Endodermo.", isCorrect: false }, { text: "b) Mesodermo.", isCorrect: true }, { text: "c) Ectodermo.", isCorrect: false }, { text: "d) Celoma.", isCorrect: false } ], explanation: "Los islotes angiógenos nacen en el mesodermo esplácnico y extraembrionario." },
+            { id: 25, text: "El sistema urogenital (riñones, gónadas, uréteres) deriva característicamente del:", options: [ { text: "a) Mesodermo intermedio.", isCorrect: true }, { text: "b) Ectodermo.", isCorrect: false }, { text: "c) Endodermo.", isCorrect: false }, { text: "d) Somatopleura.", isCorrect: false } ], explanation: "El mesodermo intermedio forma las crestas urogenitales." },
+            { id: 26, text: "El revestimiento epitelial del tubo digestivo y del sistema respiratorio derivan del:", options: [ { text: "a) Mesodermo.", isCorrect: false }, { text: "b) Ectodermo.", isCorrect: false }, { text: "c) Endodermo.", isCorrect: true }, { text: "d) Alantoides.", isCorrect: false } ], explanation: "Al plegarse el saco vitelino (endodermo), forma el intestino primitivo y el esbozo respiratorio." },
+            { id: 27, text: "Glándulas anejas como el hígado, el páncreas, la tiroides y las paratiroides derivan del:", options: [ { text: "a) Mesodermo.", isCorrect: false }, { text: "b) Ectodermo.", isCorrect: false }, { text: "c) Endodermo.", isCorrect: true }, { text: "d) Somitas.", isCorrect: false } ], explanation: "Son evaginaciones del tubo digestivo primitivo endodérmico." },
+            { id: 28, text: "Las membranas serosas que envuelven los órganos (pleura, pericardio, peritoneo) derivan de:", options: [ { text: "a) Hojas del mesodermo lateral.", isCorrect: true }, { text: "b) Ectodermo superficial.", isCorrect: false }, { text: "c) Endodermo.", isCorrect: false }, { text: "d) Corion.", isCorrect: false } ], explanation: "Formadas por la somatopleura y esplacnopleura mesodérmica." },
+            { id: 29, text: "¿Cuál de los siguientes órganos linfáticos abdominales deriva del MESODERMO y no del endodermo digestivo?", options: [ { text: "a) Hígado.", isCorrect: false }, { text: "b) Páncreas.", isCorrect: false }, { text: "c) Bazo.", isCorrect: true }, { text: "d) Vesícula biliar.", isCorrect: false } ], explanation: "Es un órgano hematopoyético/linfoide, por tanto, origen mesodérmico." },
+            { id: 30, text: "El epitelio que reviste la vejiga urinaria deriva embriológicamente de:", options: [ { text: "a) Mesodermo.", isCorrect: false }, { text: "b) Endodermo (del alantoides/cloaca).", isCorrect: true }, { text: "c) Ectodermo.", isCorrect: false }, { text: "d) Cresta neural.", isCorrect: false } ], explanation: "Aunque el riñón es mesodérmico, la vejiga (cloaca) es endodérmica." },
+            { id: 31, text: "El líquido amniótico en fases avanzadas del embarazo está formado mayoritariamente por:", options: [ { text: "a) Sangre materna filtrada.", isCorrect: false }, { text: "b) Sudor fetal.", isCorrect: false }, { text: "c) Orina fetal.", isCorrect: true }, { text: "d) Secreción de las trompas.", isCorrect: false } ], explanation: "Una vez funcionan los riñones, el feto orina y deglute el líquido en un ciclo constante." },
+            { id: 32, text: "¿Cuál de las siguientes NO es función del líquido amniótico?", options: [ { text: "a) Protección mecánica.", isCorrect: false }, { text: "b) Intercambio de gases respiratorios en lugar de la placenta.", isCorrect: true }, { text: "c) Evitar adherencias.", isCorrect: false }, { text: "d) Mantener la temperatura.", isCorrect: false } ], explanation: "La oxigenación se hace por la placenta, no por el líquido." },
+            { id: 33, text: "El volumen normal de líquido amniótico a término (37 semanas) ronda los:", options: [ { text: "a) 50 ml.", isCorrect: false }, { text: "b) 200 ml.", isCorrect: false }, { text: "c) 700-1000 ml.", isCorrect: true }, { text: "d) 3 litros.", isCorrect: false } ], explanation: "Dato cuantitativo mencionado por la profesora." },
+            { id: 34, text: "El exceso de líquido amniótico se denomina:", options: [ { text: "a) Polihidramnios.", isCorrect: true }, { text: "b) Oligohidramnios.", isCorrect: false }, { text: "c) Anhidramnios.", isCorrect: false }, { text: "d) Hidropesía.", isCorrect: false } ], explanation: "Definición clínica directa." },
+            { id: 35, text: "Una malformación fetal típicamente asociada al POLIHIDRAMNIOS es:", options: [ { text: "a) Agenesia renal.", isCorrect: false }, { text: "b) Atresia esofágica o anencefalia.", isCorrect: true }, { text: "c) Rotura de bolsa.", isCorrect: false }, { text: "d) Criptorquidia.", isCorrect: false } ], explanation: "Si el feto no puede tragar (atresia) o falla el control neural, el líquido se acumula." },
+            { id: 36, text: "La escasez patológica de líquido amniótico se denomina:", options: [ { text: "a) Polihidramnios.", isCorrect: false }, { text: "b) Oligohidramnios.", isCorrect: true }, { text: "c) Corion liso.", isCorrect: false }, { text: "d) Placenta previa.", isCorrect: false } ], explanation: "Definición clínica directa." },
+            { id: 37, text: "Una malformación fetal típicamente asociada al OLIGOHIDRAMNIOS es:", options: [ { text: "a) Agenesia renal.", isCorrect: true }, { text: "b) Atresia esofágica.", isCorrect: false }, { text: "c) Labio leporino.", isCorrect: false }, { text: "d) Teratoma.", isCorrect: false } ], explanation: "Si el feto no tiene riñones, no produce orina, faltando la principal fuente de líquido." },
+            { id: 38, text: "La técnica para extraer líquido amniótico y detectar defectos cromosómicos (a partir de la semana 14) es la:", options: [ { text: "a) Biopsia corial.", isCorrect: false }, { text: "b) Amniocentesis.", isCorrect: true }, { text: "c) Foliculocentesis.", isCorrect: false }, { text: "d) Doppler.", isCorrect: false } ], explanation: "Procedimiento estándar explicado en clase." },
+            { id: 39, text: "Si se detectan niveles elevados de Alfa-fetoproteína en el líquido amniótico, se sospecha de:", options: [ { text: "a) Gemelos dicigóticos.", isCorrect: false }, { text: "b) Defectos del cierre del tubo neural (ej. espina bífida).", isCorrect: true }, { text: "c) Síndrome de Down.", isCorrect: false }, { text: "d) Listeriosis.", isCorrect: false } ], explanation: "Marcador clave mencionado para anencefalia/espina bífida." },
+            { id: 40, text: "[TRAMPA DE EXAMEN] ¿Qué vasos sanguíneos componen un cordón umbilical normal?", options: [ { text: "a) 2 venas y 1 arteria.", isCorrect: false }, { text: "b) 1 vena y 1 arteria.", isCorrect: false }, { text: "c) 2 arterias y 1 vena.", isCorrect: true }, { text: "d) 2 venas y 2 arterias.", isCorrect: false } ], explanation: "Pregunta clásica de examen; \"la cara de Mickey Mouse\"." },
+            { id: 41, text: "En el cordón umbilical, ¿qué vaso transporta la sangre RICA en oxígeno (desde la placenta al feto)?", options: [ { text: "a) Las arterias umbilicales.", isCorrect: false }, { text: "b) La vena umbilical.", isCorrect: true }, { text: "c) La vena cardinal.", isCorrect: false }, { text: "d) Las arterias vitelinas.", isCorrect: false } ], explanation: "Paradigma fetal: la vena lleva sangre oxigenada (hacia el corazón fetal)." },
+            { id: 42, text: "En el cordón umbilical, ¿qué vasos transportan la sangre POBRE en oxígeno y con desechos (del feto a la placenta)?", options: [ { text: "a) La vena umbilical.", isCorrect: false }, { text: "b) Las arterias umbilicales.", isCorrect: true }, { text: "c) La arteria aorta.", isCorrect: false }, { text: "d) El uraco.", isCorrect: false } ], explanation: "Salen del feto (arterias ilíacas) hacia la madre." },
+            { id: 43, text: "El tejido conjuntivo mucoso especial que envuelve los vasos del cordón umbilical se denomina:", options: [ { text: "a) Citotrofoblasto.", isCorrect: false }, { text: "b) Gelatina de Wharton.", isCorrect: true }, { text: "c) Líquido amniótico.", isCorrect: false }, { text: "d) Endometrio.", isCorrect: false } ], explanation: "Protege a los vasos de compresiones gracias a su riqueza en agua y ácido hialurónico." },
+            { id: 44, text: "El epitelio de revestimiento externo del cordón umbilical es prolongación del:", options: [ { text: "a) Amnios.", isCorrect: true }, { text: "b) Corion.", isCorrect: false }, { text: "c) Sincitiotrofoblasto.", isCorrect: false }, { text: "d) Decidua.", isCorrect: false } ], explanation: "El cordón queda envuelto en la membrana amniótica." },
+            { id: 45, text: "El ligamento umbilical medio (o uraco) en el adulto es el vestigio obliterado de una estructura embrionaria llamada:", options: [ { text: "a) Conducto vitelino.", isCorrect: false }, { text: "b) Alantoides.", isCorrect: true }, { text: "c) Notocorda.", isCorrect: false }, { text: "d) Somita.", isCorrect: false } ], explanation: "El alantoides conectaba la vejiga embrionaria con el ombligo." },
+            { id: 46, text: "La placenta humana se define histológicamente como HEMOCORIAL porque:", options: [ { text: "a) Los hematíes maternos y fetales se mezclan libremente.", isCorrect: false }, { text: "b) El sincitiotrofoblasto corial está bañado directamente por la sangre materna en la cámara intervellosa.", isCorrect: true }, { text: "c) Solo filtra sangre.", isCorrect: false }, { text: "d) No tiene vasos sanguíneos.", isCorrect: false } ], explanation: "\"Hemo\" (sangre materna) toca el \"Corion\" (sincitiotrofoblasto)." },
+            { id: 47, text: "Se dice que la placenta humana es DISCOIDEA porque:", options: [ { text: "a) Envuelve a todo el feto como una esfera.", isCorrect: false }, { text: "b) Tiene forma de torta o disco localizado en un área uterina.", isCorrect: true }, { text: "c) Gira durante el parto.", isCorrect: false }, { text: "d) Tiene anillos.", isCorrect: false } ], explanation: "Morfología macroscópica delimitada a una zona circular (15-20 cm)." },
+            { id: 48, text: "En la cara materna de la placenta se observan unos relieves separados por tabiques incompletos, lo que le da el nombre de:", options: [ { text: "a) Zonaria.", isCorrect: false }, { text: "b) Difusa.", isCorrect: false }, { text: "c) Pseudocotiledónea (cotiledones).", isCorrect: true }, { text: "d) Endotelial.", isCorrect: false } ], explanation: "Los cotiledones son las agrupaciones de vellosidades." },
+            { id: 49, text: "El espacio donde flotan las vellosidades placentarias y fluye la sangre materna se llama:", options: [ { text: "a) Cavidad amniótica.", isCorrect: false }, { text: "b) Cámara o espacio intervelloso.", isCorrect: true }, { text: "c) Celoma extraembrionario.", isCorrect: false }, { text: "d) Saco vitelino.", isCorrect: false } ], explanation: "Creado por las lagunas del sincitiotrofoblasto en la 2ª semana." },
+            { id: 50, text: "Una vellosidad placentaria PRIMARIA (2ª semana) está formada exclusivamente por:", options: [ { text: "a) Mesénquima y capilares.", isCorrect: false }, { text: "b) Citotrofoblasto en el eje y sincitiotrofoblasto por fuera.", isCorrect: true }, { text: "c) Endodermo y mesodermo.", isCorrect: false }, { text: "d) Vasos maternos y fetales.", isCorrect: false } ], explanation: "Primer estadio de penetración trofoblástica." },
+            { id: 51, text: "Una vellosidad placentaria SECUNDARIA se define por la aparición en su eje central de:", options: [ { text: "a) Vasos sanguíneos fetales.", isCorrect: false }, { text: "b) Mesénquima extraembrionario.", isCorrect: true }, { text: "c) Líquido amniótico.", isCorrect: false }, { text: "d) Sangre materna.", isCorrect: false } ], explanation: "El mesodermo invade el centro del citotrofoblasto." },
+            { id: 52, text: "Una vellosidad placentaria TERCIARIA (3ª semana) se caracteriza porque en su mesénquima aparecen:", options: [ { text: "a) Capilares y vasos sanguíneos embrionarios.", isCorrect: true }, { text: "b) Neuronas.", isCorrect: false }, { text: "c) Glándulas sudoríparas.", isCorrect: false }, { text: "d) Tabiques deciduales.", isCorrect: false } ], explanation: "Inicio de la circulación embrionaria para el intercambio gaseoso." },
+            { id: 53, text: "A medida que avanza la gestación, para mejorar la velocidad del intercambio, la barrera placentaria se adelgaza desapareciendo progresivamente la capa de:", options: [ { text: "a) Sincitiotrofoblasto.", isCorrect: false }, { text: "b) Mesénquima.", isCorrect: false }, { text: "c) Citotrofoblasto.", isCorrect: true }, { text: "d) Endotelio capilar.", isCorrect: false } ], explanation: "Los vasos se pegan casi al sincitio para disminuir la distancia de difusión." },
+            { id: 54, text: "¿Qué células de función macrofágica y defensa residen en el estroma de la vellosidad placentaria terciaria?", options: [ { text: "a) Células de Leydig.", isCorrect: false }, { text: "b) Células de Hofbauer.", isCorrect: true }, { text: "c) Células de Kupffer.", isCorrect: false }, { text: "d) Osteoclastos.", isCorrect: false } ], explanation: "Macrófagos fetales que limpian y defienden la vellosidad." },
+            { id: 55, text: "La capa más superficial de la mucosa uterina (endometrio) alterada por el embarazo que se desprende en el parto se denomina:", options: [ { text: "a) Miometrio.", isCorrect: false }, { text: "b) Decidua.", isCorrect: true }, { text: "c) Perimetrio.", isCorrect: false }, { text: "d) Corion.", isCorrect: false } ], explanation: "De ahí que la placenta humana se denomine \"decidual\"." },
+            { id: 56, text: "La porción de decidua situada JUSTO DEBAJO de la implantación embrionaria, que formará la placa materna de la placenta, se llama:", options: [ { text: "a) Decidua capsular.", isCorrect: false }, { text: "b) Decidua parietal.", isCorrect: false }, { text: "c) Decidua basal.", isCorrect: true }, { text: "d) Decidua refleja.", isCorrect: false } ], explanation: "Es la base de sustentación de la placenta." },
+            { id: 57, text: "La capa de decidua que envuelve al embrión por encima, separándolo de la luz uterina, se denomina:", options: [ { text: "a) Decidua basal.", isCorrect: false }, { text: "b) Decidua capsular o refleja.", isCorrect: true }, { text: "c) Decidua parietal.", isCorrect: false }, { text: "d) Amnios.", isCorrect: false } ], explanation: "Forma una cápsula sobre el blastocisto implantado." },
+            { id: 58, text: "Las vellosidades coriónicas que crecen hacia la decidua basal proliferan intensamente formando la placenta definitiva. A esta zona se le llama:", options: [ { text: "a) Corion liso (laeve).", isCorrect: false }, { text: "b) Corion velloso (frondoso).", isCorrect: true }, { text: "c) Membrana de Heuser.", isCorrect: false }, { text: "d) Alantoides.", isCorrect: false } ], explanation: "Es el corion que se ramifica (\"frondoso\")." },
+            { id: 59, text: "Las vellosidades que apuntaban hacia la decidua capsular degeneran y dejan una superficie plana llamada:", options: [ { text: "a) Corion velloso.", isCorrect: false }, { text: "b) Corion liso (laeve).", isCorrect: true }, { text: "c) Placa coriónica.", isCorrect: false }, { text: "d) Cotiledón.", isCorrect: false } ], explanation: "Al no tener flujo materno suficiente, desaparecen." },
+            { id: 60, text: "La \"Placa Coriónica\" corresponde a:", options: [ { text: "a) La cara materna de la placenta.", isCorrect: false }, { text: "b) La cara fetal de la placenta, de la que surgen las vellosidades y se une el cordón.", isCorrect: true }, { text: "c) El miometrio.", isCorrect: false }, { text: "d) El tapón mucoso.", isCorrect: false } ], explanation: "Revestida de amnios, es la superficie que vemos brillante en el lado del bebé." },
+            { id: 61, text: "Cuando el embrión y el amnios crecen, la membrana amniocoriónica empuja a la decidua capsular hasta fusionarse con la pared uterina opuesta, llamada:", options: [ { text: "a) Decidua basal.", isCorrect: false }, { text: "b) Decidua parietal.", isCorrect: true }, { text: "c) Cuello uterino.", isCorrect: false }, { text: "d) Trompas.", isCorrect: false } ], explanation: "Esto oblitera (borra) la luz de la cavidad uterina por completo." },
+            { id: 62, text: "¿Qué estructura rompe aguas en el parto?", options: [ { text: "a) El saco vitelino.", isCorrect: false }, { text: "b) La membrana amniocoriónica.", isCorrect: true }, { text: "c) El tapón mucoso.", isCorrect: false }, { text: "d) La decidua basal.", isCorrect: false } ], explanation: "Es la bolsa definitiva formada por la fusión de amnios y corion liso." },
+            { id: 63, text: "Tras la salida del niño (parto), el periodo clínico en el que se expulsa la placenta y membranas se denomina:", options: [ { text: "a) Dilatación.", isCorrect: false }, { text: "b) Puerperio.", isCorrect: false }, { text: "c) Alumbramiento.", isCorrect: true }, { text: "d) Coronación.", isCorrect: false } ], explanation: "La profesora aclaró que en salud, \"alumbramiento\" NO es nacer el niño, sino expulsar la placenta." },
+            { id: 64, text: "¿Por qué el médico revisa meticulosamente la cara materna de la placenta tras el alumbramiento?", options: [ { text: "a) Para medir el cordón.", isCorrect: false }, { text: "b) Para asegurar que no falte ningún cotiledón y evitar hemorragias/infecciones uterinas.", isCorrect: true }, { text: "c) Para cortar el uraco.", isCorrect: false }, { text: "d) Para sacar sangre fetal.", isCorrect: false } ], explanation: "Restos de placenta retenidos son muy peligrosos para la madre." },
+            { id: 65, text: "Las arterias que inyectan sangre oxigenada materna en la cámara intervellosa se denominan:", options: [ { text: "a) Arterias umbilicales.", isCorrect: false }, { text: "b) Arterias vitelinas.", isCorrect: false }, { text: "c) Arterias espirales (o endometriales).", isCorrect: true }, { text: "d) Arterias pulmonares.", isCorrect: false } ], explanation: "Provienen de la decidua basal materna." },
+            { id: 66, text: "La placenta humana funciona como un FILTRO, no como una barrera absoluta. ¿Cuáles de los siguientes microorganismos SÍ pueden cruzarla y causar malformaciones?", options: [ { text: "a) Solo bacterias gigantes.", isCorrect: false }, { text: "b) Ninguno.", isCorrect: false }, { text: "c) Virus de la Rubeola, VIH, y bacterias como Treponema (sífilis) o Listeria.", isCorrect: true }, { text: "d) Solo hongos.", isCorrect: false } ], explanation: "Mención expresa al brote de carne mechada con listeria que causó abortos." },
+            { id: 67, text: "¿Qué hormona placentaria segregada por el sincitiotrofoblasto es vital para evitar la degeneración del cuerpo lúteo al inicio del embarazo?", options: [ { text: "a) Oxitocina.", isCorrect: false }, { text: "b) Gonadotropina Coriónica (hCG).", isCorrect: true }, { text: "c) Relaxina.", isCorrect: false }, { text: "d) Cortisol.", isCorrect: false } ], explanation: "Es la que detectan los test de orina." },
+            { id: 68, text: "¿Qué hormona placentaria altera el metabolismo materno para asegurar glucosa al feto y prepara las glándulas mamarias?", options: [ { text: "a) Lactógeno placentario (Somatotropina coriónica).", isCorrect: true }, { text: "b) Insulina.", isCorrect: false }, { text: "c) Vasopresina.", isCorrect: false }, { text: "d) Glucagón.", isCorrect: false } ], explanation: "Actúa como una hormona del crecimiento fetal y materna." },
+            { id: 69, text: "La anomalía en la que la placenta se implanta en la parte inferior del útero y cubre total o parcialmente el orificio del cuello uterino se llama:", options: [ { text: "a) Abruptio placentae.", isCorrect: false }, { text: "b) Placenta previa.", isCorrect: true }, { text: "c) Mola hidatidiforme.", isCorrect: false }, { text: "d) Placenta accreta.", isCorrect: false } ], explanation: "Impide el parto natural y causa sangrados (indicación de cesárea)." },
+            { id: 70, text: "Si las vellosidades de la placenta invaden de forma anormalmente profunda la pared uterina llegando al miometrio (músculo), estamos ante una:", options: [ { text: "a) Placenta previa.", isCorrect: false }, { text: "b) Placenta accreta/increta/percreta.", isCorrect: true }, { text: "c) Corioamnionitis.", isCorrect: false }, { text: "d) Preclampsia.", isCorrect: false } ], explanation: "Dificulta enormemente el desprendimiento en el alumbramiento." },
+            { id: 71, text: "La enfermedad trofoblástica donde se forma una masa de quistes como un \"racimo de uvas\", con hCG altísima y sin embrión viable, se llama:", options: [ { text: "a) Teratoma sacrococcígeo.", isCorrect: false }, { text: "b) Gemelo parásito.", isCorrect: false }, { text: "c) Mola hidatidiforme (embarazo molar).", isCorrect: true }, { text: "d) Deciduitis.", isCorrect: false } ], explanation: "Suele originarse por fecundación anómala (ej. óvulo sin núcleo fecundado)." },
+            { id: 72, text: "El tumor maligno invasivo que puede derivar de una degeneración trofoblástica molar se denomina:", options: [ { text: "a) Melanoma.", isCorrect: false }, { text: "b) Adenocarcinoma.", isCorrect: false }, { text: "c) Coriocarcinoma.", isCorrect: true }, { text: "d) Osteosarcoma.", isCorrect: false } ], explanation: "Es el cáncer derivado de las células coriónicas/trofoblásticas." },
+            { id: 73, text: "En humanos, los embarazos gemelares más frecuentes (2/3 de los casos) provienen de la fecundación de dos ovocitos distintos por dos espermatozoides. Son los:", options: [ { text: "a) Gemelos monocigóticos.", isCorrect: false }, { text: "b) Siameses.", isCorrect: false }, { text: "c) Gemelos dicigóticos (fraternos/mellizos).", isCorrect: true }, { text: "d) Quimeras.", isCorrect: false } ], explanation: "Genéticamente son como dos hermanos distintos nacidos a la vez." },
+            { id: 74, text: "En cuanto a sus membranas, los gemelos DICIGÓTICOS presentan SIEMPRE:", options: [ { text: "a) Un corion y dos amnios.", isCorrect: false }, { text: "b) Dos coriones, dos amnios y dos placentas (Dicoriónicos y Diamnióticos).", isCorrect: true }, { text: "c) Un corion, un amnios y una placenta.", isCorrect: false }, { text: "d) Placentas conectadas vascularmente.", isCorrect: false } ], explanation: "Aunque las placentas se fusionen físicamente si implantan cerca, funcionalmente son dos." },
+            { id: 75, text: "Los gemelos resultantes de la fecundación de un ÚNICO ovocito por un ÚNICO espermatozoide (clones genéticos) se llaman:", options: [ { text: "a) Dicigóticos.", isCorrect: false }, { text: "b) Bivitelinos.", isCorrect: false }, { text: "c) Monocigóticos (idénticos).", isCorrect: true }, { text: "d) Supergemelos.", isCorrect: false } ], explanation: "Su configuración de membranas dependerá de cuándo se divida el cigoto." },
+            { id: 76, text: "Si un embrión monocigótico se divide en la fase MUY TEMPRANA (segmentación, 2 células a mórula), los gemelos serán:", options: [ { text: "a) Monocoriónicos y diamnióticos.", isCorrect: false }, { text: "b) Dicoriónicos y diamnióticos (como los dicigóticos).", isCorrect: true }, { text: "c) Monocoriónicos y monoamnióticos.", isCorrect: false }, { text: "d) Siameses.", isCorrect: false } ], explanation: "Al dividirse tan pronto, cada uno desarrolla todo su saco y placenta independientemente." },
+            { id: 77, text: "El tipo de gemelo monocigótico MÁS FRECUENTE (65%) se divide en fase de blastocisto (separación de la masa celular interna). Su placenta y membranas serán:", options: [ { text: "a) Dicoriónico, diamniótico.", isCorrect: false }, { text: "b) Monocoriónico (1 placenta, 1 corion) y Diamniótico (2 bolsas amnióticas).", isCorrect: true }, { text: "c) Monocoriónico, Monoamniótico.", isCorrect: false }, { text: "d) Fusionados.", isCorrect: false } ], explanation: "El trofoblasto (corion) ya estaba formado, por eso lo comparten, pero el amnios se forma después individualmente." },
+            { id: 78, text: "En los gemelos monocoriónicos diamnióticos, si existen conexiones arterio-venosas directas en su placenta compartida, puede ocurrir una patología grave donde uno se queda sin sangre y el otro la recibe toda. Es el:", options: [ { text: "a) Teratoma múltiple.", isCorrect: false }, { text: "b) Síndrome de transfusión feto-fetal.", isCorrect: true }, { text: "c) Mola parcial.", isCorrect: false }, { text: "d) Gemelo parasitario.", isCorrect: false } ], explanation: "Riesgo derivado de compartir red vascular placentaria." },
+            { id: 79, text: "Si el disco embrionario monocigótico se divide de forma TARDÍA (fase de disco bilaminar), los gemelos compartirán TODO. Serán:", options: [ { text: "a) Monocoriónicos y diamnióticos.", isCorrect: false }, { text: "b) Dicoriónicos y monoamnióticos.", isCorrect: false }, { text: "c) Monocoriónicos y Monoamnióticos.", isCorrect: true }, { text: "d) Dicigóticos tardíos.", isCorrect: false } ], explanation: "Comparten placenta, corion y flotan en la misma bolsa amniótica. Es muy raro." },
+            { id: 80, text: "El principal peligro mortal in útero para los gemelos MONOAMNIÓTICOS es:", options: [ { text: "a) El rechazo de la madre.", isCorrect: false }, { text: "b) Que se enreden y anuden sus cordones umbilicales.", isCorrect: true }, { text: "c) Falta total de líquido amniótico.", isCorrect: false }, { text: "d) Malformaciones cardíacas.", isCorrect: false } ], explanation: "Al estar en la misma bolsa, los movimientos pueden cortar el flujo sanguíneo por nudos." },
+            { id: 81, text: "Si el disco embrionario intenta dividirse muy tardíamente (3ª semana) y de forma incompleta, el resultado será:", options: [ { text: "a) Gemelos dicigóticos puros.", isCorrect: false }, { text: "b) Teratomas gigantes.", isCorrect: false }, { text: "c) Gemelos unidos (Siameses).", isCorrect: true }, { text: "d) Aborto inevitable del 100%.", isCorrect: false } ], explanation: "Compartirán partes de su anatomía." },
+            { id: 82, text: "El término \"Siameses\" proviene históricamente de:", options: [ { text: "a) Una anomalía de los gatos de Siam.", isCorrect: false }, { text: "b) Unos famosos gemelos unidos de Siam (Tailandia) que trabajaron en el circo.", isCorrect: true }, { text: "c) Una tribu africana.", isCorrect: false }, { text: "d) Un médico francés llamado Siam.", isCorrect: false } ], explanation: "Anécdota histórica contada por la profesora en clase." },
+            { id: 83, text: "Los gemelos unidos por la zona ventral superior (tórax/pecho), que son los más frecuentes, se denominan:", options: [ { text: "a) Pigópagos.", isCorrect: false }, { text: "b) Craneópagos.", isCorrect: false }, { text: "c) Toracópagos.", isCorrect: true }, { text: "d) Isquiópagos.", isCorrect: false } ], explanation: "Clasificación según la zona anatómica de unión." },
+            { id: 84, text: "Los gemelos unidos por el abdomen o zona del ombligo se denominan:", options: [ { text: "a) Toracópagos.", isCorrect: false }, { text: "b) Onfalópagos.", isCorrect: true }, { text: "c) Raquípagos.", isCorrect: false }, { text: "d) Craneópagos.", isCorrect: false } ], explanation: "\"Ónfalo\" significa ombligo (como en onfalomesentérico)." },
+            { id: 85, text: "Los gemelos unidos por la base de la columna vertebral y los glúteos (espalda con espalda inferior) son:", options: [ { text: "a) Pigópagos.", isCorrect: true }, { text: "b) Craneópagos.", isCorrect: false }, { text: "c) Toracópagos.", isCorrect: false }, { text: "d) Isquiópagos.", isCorrect: false } ], explanation: "Clasificación anatómica." },
+            { id: 86, text: "¿En qué zona anatómica de la mujer suele ocurrir normalmente la fecundación?", options: [ { text: "a) En el ovario.", isCorrect: false }, { text: "b) En el tercio externo de la trompa uterina (ampolla).", isCorrect: true }, { text: "c) En la cavidad uterina (fondo).", isCorrect: false }, { text: "d) En el cérvix.", isCorrect: false } ], explanation: "Concepto fundamental de las primeras semanas." },
+            { id: 87, text: "¿Cómo se llama el proceso por el que el espermatozoide pierde su cubierta de glucoproteínas en el tracto femenino para poder fecundar?", options: [ { text: "a) Reacción acrosómica.", isCorrect: false }, { text: "b) Capacitación.", isCorrect: true }, { text: "c) Segmentación.", isCorrect: false }, { text: "d) Focomelia.", isCorrect: false } ], explanation: "Sin esto, es imposible atravesar la corona radiada y la zona pelúcida." },
+            { id: 88, text: "En la Fecundación in Vitro, si se usa una micropipeta para introducir un único espermatozoide directamente dentro del óvulo, la técnica se llama:", options: [ { text: "a) Inseminación artificial.", isCorrect: false }, { text: "b) ICSI (Inyección Intracitoplasmática de Espermatozoides).", isCorrect: true }, { text: "c) Teratología.", isCorrect: false }, { text: "d) Biopsia corial.", isCorrect: false } ], explanation: "Elude la necesidad de capacitación o movilidad espermática." },
+            { id: 89, text: "El desfase entre la edad gestacional (clínica, desde última regla) y la embrionaria real (desde fecundación) es de:", options: [ { text: "a) No hay desfase.", isCorrect: false }, { text: "b) 1 semana.", isCorrect: false }, { text: "c) 2 semanas.", isCorrect: true }, { text: "d) 1 mes.", isCorrect: false } ], explanation: "La ovulación/fecundación se asume en el día 14 del ciclo." },
+            { id: 90, text: "La eclosión del blastocisto es necesaria para:", options: [ { text: "a) Iniciar la meiosis II.", isCorrect: false }, { text: "b) Determinar el sexo del feto.", isCorrect: false }, { text: "c) Contactar con el endometrio y permitir la implantación y crecimiento.", isCorrect: true }, { text: "d) Formar el tubo neural.", isCorrect: false } ], explanation: "Mientras tenga zona pelúcida, el embrión no crece ni puede adherirse." },
+            { id: 91, text: "¿Qué es la \"Reacción Decidual\"?", options: [ { text: "a) El rechazo del embrión.", isCorrect: false }, { text: "b) La acumulación de glucógeno y lípidos en las células del estroma endometrial materno y cambios inmunológicos para nutrir y no rechazar al blastocisto.", isCorrect: true }, { text: "c) La muerte del sincitiotrofoblasto.", isCorrect: false }, { text: "d) El inicio de las contracciones de parto.", isCorrect: false } ], explanation: "Es la preparación máxima del útero frente a la implantación." },
+            { id: 92, text: "Los somitas embrionarios proceden anatómicamente del:", options: [ { text: "a) Ectodermo.", isCorrect: false }, { text: "b) Mesodermo intermedio.", isCorrect: false }, { text: "c) Mesodermo paraxial.", isCorrect: true }, { text: "d) Mesodermo esplácnico.", isCorrect: false } ], explanation: "Son las condensaciones segmentadas que hacen relieve a los lados de la notocorda." },
+            { id: 93, text: "Una mórula de 16 células (día 3-4) tiene un volumen:", options: [ { text: "a) Doble que el cigoto.", isCorrect: false }, { text: "b) Mitad que el cigoto.", isCorrect: false }, { text: "c) Idéntico al cigoto original, delimitado por la zona pelúcida.", isCorrect: true }, { text: "d) Gigantesco por absorción de agua.", isCorrect: false } ], explanation: "Las divisiones de segmentación son sin crecimiento (falta G1 y G2)." },
+            { id: 94, text: "La estructura mesenquimatosa que conecta permanentemente el embrión con la pared del corion y luego se vuelve el cordón umbilical es el:", options: [ { text: "a) Tallo celómico.", isCorrect: false }, { text: "b) Pedículo de fijación.", isCorrect: true }, { text: "c) Ligamento venoso.", isCorrect: false }, { text: "d) Uraco.", isCorrect: false } ], explanation: "Única zona no separada por el celoma extraembrionario en la 2ª semana." },
+            { id: 95, text: "El tapón de fibrina, visible en la segunda semana, sirve para:", options: [ { text: "a) Frenar la hemorragia de un cotiledón.", isCorrect: false }, { text: "b) Cerrar la pequeña herida/brecha del epitelio endometrial por donde entró el blastocisto.", isCorrect: true }, { text: "c) Obstruir el cérvix uterino contra bacterias.", isCorrect: false }, { text: "d) Ocluir el neuroporo caudal.", isCorrect: false } ], explanation: "Cicatriza el punto de entrada de la implantación." },
+            { id: 96, text: "La Notocorda se sitúa en el disco trilaminar en posición:", options: [ { text: "a) Lateral izquierda.", isCorrect: false }, { text: "b) Caudal.", isCorrect: false }, { text: "c) Axial / Central.", isCorrect: true }, { text: "d) Dorsal al tubo neural.", isCorrect: false } ], explanation: "Es el eje biológico y estructural del embrión." },
+            { id: 97, text: "La malformación por falta de cierre de la pared abdominal, dejando asas intestinales expuestas o envueltas en amnios (asociado a problemas de cierre en la 4ª semana) se relaciona con (implícito en fallos de pared):", options: [ { text: "a) Onfalocele.", isCorrect: true }, { text: "b) Espina bífida.", isCorrect: false }, { text: "c) Labio leporino.", isCorrect: false }, { text: "d) Focomelia.", isCorrect: false } ], explanation: "Fallo del retorno intestinal en el ombligo." },
+            { id: 98, text: "En la Fecundación, el mecanismo biológico que impide que entren múltiples espermatozoides a la vez (poliespermia) es:", options: [ { text: "a) Reacción acrosómica.", isCorrect: false }, { text: "b) Reacción cortical o de zona.", isCorrect: true }, { text: "c) Cierre de las trompas.", isCorrect: false }, { text: "d) Secreción de progesterona.", isCorrect: false } ], explanation: "Modifica la glucoproteína ZP3 para bloquear otros espermatozoides." },
+            { id: 99, text: "Fármaco recetado a embarazadas en los 60s para náuseas, famoso por causar teratogenia severa (focomelia o falta de miembros):", options: [ { text: "a) Ácido fólico.", isCorrect: false }, { text: "b) Aspirina.", isCorrect: false }, { text: "c) Talidomida.", isCorrect: true }, { text: "d) Penicilina.", isCorrect: false } ], explanation: "Caso histórico clave mencionado en la primera clase de teratología." },
+            { id: 100, text: "Regla de puntuación de la asignatura: Si marco al azar y tengo 9 aciertos y 9 errores (total 18 preguntas contestadas), mi nota final neta en esas preguntas será:", options: [ { text: "a) 9 puntos.", isCorrect: false }, { text: "b) 6 puntos netos (me restan 3).", isCorrect: true }, { text: "c) 0 puntos.", isCorrect: false }, { text: "d) 4.5 puntos.", isCorrect: false } ], explanation: "Cada 3 errores restan 1 acierto. (9 aciertos - (9/3) = 6)." },
+            { id: 101, text: "¿Qué tejido embrionario tiene una altísima capacidad para invadir, digerir paredes de vasos maternos y soportar el rechazo inmune?", options: [ { text: "a) El epiblasto.", isCorrect: false }, { text: "b) El citotrofoblasto celular.", isCorrect: false }, { text: "c) El sincitiotrofoblasto multinucleado.", isCorrect: true }, { text: "d) El miotomo.", isCorrect: false } ], explanation: "Es la capa de vanguardia destructiva y hormonal." },
+            { id: 102, text: "El embrión \"resucita\" o salva al cuerpo lúteo materno impidiendo la menstruación gracias a la secreción de:", options: [ { text: "a) LH.", isCorrect: false }, { text: "b) Estrógeno puro.", isCorrect: false }, { text: "c) hCG (Gonadotropina Coriónica Humana).", isCorrect: true }, { text: "d) Prolactina.", isCorrect: false } ], explanation: "Mantiene el cuerpo lúteo del embarazo." },
+            { id: 103, text: "[TRAMPA] El cristalino del ojo y la placoda ótica derivan de la hoja:", options: [ { text: "a) Mesodérmica.", isCorrect: false }, { text: "b) Endodérmica.", isCorrect: false }, { text: "c) Ectodérmica.", isCorrect: true }, { text: "d) Notocordal.", isCorrect: false } ], explanation: "Órganos de los sentidos, de origen ectodérmico." },
+            { id: 104, text: "El corazón embrionario empieza a latir y bombear sangre a través de las vellosidades de la placenta hacia:", options: [ { text: "a) El día 5.", isCorrect: false }, { text: "b) La 1ª semana.", isCorrect: false }, { text: "c) El final de la 3ª semana / inicio de la 4ª.", isCorrect: true }, { text: "d) El 3er mes.", isCorrect: false } ], explanation: "Con la aparición de capilares en la vellosidad terciaria." },
+            { id: 105, text: "El intestino primitivo termina caudalmente en una membrana ciega (sin mesodermo) llamada:", options: [ { text: "a) Membrana cloacal.", isCorrect: true }, { text: "b) Membrana bucofaríngea.", isCorrect: false }, { text: "c) Nódulo de Hensen.", isCorrect: false }, { text: "d) Surco neural.", isCorrect: false } ], explanation: "Futuro ano/aparato urogenital inferior." },
+            { id: 106, text: "La \"línea primitiva\" que inicia la gastrulación se ubica espacialmente en el disco epiblástico en la región:", options: [ { text: "a) Caudal.", isCorrect: true }, { text: "b) Craneal.", isCorrect: false }, { text: "c) Lateral.", isCorrect: false }, { text: "d) Central absoluta.", isCorrect: false } ], explanation: "Marca el eje de la cola y avanza hacia craneal terminando en el nódulo." },
+            { id: 107, text: "Las \"células germinales primordiales\" o gonocitos, precursores de espermatozoides y óvulos, aparecen primero en la 3ª semana en:", options: [ { text: "a) El encéfalo.", isCorrect: false }, { text: "b) La pared del saco vitelino extraembrionario.", isCorrect: true }, { text: "c) El ovario.", isCorrect: false }, { text: "d) El celoma.", isCorrect: false } ], explanation: "Migrarán después por el mesenterio hasta las crestas genitales." },
+            { id: 108, text: "Histológicamente, las venas umbilicales y maternas se distinguen de las arterias por:", options: [ { text: "a) Tener sangre azul.", isCorrect: false }, { text: "b) Tener una pared más delgada y una luz (agujero) más amplia.", isCorrect: true }, { text: "c) Ser cuadradas.", isCorrect: false }, { text: "d) No tener células endoteliales.", isCorrect: false } ], explanation: "Las arterias umbilicales tienen pared muscular muy gruesa." },
+            { id: 109, text: "¿Cómo adquiere oxígeno el feto en el interior del útero?", options: [ { text: "a) Respirando el líquido amniótico con los pulmones en desarrollo.", isCorrect: false }, { text: "b) Por intercambio de gases por difusión a través de la barrera de las vellosidades placentarias desde la sangre materna.", isCorrect: true }, { text: "c) Mezclando su sangre con la vena cava materna.", isCorrect: false }, { text: "d) Por fermentación anaerobia.", isCorrect: false } ], explanation: "El feto \"respira\" a través de la placenta." },
+            { id: 110, text: "El \"Tapón Mucoso\" se sitúa bloqueando anatómicamente:", options: [ { text: "a) La arteria espiral.", isCorrect: false }, { text: "b) El conducto onfalomesentérico.", isCorrect: false }, { text: "c) El orificio o canal del cuello uterino (cérvix).", isCorrect: true }, { text: "d) La trompa de Falopio.", isCorrect: false } ], explanation: "Protege la cavidad uterina de infecciones vaginales." },
+            { id: 111, text: "La placenta, al nacer, suele pesar el 1/6 del peso fetal. En un feto de 3 kg, esto equivale aproximadamente a:", options: [ { text: "a) 100 g.", isCorrect: false }, { text: "b) 500 g.", isCorrect: true }, { text: "c) 1 kg.", isCorrect: false }, { text: "d) 2 kg.", isCorrect: false } ], explanation: "Peso medio teórico mencionado en clase." },
+            { id: 112, text: "Las membranas fetales expulsadas adheridas a la placenta incluyen fundamentalmente:", options: [ { text: "a) Endometrio basal puro y ovarios.", isCorrect: false }, { text: "b) Amnios y Corion Liso.", isCorrect: true }, { text: "c) Peritoneo y Pleura.", isCorrect: false }, { text: "d) Alantoides gigante.", isCorrect: false } ], explanation: "Es la bolsa amniocoriónica que se rompió." },
+            { id: 113, text: "Para identificar una Mórula al microscopio virtual, debemos ver:", options: [ { text: "a) Una bola compacta de unas 16-32 blastómeras sin una gran cavidad interna central.", isCorrect: true }, { text: "b) Una gran cavidad llamada blastocele.", isCorrect: false }, { text: "c) Tres capas de colores.", isCorrect: false }, { text: "d) Forma de tubo.", isCorrect: false } ], explanation: "La mórula es compacta (\"mora\")." },
+            { id: 114, text: "La cavidad amniótica, en la 2ª semana, tiene como SUELO (base) a las células del:", options: [ { text: "a) Hipoblasto.", isCorrect: false }, { text: "b) Trofoblasto.", isCorrect: false }, { text: "c) Epiblasto.", isCorrect: true }, { text: "d) Mesodermo.", isCorrect: false } ], explanation: "El disco está debajo del amnios." },
+            { id: 115, text: "El blastocisto \"eclosionado\" entra en la mucosa materna implantándose siempre por su:", options: [ { text: "a) Polo abembrionario.", isCorrect: false }, { text: "b) Polo embrionario (zona del embrioblasto).", isCorrect: true }, { text: "c) Zona lateral ecuatorial.", isCorrect: false }, { text: "d) Al azar completo.", isCorrect: false } ], explanation: "Es una orientación obligatoria para la invasión correcta." },
+            { id: 116, text: "La \"Envoltura Citotrofoblástica\" sirve mecánicamente en la placenta para:", options: [ { text: "a) Romper el amnios.", isCorrect: false }, { text: "b) Anclar firmemente las vellosidades primarias al endometrio decidual.", isCorrect: true }, { text: "c) Generar líquido amniótico.", isCorrect: false }, { text: "d) Proteger el cordón.", isCorrect: false } ], explanation: "Se expande por fuera del sincitio formando una coraza de anclaje." },
+            { id: 117, text: "¿De qué hoja germinal derivan los cartílagos faríngeos y el hueso maxilar?", options: [ { text: "a) Ectodermo.", isCorrect: false }, { text: "b) Endodermo.", isCorrect: false }, { text: "c) Del mesodermo de la cabeza y crestas neurales.", isCorrect: true }, { text: "d) Notocorda.", isCorrect: false } ], explanation: "Excepción a la regla; huesos de la cara derivan de crestas neurales y mesodermo cefálico." },
+            { id: 118, text: "El tejido muscular cardíaco (miocardio) deriva embriológicamente del:", options: [ { text: "a) Ectodermo.", isCorrect: false }, { text: "b) Mesodermo esplácnico (lateral).", isCorrect: true }, { text: "c) Mesodermo paraxial (miotomo).", isCorrect: false }, { text: "d) Endodermo.", isCorrect: false } ], explanation: "La placa cardiogénica está en el mesodermo lateral esplácnico." },
+            { id: 119, text: "La falta del cierre del SURCO neural en etapas tempranas origina una patología incompatible con la vida llamada:", options: [ { text: "a) Craneorraquisquisis o tubo neural abierto.", isCorrect: true }, { text: "b) Sindactilia.", isCorrect: false }, { text: "c) Mola parcial.", isCorrect: false }, { text: "d) Divertículo de Meckel.", isCorrect: false } ], explanation: "Si no hay tubo, el tejido nervioso expuesto se degenera." },
+            { id: 120, text: "¿Qué hormona placentaria flexibiliza los ligamentos pélvicos al final del embarazo?", options: [ { text: "a) Relaxina.", isCorrect: true }, { text: "b) hCG.", isCorrect: false }, { text: "c) Tirotropina.", isCorrect: false }, { text: "d) Glucagón.", isCorrect: false } ], explanation: "Ayuda a la dilatación mecánica de la pelvis en el parto." },
+            { id: 121, text: "En los gráficos del Moore, el color ROJO intenso en la placenta representa característicamente:", options: [ { text: "a) Líquido amniótico.", isCorrect: false }, { text: "b) Espacio intervelloso lleno de sangre materna arterio-venosa.", isCorrect: true }, { text: "c) Venas fetales.", isCorrect: false }, { text: "d) Tejido nervioso.", isCorrect: false } ], explanation: "Representa la cámara hemocorial." },
+            { id: 122, text: "En el microscopio, una vellosidad con \"capilares con sangre fetal nucleada\" y una barrera muy gruesa de sincitio y citotrofoblasto corresponde a una edad gestacional de:", options: [ { text: "a) 1er Trimestre temprano.", isCorrect: true }, { text: "b) Placenta a término (40 semanas).", isCorrect: false }, { text: "c) Día 5.", isCorrect: false }, { text: "d) Postparto.", isCorrect: false } ], explanation: "Porque en a término, el citotrofoblasto ha desaparecido y los capilares están marginados." },
+            { id: 123, text: "A partir del tubo digestivo primitivo (endodermo) se evaginan y forman:", options: [ { text: "a) Riñones y vejiga.", isCorrect: false }, { text: "b) Pulmones y bronquios.", isCorrect: true }, { text: "c) Corazón y aorta.", isCorrect: false }, { text: "d) Médula espinal.", isCorrect: false } ], explanation: "El sistema respiratorio nace como una \"yema\" del tubo digestivo anterior." },
+            { id: 124, text: "Los gemelos \"Monocigóticos\", al provenir de un mismo cigoto y tener el mismo ADN, obligatoriamente:", options: [ { text: "a) Tienen siempre la misma huella dactilar.", isCorrect: false }, { text: "b) Tienen el mismo sexo biológico (ambos niños o ambas niñas).", isCorrect: true }, { text: "c) Están siempre unidos físicamente.", isCorrect: false }, { text: "d) Tienen distinto grupo sanguíneo.", isCorrect: false } ], explanation: "Al tener 100% igual genoma, son siempre del mismo sexo." },
+            { id: 125, text: "A la inversa, los gemelos Dicigóticos (fraternos):", options: [ { text: "a) Siempre son chico y chica.", isCorrect: false }, { text: "b) Tienen el mismo riesgo genético que dos hermanos de edades distintas, pudiendo ser de igual o distinto sexo.", isCorrect: true }, { text: "c) Son idénticos físicamente.", isCorrect: false }, { text: "d) Comparten siempre una placenta.", isCorrect: false } ], explanation: "Dos óvulos y dos espermatozoides independientes." },
+            { id: 126, text: "Si se diagnostica un embarazo \"Bicorial y Biamniótico\", ¿podemos asegurar mediante ecografía temprana que son gemelos dicigóticos?", options: [ { text: "a) Sí, con 100% de seguridad.", isCorrect: false }, { text: "b) No, un 35% de los gemelos idénticos (monocigóticos tempranos) también presentan esta estructura idéntica a los dicigóticos.", isCorrect: true }, { text: "c) Imposible saberlo sin ADN en el 100% de casos.", isCorrect: false } ], explanation: "El 35% de monocigóticos que se dividen en mórula son Bi-Bi y engañan al ecografista." },
+            { id: 127, text: "El saco vitelino del ser humano NO contiene yema (como en los huevos de ave), pero es vital en las primeras semanas porque:", options: [ { text: "a) Da origen a la piel.", isCorrect: false }, { text: "b) Forma los primeros vasos sanguíneos y aloja las células germinales primordiales.", isCorrect: true }, { text: "c) Produce orina pura.", isCorrect: false }, { text: "d) Reemplaza al corazón.", isCorrect: false } ], explanation: "Sitio de hematopoyesis temprana y origen gonadal." },
+            { id: 128, text: "Las divisiones de las blastómeras en la 1ª semana son de tipo:", options: [ { text: "a) Meiótico.", isCorrect: false }, { text: "b) Mitótico.", isCorrect: true }, { text: "c) Amitosis.", isCorrect: false }, { text: "d) Gemación.", isCorrect: false } ], explanation: "Reproducción celular somática simple (Mitosis)." },
+            { id: 129, text: "[TRAMPA] La implantación se realiza en la mucosa uterina en la fase del ciclo menstrual denominada:", options: [ { text: "a) Menstrual.", isCorrect: false }, { text: "b) Proliferativa (folicular).", isCorrect: false }, { text: "c) Secretora (lútea).", isCorrect: true }, { text: "d) Isquémica.", isCorrect: false } ], explanation: "Única fase que tiene glucógeno y glándulas tortuosas listas para recibir embrión." },
+            { id: 130, text: "El proceso notocordal tiene temporalmente un \"agujero\" que comunica cavidad amniótica y vitelina llamado:", options: [ { text: "a) Canal neuroentérico.", isCorrect: true }, { text: "b) Uraco.", isCorrect: false }, { text: "c) Neuroporo.", isCorrect: false }, { text: "d) Fóvea.", isCorrect: false } ], explanation: "Se cierra cuando la notocorda se vuelve un tubo sólido." },
+            { id: 131, text: "El periodo embrionario termina a las:", options: [ { text: "a) 4 semanas.", isCorrect: false }, { text: "b) 8 semanas.", isCorrect: true }, { text: "c) 12 semanas.", isCorrect: false }, { text: "d) 20 semanas.", isCorrect: false } ], explanation: "A partir de la semana 9, se llama Feto." },
+            { id: 132, text: "Una \"Mola Invasora\" se diferencia de la \"Hidatidiforme clásica\" en que:", options: [ { text: "a) No tiene vesículas.", isCorrect: false }, { text: "b) Infiltra más allá del endometrio, rompiendo la decidua y penetrando el miometrio muscular.", isCorrect: true }, { text: "c) Tiene un embrión vivo gigante.", isCorrect: false }, { text: "d) Es un siamés.", isCorrect: false } ], explanation: "Como su nombre indica, penetra e invade tejidos maternos más profundos." },
+            { id: 133, text: "La \"decidua\" se denomina así (del latín deciduus = que cae) porque:", options: [ { text: "a) El bebé cae por gravedad.", isCorrect: false }, { text: "b) Tras el parto, la capa funcional del endometrio se desprende o \"cae\" junto con la placenta.", isCorrect: true }, { text: "c) Las vellosidades caen al líquido.", isCorrect: false }, { text: "d) El útero entero se desprende.", isCorrect: false } ], explanation: "Significado etimológico de la desidualización y alumbramiento." },
+            { id: 134, text: "La función de \"almohadillado\" protector mecánico de los vasos en el cordón umbilical es dada por:", options: [ { text: "a) La matriz cartilaginosa.", isCorrect: false }, { text: "b) La gelatina de Wharton (conjuntivo mucoso rico en ácido hialurónico).", isCorrect: true }, { text: "c) Tejido adiposo.", isCorrect: false }, { text: "d) Queratina amniótica.", isCorrect: false } ], explanation: "Evita que al doblarse el cordón, los vasos se pincen y ahoguen al feto." },
+            { id: 135, text: "En la sangre materna, la placenta elimina los desechos fetales tales como:", options: [ { text: "a) Dióxido de carbono, urea, ácido úrico y bilirrubina.", isCorrect: true }, { text: "b) Glucosa y oxígeno puros.", isCorrect: false }, { text: "c) Hematíes nucleados fetales masivos.", isCorrect: false }, { text: "d) Líquido amniótico y meconio.", isCorrect: false } ], explanation: "El feto traspasa las toxinas de su metabolismo a la vena uterina de la madre." },
+            { id: 136, text: "El \"uraco\" patológico permeable tras el nacimiento puede detectarse clínicamente por:", options: [ { text: "a) Ceguera en el recién nacido.", isCorrect: false }, { text: "b) Salida continua de orina por el ombligo del bebé.", isCorrect: true }, { text: "c) Heces saliendo por la nariz.", isCorrect: false }, { text: "d) Vómitos con sangre.", isCorrect: false } ], explanation: "Al no obliterarse el alantoides/uraco, la vejiga comunica libremente con el exterior umbilical." },
+            { id: 137, text: "El esclerotomo (derivado del somita) migra hacia la notocorda para rodearla y formar:", options: [ { text: "a) Las vértebras y las costillas.", isCorrect: true }, { text: "b) Los intestinos.", isCorrect: false }, { text: "c) La duramadre.", isCorrect: false }, { text: "d) Los pulmones.", isCorrect: false } ], explanation: "Origen de la estructura ósea axial del tronco." },
+            { id: 138, text: "Los somitas se sitúan de forma visible al microscopio en:", options: [ { text: "a) El interior del saco vitelino.", isCorrect: false }, { text: "b) A ambos lados del eje central neural en el dorso del embrión, haciendo abultamientos bajo el ectodermo.", isCorrect: true }, { text: "c) En el polo abembrionario.", isCorrect: false }, { text: "d) En las vellosidades secundarias.", isCorrect: false } ], explanation: "Parecen como cuentas de un collar a ambos lados de la \"cremallera\" del tubo neural." },
+            { id: 139, text: "[TRAMPA] El bazo, que es un órgano linfático, deriva de:", options: [ { text: "a) Endodermo (al igual que el hígado).", isCorrect: false }, { text: "b) Ectodermo.", isCorrect: false }, { text: "c) Mesodermo.", isCorrect: true }, { text: "d) Células germinales primordiales.", isCorrect: false } ], explanation: "Trampa anatómica. Aunque está en el aparato digestivo, su origen es hematopoyético mesodérmico." },
+            { id: 140, text: "Si el pliegue lateral de las hojas del mesodermo falla en cerrarse ventralmente durante la 4ª semana, ¿qué defecto clásico de la pared del cuerpo ocurre?", options: [ { text: "a) Ectopia cordis u Onfalocele / Gastrosquisis (órganos fuera).", isCorrect: true }, { text: "b) Teratoma pélvico.", isCorrect: false }, { text: "c) Placenta previa.", isCorrect: false }, { text: "d) Anencefalia.", isCorrect: false } ], explanation: "Si la esplacnopleura y somatopleura no se unen en la barriga, se queda \"abierto\"." },
+            { id: 141, text: "Al finalizar la 4ª semana, los extremos distales de los esbozos de los miembros superiores se aplanan adoptando una forma de:", options: [ { text: "a) Pezuña.", isCorrect: false }, { text: "b) Placa de la mano (paddle/aleta).", isCorrect: true }, { text: "c) Gancho afilado.", isCorrect: false }, { text: "d) Cilindro.", isCorrect: false } ], explanation: "En ellas aparecerán posteriormente los rayos digitales (los dedos)." },
+            { id: 142, text: "¿Qué nombre recibe el cordón fibroso residual que queda en el adulto si el conducto venoso umbilical se oblitera normalmente tras el nacimiento?", options: [ { text: "a) Ligamento redondo del hígado.", isCorrect: true }, { text: "b) Vena cava inferior.", isCorrect: false }, { text: "c) Arteria uterina.", isCorrect: false }, { text: "d) Ligamento inguinal.", isCorrect: false } ], explanation: "La vena umbilical izquierda se colapsa formando el ligamento redondo en la base hepática." },
+            { id: 143, text: "La placenta a término tiene típicamente un diámetro y grosor de:", options: [ { text: "a) 1 metro de diámetro, 10 cm de grosor.", isCorrect: false }, { text: "b) 15-20 cm de diámetro y unos 2.5-3 cm de grosor central.", isCorrect: true }, { text: "c) 5 cm de diámetro.", isCorrect: false }, { text: "d) Es líquida.", isCorrect: false } ], explanation: "Medidas anatómicas normales enseñadas en práctica." },
+            { id: 144, text: "El amnios es una membrana avascular. ¿De dónde obtiene principalmente sus nutrientes?", options: [ { text: "a) Del líquido cefalorraquídeo.", isCorrect: false }, { text: "b) De los capilares fetales del mesénquima subyacente y del líquido amniótico por difusión.", isCorrect: true }, { text: "c) Directamente inyectado de la arteria umbilical.", isCorrect: false }, { text: "d) Genera su propia glucosa por fotosíntesis.", isCorrect: false } ], explanation: "Todos los epitelios (como los amnioblastos) se nutren por difusión." },
+            { id: 145, text: "¿Por qué razón inmunológica principal la madre no \"rechaza\" y ataca al embrión, que es un injerto 50% paterno?", options: [ { text: "a) Por la alta producción local de factores inmunosupresores en la decidua y la falta de antígenos clásicos HLA en el trofoblasto.", isCorrect: true }, { text: "b) Porque el embrión inyecta veneno en los glóbulos blancos.", isCorrect: false }, { text: "c) Porque no hay contacto sanguíneo de ningún tipo a ninguna escala.", isCorrect: false }, { text: "d) Porque el feto hereda solo genes maternos.", isCorrect: false } ], explanation: "La placenta actúa como barrera inmunológica inteligente y la reacción decidual aporta células reguladoras (linfocitos tolerogénicos)." },
+            { id: 146, text: "A nivel radiológico/ecográfico, ¿qué forma adopta el embrión en la cuarta semana debido a los pliegues cefálico y caudal?", options: [ { text: "a) Forma rectilínea perfecta.", isCorrect: false }, { text: "b) Forma esférica o de morera.", isCorrect: false }, { text: "c) Forma acentuada en \"C\".", isCorrect: true }, { text: "d) Forma estrellada.", isCorrect: false } ], explanation: "El rápido crecimiento del tubo neural encorva la cabeza y la cola sobre la cara ventral." },
+            { id: 147, text: "Si un embrión es fecundado por DOS espermatozoides a la vez (Poliespermia o Diandria), resultando en un cigoto de 69 cromosomas (Triploidía), clínicamente esto aboca en su mayoría a:", options: [ { text: "a) Un bebé superdotado sano.", isCorrect: false }, { text: "b) Una Mola Hidatidiforme Parcial o aborto precoz sistemático.", isCorrect: true }, { text: "c) Gemelos dicigóticos gigantes.", isCorrect: false }, { text: "d) Gemelos Siameses.", isCorrect: false } ], explanation: "Exceso de carga genética paterna empuja al desarrollo aberrante del trofoblasto (Mola)." },
+            { id: 148, text: "La \"Cámara Intervellosa\", donde se mezcla la sangre de las arterias maternas, contiene un volumen aproximado de sangre mantenido estático de:", options: [ { text: "a) 150 ml (que se renueva 3-4 veces por minuto).", isCorrect: true }, { text: "b) 5 Litros completos de la madre.", isCorrect: false }, { text: "c) 10 ml inertes.", isCorrect: false }, { text: "d) Plasma sin glóbulos rojos.", isCorrect: false } ], explanation: "Es un \"lago\" de alta presión y rápida renovación." },
+            { id: 149, text: "Los vasos sanguíneos umbilicales FETALES en el interior de la vellosidad terciaria a término, se sitúan de forma periférica (cerca de la membrana externa) para:", options: [ { text: "a) Estallar y liberar sangre al líquido amniótico.", isCorrect: false }, { text: "b) Reducir la distancia de difusión entre la sangre fetal capilar y la sangre materna exterior, favoreciendo el intercambio rápido.", isCorrect: true }, { text: "c) Protegerse de la listeria.", isCorrect: false }, { text: "d) Hacer espacio al citotrofoblasto grueso.", isCorrect: false } ], explanation: "Ley de Fick; a menor grosor de pared de membrana, mayor difusión pasiva de O2." }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {}; // id -> isCorrect
+        let markedQuestions = new Set(); // ids
+
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría para repetir.");
+                showEndScreen();
+                return;
+            }
+
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente para este intento?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                // Botón Índice
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                // Tarjeta de Pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.innerHTML = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.innerHTML = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                // Opciones mezcladas
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    label.id = `label-${q.id}-${optIndex}`;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList, q.explanation);
+                    
+                    label.appendChild(input);
+                    
+                    const spanText = document.createElement('span');
+                    spanText.innerHTML = opt.text;
+                    label.appendChild(spanText);
+                    
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                // Caja Feedback
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement, explanation) {
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong><br><em>Explicación: ${explanation}</em>`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong><br><em>Explicación: ${explanation}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

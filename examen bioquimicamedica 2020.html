@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Bioquímica - Adicional</title>
+    <style>
+        :root {
+            --primary: #d35400;    /* Naranja oscuro para diferenciar */
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f39c12;
+            --bg: #fdfefe;
+            --card-bg: #ffffff;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background-color: var(--bg); height: 100vh; display: flex; overflow: hidden; color: #333; }
+
+        /* SIDEBAR */
+        #sidebar { width: 300px; background: var(--secondary); color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 100; }
+        .sb-header { padding: 20px; background: rgba(0,0,0,0.2); text-align: center; border-bottom: 1px solid #34495e; }
+        .sb-info { padding: 10px; text-align: center; font-size: 0.9rem; color: #bdc3c7; }
+        
+        #nav-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; align-content: start; }
+        .nav-btn { aspect-ratio: 1; border: none; background: rgba(255,255,255,0.1); color: #bdc3c7; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; position: relative; }
+        .nav-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+        .nav-btn.active { background: white; color: var(--secondary); transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px var(--primary); }
+        .nav-btn.correct { background: var(--success); color: white; }
+        .nav-btn.wrong { background: var(--error); color: white; }
+        .nav-btn.marked::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: var(--warning); border-radius: 50%; border: 1px solid white; }
+
+        /* MAIN */
+        #main { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .top-bar { height: 60px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .timer { font-family: monospace; font-size: 1.2rem; background: #eee; padding: 5px 10px; border-radius: 5px; color: var(--primary); font-weight: bold; }
+
+        #quiz-area { flex: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .q-container { max-width: 800px; margin: 0 auto 100px auto; }
+
+        .q-card { background: var(--card-bg); padding: 30px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid transparent; transition: 0.3s; }
+        .q-card.current { border-left-color: var(--primary); transform: translateX(5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        
+        .q-meta { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; color: #7f8c8d; font-weight: bold; text-transform: uppercase; }
+        .q-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 20px; line-height: 1.5; }
+
+        .opt-btn { display: block; width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 2px solid #f0f0f0; background: #f9f9f9; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1rem; color: #444; }
+        .opt-btn:hover:not(:disabled) { border-color: var(--primary); background: #fdf8ff; }
+        .opt-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .opt-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .opt-btn:disabled { cursor: default; opacity: 0.7; }
+
+        .feedback { margin-top: 15px; padding: 15px; background: #e8f8f5; border-left: 4px solid var(--success); border-radius: 4px; display: none; animation: slideIn 0.3s; }
+        .tools { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; }
+        .mark-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #7f8c8d; cursor: pointer; }
+        .mark-label input { transform: scale(1.2); accent-color: var(--warning); }
+
+        /* MODALS */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 500px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition: transform 0.1s; }
+        .btn:hover { transform: scale(1.02); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        
+        .retry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn-retry { font-size: 0.9rem; padding: 12px; color: white; }
+        .r-fail { background: var(--error); }
+        .r-mark { background: var(--warning); }
+        .r-mix { background: #8e44ad; grid-column: span 2; }
+        .r-all { background: var(--secondary); grid-column: span 2; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="modal">
+        <div class="modal-box">
+            <h1 style="color:var(--secondary); margin-bottom:5px;">Bioquímica Médica</h1>
+            <h2 style="color:var(--primary); margin-top:0;">Examen Adicional</h2>
+            <p>50 Preguntas</p>
+            
+            <div style="text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
+                <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">
+                    ℹ️ Las respuestas (a, b, c, d) se mezclarán automáticamente.
+                </p>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem; margin-bottom:10px;">
+                    <input type="checkbox" id="shuffle-questions" checked> 
+                    <strong>¿Mezclar orden de las preguntas?</strong>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem;">
+                    <input type="checkbox" id="timer-check"> 
+                    Activar Temporizador
+                </label>
+            </div>
+
+            <button class="btn btn-primary" onclick="initQuiz()">COMENZAR TEST</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="modal" style="display:none;">
+        <div class="modal-box">
+            <h2>Resultados</h2>
+            <div style="font-size:3.5rem; font-weight:800; color:var(--primary);" id="score">0%</div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:20px 0;">
+                <div style="background:#eafaf1; padding:10px; border-radius:5px; color:var(--success)">✅ <b id="r-ok">0</b></div>
+                <div style="background:#fdedec; padding:10px; border-radius:5px; color:var(--error)">❌ <b id="r-ko">0</b></div>
+                <div style="background:#fef9e7; padding:10px; border-radius:5px; color:var(--warning)">🚩 <b id="r-mk">0</b></div>
+            </div>
+
+            <div class="retry-grid">
+                <button class="btn btn-retry r-fail" onclick="retry('failed')">Solo Falladas</button>
+                <button class="btn btn-retry r-mark" onclick="retry('marked')">Solo Marcadas</button>
+                <button class="btn btn-retry r-mix" onclick="retry('failed_marked')">Falladas + Marcadas</button>
+                <button class="btn btn-retry r-all" onclick="retry('all')">Reiniciar Todo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sb-header">
+            <h3>Navegación</h3>
+        </div>
+        <div class="sb-info">
+            <span id="prog-text">0 / 50</span>
+        </div>
+        <div id="nav-grid"></div>
+        <div style="padding:20px;">
+            <button class="btn btn-secondary" onclick="finish()">Finalizar</button>
+        </div>
+    </div>
+
+    <div id="main">
+        <div class="top-bar">
+            <strong>Examen Adicional</strong>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+        <div id="quiz-area">
+            <div class="q-container" id="questions-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        // BASE DE DATOS (50 Preguntas)
+        const fullDB = [
+            { id: 1, q: "1. ¿Cuál de los siguientes ácidos grasos es del tipo omega 6 (⍵6)?", o: ["Ácido docosahexaenoico", "No sabe / no contesta", "Ácido α-linolénico", "Ácido araquidónico", "Ácido eicosapentaenoico"], c: 3 },
+            { id: 2, q: "2. Señale la respuesta correcta respecto a la energía aprovechable que aportan las proteínas", o: ["7 kcal/g", "4 kcal/g", "5,3 kcal/g", "9 kcal/g", "No sabe / no contesta"], c: 1 },
+            { id: 3, q: "3. Indique la respuesta correcta respecto a la molécula de la cual deriva la vitamina K", o: ["No sabe / no contesta", "2-metil-naftoquinona", "Tetraterpeno", "Filoquinona", "Lanosterol"], c: 1 },
+            { id: 4, q: "4. ¿A partir de qué molécula se forma la vitamina C?", o: ["Deriva de la oxidación de la fructosa", "Es un derivado glucónico del ácido lactónico", "Se forma por reducción de la glucosa", "Es un derivado lactónico del ácido hexurónico", "No sabe / no contesta"], c: 3 },
+            { id: 5, q: "5. En la etiopatogenia de la caquexia neoplásica", o: ["No sabe / no contesta", "Aumenta la proteogénesis", "Disminuye la lipólisis", "Aumenta la gluconeogénesis", "Aumenta la glucogenogénesis"], c: 3 },
+            { id: 6, q: "6. ¿Cuál no es un factor de riesgo cardiovascular modificable?", o: ["Dieta", "Estrés", "No sabe / no contesta", "Tabaco", "Edad"], c: 4 },
+            { id: 7, q: "7. α-glucosidasa", o: ["Participa en la digestión de proteínas", "Hidroliza el almidón hasta maltosa", "Hidroliza enlaces α(1-6) del almidón", "No sabe / no contesta", "Hidroliza enlaces α(1-4) de maltosa y maltotriosa"], c: 4 },
+            { id: 8, q: "8. Transportador SGLT1", o: ["Permite paso de manosa a sangre", "Es un lípido de membrana", "Es independiente de sodio", "No sabe / no contesta", "Es dependiente de sodio"], c: 4 },
+            { id: 9, q: "9. Lipoproteína-lipasa (LPL)", o: ["Se localiza en el endotelio capilar", "Va asociada a micelas", "Se inactiva por insulina", "No sabe / no contesta", "Reconoce apoB100"], c: 0 },
+            { id: 10, q: "10. Micelas", o: ["Sales biliares + TG + LPL", "No sabe / no contesta", "Transportan TG del enterocito a sangre", "No hay acción hidrolítica", "Sales biliares + TG + lipasa pancreática"], c: 4 },
+            { id: 11, q: "11. Digestión proteica (NO cierta)", o: ["Tripsina activa otros zimógenos", "No sabe / no contesta", "pH pancreático ácido", "Activación por enteropeptidasa", "CCK estimula tripsinógeno"], c: 2 },
+            { id: 12, q: "12. Fase final digestión proteica (incorrecta)", o: ["Aminopeptidasas → di/tri", "Carboxipeptidasas → di/tri", "No sabe / no contesta", "Pueden pasar dipéptidos al enterocito", "Peptidasas intracelulares → AA"], c: 1 },
+            { id: 13, q: "13. Leptina (incorrecta)", o: ["No sabe / no contesta", "↑ hidrólisis TG intramuscular", "↓ entrada de AG", "↓ lipólisis adiposa", "Mantiene sensibilidad a insulina"], c: 3 },
+            { id: 14, q: "14. Segundo órgano productor de leptina", o: ["Cerebro", "Hígado", "Placenta", "No sabe / no contesta", "Corazón"], c: 2 },
+            { id: 15, q: "15. Definición correcta", o: ["Paratopo = región del anticuerpo que reacciona con antígeno", "No sabe / no contesta", "Anticuerpos → inmunidad innata", "Epítopo = región del anticuerpo", "Antígeno = todo reconocido por anticuerpo"], c: 0 },
+            { id: 16, q: "16. Sistema inmune", o: ["Defiende integridad biológica", "Barreras físico-químicas", "No permite homeostasis", "Defensa solo en infecciones", "No sabe / no contesta"], c: 0 },
+            { id: 17, q: "17. Receptor IGF-1", o: ["Acoplado a proteína G", "Dominios tirosina-kinasa", "No sabe / no contesta", "Activa PKA", "Receptor nuclear"], c: 1 },
+            { id: 18, q: "18. IGF (NO cierta)", o: ["Circula unido a proteínas", "Se sintetiza en hígado", "No sabe / no contesta", "Acción proliferativa", "Feedback positivo GH"], c: 4 },
+            { id: 19, q: "19. Pregnenolona → progesterona", o: ["17α-hidroxilasa", "No sabe / no contesta", "3β-HSD", "21α-hidroxilasa", "17,20 liasa"], c: 2 },
+            { id: 20, q: "20. Androstenediona → testosterona", o: ["Sulfotransferasa", "17β-HSD", "No sabe / no contesta", "3β-HSD", "11β-hidroxilasa"], c: 1 },
+            { id: 21, q: "21. Entrada de yodo al folículo tiroideo", o: ["Difusión simple", "Antiporte Na-I", "No sabe / no contesta", "Acoplado a Na/K ATPasa", "Pendrina"], c: 3 },
+            { id: 22, q: "22. Fenilalanina → tirosina", o: ["Dihidrobiopterina reductasa", "Fenilalanina hidroxilasa", "Fenilalanina carboxilasa", "No sabe / no contesta", "Tetrahidrobiopterina reductasa"], c: 1 },
+            { id: 23, q: "23. Señalización insulina", o: ["Desfosforila PP1", "Desfosforila adenilato ciclasa", "No sabe / no contesta", "Fosforila PP1", "Fosforila adenilato ciclasa"], c: 3 },
+            { id: 24, q: "24. Forma circulante de glucosa", o: ["Sin fosforilar", "Fosforilada C1", "No sabe / no contesta", "Unida a albúmina", "Fosforilada C6"], c: 0 },
+            { id: 25, q: "25. Receptores celulares", o: ["5TM + lisina quinasa", "3TM + cisteína quinasa", "7TM + tirosina quinasa", "No sabe / no contesta", "8TM + lisina quinasa"], c: 2 },
+            { id: 26, q: "26. Apoptosis", o: ["↑ volumen celular", "No sabe / no contesta", "No intervienen mitocondrias", "Activación de caspasas", "Ruptura lisosomal"], c: 3 },
+            { id: 27, q: "27. Parada señalización visual", o: ["Retinal y opsina no se separan", "No sabe / no contesta", "Arrestina-transducina", "↑ interacción transducina-rodopsina", "Rodopsina quinasa fosforila R*"], c: 4 },
+            { id: 28, q: "28. Fotorrecepción", o: ["↑ AMPc", "Metarodopsina III activa", "No sabe / no contesta", "Cierre canales Na+", "11-cis retinal no cambia"], c: 3 },
+            { id: 29, q: "29. Noradrenalina → adrenalina", o: ["No sabe / no contesta", "Feniletanolamina-N-metiltransferasa", "Adrenalina sintetasa", "Noradrenalina descarboxilasa", "Dopamina β-hidroxilasa"], c: 1 },
+            { id: 30, q: "30. Tirosina → L-DOPA", o: ["L-DOPA descarboxilasa", "Tirosina hidroxilasa", "Tirosina descarboxilasa", "L-DOPA sintetasa", "No sabe / no contesta"], c: 1 },
+            { id: 31, q: "31. Neurotransmisor excitatorio", o: ["Glutamato", "β-alanina", "Glicina", "No sabe / no contesta", "GABA"], c: 0 },
+            { id: 32, q: "32. Acetilcolina (incorrecta)", o: ["ChT dependiente Na+", "Acetil-CoA de piruvato", "No sabe / no contesta", "Catabolismo intracelular", "Transporte por VAChT"], c: 3 },
+            { id: 33, q: "33. Albúmina", o: ["No sabe / no contesta", "Menor concentración plasmática", "Mantiene presión oncótica", "Solo vitamina A", "No transporta fármacos"], c: 2 },
+            { id: 34, q: "34. Ferritina", o: ["No indica déficit de hierro", "Hierro férrico", "No sabe / no contesta", "Hierro ferroso", "Cobre"], c: 1 },
+            { id: 35, q: "35. ALA deshidratasa forma", o: ["Protoporfirinógeno IX", "Uroporfirinógeno", "No sabe / no contesta", "Coproporfirinógeno", "Porfobilinógeno"], c: 4 },
+            { id: 36, q: "36. Ruptura anillo hemo", o: ["Descarboxilación metilo α", "No sabe / no contesta", "Metilación metilo α", "Ruptura puente meteno α", "Ruptura puente meteno β"], c: 3 },
+            { id: 37, q: "37. Curva mioglobina", o: ["No sabe / no contesta", "Sigmoidea", "Recta", "Paraboloide", "Hipérbola equilátera"], c: 4 },
+            { id: 38, q: "38. Mioglobina secundaria", o: ["Cuaternaria > secundaria", "75% α-hélice", "50% α y β", "No sabe / no contesta", "Plegamientos predominan"], c: 1 },
+            { id: 39, q: "39. Plaquetas (incorrecta)", o: ["α: vWF", "Densos: serotonina", "No sabe / no contesta", "Densos: vWF", "α: fibrinógeno"], c: 3 },
+            { id: 40, q: "40. Agregación plaquetaria", o: ["GPIb-IX + vWF", "GPIIb-IIIa + vWF", "GPIIb-IIIa + fibrina", "No sabe / no contesta", "GPIb-IX + fibrina"], c: 2 },
+            { id: 41, q: "41. NO y NOS", o: ["NO de arginina, O2 y NADPH", "4 genes NOS", "mtNOS = isoforma eNOS", "No sabe / no contesta", "No es radical libre"], c: 0 },
+            { id: 42, q: "42. Especies reactivas (incorrecta)", o: ["H₂O₂ de oxidación NO", "ONOO⁻ → HO· + NO", "No sabe / no contesta", "O₂ + NO → ONOO⁻", "HO· desde H₂O₂"], c: 0 },
+            { id: 43, q: "43. Zonación hepática (incorrecta)", o: ["Perivenosa más O₂", "Perivenosa → glutamina", "Periportal más O₂", "No sabe / no contesta", "Periportal más oxidativo"], c: 0 },
+            { id: 44, q: "44. Metabolismo AG", o: ["Oxidación en ambas zonas", "Solo periportal", "Perivenosa oxidación completa", "No sabe / no contesta", "Periportal cetogénesis"], c: 4 },
+            { id: 45, q: "45. Acetato del alcohol", o: ["Factores de transcripción", "No sabe / no contesta", "Se acumula como acetil-CoA", "Entra en Krebs", "Se acumula como acetato"], c: 2 },
+            { id: 46, q: "46. Alcohol y redox", o: ["Hiperglucemia", "Acumula piruvato", "Acumula lactato", "No sabe / no contesta", "Lactato → piruvato"], c: 2 },
+            { id: 47, q: "47. Tropocolágeno", o: ["3 hélices dextrógiras → superhélice dextrógira", "3 levógiras → superhélice levógira", "3 levógiras → superhélice dextrógira", "No sabe / no contesta", "3 dextrógiras → superhélice levógira"], c: 2 },
+            { id: 48, q: "48. Proteínas fibrosas (NO característica)", o: ["Estructuras cilíndricas", "Sin AA modificados", "Función estructural", "Patrones repetitivos", "No sabe / no contesta"], c: 1 },
+            { id: 49, q: "49. Mayor secreción de K⁺", o: ["TCP", "Túbulo colector", "Asa ascendente Henle", "TCD", "No sabe / no contesta"], c: 1 },
+            { id: 50, q: "50. Vasoconstricción por angiotensina II (incorrecta)", o: ["Activa MLCK", "Señal por proteína G + PKA", "No sabe / no contesta", "↑ Ca²⁺ intracelular", "Activa PLC"], c: 1 }
+        ];
+
+        let currentQuestions = [];
+        let userState = {};
+        let timerInterval;
+        let seconds = 0;
+
+        function initQuiz() {
+            document.getElementById('start-screen').style.display = 'none';
+            const shuffleQ = document.getElementById('shuffle-questions').checked;
+            const useTimer = document.getElementById('timer-check').checked;
+
+            currentQuestions = JSON.parse(JSON.stringify(fullDB));
+
+            if (shuffleQ) {
+                currentQuestions.sort(() => Math.random() - 0.5);
+            }
+
+            userState = {};
+            renderSidebar();
+            renderQuestions();
+
+            if (useTimer) {
+                document.getElementById('timer').style.display = 'block';
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+
+        function renderSidebar() {
+            const grid = document.getElementById('nav-grid');
+            grid.innerHTML = '';
+            
+            currentQuestions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-btn';
+                btn.innerText = index + 1;
+                btn.onclick = () => scrollToQ(index);
+                btn.id = `nav-${index}`;
+                grid.appendChild(btn);
+            });
+            updateProgress();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-wrapper');
+            container.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'q-card';
+                card.id = `card-${index}`;
+
+                card.innerHTML = `
+                    <div class="q-meta">
+                        <span>Pregunta ${index + 1}</span>
+                        <span>#${q.id}</span>
+                    </div>
+                    <div class="q-text">${q.q}</div>
+                `;
+
+                let options = q.o.map((text, i) => ({ text, originalIndex: i }));
+                options.sort(() => Math.random() - 0.5);
+
+                const optContainer = document.createElement('div');
+                
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'opt-btn';
+                    btn.innerText = opt.text;
+                    btn.onclick = () => handleAnswer(index, opt.originalIndex, btn, options, q.c);
+                    optContainer.appendChild(btn);
+                });
+                card.appendChild(optContainer);
+
+                const fb = document.createElement('div');
+                fb.className = 'feedback';
+                fb.id = `fb-${index}`;
+                fb.innerHTML = `<strong>Respuesta Correcta:</strong> ${q.o[q.c]}`;
+                card.appendChild(fb);
+
+                const tools = document.createElement('div');
+                tools.className = 'tools';
+                tools.innerHTML = `
+                    <label class="mark-label">
+                        <input type="checkbox" onchange="toggleMark(${index}, this.checked)">
+                        Marcar para revisar
+                    </label>
+                `;
+                card.appendChild(tools);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qIndex, selectedOriginalIndex, btnElement, shuffledOptions, correctIndex) {
+            if (userState[qIndex] && userState[qIndex].answered) return;
+
+            const isCorrect = selectedOriginalIndex === correctIndex;
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].answered = true;
+            userState[qIndex].correct = isCorrect;
+
+            if (isCorrect) {
+                btnElement.classList.add('correct');
+            } else {
+                btnElement.classList.add('wrong');
+                const siblings = btnElement.parentElement.children;
+                for (let sib of siblings) {
+                    if (sib.innerText === fullDB.find(x => x.id === currentQuestions[qIndex].id).o[correctIndex]) {
+                        sib.classList.add('correct');
+                    }
+                }
+            }
+
+            const siblings = btnElement.parentElement.children;
+            for (let sib of siblings) sib.disabled = true;
+
+            document.getElementById(`fb-${qIndex}`).style.display = 'block';
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            navBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+            updateProgress();
+        }
+
+        function toggleMark(qIndex, isChecked) {
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].marked = isChecked;
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            if (isChecked) navBtn.classList.add('marked');
+            else navBtn.classList.remove('marked');
+        }
+
+        function scrollToQ(index) {
+            document.getElementById(`card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.querySelectorAll('.q-card').forEach(c => c.classList.remove('current'));
+            document.getElementById(`card-${index}`).classList.add('current');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`nav-${index}`).classList.add('active');
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.values(userState).filter(s => s.answered).length;
+            document.getElementById('prog-text').innerText = `${answeredCount} / ${currentQuestions.length}`;
+        }
+
+        function finish() {
+            clearInterval(timerInterval);
+            let correct = 0, wrong = 0, marked = 0;
+            
+            currentQuestions.forEach((q, i) => {
+                const s = userState[i];
+                if (s) {
+                    if (s.answered) {
+                        if (s.correct) correct++; else wrong++;
+                    }
+                    if (s.marked) marked++;
+                }
+            });
+
+            const score = Math.round((correct / currentQuestions.length) * 100);
+            document.getElementById('score').innerText = score + "%";
+            document.getElementById('r-ok').innerText = correct;
+            document.getElementById('r-ko').innerText = wrong;
+            document.getElementById('r-mk').innerText = marked;
+            document.getElementById('result-screen').style.display = 'flex';
+        }
+
+        function retry(mode) {
+            let nextQuestions = [];
+
+            if (mode === 'all') {
+                nextQuestions = JSON.parse(JSON.stringify(fullDB));
+            } else {
+                nextQuestions = currentQuestions.filter((q, i) => {
+                    const s = userState[i];
+                    if (!s) return false;
+                    if (mode === 'failed') return s.answered && !s.correct;
+                    if (mode === 'marked') return s.marked;
+                    if (mode === 'failed_marked') return (s.answered && !s.correct) || s.marked;
+                    return false;
+                });
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas para esta selección.");
+                return;
+            }
+
+            currentQuestions = nextQuestions;
+            userState = {};
+            seconds = 0;
+            document.getElementById('timer').innerText = "00:00";
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none';
+            renderSidebar();
+            renderQuestions();
+            if (document.getElementById('timer-check').checked) {
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

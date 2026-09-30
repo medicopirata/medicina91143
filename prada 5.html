@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Temas 17 y 18: Timo y Esófago</title>
+    <style>
+        :root {
+            --primary-color: #d35400; /* Naranja quemado para Vísceras/Digestivo */
+            --secondary-color: #e67e22;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --background-color: #fdf2e9;
+            --card-background: #ffffff;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #bdc3c7;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            text-align: center;
+            background-color: #1a252f;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.1rem; }
+        
+        .sidebar-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sidebar-stats { font-size: 0.9rem; color: #bdc3c7; }
+
+        .finish-btn-side {
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            width: 80%;
+            transition: 0.2s;
+        }
+        .finish-btn-side:hover { background-color: #c0392b; }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 5px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); }
+        .nav-btn.correct { background-color: var(--success-color); }
+        .nav-btn.incorrect { background-color: var(--error-color); }
+        .nav-btn.marked { border: 2px solid #f1c40f; color: #f1c40f; font-weight: bold; }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h1 { color: var(--primary-color); border-bottom: 3px solid var(--secondary-color); padding-bottom: 10px; }
+        
+        .topic-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 30px 0 15px 0;
+            font-size: 1.2rem;
+        }
+
+        .question-card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--secondary-color);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .bookmark-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #95a5a6;
+            padding: 2px 8px;
+        }
+        .bookmark-btn.active { color: #f39c12; border-color: #f39c12; background: #fef9e7; }
+
+        .question-text { font-size: 1.1rem; color: #2c3e50; margin-bottom: 15px; font-weight: 600; line-height: 1.4; }
+
+        .options-grid { display: flex; flex-direction: column; gap: 8px; }
+
+        .option-btn {
+            padding: 10px 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { background-color: #fae5d3; border-color: var(--primary-color); }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.incorrect { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .option-btn.disabled { cursor: default; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background-color: #e8f8f5; color: #0e6251; }
+        .feedback.error { background-color: #fdedec; color: #78281f; }
+
+        /* RESULT PANEL */
+        .results-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 40px;
+            display: none;
+            margin-bottom: 50px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            background: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { background: #d35400; transform: scale(1.05); }
+        .action-btn:active { transform: scale(0.95); }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            .sidebar-nav { grid-template-columns: repeat(8, 1fr); max-height: 150px; }
+            .main-content { overflow: visible; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Timo y Esófago</h2>
+        <div class="sidebar-controls">
+            <div class="sidebar-stats"><span id="progress-text">0/28</span> respondidas</div>
+            <button class="finish-btn-side" onclick="showResults(true)">Finalizar Test</button>
+        </div>
+    </div>
+    <div id="sidebar-nav" class="sidebar-nav"></div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h1>Anatomía: Timo y Esófago</h1>
+        <div id="questions-list"></div>
+        
+        <div id="results-panel" class="results-panel">
+            <h2>Test Finalizado</h2>
+            <p id="score-text" style="font-size: 1.4rem; margin: 15px 0;"></p>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="resetQuiz('all')">Repetir Todo</button>
+                <button class="action-btn" onclick="resetQuiz('wrong')">Repetir Falladas</button>
+                <button class="action-btn" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="action-btn" onclick="resetQuiz('wrong_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // BASE DE DATOS - TEMA 17 (Timo) y 18 (Esófago)
+    const dbQuestions = [
+        // --- TEMA 17: TIMO ---
+        { 
+            id: 1, 
+            topic: "Tema 17. Timo",
+            original: "1", 
+            q: "Sobre el timo, señale la opción incorrecta:", 
+            options: [
+                { text: "Se relaciona directamente dorsal a la vena cava superior y los dos troncos venosos braquiocefálicos.", correct: true },
+                { text: "Recibe vascularización desde la arteria torácica interna.", correct: false },
+                { text: "Se continua hasta el mediastino medio a través de su comunicación con la grasa pericárdica.", correct: false },
+                { text: "Su forma bilobular involuciona tras la edad pediátrica.", correct: false }
+            ], 
+            exp: "El timo se sitúa ANTERIOR (ventral) a los troncos venosos braquiocefálicos y VCS, no dorsal." 
+        },
+        { 
+            id: 2, 
+            original: "Extra", 
+            topic: "Tema 17. Timo",
+            q: "El timo tiene relación con:", 
+            options: [
+                { text: "El tronco braquicefalico derecho venoso", correct: false },
+                { text: "El tronco braquiocefálico izquierdo venoso", correct: false },
+                { text: "A y B son ciertas", correct: true },
+                { text: "Epiglotis", correct: false }
+            ], 
+            exp: "Se relaciona posteriormente con ambos troncos venosos (especialmente el izquierdo que cruza la línea media)." 
+        },
+        { 
+            id: 3, 
+            original: "22", 
+            topic: "Tema 17. Timo",
+            q: "El timo se relaciona con:", 
+            options: [
+                { text: "Mediastino superior", correct: false },
+                { text: "Mediastino anterior", correct: false },
+                { text: "Mediastino posterior", correct: false },
+                { text: "A y B son ciertas (ocupa parte de ambos según la nomenclatura)", correct: true }
+            ], 
+            exp: "El timo ocupa el mediastino superior y la parte alta del mediastino anterior." 
+        },
+        { 
+            id: 4, 
+            original: "55", 
+            topic: "Tema 17. Timo",
+            q: "El timo tiene relación con: (Repetida)", 
+            options: [
+                { text: "El tronco braquicefálico derecho venoso", correct: false },
+                { text: "El tronco braquiocefálico izquierdo venoso", correct: false },
+                { text: "Diafragma", correct: false },
+                { text: "Epiglotis", correct: false },
+                { text: "A y B son ciertas", correct: true }
+            ], 
+            exp: "Repetida: Troncos venosos." 
+        },
+        { 
+            id: 5, 
+            original: "13 (en bloque 18)", 
+            topic: "Tema 17. Timo",
+            q: "Sobre el timo, señale la opción incorrecta: (Repetida)", 
+            options: [
+                { text: "Su forma bilobular involuciona tras la edad pediátrica", correct: false },
+                { text: "Recibe vascularación desde la arteria torácica interna", correct: false },
+                { text: "Se relaciona directamente dorsal a la vena cava superior y los dos troncos venosos braquiocefálicos", correct: true },
+                { text: "Se continúa hasta el mediastino medio a través de su comunicación con la grasa pericárdica", correct: false }
+            ], 
+            exp: "Repetida: Es anterior a los vasos venosos." 
+        },
+        { 
+            id: 6, 
+            original: "Extra", 
+            topic: "Tema 17. Timo",
+            q: "¿De dónde procede principalmente la irrigación del timo?", 
+            options: [
+                { text: "Arteria subclavia", correct: false },
+                { text: "Arteria torácica interna (mamaria interna)", correct: true },
+                { text: "Arteria tiroidea superior", correct: false },
+                { text: "Aorta descendente", correct: false }
+            ], 
+            exp: "Pregunta inferida del contexto: La arteria torácica interna da las ramas tímicas." 
+        },
+
+        // --- TEMA 18: ESÓFAGO ---
+        { 
+            id: 7, 
+            original: "Extra", 
+            topic: "Tema 18. Esófago",
+            q: "De las estructuras que separan el esófago de otras estructuras circundantes, una no es correcta:", 
+            options: [
+                { text: "La pleura parietal mediastínica en su trayecto mediastínico", correct: false },
+                { text: "Fascia superficial del cuello", correct: false },
+                { text: "Músculo traqueoesofágico", correct: false },
+                { text: "Ligamento longitudinal anterior (Vertebral)", correct: true }
+            ], 
+            exp: "El esófago se apoya sobre el ligamento longitudinal anterior (separado por la fascia prevertebral), por lo que sí es una relación posterior. Sin embargo, en el contexto de 'qué lo separa', la fascia prevertebral es la clave. Si la pregunta busca la 'incorrecta' como relación directa o elemento separador anómalo, la fascia superficial del cuello es muy anterior (subcutánea). Pero según la literalidad del examen proporcionado (marcada como mala en bancos similares): 'Ligamento longitudinal anterior'." 
+        },
+        { 
+            id: 8, 
+            original: "1", 
+            topic: "Tema 18. Esófago",
+            q: "Sobre su cara anterior discurre el nervio vago izquierdo:", 
+            options: [
+                { text: "Esófago, porción torácica caudal.", correct: true },
+                { text: "Vena cava superior.", correct: false },
+                { text: "Vena cava inferior.", correct: false },
+                { text: "Nervio frénico derecho.", correct: false }
+            ], 
+            exp: "El vago izquierdo rota para hacerse anterior en el esófago distal (plexo esofágico anterior)." 
+        },
+        { 
+            id: 9, 
+            original: "2", 
+            topic: "Tema 18. Esófago",
+            q: "El esófago se encuentra en:", 
+            options: [
+                { text: "Mediastino superior", correct: false },
+                { text: "Mediastino inferior (Posterior)", correct: false },
+                { text: "Mediastino posterior", correct: false },
+                { text: "Todas son ciertas", correct: true },
+                { text: "Ninguna es cierta", correct: false }
+            ], 
+            exp: "El esófago atraviesa el mediastino superior y el mediastino posterior (inferior)." 
+        },
+        { 
+            id: 10, 
+            original: "3", 
+            topic: "Tema 18. Esófago",
+            q: "Qué relación no es correcta con respecto al esófago:", 
+            options: [
+                { text: "Se relaciona en su parte derecha con la vena ácigos", correct: false },
+                { text: "Se relaciona en su parte izquierda con la vena hemiácigos accesoria", correct: false },
+                { text: "Se relaciona anteriormente con el nervio vago izquierdo", correct: false },
+                { text: "Se relaciona dorsalmente con el nervio vago derecho", correct: false },
+                { text: "Todas son ciertas (es decir, ninguna es incorrecta)", correct: true }
+            ], 
+            exp: "Todas las relaciones anatómicas descritas son correctas." 
+        },
+        { 
+            id: 11, 
+            original: "4", 
+            topic: "Tema 18. Esófago",
+            q: "Cual de las siguientes arterias produce la vascularización del esófago:", 
+            options: [
+                { text: "Arterias tiroideas (inferiores)", correct: false },
+                { text: "Arterias intercostales posteriores (ramas esofágicas/bronquiales)", correct: false },
+                { text: "Arterias subfrenicas (frénicas inferiores)", correct: false },
+                { text: "B y C", correct: false },
+                { text: "Todas son ciertas", correct: true }
+            ], 
+            exp: "El esófago recibe riego escalonado: Cuello (Tiroidea inf), Tórax (Bronquiales/Aorta/Intercostales), Abdomen (Gástrica izq/Frénica inf)." 
+        },
+        { 
+            id: 12, 
+            original: "28", 
+            topic: "Tema 18. Esófago",
+            q: "Sobre el esófago en su porción abdominal, señale la correcta:", 
+            options: [
+                { text: "Se relaciona sobre la cara visceral del hígado, que crea una escotadura donde se aloja", correct: true },
+                { text: "Es completamente retroperitoneal", correct: false },
+                { text: "Su drenaje venoso se hace de forma íntegra al sistema portal", correct: false },
+                { text: "Su corto trayecto comienza en el hiato de la vena cava", correct: false }
+            ], 
+            exp: "El esófago abdominal deja impronta en el lóbulo izquierdo (o zona posterior) del hígado. Su drenaje es mixto (cava/porta)." 
+        },
+        { 
+            id: 13, 
+            original: "29", 
+            topic: "Tema 18. Esófago",
+            q: "El esófago se relaciona con:", 
+            options: [
+                { text: "Aurícula izquierda", correct: true },
+                { text: "Ventrículo izquierdo", correct: false },
+                { text: "Ventrículo derecho", correct: false },
+                { text: "Aurícula derecha", correct: false }
+            ], 
+            exp: "La relación cardíaca más importante del esófago es la cara posterior de la Aurícula Izquierda." 
+        },
+        { 
+            id: 14, 
+            original: "30", 
+            topic: "Tema 18. Esófago",
+            q: "Los nervios de neumogástricos (vagos) pasan por el diafragma acompañando a:", 
+            options: [
+                { text: "Aorta abdominal", correct: false },
+                { text: "Esófago", correct: true },
+                { text: "Vena cava inferior", correct: false },
+                { text: "Cadena simpática torácica", correct: false }
+            ], 
+            exp: "Pasan por el hiato esofágico (Vago izq anterior, Vago der posterior)." 
+        },
+        { 
+            id: 15, 
+            original: "31", 
+            topic: "Tema 18. Esófago",
+            q: "De la cadena simpática paravertebral entre los niveles T1-T5 se origina:", 
+            options: [
+                { text: "Plexo mesentérico", correct: false },
+                { text: "Ganglios cervicotorácico o estrellado", correct: false },
+                { text: "Nervios torácicos (cardíacos)", correct: true },
+                { text: "Nervios torácicos esplácnicos mayor", correct: false }
+            ], 
+            exp: "El simpático torácico superior contribuye a los plexos cardíaco, pulmonar y esofágico. Los esplácnicos son inferiores (T5-T12)." 
+        },
+        { 
+            id: 16, 
+            original: "19", 
+            topic: "Tema 18. Esófago",
+            q: "Dónde es más común la aparición de dilataciones venosas por un aumento de la hipertensión portal:", 
+            options: [
+                { text: "Recto", correct: false },
+                { text: "Esófago (Varices esofágicas)", correct: true },
+                { text: "Zona periumbilical", correct: false },
+                { text: "A y B son ciertas", correct: false },
+                { text: "Todas son ciertas", correct: false }
+            ], 
+            exp: "Aunque aparecen en las tres zonas (anastomosis porto-cava), las varices esofágicas son las más significativas clínicamente en este contexto." 
+        },
+        { 
+            id: 17, 
+            original: "62", 
+            topic: "Tema 18. Esófago",
+            q: "Sobre el esófago en su porción abdominal señale la incorrecta:", 
+            options: [
+                { text: "Su corto trayecto se aboca sobre el cardias", correct: false },
+                { text: "Se relaciona con la cara visceral del hígado", correct: false },
+                { text: "Su drenaje venoso se hace de forma íntegra al sistema portal", correct: true },
+                { text: "Es intraperitoneal (parcialmente cubierto)", correct: false }
+            ], 
+            exp: "Incorrecta: El drenaje NO es íntegro al sistema porta; drena también a venas esofágicas (sistema ácigos/cava), creando anastomosis porto-cava." 
+        },
+        { 
+            id: 18, 
+            original: "48", 
+            topic: "Tema 18. Esófago",
+            q: "El esófago se relaciona con: (Repetida)", 
+            options: [
+                { text: "La aurícula izquierda", correct: true },
+                { text: "El ventrículo izquierdo", correct: false },
+                { text: "El ventrículo derecho", correct: false },
+                { text: "La aurícula derecha", correct: false }
+            ], 
+            exp: "Repetida: AI." 
+        },
+        { 
+            id: 19, 
+            original: "56", 
+            topic: "Tema 18. Esófago",
+            q: "Cuál de las siguientes estructuras NO es un estrechamiento del esófago:", 
+            options: [
+                { text: "Zona de cruce con el cayado aórtico", correct: false },
+                { text: "Zona de compresión por el bronquio principal derecho (Falso, es el izquierdo)", correct: true },
+                { text: "En el hiato esofágico", correct: false },
+                { text: "En el punto de entrada al estómago denominado cardias", correct: false },
+                { text: "Todas son ciertas (si asumimos bronquio izq)", correct: false }
+            ], 
+            exp: "El estrechamiento bronquial lo produce el bronquio principal IZQUIERDO, no el derecho. Por tanto, la opción B es la estructura incorrecta descrita." 
+        },
+        { 
+            id: 20, 
+            original: "57", 
+            topic: "Tema 18. Esófago",
+            q: "El esófago se encuentra en: (Repetida)", 
+            options: [
+                { text: "Mediastino superior", correct: false },
+                { text: "Mediastino inferior", correct: false },
+                { text: "Mediastino posterior", correct: false },
+                { text: "Todas son ciertas", correct: true },
+                { text: "Ninguna es cierta", correct: false }
+            ], 
+            exp: "Repetida: Ocupa varios mediastinos." 
+        },
+        { 
+            id: 21, 
+            original: "58", 
+            topic: "Tema 18. Esófago",
+            q: "Qué relación NO es correcta respecto al esófago: (Repetida)", 
+            options: [
+                { text: "Se relaciona en su parte derecha con la vena ácigos", correct: false },
+                { text: "Se relaciona en su parte izquierda con la vena hemiácigos accesoria", correct: false },
+                { text: "Se relaciona inmediatamente con el nervio vago izquierdo (anterior)", correct: false },
+                { text: "Se relaciona dorsalmente con el nervio vago derecho", correct: false },
+                { text: "Todas son ciertas", correct: true }
+            ], 
+            exp: "Repetida: Todas son relaciones correctas." 
+        },
+        { 
+            id: 22, 
+            original: "59", 
+            topic: "Tema 18. Esófago",
+            q: "Cuál de las siguientes arterias produce la vascularización del esófago: (Repetida)", 
+            options: [
+                { text: "Arterias tiroideas", correct: false },
+                { text: "Arterias intercostales posteriores", correct: false },
+                { text: "Arterias subfrénicas", correct: false },
+                { text: "B y C", correct: false },
+                { text: "Todas son ciertas", correct: true }
+            ], 
+            exp: "Repetida." 
+        },
+        { 
+            id: 23, 
+            original: "17", 
+            topic: "Tema 18. Esófago",
+            q: "Donde es más común la aparición de dilataciones venosas por un aumento de la hipertensión portal: (Repetida)", 
+            options: [
+                { text: "Recto", correct: false },
+                { text: "Esófago", correct: false },
+                { text: "Zona periumbilical", correct: false },
+                { text: "A y B son ciertas", correct: false },
+                { text: "Todas son ciertas (El texto marca esta)", correct: true }
+            ], 
+            exp: "En HTP hay varices esofágicas, hemorroides (recto) y cabeza de medusa (umbilical). Si la pregunta dice 'más común', suele ser esófago, pero si la opción 'Todas' está presente, anatónicamente todas son zonas de anastomosis." 
+        },
+        { 
+            id: 24, 
+            original: "83", 
+            topic: "Tema 18. Esófago",
+            q: "Sobre su cara anterior discurre el nervio vago izquierdo: (Repetida)", 
+            options: [
+                { text: "Esófago, porción torácica caudal", correct: true },
+                { text: "Vana cava superior", correct: false },
+                { text: "Vena cava inferior", correct: false },
+                { text: "Nervio frénico derecho", correct: false }
+            ], 
+            exp: "Repetida." 
+        },
+        { 
+            id: 25, 
+            original: "15", 
+            topic: "Tema 18. Esófago",
+            q: "Sobre el esófago en su porción abdominal, señale la incorrecta (Repetida):", 
+            options: [
+                { text: "Su drenaje venoso se hace de forma íntegra al sistema portal", correct: true },
+                { text: "Es intraperitoneal (parcialmente)", correct: false },
+                { text: "Su corto trayecto se aboca sobre el cardias", correct: false },
+                { text: "Se relaciona con la cara visceral del hígado", correct: false }
+            ], 
+            exp: "Repetida: Incorrecto que sea drenaje 'íntegro' portal." 
+        },
+        { 
+            id: 26, 
+            original: "Extra", 
+            topic: "Tema 18. Esófago",
+            q: "El esófago atraviesa el diafragma a nivel de:", 
+            options: [
+                { text: "T8", correct: false },
+                { text: "T10", correct: true },
+                { text: "T12", correct: false },
+                { text: "L2", correct: false }
+            ], 
+            exp: "Hiato esofágico: T10. (Cava T8, Aorta T12)." 
+        },
+        { 
+            id: 27, 
+            original: "Extra", 
+            topic: "Tema 18. Esófago",
+            q: "La porción cervical del esófago se relaciona anteriormente con:", 
+            options: [
+                { text: "Columna vertebral", correct: false },
+                { text: "Tráquea", correct: true },
+                { text: "Aorta", correct: false },
+                { text: "Conducto torácico", correct: false }
+            ], 
+            exp: "La tráquea se sitúa anterior al esófago en el cuello y mediastino superior." 
+        },
+        { 
+            id: 28, 
+            original: "Extra", 
+            topic: "Tema 18. Esófago",
+            q: "¿Qué arteria irriga la porción cervical del esófago?", 
+            options: [
+                { text: "Tiroidea superior", correct: false },
+                { text: "Tiroidea inferior", correct: true },
+                { text: "Vertebral", correct: false },
+                { text: "Carótida interna", correct: false }
+            ], 
+            exp: "La arteria tiroidea inferior (rama del tronco tirocervical) irriga el esófago cervical." 
+        }
+    ];
+
+    let currentQuestions = [...dbQuestions];
+    let markedIds = new Set();
+    let userAnswers = {};
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz() {
+        const list = document.getElementById('questions-list');
+        const nav = document.getElementById('sidebar-nav');
+        const resultsPanel = document.getElementById('results-panel');
+        
+        list.innerHTML = '';
+        nav.innerHTML = '';
+        resultsPanel.style.display = 'none';
+
+        if(currentQuestions.length === 0) {
+            list.innerHTML = `<div class="question-card"><p>No hay preguntas para los criterios seleccionados.</p></div>`;
+            return;
+        }
+
+        let lastTopic = "";
+
+        currentQuestions.forEach((q, index) => {
+            // Separadores de Tema
+            if (q.topic !== lastTopic) {
+                const header = document.createElement('div');
+                header.className = 'topic-header';
+                header.innerText = q.topic;
+                list.appendChild(header);
+                lastTopic = q.topic;
+            }
+
+            // Nav Button
+            const btn = document.createElement('a');
+            btn.href = `#q-${q.id}`;
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            btn.id = `nav-btn-${q.id}`;
+            
+            if (userAnswers[q.id] === true) btn.classList.add('correct');
+            if (userAnswers[q.id] === false) btn.classList.add('incorrect');
+            if (markedIds.has(q.id)) btn.classList.add('marked');
+
+            nav.appendChild(btn);
+
+            // Question Card
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            const originalOptions = q.options.map((text, i) => ({ text: text.text, isCorrect: text.correct }));
+            const finalOptions = shuffle(originalOptions);
+
+            let optionsHTML = '';
+            finalOptions.forEach(opt => {
+                const safeText = opt.text.replace(/'/g, "&#39;"); 
+                optionsHTML += `<button class="option-btn" onclick="handleAnswer(${q.id}, ${opt.isCorrect}, this)">${opt.text}</button>`;
+            });
+
+            const isMarked = markedIds.has(q.id);
+
+            card.innerHTML = `
+                <div class="question-header-row">
+                    <span>Pregunta ${index + 1} (Ref: ${q.original})</span>
+                    <button class="bookmark-btn ${isMarked ? 'active' : ''}" onclick="toggleMark(${q.id}, this)">
+                        ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                    </button>
+                </div>
+                <div class="question-text">${q.q}</div>
+                <div class="options-grid" id="opts-${q.id}">
+                    ${optionsHTML}
+                </div>
+                <div class="feedback" id="feed-${q.id}"></div>
+            `;
+            list.appendChild(card);
+        });
+        updateProgress();
+    }
+
+    function handleAnswer(id, isCorrect, btn) {
+        if (userAnswers.hasOwnProperty(id)) return;
+        
+        userAnswers[id] = isCorrect;
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        const feedback = document.getElementById(`feed-${id}`);
+        const container = document.getElementById(`opts-${id}`);
+        const qData = dbQuestions.find(x => x.id === id);
+
+        const allBtns = container.querySelectorAll('.option-btn');
+        allBtns.forEach(b => {
+            b.classList.add('disabled');
+            b.onclick = null;
+            const correctText = qData.options.find(o => o.correct).text;
+            if (b.innerText === correctText) b.classList.add('correct');
+        });
+
+        if (isCorrect) {
+            feedback.innerHTML = `<strong>¡Correcto!</strong><br>${qData.exp}`;
+            feedback.className = 'feedback success show';
+            if(navBtn) navBtn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            feedback.innerHTML = `<strong>Incorrecto.</strong><br>${qData.exp}`;
+            feedback.className = 'feedback error show';
+            if(navBtn) navBtn.classList.add('incorrect');
+        }
+        updateProgress();
+    }
+
+    function toggleMark(id, btn) {
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        if (markedIds.has(id)) {
+            markedIds.delete(id);
+            btn.innerHTML = '☆ Marcar';
+            btn.classList.remove('active');
+            if(navBtn) navBtn.classList.remove('marked');
+        } else {
+            markedIds.add(id);
+            btn.innerHTML = '★ Marcada';
+            btn.classList.add('active');
+            if(navBtn) navBtn.classList.add('marked');
+        }
+    }
+
+    function updateProgress() {
+        const count = Object.keys(userAnswers).length;
+        const total = currentQuestions.length;
+        document.getElementById('progress-text').innerText = `${count}/${total} respondidas`;
+        
+        if (count === total && total > 0) {
+            showResults(false);
+        }
+    }
+
+    function showResults(manualFinish = false) {
+        const panel = document.getElementById('results-panel');
+        let correct = 0;
+        Object.values(userAnswers).forEach(v => { if(v) correct++; });
+        
+        const total = currentQuestions.length;
+        
+        document.getElementById('score-text').innerText = `Has acertado ${correct} de ${total}`;
+        panel.style.display = 'block';
+        
+        if(manualFinish) {
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setTimeout(() => panel.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
+
+    function resetQuiz(mode) {
+        let nextIds = [];
+
+        if (mode === 'all') {
+            nextIds = dbQuestions.map(q => q.id);
+        } else if (mode === 'wrong') {
+            nextIds = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+        } else if (mode === 'marked') {
+            nextIds = Array.from(markedIds);
+        } else if (mode === 'wrong_marked') {
+            const wrong = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+            const marked = Array.from(markedIds);
+            nextIds = [...new Set([...wrong, ...marked])];
+        }
+
+        if (nextIds.length === 0) {
+            alert("No hay preguntas para los criterios seleccionados.");
+            return;
+        }
+
+        userAnswers = {};
+        currentQuestions = dbQuestions.filter(q => nextIds.includes(q.id));
+        renderQuiz();
+        document.querySelector('.main-content').scrollTop = 0;
+    }
+
+    renderQuiz();
+</script>
+</body>
+</html>

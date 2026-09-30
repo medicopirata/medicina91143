@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Proteínas Plasmáticas - Tema 12</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 80px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            overflow-y: auto;
+            border-right: 2px solid #1a252f;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.3s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.correct { background: var(--success); }
+        .index-item.incorrect { background: var(--error); }
+        .index-item.marked { position: relative; }
+        .index-item.marked::after {
+            content: '🚩';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 10px;
+        }
+
+        /* Contenedor principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: transparent;
+        }
+
+        .card-setup {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { color: var(--primary); text-align: center; }
+        
+        /* Pantalla de Inicio */
+        #setup-screen { text-align: center; }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            transition: 0.3s;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-finish { background: #95a5a6; padding: 15px 40px; font-size: 1.1em;}
+
+        /* Preguntas */
+        .question-block { 
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border-left: 6px solid var(--secondary);
+        }
+        
+        .options { margin-top: 20px; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0f8ff; }
+        .option-btn.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option-btn.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .marking-zone {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        /* Pantalla Final */
+        #result-screen { display: none; text-align: center; }
+        .summary-stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { padding: 15px; border-radius: 8px; background: #f8f9fa; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);}
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar" style="display: none;"></div>
+
+    <div id="main-content">
+        <div class="container">
+            <div id="setup-screen" class="card-setup">
+                <h1>🩸 Proteínas Plasmáticas: Tema 12</h1>
+                <p>Bienvenido al cuestionario unificado de Proteínas Plasmáticas.</p>
+                <div style="margin: 30px 0;">
+                    <p>Selecciona el modo de orden:</p>
+                    <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+                    <button class="btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" style="display: none;">
+                <div id="question-container"></div>
+                <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;">
+                    <button class="btn btn-finish" onclick="confirmFinish()">Finalizar Cuestionario</button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="card-setup">
+                <h1>Resultados Finales</h1>
+                <div class="summary-stats">
+                    <div class="stat-box"><h2 id="res-total">0</h2><p>Respondidas</p></div>
+                    <div class="stat-box" style="color: var(--success)"><h2 id="res-correct">0</h2><p>Correctas</p></div>
+                    <div class="stat-box" style="color: var(--error)"><h2 id="res-fail">0</h2><p>Falladas</p></div>
+                </div>
+                <h3>¿Qué quieres hacer ahora?</h3>
+                <div id="repeat-options">
+                    <button class="btn" onclick="repeatMode('all')">Repetir Todo</button>
+                    <button class="btn" onclick="repeatMode('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="repeatMode('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="repeatMode('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const rawData = [
+    { n: 1, q: "Durante la clase, el profesor hizo especial hincapié en la diferencia entre plasma y suero a la hora de hacer un proteinograma. ¿Cuál de las siguientes afirmaciones es CORRECTA? (¡Pregunta muy probable!)", a: "c", ex: "El profesor remarcó explícitamente esto en clase: Plasma = con anticoagulante (sí tiene fibrinógeno). Suero = sin anticoagulante (no tiene fibrinógeno, ya que se ha consumido en el coágulo). [Diapositiva 4 y Transcripción 29-30].", opts: ["El suero se obtiene centrifugando la sangre con anticoagulante y contiene fibrinógeno.", "El plasma se obtiene centrifugando la sangre sin anticoagulante y carece de fibrinógeno.", "El suero se obtiene centrifugando sin anticoagulante, por lo que el coágulo arrastra los factores de coagulación y NO contiene fibrinógeno.", "El plasma carece de fibrinógeno, por lo que no muestra ninguna banda entre las fracciones beta y gamma."] },
+    { n: 2, q: "Las proteínas plasmáticas comparten una serie de características comunes, como ejercer su función en el sistema vascular y ser secretadas activamente. Sin embargo, hay una EXCEPCIÓN crucial respecto a su lugar de síntesis que el profesor preguntó en voz alta en clase:", a: "b", ex: "Fue una pregunta directa a la clase. La síntesis hepática es la regla general, pero las inmunoglobulinas (fracción gamma) son la gran excepción al ser producidas por los linfocitos B diferenciados a células plasmáticas [Transcripción 28-29].", opts: ["Todas se sintetizan en el hígado, excepto la albúmina, que se produce en el riñón.", "La gran mayoría se sintetizan en el hígado, excepto las inmunoglobulinas (sintetizadas por células plasmáticas/linfocitos B) y algunas hormonas peptídicas.", "Todas las globulinas alfa y beta se sintetizan en el bazo.", "Las proteínas de fase aguda se sintetizan exclusivamente en los ganglios linfáticos."] },
+    { n: 3, q: "La dinámica del metabolismo del hierro es compleja e involucra a varias proteínas plasmáticas. Señala la afirmación CORRECTA respecto a los estados de oxidación y las proteínas implicadas (¡Ojo, trampa típica de examen!):", a: "c", ex: "El profesor detalló meticulosamente esta reacción redox: la Ferritina almacena Fe2+. Para poder viajar, debe unirse a la Transferrina que solo acepta Fe3+. La Ceruloplasmina actúa de \"puente\" oxidando el hierro (Fe2+ -> Fe3+) y reduciendo su propio cobre (Cu2+ -> Cu+) [Diapositiva 21 y Transcripción 60-62].", opts: ["La transferrina transporta el hierro en estado ferroso (Fe2+) directamente desde el intestino.", "La ferritina actúa como reserva uniendo el hierro en estado férrico (Fe3+).", "La ceruloplasmina (una ferroxidasa) oxida el Fe2+ a Fe3+, reduciendo simultáneamente su propio cobre, permitiendo así que el hierro férrico se una a la transferrina para su transporte.", "La hemopexina reduce el hierro férrico a ferroso para que pueda ser almacenado."] },
+    { n: 4, q: "Ante un proceso infeccioso severo o una intervención quirúrgica, se produce la \"Respuesta de Fase Aguda\". ¿Cuál de los siguientes perfiles de proteínas plasmáticas esperarías encontrar en el paciente?", a: "b", ex: "Los reactantes de fase aguda positivos (que suben) incluyen a la PCR, alfa-1 antitripsina, glicoproteína ácida y haptoglobina. Como mecanismo compensatorio, los reactantes negativos (que bajan) son la albúmina, transferrina y prealbúmina [Diapositiva 26 y Transcripción 77].", opts: ["Aumento masivo de albúmina y transferrina, con disminución de Proteína C Reactiva (CRP).", "Aumento de Proteína C Reactiva, haptoglobina y alfa-1 antitripsina, con disminución paralela de albúmina y prealbúmina.", "Disminución de todas las globulinas alfa, manteniendo la albúmina intacta.", "Aumento exclusivo de la fracción gamma sin alteración de las demás fracciones."] },
+    { n: 5, q: "Paciente acude a consulta y se detecta un déficit genético severo de alfa-1 antitripsina. Basándote en las funciones de esta proteína, ¿a qué complicación clínica es especialmente susceptible este paciente?", a: "c", ex: "La alfa-1 antitripsina es una \"serpina\" (inhibidor de proteasas). Su diana principal es frenar a la elastasa de los neutrófilos. Si falta, la elastasa ataca los pulmones [Diapositiva 13 y Transcripción 48-49].", opts: ["Cirrosis hepática aguda fulminante por acumulación de cobre.", "Sangrados continuos por falta de coagulación.", "Enfisema pulmonar, debido a que la falta de inhibición permite que la elastasa liberada por los neutrófilos destruya el tejido pulmonar.", "Mieloma múltiple."] },
+    { n: 6, q: "Se realiza una electroforesis (proteinograma) a pH 8.6 a un paciente sospechoso de padecer Mieloma Múltiple. Según lo avanzado en clase, ¿qué alteración característica destacarías en el gráfico?", a: "c", ex: "El profesor hizo el \"spoiler\" del seminario indicando que las células tumorales de la médula ósea (linfocitos B mutados) empiezan a producir un solo tipo de anticuerpo a lo bestia, lo que se refleja como un pico gigante en la región gamma [Transcripción 80-81].", opts: ["Una banda difusa y muy engrosada en la zona de la albúmina.", "La desaparición completa de las fracciones alfa-1 y alfa-2.", "Un \"pico monoclonal\" muy agudo y elevado en la fracción gamma, debido a la sobreproducción de un solo tipo de anticuerpo por células tumorales.", "Una fusión total entre las fracciones beta y gamma formando un frente difuso típico de cirrosis."] },
+    { n: 7, q: "La albúmina es la proteína mayoritaria del plasma (55-60%). Entre sus múltiples funciones y características clínicas, es FALSO que:", a: "d", ex: "En la diapositiva 10 y la transcripción se especifica que solo el ~1% de la proteína son hidratos de carbono (prácticamente no está glicosilada). Su capacidad de unión se debe a \"bucles o bolsillos hidrofóbicos\" en su estructura, no a azúcares masivos.", opts: ["Es crucial para el mantenimiento de la presión oncótica (volumen intravascular).", "Si se detecta su presencia en la orina, es indicativo de disfunción o daño renal.", "Posee un gran poder para el transporte de iones, ácidos grasos, bilirrubina y fármacos como el ibuprofeno o la warfarina.", "Es altamente glicosilada (rica en hidratos de carbono), lo que le permite unir sustratos hidrofóbicos."] },
+    { n: 8, q: "En casos de hemólisis intra o extra vascular (ruptura de glóbulos rojos), el cuerpo posee mecanismos para evitar la pérdida del valioso hierro de la hemoglobina liberada. ¿Cuál es la proteína prioritaria que captura esta hemoglobina libre?", a: "b", ex: "La haptoglobina (fracción alfa-2) es la principal encargada de unirse a la hemoglobina liberada. La hemopexina actúa como un \"plan B\" (backup) que une el grupo hemo cuando la haptoglobina ya se ha saturado [Diapositiva 15 y 20, Transcripción 51-52].", opts: ["Hemopexina.", "Haptoglobina (forma un complejo que no puede filtrarse por el riñón y es retirado por los macrófagos).", "Ceruloplasmina.", "Transferrina."] },
+    { n: 9, q: "La Prealbúmina (o transtiretina) se visualiza en el proteinograma como una pequeña banda justo antes de la albúmina. ¿Cuál es su principal utilidad clínica?", a: "b", ex: "El profesor destacó que su corta vida media la hace ideal para evaluar variaciones rápidas en la nutrición. Además, transporta vitamina A y hormonas tiroideas (T3/T4) [Diapositiva 9 y Transcripción 40].", opts: ["Es un indicador a largo plazo del estado renal.", "Al tener una vida media muy corta, es un indicador muy sensible del estado nutricional del paciente.", "Es la principal proteína de defensa frente a la malaria.", "Regula el pH sanguíneo como tampón bicarbonato."] },
+    { n: 10, q: "¿Cuál es la principal diferencia funcional entre los distintos tipos de Inmunoglobulinas mencionadas en clase?", a: "c", ex: "Las IgM (pentaméricas) actúan como la respuesta primaria rápida. Las IgG se mantienen a largo plazo. Las IgA (dímeros) están relacionadas con mucosas y neonatos, y las IgE con alergias [Diapositiva 22 y Transcripción 66].", opts: ["Las IgG tienen forma pentamérica y son las primeras en responder.", "Las IgE son dímeros encargados de la inmunidad del neonato.", "Las IgM son pentaméricas y son las primeras que se producen, mientras que las IgG son anticuerpos de memoria a largo plazo.", "Todas se comportan como proteínas de fase aguda de respuesta inmediata (menos de 24h)."] },
+    { n: 11, q: "A la hora de realizar una electroforesis para obtener un proteinograma, la muestra se coloca en un tampón a un pH específico (generalmente 8.6). ¿Qué finalidad tiene esto?", a: "b", ex: "El profesor explica que en este buffer a pH 8.6 las proteínas adquieren carga negativa, lo que fundamenta su migración eléctrica hacia el polo positivo. [Transcripción 31 y Diapositiva 4]", opts: ["Neutralizar la carga de las proteínas para que migren por peso molecular.", "Dar a prácticamente todas las proteínas una carga negativa para que migren hacia el polo positivo (ánodo).", "Dar a las proteínas una carga positiva para que migren al polo negativo (cátodo).", "Destruir el fibrinógeno de la muestra."] },
+    { n: 12, q: "Si por error el personal de enfermería extrae una muestra de plasma (con anticoagulante) en lugar de suero para hacer un proteinograma, ¿qué alteración visualizaremos en el gráfico resultante?", a: "c", ex: "El plasma contiene fibrinógeno (que no se ha consumido en el coágulo). En la electroforesis, el fibrinógeno migra justo entre la zona beta y gamma. [Transcripción 67 y Diapositiva 22]", opts: ["Desaparecerá el pico de la albúmina.", "Se verá un pico monoclonal gigante en la fracción gamma.", "Aparecerá una banda adicional difusa entre las fracciones beta y gamma correspondiente al fibrinógeno.", "La muestra no migrará en absoluto."] },
+    { n: 13, q: "En clase el profesor hizo una pregunta directa sobre fisiología básica: \"¿Alguien recuerda algún sistema amortiguador (tampón) que viste el semestre anterior?\". La albúmina participa en este control del pH sanguíneo junto a otros sistemas. ¿Qué otro sistema proteico se mencionó como respuesta correcta en clase?", a: "b", ex: "Un alumno respondió \"bicarbonato\" y \"fosfato\", y el profesor añadió que \"la hemoglobina es una proteína\" que también actúa como tampón, al igual que la albúmina (aunque esta última en menor medida). [Transcripción 43-44]", opts: ["El sistema de la ceruloplasmina.", "El sistema de la hemoglobina.", "El sistema de la alfa-1 antitripsina.", "La transferrina."] },
+    { n: 14, q: "¿Por qué la Prealbúmina (Transtiretina) es un excelente marcador clínico para evaluar cambios rápidos en el estado nutricional de un paciente hospitalizado?", a: "c", ex: "Al tener una vida media muy breve, sus niveles en sangre reflejan rápidamente si la persona está recibiendo un aporte nutricional adecuado o no. [Transcripción 40 y Diapositiva 9]", opts: ["Porque es la proteína más abundante del plasma.", "Porque se sintetiza en el intestino directamente tras la ingesta.", "Porque tiene una vida media muy corta.", "Porque está altamente glicosilada."] },
+    { n: 15, q: "La albúmina tiene una enorme capacidad para transportar fármacos (ibuprofeno, warfarina, etc.) y sustancias endógenas. A nivel estructural, ¿cómo logra unir moléculas tan diversas y, a menudo, poco solubles en agua?", a: "b", ex: "El profesor corrigió la idea de los azúcares (la albúmina apenas tiene un ~1% de hidratos de carbono) y remarcó que el transporte se realiza encajando las sustancias en sus hendiduras (clefts) hidrofóbicas. [Transcripción 44 y Diapositiva 11]", opts: ["Mediante la unión a sus múltiples cadenas de hidratos de carbono (glicosilación masiva).", "Gracias a que posee múltiples \"bucles o bolsillos hidrofóbicos\" en su estructura tridimensional.", "Utilizando átomos de hierro como puente.", "Formando enlaces covalentes irreversibles con los fármacos."] },
+    { n: 16, q: "Si una persona sufre una deshidratación severa (pérdida de líquidos), ¿qué alteración relativa esperaríamos encontrar en su concentración de albúmina plasmática?", a: "c", ex: "Al perderse el disolvente (agua del plasma), la cantidad relativa de proteínas (como la albúmina) aumenta. Es una hiperproteinemia por hemoconcentración. [Diapositiva 11 y 24]", opts: ["Analbuminemia.", "Hipoalbuminemia.", "Hiperalbuminemia (aumento relativo).", "La concentración no varía nunca."] },
+    { n: 17, q: "(¡Pista de clase!) Un paciente presenta un edema generalizado (acumulación de líquido en el espacio intersticial). El médico sospecha de un fallo en la presión oncótica intravascular. ¿Qué hallazgo en una analítica de orina confirmaría que el origen del problema es una pérdida renal de la proteína responsable?", a: "c", ex: "La albúmina mantiene el agua dentro del vaso. Si el riñón falla y la albúmina se escapa por la orina, el agua sale a los tejidos causando edema. Encontrarla en orina es \"síntoma de inicio de disfunción renal\". [Diapositiva 10-11 y Transcripción 46]", opts: ["Presencia de Ceruloplasmina en orina.", "Presencia de Inmunoglobulina M en orina.", "Presencia de Albúmina en orina.", "Presencia de alfa-2 macroglobulina en orina."] },
+    { n: 18, q: "Dentro de las globulinas alfa-1, encontramos a la Glicoproteína Ácida. Clínicamente, esta proteína es relevante porque:", a: "b", ex: "Tiene un ~40% de hidratos de carbono, puede transportar lidocaína y actúa inhibiendo tanto la agregación plaquetaria como la infección por malaria. [Diapositiva 13 y Transcripción 47]", opts: ["Es el transportador exclusivo del cobre.", "Actúa como transportador de anestésicos locales como la lidocaína e inhibe la agregación plaquetaria.", "Es la encargada de almacenar hierro.", "Inhibe a la elastasa pulmonar."] },
+    { n: 19, q: "Las SERPINAS son un grupo de proteínas de gran importancia clínica. ¿Cuál es su función biológica principal?", a: "c", ex: "\"SERPINA\" significa Serine Protease Inhibitor. La alfa-1 antitripsina es el ejemplo clásico, inhibiendo enzimas destructivas para proteger los tejidos. [Diapositiva 13 y Transcripción 48]", opts: ["Transportar lípidos en la sangre.", "Actuar como anticuerpos de memoria.", "Ser inhibidores séricos de proteasas (ej. frenar a la elastasa o tripsina).", "Catalizar reacciones de óxido-reducción."] },
+    { n: 20, q: "La Alfa-2 Macroglobulina es una de las proteínas de mayor tamaño del plasma (es dimérica). Debido a este enorme tamaño, su aparición en la orina es un indicador clínico indiscutible de:", a: "b", ex: "Por su gran tamaño \"no se detecta nunca en orina\". Si aparece, es que el \"colador\" del riñón está totalmente roto. En el síndrome nefrótico, su concentración en plasma también aumenta paradójicamente. [Diapositiva 14 y Transcripción 49]", opts: ["Desnutrición severa.", "Un problema o daño renal grave (ej. Síndrome Nefrótico), ya que normalmente no puede atravesar el filtro glomerular.", "Enfisema pulmonar.", "Enfermedad de Wilson."] },
+    { n: 21, q: "La Enfermedad de Wilson es una patología autosómica recesiva caracterizada por la acumulación tóxica de cobre en el hígado y el cerebro (causando cirrosis). Esto se debe a una alteración relacionada con la deficiencia de:", a: "b", ex: "La ceruloplasmina es la principal transportadora del cobre en el plasma. Su deficiencia altera todo el transporte y provoca los depósitos tóxicos de la Enfermedad de Wilson. [Diapositiva 14 y Transcripción 50-51]", opts: ["Haptoglobina.", "Ceruloplasmina.", "Hemopexina.", "Transferrina."] },
+    { n: 22, q: "En una analítica ordinaria, el laboratorio reporta una muestra con \"hemólisis visible\" (color rojizo). El médico solicita un proteinograma. ¿Qué proteína de la fracción alfa-2 aparecerá como una banda inusualmente intensa debido a que está saturada uniendo la hemoglobina liberada?", a: "b", ex: "La haptoglobina captura la hemoglobina libre producto de la rotura de hematíes. Al unirse, migran juntas formando una banda muy visible en la región cercana a la beta. [Diapositiva 15 y Transcripción 54]", opts: ["Proteína C Reactiva (CRP).", "Haptoglobina.", "Prealbúmina.", "Alfa-1 antitripsina."] },
+    { n: 23, q: "Si un paciente sufre una hemólisis masiva y toda su Haptoglobina ya está saturada y consumida, ¿cuál es el \"Plan B\" (proteína de reserva) del plasma para unir los grupos hemo libres y evitar su pérdida por orina?", a: "a", ex: "El profesor describió a la hemopexina como un \"backup\" o segundo sistema menos efectivo, que actúa uniendo el grupo hemo cuando la haptoglobina ya no da abasto. [Diapositiva 20 y Transcripción 59]", opts: ["Hemopexina (fracción beta).", "Ceruloplasmina.", "Transferrina.", "Inmunoglobulina G."] },
+    { n: 24, q: "(¡Trampa clásica sobre Hierro!) Un paciente presenta niveles circulantes muy altos de hierro (sobrecarga de hierro). Como mecanismo de regulación fisiológica, ¿qué esperarías observar en su síntesis de Transferrina?", a: "b", ex: "Es un concepto contraintuitivo que el profesor remarcó: si hay mucho hierro, el hígado DEJA de fabricar transferrina para no facilitar más su transporte y evitar la toxicidad. [Diapositiva 18 y Transcripción 57]", opts: ["Una concentración altísima de Transferrina para transportar todo ese exceso.", "Una concentración BAJA de Transferrina, ya que su síntesis disminuye para evitar que el organismo asimile/transporte más hierro tóxico.", "La Transferrina se convierte en Ferritina.", "La Transferrina se excreta masivamente por la bilis."] },
+    { n: 25, q: "¿En qué estado de oxidación DEBE estar el hierro para poder unirse a la Transferrina y viajar por el torrente sanguíneo?", a: "c", ex: "La transferrina SOLO capta y transporta hierro en su forma oxidada, es decir, Férrica (Fe3+). [Diapositiva 18 y Transcripción 56]", opts: ["Estado ferroso (Fe2+).", "Unido a un átomo de cobre.", "Estado férrico (Fe3+).", "Estado metálico (Fe0)."] },
+    { n: 26, q: "Para que las células puedan asimilar el hierro circulante, el complejo \"Hierro-Transferrina\" se une a un receptor de membrana celular. ¿Qué mecanismo utiliza la célula para internalizar este complejo?", a: "a", ex: "El complejo se une al receptor, se forma una hendidura cubierta de clatrina, se invagina creando un endosoma ácido donde se suelta el hierro, y luego el receptor y la transferrina vacía (apotransferrina) se reciclan a la superficie. [Diapositiva 19 y Transcripción 58]", opts: ["Endocitosis en vesículas recubiertas de clatrina.", "Difusión simple a través de la bicapa.", "Canales iónicos dependientes de voltaje.", "Transporte activo secundario con Sodio."] },
+    { n: 27, q: "(¡Clínica directa!) Un médico quiere evaluar las RESERVAS de hierro en los tejidos de un paciente con sospecha de anemia. El indicador clínico principal que solicitará en la analítica será:", a: "c", ex: "La ferritina es la principal proteína que almacena el hierro (en forma Fe2+). Su concentración plasmática es directamente proporcional a las reservas de hierro del cuerpo. [Diapositiva 20 y Transcripción 59]", opts: ["Haptoglobina.", "Ceruloplasmina.", "Ferritina.", "Alfa-1 antitripsina."] },
+    { n: 28, q: "En la reacción de oxidación-reducción que permite la movilización del hierro, la Ceruloplasmina oxida el Hierro (de Fe2+ a Fe3+) para dárselo a la Transferrina. En el mismo instante, ¿qué le ocurre al cobre contenido en la propia Ceruloplasmina?", a: "b", ex: "Es una reacción redox acoplada (\"siempre va por pareja\"). El hierro pierde un electrón (se oxida) y ese electrón lo capta el Cu2+ de la ceruloplasmina, reduciéndose a Cu+. [Diapositiva 21 y Transcripción 61]", opts: ["Se oxida de Cu+ a Cu2+.", "Se reduce de Cu2+ a Cu+ (ganando el electrón que ha perdido el hierro).", "Es expulsado hacia el riñón.", "Se une irreversiblemente a la albúmina."] },
+    { n: 29, q: "Tras la reducción del cobre en la Ceruloplasmina (Cu+), esta enzima necesita volver a su estado original (Cu2+) para seguir funcionando. ¿Quién aporta la reacción necesaria para regenerar el ión cúprico?", a: "b", ex: "Según el esquema de la diapositiva 21 y la transcripción, el ion cúprico se regenera reaccionando con el oxígeno ambiental o con grupos tiol oxidados. [Diapositiva 21 y Transcripción 62]", opts: ["La vitamina C.", "El oxígeno o grupos tiol oxidados.", "La vitamina A transportada por prealbúmina.", "El calcio intracelular."] },
+    { n: 30, q: "Si observamos un Proteinograma normal de izquierda a derecha (desde el ánodo al cátodo), ¿cuál es el orden correcto en el que aparecen los principales picos o fracciones?", a: "b", ex: "Las proteínas más rápidas y electronegativas van primero (Albúmina), seguidas de las alfa (1 y 2), la beta y finalmente las más lentas, las gamma (inmunoglobulinas). [Diapositiva 4, 12 y Transcripción 63]", opts: ["Gamma, Beta, Alfa-2, Alfa-1, Albúmina.", "Albúmina, Alfa-1, Alfa-2, Beta, Gamma.", "Prealbúmina, Beta, Gamma, Albúmina.", "Albúmina, Gamma, Beta, Alfa-1."] },
+    { n: 31, q: "¿Qué característica estructural básica define a las Inmunoglobulinas en cuanto a su forma de reconocer a los agentes invasores?", a: "b", ex: "Su forma de \"Y\" viene dada por las cadenas pesadas y ligeras enlazadas por puentes de azufre, creando zonas variables que unen específicamente al antígeno. [Diapositiva 22 y Transcripción 65]", opts: ["Son lípidos de cadena larga.", "Están formadas por dos cadenas pesadas y dos cadenas ligeras unidas por puentes disulfuro, y reconocen de forma muy específica a los antígenos formando inmunocomplejos.", "Son pentámeros de albúmina pura.", "Solo poseen cadenas pesadas unidas a carbohidratos."] },
+    { n: 32, q: "En una analítica serológica de un paciente recién infectado por un virus, ¿qué isotipo de inmunoglobulina será el PRIMERO en aparecer y que estructuralmente se presenta como un pentámero?", a: "d", ex: "La IgM es la primera línea de anticuerpos que se genera en la respuesta humoral. Tiene forma de pentámero circular, lo que le da \"un montón de posibilidades de unir antígenos\". [Diapositiva 22 y Transcripción 66]", opts: ["IgA.", "IgG.", "IgE.", "IgM."] },
+    { n: 33, q: "¿Qué función inmunológica especial tiene la Inmunoglobulina A (IgA)?", a: "b", ex: "El profesor recalcó que la IgA es vital para las mucosas y la defensa del recién nacido (leche paterna/materna). [Diapositiva 22 y Transcripción 66-67]", opts: ["Es el anticuerpo exclusivo de las alergias.", "Es un dímero fundamental en la inmunidad del neonato, capaz de atravesar mucosas y secretarse en la leche materna.", "Es un anticuerpo de memoria que dura toda la vida en sangre.", "Es la encargada de unir cobre."] },
+    { n: 34, q: "En el laboratorio, el \"Método de Lowry\" se utiliza comúnmente para:", a: "b", ex: "El profesor preguntó a la clase cómo se medían las proteínas, y tras unas pistas, confirmaron que se usaba espectrofotometría, concretamente el ensayo de Lowry (que pone los tubitos azules). [Transcripción 71-72]", opts: ["Separar la hemoglobina de la haptoglobina.", "Cuantificar la concentración total de proteínas en una muestra mediante espectrofotometría.", "Medir exclusivamente el cobre.", "Transformar el plasma en suero."] },
+    { n: 35, q: "Las alteraciones en la cantidad total de proteínas plasmáticas tienen un alto valor diagnóstico. ¿Cuál de las siguientes situaciones provocaría típicamente una HIPOPROTEINEMIA (disminución del total de proteínas)?", a: "c", ex: "Si la \"fábrica\" (hígado) se rompe, o el \"colador\" (riñón) deja escapar las proteínas por la orina, el resultado neto es una bajada de proteínas en sangre. [Diapositiva 24-25 y Transcripción 74]", opts: ["Un Mieloma Múltiple.", "Una deshidratación severa.", "Una enfermedad hepática (que reduce su síntesis) o una enfermedad glomerular renal (que aumenta su pérdida).", "Una inflamación reumática aguda."] },
+    { n: 36, q: "Un paciente se somete a una cirugía abdominal mayor. Tras la intervención, sus niveles de Proteína C Reactiva (CRP) y Antiquimotripsina se disparan en menos de 24 horas. ¿Qué concepto clínico describe este fenómeno?", a: "a", ex: "Son reactantes de fase aguda. Actúan como el \"chivato\" o sensor más veloz; la CRP sube rapidísimo ante intervenciones o infecciones, y va bajando conforme el paciente sana. [Diapositiva 26 y Transcripción 76-78]", opts: ["Respuesta de fase aguda temprana frente al daño tisular/inflamatorio.", "Rechazo tumoral.", "Fallo renal fulminante.", "Síndrome de Wilson tardío."] },
+    { n: 37, q: "¿Qué proteínas de fase aguda tienen una cinética de elevación un poco más lenta, aumentando significativamente pasadas las 24-48 horas tras el evento inflamatorio?", a: "c", ex: "Según la tabla de la diapositiva 26, la CRP sube en <24h. En el rango de 24-48h suben la a1-antitripsina, haptoglobina y fibrinógeno. [Diapositiva 26 y Transcripción 77]", opts: ["Albúmina y CRP.", "Prealbúmina y Transferrina.", "Alfa-1 antitripsina y Haptoglobina.", "Fibrinógeno y Proteína C Reactiva."] },
+    { n: 38, q: "Durante una respuesta inflamatoria crónica o aguda sostenida, ¿qué patrón es clásico observar en el proteinograma general de un paciente?", a: "c", ex: "Dado que la gran mayoría de reactantes de fase aguda positivos (CRP, haptoglobina, a1-antitripsina, etc.) migran en las zonas alfa, estos picos se elevan visiblemente en el gráfico durante la inflamación. [Diapositiva 26 y Transcripción 79]", opts: ["Desaparición del pico de albúmina.", "Disminución absoluta de las fracciones alfa.", "Aumento marcado de las fracciones alfa-globulinas (alfa-1 y alfa-2) respecto a un individuo normal.", "Desaparición de las inmunoglobulinas."] },
+    { n: 39, q: "Un paciente alcohólico crónico es diagnosticado de Cirrosis Hepática avanzada. Si le realizamos un proteinograma, ¿cuál de los siguientes perfiles visuales es el MÁS característico de su patología?", a: "b", ex: "El hígado cirrótico no fabrica albúmina (baja el primer pico). Además, se produce una alteración en las globulinas que forma un \"puente beta-gamma\" borroso donde no se separan bien ambas fracciones. [Transcripción 80]", opts: ["Un pico gigante y aislado en la fracción gamma.", "Una disminución drástica de la albúmina junto con un frente difuso donde las bandas Beta y Gamma no se pueden distinguir bien.", "Un aumento gigante de la prealbúmina.", "Todos los picos aumentan al doble de su tamaño normal."] },
+    { n: 40, q: "(¡Conexión de Proteoma Oculto!) En la gráfica circular que muestra el contenido porcentual del plasma, aparece un pequeño grupo etiquetado como \"Proteoma Oculto\" (1%). ¿A qué se refería el profesor con la importancia clínica de este pequeño porcentaje?", a: "c", ex: "El profesor indicó que en investigación médica se intenta eliminar o \"depletar\" a las grandes proteínas (como la albúmina) para poder estudiar este \"proteoma oculto\", donde se esconden biomarcadores de cáncer o infecciones incipientes. [Diapositiva 8 y Transcripción 39]", opts: ["Son proteínas indetectables que no sirven para nada.", "Contiene exclusivamente células sanguíneas ocultas.", "Son proteínas minoritarias que son objeto principal de estudios de proteómica para buscar nuevos \"biomarcadores\" tempranos de enfermedades.", "Es el porcentaje exacto de colesterol plasmático."] }
+];
+
+let questions = [];
+let userAnswers = {}; // { index: { selected: char, correct: bool, marked: bool } }
+
+function startQuiz(isRandom) {
+    questions = [...rawData].map(q => {
+        // Barajar opciones y mantener rastro de la correcta
+        const correctText = q.opts[q.a.charCodeAt(0) - 97];
+        const shuffledOpts = [...q.opts].sort(() => Math.random() - 0.5);
+        const newCorrectLetter = String.fromCharCode(97 + shuffledOpts.indexOf(correctText));
+        return { ...q, opts: shuffledOpts, a: newCorrectLetter };
+    });
+
+    if (isRandom) questions.sort(() => Math.random() - 0.5);
+
+    renderQuiz();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'flex';
+}
+
+function renderQuiz() {
+    const container = document.getElementById('question-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+
+    questions.forEach((q, i) => {
+        // Pregunta
+        const div = document.createElement('div');
+        div.className = `question-block qb-${i}`;
+        div.innerHTML = `
+            <h2>Pregunta ${i + 1}</h2>
+            <p>${q.q}</p>
+            <div class="options">
+                ${q.opts.map((opt, idx) => `
+                    <button class="option-btn" onclick="checkAnswer(${i}, '${String.fromCharCode(97 + idx)}', this)">
+                        ${String.fromCharCode(97 + idx)}) ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="explanation" id="ex-${i}">${q.ex}</div>
+            <div class="marking-zone">
+                <input type="checkbox" id="mark-${i}" onchange="toggleMark(${i})">
+                <label for="mark-${i}">Marcar pregunta para revisión 🚩</label>
+            </div>
+        `;
+        container.appendChild(div);
+
+        // Sidebar item
+        const item = document.createElement('div');
+        item.className = `index-item ii-${i}`;
+        item.innerText = i + 1;
+        item.onclick = () => {
+            document.querySelector(`.qb-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        sidebar.appendChild(item);
+    });
+    
+    // Al volver a renderizar, forzar el scroll arriba del todo
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+function checkAnswer(qIdx, letter, btn) {
+    if (userAnswers[qIdx]) return; // Ya respondida
+
+    const isCorrect = letter === questions[qIdx].a;
+    userAnswers[qIdx] = { selected: letter, correct: isCorrect, marked: document.getElementById(`mark-${qIdx}`).checked };
+
+    // Estilo visual
+    const buttons = document.querySelectorAll(`.qb-${qIdx} .option-btn`);
+    buttons.forEach(b => {
+        b.disabled = true;
+        const bLetter = b.innerText.split(')')[0].trim();
+        if (bLetter === questions[qIdx].a) b.classList.add('correct');
+        else if (bLetter === letter) b.classList.add('incorrect');
+    });
+
+    // Sidebar
+    const sideItem = document.querySelector(`.ii-${qIdx}`);
+    sideItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    // Explicación
+    document.getElementById(`ex-${qIdx}`).style.display = 'block';
+}
+
+function toggleMark(index) {
+    const sideItem = document.querySelector(`.ii-${index}`);
+    if (document.getElementById(`mark-${index}`).checked) {
+        sideItem.classList.add('marked');
+    } else {
+        sideItem.classList.remove('marked');
+    }
+}
+
+function confirmFinish() {
+    if (confirm("¿Estás seguro de que quieres finalizar el cuestionario?")) {
+        showResults();
+    }
+}
+
+function showResults() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main-content').scrollTop = 0;
+
+    let correct = 0, failed = 0;
+    Object.values(userAnswers).forEach(v => {
+        if (v.correct) correct++;
+        else failed++;
+    });
+
+    document.getElementById('res-total').innerText = Object.keys(userAnswers).length;
+    document.getElementById('res-correct').innerText = correct;
+    document.getElementById('res-fail').innerText = failed;
+}
+
+function repeatMode(mode) {
+    let subSet = [];
+    if (mode === 'all') {
+        subSet = [...rawData];
+    } else if (mode === 'failed') {
+        subSet = questions.filter((_, i) => userAnswers[i] && !userAnswers[i].correct);
+    } else if (mode === 'marked') {
+        subSet = questions.filter((_, i) => document.getElementById(`mark-${i}`).checked);
+    } else if (mode === 'mixed') {
+        subSet = questions.filter((_, i) => 
+            (userAnswers[i] && !userAnswers[i].correct) || document.getElementById(`mark-${i}`).checked
+        );
+    }
+
+    if (subSet.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return;
+    }
+
+    // Resetear variables
+    userAnswers = {};
+    questions = subSet;
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('quiz-screen').style.display = 'block';
+    renderQuiz();
+}
+</script>
+</body>
+</html>

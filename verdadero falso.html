@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repaso Rápido: Verdadero o Falso</title>
+    <style>
+        :root { --true: #27ae60; --false: #c0392b; --neutral: #34495e; --bg: #f0f3f4; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: #2c3e50; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 700px; background: white; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 40px; position: relative; overflow: hidden; }
+        
+        header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ecf0f1; padding-bottom: 20px; }
+        h1 { margin: 0; color: var(--neutral); font-size: 1.8rem; }
+        .subtitle { color: #7f8c8d; font-size: 0.95rem; margin-top: 5px; }
+        
+        .progress-container { width: 100%; background: #ecf0f1; height: 8px; border-radius: 4px; margin-bottom: 30px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--neutral); width: 0%; transition: width 0.3s ease; }
+
+        .card-stack { position: relative; min-height: 300px; perspective: 1000px; }
+        .card { position: absolute; width: 100%; background: white; backface-visibility: hidden; transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1); transform-origin: center bottom; opacity: 1; }
+        .card.exit-left { transform: translateX(-120%) rotate(-10deg); opacity: 0; }
+        .card.exit-right { transform: translateX(120%) rotate(10deg); opacity: 0; }
+        
+        .question-text { font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 40px; min-height: 100px; display: flex; align-items: center; justify-content: center; line-height: 1.4; }
+        .chapter-tag { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: #ecf0f1; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; color: #7f8c8d; text-transform: uppercase; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .btn { padding: 20px; border: none; border-radius: 12px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .btn-true { background: var(--true); box-shadow: 0 5px 0 #1e8449; }
+        .btn-false { background: var(--false); box-shadow: 0 5px 0 #922b21; }
+        .btn:active { transform: translateY(5px); box-shadow: none; }
+        .btn-icon { font-size: 1.5rem; }
+
+        .feedback-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 10; text-align: center; padding: 20px; }
+        .feedback-icon { font-size: 4rem; margin-bottom: 15px; }
+        .feedback-msg { font-size: 1.2rem; font-weight: bold; color: var(--neutral); margin-bottom: 20px; }
+        .next-btn { padding: 10px 30px; background: var(--neutral); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+
+        .results { text-align: center; display: none; animation: fadeIn 0.5s; }
+        .score-display { font-size: 4rem; font-weight: 800; color: var(--neutral); margin: 20px 0; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⚡ Repaso Rápido</h1>
+        <div class="subtitle">Capítulos 5 al 9 • Verdadero o Falso</div>
+    </header>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="progress"></div>
+    </div>
+
+    <div id="game-area">
+        <div class="card-stack" id="card-stack">
+            </div>
+
+        <div class="btn-grid">
+            <button class="btn btn-true" onclick="handleAnswer(true)">
+                <span class="btn-icon">👍</span> VERDADERO
+            </button>
+            <button class="btn btn-false" onclick="handleAnswer(false)">
+                <span class="btn-icon">👎</span> FALSO
+            </button>
+        </div>
+    </div>
+
+    <div class="results" id="results">
+        <h2>¡Repaso Completado!</h2>
+        <div class="score-display" id="final-score">0/0</div>
+        <p id="final-msg">Buen trabajo repasando los conceptos básicos.</p>
+        <button class="btn" style="background:var(--neutral); margin-top:20px; width:100%" onclick="location.reload()">🔄 Repetir</button>
+    </div>
+
+    <div class="feedback-overlay" id="feedback">
+        <div class="feedback-icon" id="fb-icon"></div>
+        <div class="feedback-msg" id="fb-msg"></div>
+        <button class="next-btn" onclick="nextCard()">Continuar ➡</button>
+    </div>
+</div>
+
+<script>
+const db = [
+  // CAP 5
+  {
+    id: 55, ch: 5,
+    q: "Todas las secuencias de ADN funcionales dentro de una célula codifican productos proteicos.",
+    correct: false,
+    exp: "Falso. Hay genes que codifican ARN funcional (ARNr, ARNt) y secuencias reguladoras que no producen proteínas."
+  },
+  {
+    id: 56, ch: 5,
+    q: "Para la mayoría de los genes del genoma eucariota, el producto final es una molécula de ARN.",
+    correct: false,
+    exp: "Falso. Aunque se transcribe mucho ARN, la mayoría de los 'genes' clásicos codifican proteínas. (Aunque hay debate sobre lncARN, en el contexto básico es falso)."
+  },
+  {
+    id: 60, ch: 5,
+    q: "Los cromosomas existen en diferentes niveles de condensación, dependiendo de la etapa del ciclo celular.",
+    correct: true,
+    exp: "Verdadero. Están más extendidos en interfase y máximamente condensados en mitosis."
+  },
+  // CAP 6
+  {
+    id: 68, ch: 6,
+    q: "El primer paso en la reparación del ADN suele requerir una nucleasa para eliminar el tramo dañado.",
+    correct: true,
+    exp: "Verdadero. En vías como NER o BER, se corta y elimina la parte dañada antes de rellenar."
+  },
+  {
+    id: 69, ch: 6,
+    q: "En la recombinación homóloga, el extremo 3' saliente 'invade' el dúplex de ADN homólogo.",
+    correct: true,
+    exp: "Verdadero. La invasión de hebra es el paso clave catalizado por RecA/Rad51."
+  },
+  {
+    id: 85, ch: 6,
+    q: "La primasa es una enzima que sintetiza ADN.",
+    correct: false,
+    exp: "Falso. La primasa es una ARN polimerasa; sintetiza cebadores de ARN, no de ADN."
+  },
+  // CAP 7
+  {
+    id: 1, ch: 7,
+    q: "Un ARNm puede contener la secuencia para más de una proteína en bacterias.",
+    correct: true,
+    exp: "Verdadero. Los ARNm bacterianos suelen ser policistrónicos."
+  },
+  {
+    id: 2, ch: 7,
+    q: "En eucariotas, el ribosoma se une directamente al codón de inicio AUG sin necesidad de escanear.",
+    correct: false,
+    exp: "Falso. El ribosoma eucariota se une al capuchón 5' y escanea hasta encontrar el primer AUG."
+  },
+  {
+    id: 3, ch: 7,
+    q: "El código genético es universal, es decir, idéntico en todos los organismos sin excepciones.",
+    correct: false,
+    exp: "Falso. Es *casi* universal, pero hay ligeras variaciones en mitocondrias y algunos protozoos."
+  },
+  // CAP 8
+  {
+    id: 40, ch: 8,
+    q: "Una célula diferenciada (como una neurona) ha perdido los genes que no necesita.",
+    correct: false,
+    exp: "Falso. Contiene el genoma completo, pero solo expresa los genes necesarios."
+  },
+  {
+    id: 42, ch: 8,
+    q: "Los activadores transcripcionales pueden unirse al ADN a miles de pares de bases de distancia del promotor.",
+    correct: true,
+    exp: "Verdadero. Actúan a distancia mediante el plegamiento del ADN (enhancers)."
+  },
+  // CAP 9
+  {
+    id: 60, ch: 9,
+    q: "La mayoría de las mutaciones que ocurren en el genoma tienen consecuencias neutrales.",
+    correct: true,
+    exp: "Verdadero. Como gran parte del genoma no es codificante ni regulador crítico, muchas mutaciones no afectan la aptitud."
+  },
+  {
+    id: 62, ch: 9,
+    q: "Los intrones y transposones tienden a ralentizar la evolución de nuevos genes.",
+    correct: false,
+    exp: "Falso. Al contrario, facilitan la recombinación y el 'exon shuffling', acelerando la evolución."
+  },
+  {
+    id: 64, ch: 9,
+    q: "La mayoría de los polimorfismos de un solo nucleótido (SNPs) causan diferencias funcionales observables.",
+    correct: false,
+    exp: "Falso. La mayoría caen en regiones no codificantes o son sinónimos y no tienen efecto fenotípico."
+  },
+  {
+    id: 70, ch: 9,
+    q: "Los humanos y los chimpancés divergieron hace unos 6000 años.",
+    correct: false,
+    exp: "Falso. Fue hace aproximadamente 6 millones de años."
+  },
+  {
+    id: 72, ch: 9,
+    q: "La duplicación de todo el genoma ha ocurrido en el linaje de los vertebrados.",
+    correct: true,
+    exp: "Verdadero. Se cree que hubo dos rondas de duplicación completa en el ancestro de los vertebrados."
+  }
+];
+
+let currentIdx = 0;
+let score = 0;
+const stack = document.getElementById('card-stack');
+const fbOverlay = document.getElementById('feedback');
+const fbIcon = document.getElementById('fb-icon');
+const fbMsg = document.getElementById('fb-msg');
+
+function init() {
+    renderCard();
+    updateProgress();
+}
+
+function renderCard() {
+    stack.innerHTML = '';
+    if (currentIdx >= db.length) {
+        showResults();
+        return;
+    }
+
+    const item = db[currentIdx];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+        <div class="chapter-tag">Capítulo ${item.ch}</div>
+        <div class="question-text">${item.q}</div>
+    `;
+    stack.appendChild(card);
+}
+
+function handleAnswer(userSaysTrue) {
+    const item = db[currentIdx];
+    const isCorrect = (userSaysTrue === item.correct);
+    
+    if (isCorrect) score++;
+
+    // Show feedback
+    fbOverlay.style.opacity = '1';
+    fbOverlay.style.pointerEvents = 'auto';
+    
+    if (isCorrect) {
+        fbIcon.innerText = '✅';
+        fbMsg.innerText = `¡Correcto! ${item.exp}`;
+        fbOverlay.style.background = 'rgba(234, 250, 241, 0.95)';
+        fbMsg.style.color = '#1e8449';
+    } else {
+        fbIcon.innerText = '❌';
+        fbMsg.innerText = `Incorrecto. ${item.exp}`;
+        fbOverlay.style.background = 'rgba(253, 237, 236, 0.95)';
+        fbMsg.style.color = '#922b21';
+    }
+}
+
+function nextCard() {
+    fbOverlay.style.opacity = '0';
+    fbOverlay.style.pointerEvents = 'none';
+    currentIdx++;
+    updateProgress();
+    renderCard();
+}
+
+function updateProgress() {
+    const pct = (currentIdx / db.length) * 100;
+    document.getElementById('progress').style.width = `${pct}%`;
+}
+
+function showResults() {
+    document.getElementById('game-area').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('final-score').innerText = `${score}/${db.length}`;
+    
+    const pct = (score/db.length)*100;
+    let msg = "¡Excelente!";
+    if(pct < 50) msg = "Sigue repasando.";
+    else if(pct < 80) msg = "¡Muy bien!";
+    document.getElementById('final-msg').innerText = msg;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulacro: Excitación-Contracción Muscular</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #e67e22;
+            --success: #27ae60;
+            --error: #c0392b;
+            --bg: #f4f7f6;
+            --text: #34495e;
+            --sidebar-width: 90px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Sidebar Navigation */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            z-index: 1000;
+        }
+
+        .index-item {
+            width: 50px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9em;
+            transition: 0.3s;
+        }
+
+        .index-item:hover { background: var(--secondary); }
+        .index-item.answered { border-left: 4px solid var(--success); }
+        .index-item.marked { background: #f1c40f !important; color: #2c3e50; }
+
+        /* Main Content */
+        #main-content {
+            margin-left: var(--sidebar-width);
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 40px;
+            position: sticky;
+            top: 20px;
+            z-index: 900;
+        }
+
+        .question-card {
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            scroll-margin-top: 160px;
+            position: relative;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-text {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.5;
+        }
+
+        .mark-btn {
+            background: #eee;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .mark-btn.active { background: #f1c40f; color: black; font-weight: bold; }
+
+        .options-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 15px 20px;
+            border: 2px solid #edf2f7;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+        }
+
+        .option:hover { background: #f8fafc; border-color: var(--secondary); }
+        .option.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 25px;
+            padding: 20px;
+            background: #fff9f2;
+            border-left: 5px solid var(--secondary);
+            border-radius: 0 8px 8px 0;
+            display: none;
+            font-size: 1em;
+            line-height: 1.6;
+            color: #856404;
+        }
+
+        /* Modal Overlay */
+        .modal {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .action-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.secondary { background: var(--primary); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="init-modal" class="modal">
+        <div class="modal-box">
+            <h1 style="color: var(--primary)">Fisiología Muscular</h1>
+            <p>¿Cómo prefieres realizar el simulacro?</p>
+            <button class="action-btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="action-btn secondary" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="main-content">
+        <header>
+            <h2 style="margin:0">Mecanismos de Contracción</h2>
+            <div id="stats" style="margin: 10px 0; font-weight: bold; color: var(--secondary);"></div>
+            <button class="action-btn" style="padding: 8px 15px; font-size: 0.8em;" onclick="endAndShowResults()">Finalizar y corregir</button>
+        </header>
+
+        <div id="quiz-container"></div>
+
+        <div id="result-modal" class="modal hidden">
+            <div class="modal-box">
+                <h2>Cuestionario Finalizado</h2>
+                <div id="final-score" style="font-size: 2.5em; margin: 20px 0; color: var(--primary);"></div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="action-btn" onclick="restart('all')">Repetir todo</button>
+                    <button class="action-btn" id="btn-failed" onclick="restart('failed')">Repetir falladas</button>
+                    <button class="action-btn" id="btn-marked" onclick="restart('marked')">Repetir marcadas</button>
+                    <button class="action-btn" id="btn-both" onclick="restart('both')">Repetir falladas + marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            { id: 1, q: "A nivel de control fisiológico general, el profesor remarcó una diferencia clave entre el músculo esquelético y la musculatura lisa/cardíaca. ¿Cuál de las siguientes afirmaciones es correcta?", options: ["El músculo esquelético está fuertemente regulado por control hormonal.", "El músculo liso solo se activa mediante acetilcolina liberada por motoneuronas somáticas.", "El músculo esquelético es de regulación más sencilla: solo está bajo el control de la acetilcolina liberada por motoneuronas somáticas (si hay ACh se contrae, si no, se relaja).", "El músculo cardíaco carece de sinapsis eléctricas."], correct: 2, exp: "El profesor insistió en que el esquelético no tiene control hormonal ni inhibidores directos complejos como el liso/cardíaco (que usan el sistema autónomo)." },
+            { id: 2, q: "En clase se hizo una advertencia sobre la clásica división entre 'músculo voluntario' e 'involuntario'. Según el profesor, esta nomenclatura 'hay que tomarla entre comillas' porque:", options: ["En realidad el cerebro no controla ningún músculo.", "Hay musculatura lisa sometida a control voluntario y estructuras de músculo esquelético bajo control involuntario (ej. reflejos o diafragma durante el sueño).", "Todo el músculo liso es voluntario.", "El músculo esquelético solo responde a emociones subconscientes."], correct: 1, exp: "Literal del audio: 'hay tanta musculatura cardiaca y lisa que puede ser sometida a control voluntario como estructuras esqueléticas bajo control involuntario'." },
+            { id: 3, q: "La terminología en la fisiología muscular utiliza el prefijo 'sarco-' para definir estructuras celulares específicas. Por tanto, cuando hablamos del 'Sarcolema', nos estamos refiriendo fisiológicamente a:", options: ["El retículo endoplásmico de la célula muscular.", "El citoplasma celular.", "La mitocondria especializada del músculo.", "El plasmalema o membrana celular de la fibra muscular."], correct: 3, exp: "Aclaración básica del profesor. Sarcolema = Membrana celular; Sarcoplasma = Citoplasma; Retículo Sarcoplásmico = Retículo endoplásmico." },
+            { id: 4, q: "Para explicar qué es un 'Túbulo T', el profesor utilizó la analogía de hacer una hendidura en una 'bola de plastilina'. Fisiológicamente, un Túbulo T es:", options: ["Un canal de calcio insertado en el retículo sarcoplásmico.", "Una invaginación que permite la continuidad de la parte extracelular de la membrana (sarcolema) hacia el interior de la célula.", "Un microtúbulo del citoesqueleto por donde viajan las vesículas.", "Un conducto exclusivo para el paso de ATP."], correct: 1, exp: "Los túbulos T (transversales) llevan el potencial de acción rápidamente hasta el centro de la fibra muscular." },
+            { id: 5, q: "Desde un punto de vista evolutivo, si no existieran los túbulos T en el músculo esquelético:", options: ["El músculo se hipertrofiaría el doble de rápido.", "La difusión de iones desde la membrana externa hasta las miofibrillas centrales sería tan lenta que enlentecería muchísimo el proceso de contracción.", "Las fibras tendrían que usar únicamente glucólisis anaerobia.", "El músculo no podría relajarse jamás, provocando rigor mortis."], correct: 1, exp: "El profesor destacó los túbulos T como una mejora evolutiva crucial para aligerar y acelerar el acoplamiento excitación-contracción." },
+            { id: 6, q: "Estructuralmente, en el músculo esquelético se define la 'Tríada' como la íntima asociación anatómica entre:", options: ["Tres filamentos gruesos de miosina.", "Un filamento de actina, troponina y tropomiosina.", "Un Túbulo T y las cisternas terminales de dos retículos sarcoplásmicos adyacentes.", "Tres mitocondrias rodeando a un sarcómero."], correct: 2, exp: "La tríada es el lugar físico exacto donde el voltaje del Túbulo T se comunica con el almacén de calcio del Retículo Sarcoplásmico." },
+            { id: 7, q: "Al observar el patrón de estriaciones al microscopio óptico, la 'Banda A' (anisótropa) se define como:", options: ["La región formada únicamente por filamentos finos de actina.", "La región que abarca toda la longitud de los filamentos gruesos de miosina, refractando la luz de forma irregular.", "La estructura proteica en zigzag.", "La región entre dos líneas Z."], correct: 1, exp: "'A' viene de anisótropo (refracta la luz de forma irregular). Corresponde a la longitud de la miosina." },
+            { id: 8, q: "Según la Teoría del Deslizamiento de los Filamentos, ¿qué cambio anatómico observamos en un sarcómero cuando el músculo pasa del estado relajado al estado contraído?", options: ["Los filamentos de miosina se acortan físicamente a la mitad de su longitud.", "La Banda A desaparece por completo.", "Los filamentos finos se deslizan sobre los gruesos hacia el centro, reduciéndose la anchura de la Zona H y de la Banda I.", "Los discos Z se separan entre sí."], correct: 2, exp: "Los filamentos NO se encogen, se deslizan. Al hacerlo, la zona H (centro vacío de actina) y la banda I (sólo actina) se acortan, pero la banda A mantiene su longitud constante." },
+            { id: 9, q: "Para mantener la estructura del sarcómero, existe una proteína de tamaño colosal que funciona exactamente como 'el muelle de un bolígrafo'. Esta proteína es la:", options: ["Nebulina.", "Actina G.", "Troponina.", "Titina."], correct: 3, exp: "La Titina es elástica. Limita el acortamiento y, al relajarse el músculo, su energía elástica devuelve las bandas a su posición original." },
+            { id: 10, q: "Por el contrario, para asegurar que los filamentos finos (Actina F) se mantengan rectos, rígidos y bien alineados, el músculo emplea una proteína denominada:", options: ["Nebulina.", "Titina.", "Calmodulina.", "Miosina quinasa."], correct: 0, exp: "El profesor diferenció muy bien: Titina = Elástica/Muelle. Nebulina = Rígida/Estabilizadora del filamento de actina." },
+            { id: 11, q: "La molécula de miosina posee una 'región bisagra' en su cuello. Según el símil de una puerta, esta bisagra es fundamental porque:", options: ["Actúa como un canal iónico para el sodio.", "Permite cortar la actina en trozos más pequeños.", "Tiene la capacidad de almacenar energía potencial cuando se flexiona, energía que luego se usa para dar el 'golpe de fuerza'.", "Es el sitio exclusivo de unión del calcio."], correct: 2, exp: "La bisagra se 'carga' con la hidrólisis del ATP, acumulando la energía mecánica que luego empujará al filamento de actina." },
+            { id: 12, q: "(¡PREGUNTA DE KAHOOT!). En el 'Estado de Rigor' del ciclo de los puentes cruzados, la interacción actina-miosina se caracteriza por:", options: ["Estar bloqueada físicamente por la tropomiosina.", "Existir una unión FUERTE entre la cabeza de miosina y la actina, con un ángulo de 45º y sin nucleótidos (ATP) unidos.", "Formar un ángulo de 90º con el ATP unido.", "La miosina está completamente separada de la actina."], correct: 1, exp: "En el paso 1 (rigor), la cabeza está fuertemente anclada a 45º. Esto es lo que causa el rigor mortis al morir y agotarse el ATP." },
+            { id: 13, q: "¿Cuál es el efecto biológico inmediato que tiene la UNIÓN de una nueva molécula de ATP a la cabeza de miosina?", options: ["Produce el golpe de fuerza.", "Hace que la cabeza de miosina se separe/disocie de la molécula de actina.", "Cambia el ángulo de la cabeza a 45º.", "Libera el calcio del retículo."], correct: 1, exp: "El ATP es la 'llave' que deshace el puente fuerte. Si no hay ATP (muerte), no se pueden separar (rigor mortis)." },
+            { id: 14, q: "Una vez que el ATP se une y separa la miosina de la actina, la hidrólisis del ATP (en ADP + Pi) provoca:", options: ["El desprendimiento del disco Z.", "Que el ángulo de la cabeza de miosina pase de 45º a 90º, almacenando energía potencial en la región bisagra.", "La relajación total del músculo.", "La recaptación del calcio."], correct: 1, exp: "La hidrólisis 'amartilla' o 'carga' la bisagra (paso a 90º), dejándola lista para el siguiente tirón." },
+            { id: 15, q: "(¡PREGUNTA DE KAHOOT!). En una fibra muscular relajada (en reposo), ¿qué papel desempeña el complejo Troponina-Tropomiosina?", options: ["Favorecer activamente la unión de la actina y la miosina.", "La tropomiosina ocluye (bloquea) físicamente el sitio de unión fuerte sobre la actina G.", "La troponina bombea calcio hacia el exterior de la célula.", "Ambas proteínas destruyen el ATP en reposo."], correct: 1, exp: "En reposo, la tropomiosina es el 'estorbo' que evita que el miosina se una a la actina accidentalmente." },
+            { id: 16, q: "¿Qué evento molecular permite que la tropomiosina gire y deje libre el sitio de unión?", options: ["La unión de potasio a la titina.", "La salida masiva de sodio por el túbulo T.", "La liberación de Calcio ($Ca^{2+}$) desde el retículo sarcoplásmico y su unión específica a la subunidad C de la Troponina.", "La degradación de la nebulina."], correct: 2, exp: "El Calcio se une a la troponina, que cambia de forma y 'tira' de la tropomiosina, despejando el camino para la miosina." },
+            { id: 17, q: "Cuando el potencial de acción viaja por el Túbulo T, es detectado por un receptor sensor de voltaje llamado:", options: ["Receptor Nicotínico.", "Receptor de Dihidropiridina (DHP).", "Receptor Muscarínico M2.", "Bomba de Sodio-Potasio."], correct: 1, exp: "El receptor DHP detecta el chispazo eléctrico en el Túbulo T y mecánicamente ordena abrir los canales de calcio del retículo." },
+            { id: 18, q: "El mecanismo fisiológico fundamental para lograr la RELAJACIÓN es:", options: ["Que el músculo se quede sin ATP.", "La apertura de canales de fuga de cloro.", "La acción de la bomba ATPasa de Calcio (SERCA), que extrae activamente el calcio del sarcoplasma.", "La destrucción de la actina F."], correct: 2, exp: "Si no hay calcio en el sarcoplasma, la tropomiosina vuelve a su sitio y bloquea la contracción. Para quitar ese calcio hace falta bombas activas." },
+            { id: 19, q: "El proceso de contracción-relajación muscular exige ATP para:", options: ["Solamente para el golpe de fuerza de la miosina.", "Solamente para devolver el calcio al retículo.", "La miosina (contracción), las bombas de Calcio (relajación) y la bomba $Na^+/K^+$ (sarcolema).", "Únicamente para abrir el receptor nicotínico."], correct: 2, exp: "El profesor enumeró que tanto contraer (soltar miosina/cargar bisagra) como relajar (bombeo de iones) exigen un enorme gasto de ATP." },
+            { id: 20, q: "(¡PREGUNTA DE KAHOOT!). Las primerísimas contracciones (unos pocos segundos) son soportadas metabólicamente por:", options: ["La oxidación de ácidos grasos.", "La glucólisis anaerobia exclusiva.", "La fosforilación directa utilizando Fosfato de Creatina mediada por la Creatín-quinasa.", "La hidrólisis de proteínas."], correct: 2, exp: "El fosfato de creatina es el 'colchón' de emergencia más rápido del músculo, útil solo para las primeras 4-7 contracciones." },
+            { id: 21, q: "En una 'carrera al sprint', la vía energética predominante tras agotar el fosfato de creatina será:", options: ["La lipólisis de grasa.", "La glicólisis anaeróbica (rápida, genera 2-3 ATP por glucosa).", "La fosforilación oxidativa mitocondrial.", "La digestión gástrica de azúcares."], correct: 1, exp: "Para esfuerzos explosivos, la vía anaerobia proporciona ATP rápidamente sin esperar al suministro de oxígeno." },
+            { id: 22, q: "Si el objetivo es quemar ácidos grasos, la recomendación fisiológica es:", options: ["Hacer sprints hiper-explosivos de 10 segundos.", "Levantar mucho peso pocas repeticiones.", "Realizar caminatas largas a velocidad moderada, fomentando la Fosforilación Oxidativa.", "Permanecer sentados en reposo absoluto."], correct: 2, exp: "El ejercicio aeróbico prolongado es el que logra reclutar la vía oxidativa que quema lípidos (grasas)." },
+            { id: 23, q: "Lo que diferencia a un músculo de otro (o a un atleta de otro) es:", options: ["La presencia o ausencia de túbulos T.", "La proporción o porcentaje de cada uno de los tipos de fibras musculares presentes.", "El tipo de neurotransmisor que utilizan.", "El origen embriológico exclusivo."], correct: 1, exp: "Todos tenemos fibras lentas y rápidas. La proporción heredada y entrenada define el perfil del atleta." },
+            { id: 24, q: "En las piernas de un corredor de maratón predominan enormemente las Fibras:", options: ["Rápidas glucolíticas (Tipo IIb).", "Rápidas oxidativas (Tipo IIa).", "Lentas oxidativas (Tipo I), también llamadas rojas.", "Fibras de músculo liso."], correct: 2, exp: "Los corredores de fondo entrenan la resistencia a la fatiga fomentando las fibras lentas oxidativas." },
+            { id: 25, q: "¿Qué características biológicas definen a las Fibras Lentas Oxidativas (Tipo I)?", options: ["Un diámetro transversal enorme.", "Alta capacidad glucolítica.", "Diámetro pequeño, muchísimas mitocondrias, alta densidad capilar y extrema resistencia a la fatiga.", "Se agotan a las 5 contracciones."], correct: 2, exp: "Al depender del oxígeno, necesitan capilares y mitocondrias. Son delgadas, por eso el maratoniano no es voluminoso." },
+            { id: 26, q: "¿Por qué las fibras Tipo IIb otorgan tanto volumen muscular?", options: ["Porque acumulan agua.", "Porque tienen un gran diámetro transversal para acumular enzimas glucolíticas y glucógeno.", "Porque hinchan la célula con mitocondrias.", "Porque se transforman en grasa."], correct: 1, exp: "Al levantar mucho peso, hipertrofias estas fibras que necesitan mucho espacio citoplasmático para su maquinaria glucolítica." },
+            { id: 27, q: "Los músculos encargados de la postura tienen una predominancia natural de fibras:", options: ["Lentas oxidativas (Tipo I), para tensión sostenida sin fatiga.", "Rápidas glucolíticas (Tipo IIb).", "Lisas multiunitarias.", "Estriadas cardíacas."], correct: 0, exp: "Necesitamos un aporte ilimitado de energía oxidativa para estar erguidos horas sin que el músculo falle." },
+            { id: 28, q: "Si una fibra muscular es 'Rápida Glucolítica (Blanca)', su actividad ATPasa y su bombeo de calcio serán:", options: ["Lentas.", "Inexistentes.", "Rápidas, permitiendo ciclos de contracción-relajación veloces.", "Moderadas."], correct: 2, exp: "Para ser explosivas, necesitan hidrolizar ATP y recaptar calcio de forma fugaz." },
+            { id: 29, q: "¿Qué ocurre si aplicamos un veneno que destruye totalmente a la Acetilcolinesterasa (AChE)?", options: ["El receptor DHP se cerrará.", "La ACh no se degradará, manteniendo los receptores nicotínicos abiertos y provocando espasmos.", "Rigor mortis inmediato.", "Uso automático de fosforilación oxidativa."], correct: 1, exp: "Sin degradación de ACh, el músculo está en excitación continua, impidiendo la relajación rítmica necesaria." },
+            { id: 30, q: "¿Qué ventaja aporta la enorme mielinización y grosor de la motoneurona somática?", options: ["Aumenta la $R_i$ y enlentece la señal.", "Aumenta la velocidad de conducción al disminuir la $C_m$ y aumentar la $R_m$.", "Segregar hormonas.", "Convierte el potencial en electrotónico."], correct: 1, exp: "Garantiza que la orden de mover un músculo llegue de forma casi instantánea desde la médula." },
+            { id: 31, q: "Si se inhibe la 'Creatín-quinasa', el efecto metabólico inmediato será:", options: ["Estado de rigor mortis.", "Imposibilidad de utilizar el Fosfato de Creatina para recargar el ATP.", "Aumento de mitocondrias.", "Acumulación de ácido láctico."], correct: 1, exp: "Sin esta enzima, el músculo no puede usar su reserva de 'energía flash' inicial." },
+            { id: 32, q: "El golpe de fuerza tira de los filamentos de actina hacia un punto central anatómico llamado:", options: ["Disco Z.", "Sarcolema.", "Línea M.", "Banda I."], correct: 2, exp: "Los filamentos se deslizan desde los extremos (Discos Z) hacia la Línea M central del sarcómero." },
+            { id: 33, q: "Si bañamos fibras con una solución LIBRE de Calcio y RICA en ATP, observaremos que:", options: ["Contracción violenta.", "Estado de Rigor.", "Permanecen relajadas, porque la tropomiosina sigue bloqueando la unión.", "La titina se rompe."], correct: 2, exp: "Sin calcio, el 'cerrojo' de la tropomiosina no se abre, por mucho combustible (ATP) que haya." },
+            { id: 34, q: "Un músculo esquelético humano típico está inervado por:", options: ["Sistema autónomo parasimpático.", "Neuronas amielínicas con noradrenalina.", "Axones de motoneuronas somáticas mielinizadas desde la médula.", "Tejido conectivo."], correct: 2, exp: "Es el diseño básico del sistema motor somático: una sola neurona desde la médula al músculo." },
+            { id: 35, q: "El 'golpe de fuerza' real (rotación de la cabeza) se desencadena bioquímicamente por:", options: ["Captación de calcio.", "Hidrólisis del ATP.", "La liberación del Fosfato inorgánico (Pi) tras la hidrólisis.", "Un puente disulfuro."], correct: 2, exp: "La miosina 'escupe' el fosfato y ese cambio de energía química se convierte en el movimiento mecánico del tirón." },
+            { id: 36, q: "Las 'Fibras rápidas glucolíticas (tipo IIb)' tienen capacidad glucolítica:", options: ["Baja.", "Moderada.", "Alta, permitiendo generar ATP muy rápido para ejercicios explosivos.", "Inexistente."], correct: 2, exp: "Su fuerza bruta viene de tener muchísimas enzimas listas para romper glucosa sin necesidad de oxígeno." },
+            { id: 37, q: "¿Qué hace que las Fibras Lentas Oxidativas (Tipo I) sean de color 'rojo'?", options: ["Ácido láctico coloreado.", "Alta densidad de capilares, mitocondrias y mioglobina.", "Glucógeno cristalizado.", "Falta de retículo."], correct: 1, exp: "La sangre (capilares) y la mioglobina (reserva de $O_2$) les dan ese tono oscuro y rojizo." },
+            { id: 38, q: "Para que el músculo se relaje, las bombas SERCA deben:", options: ["Difundir calcio a los túbulos T.", "Abrir el receptor DHP.", "Introducir activamente el calcio en el retículo sarcoplásmico consumiendo ATP.", "Degradar el calcio."], correct: 2, exp: "La relajación es un proceso activo: hay que 'limpiar' el citoplasma de calcio para que el motor se pare." },
+            { id: 39, q: "El 'abrazo' del retículo sarcoplásmico a cada miofibrilla asegura:", options: ["Que el músculo no se alargue mucho.", "Una contracción sincronizada y uniforme de toda la célula al liberar calcio a la vez.", "Múltiples núcleos.", "Fagocitosis."], correct: 1, exp: "Como el retículo rodea cada miofibrilla, el calcio llega al mismo tiempo a todos los sarcómeros." },
+            { id: 40, q: "Si una fibra tiene gran diámetro, pocos capilares y pocas mitocondrias, es de tipo:", options: ["Tipo I (Lenta).", "Músculo cardíaco.", "Tipo IIb (Rápida Glucolítica).", "Neurona motora."], correct: 2, exp: "Es el perfil clásico: fibras grandes y explosivas que no aguantan mucho tiempo por falta de maquinaria aeróbica." }
+        ];
+
+        let questions = [];
+        let marked = new Set();
+        let answers = {}; // { index: { correct, selected } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('init-modal').classList.add('hidden');
+            questions = isRandom ? shuffle([...rawData]) : [...rawData];
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            questions.forEach((q, index) => {
+                // Sidebar
+                const dot = document.createElement('div');
+                dot.className = `index-item ${marked.has(q.id) ? 'marked' : ''}`;
+                dot.id = `idx-${index}`;
+                dot.innerText = index + 1;
+                dot.onclick = () => document.getElementById(`card-${index}`).scrollIntoView({behavior: 'smooth'});
+                sidebar.appendChild(dot);
+
+                // Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${index}`;
+
+                // Shuffle options for UI
+                let opts = q.options.map((t, i) => ({ text: t, originalIdx: i }));
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="q-header">
+                        <span class="q-text">${index + 1}. ${q.q}</span>
+                        <button class="mark-btn ${marked.has(q.id) ? 'active' : ''}" onclick="toggleMark(${q.id}, ${index})">
+                            ${marked.has(q.id) ? '★ Marcada' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <div class="options-grid">
+                        ${opts.map(o => `
+                            <div class="option" onclick="selectOption(this, ${index}, ${o.originalIdx}, ${q.correct})">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${index}">
+                        <strong>💡 Explicación del Profe:</strong> ${q.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            updateStats();
+        }
+
+        function toggleMark(qId, index) {
+            if (marked.has(qId)) marked.delete(qId);
+            else marked.add(qId);
+            
+            document.getElementById(`idx-${index}`).classList.toggle('marked');
+            renderQuiz(); // Mantiene estado visual
+        }
+
+        function selectOption(el, qIndex, selectedIdx, correctIdx) {
+            if (answers[qIndex]) return;
+
+            const isCorrect = selectedIdx === correctIdx;
+            answers[qIndex] = { correct: isCorrect, selected: selectedIdx };
+
+            el.classList.add(isCorrect ? 'correct' : 'incorrect');
+            document.getElementById(`exp-${qIndex}`).style.display = 'block';
+            document.getElementById(`idx-${qIndex}`).classList.add('answered');
+            
+            const card = document.getElementById(`card-${qIndex}`);
+            card.querySelectorAll('.option').forEach(opt => opt.classList.add('disabled'));
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const answered = Object.keys(answers).length;
+            document.getElementById('stats').innerText = `Progreso: ${answered} / ${questions.length}`;
+        }
+
+        function endAndShowResults() {
+            const modal = document.getElementById('result-modal');
+            const scoreBox = document.getElementById('final-score');
+            const correctCount = Object.values(answers).filter(a => a.correct).length;
+            
+            scoreBox.innerText = `${correctCount} / ${questions.length}`;
+
+            // Control de botones
+            const failedCount = Object.values(answers).filter(a => !a.correct).length;
+            document.getElementById('btn-failed').style.display = failedCount > 0 ? 'block' : 'none';
+            document.getElementById('btn-marked').style.display = marked.size > 0 ? 'block' : 'none';
+            document.getElementById('btn-both').style.display = (failedCount > 0 || marked.size > 0) ? 'block' : 'none';
+
+            modal.classList.remove('hidden');
+        }
+
+        function restart(mode) {
+            let nextQuestions = [];
+            const failedIds = Object.keys(answers).filter(idx => !answers[idx].correct).map(idx => questions[idx].id);
+
+            if (mode === 'all') nextQuestions = [...rawData];
+            else if (mode === 'failed') nextQuestions = rawData.filter(q => failedIds.includes(q.id));
+            else if (mode === 'marked') nextQuestions = rawData.filter(q => marked.has(q.id));
+            else if (mode === 'both') nextQuestions = rawData.filter(q => failedIds.includes(q.id) || marked.has(q.id));
+
+            questions = nextQuestions;
+            answers = {};
+            document.getElementById('result-modal').classList.add('hidden');
+            renderQuiz();
+            window.scrollTo(0,0);
+        }
+    </script>
+</body>
+</html>

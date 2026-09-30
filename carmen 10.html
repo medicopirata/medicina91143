@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 10 (Laringe)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 10</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 10: La Laringe (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Reiniciar Todo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. ¿A qué nivel vertebral se sitúa generalmente la laringe en el adulto?", options: [
+            { text: "C3 a C6", isCorrect: true, rationale: "Correcto. La laringe se extiende desde la parte superior de la 3ª vértebra cervical hasta el borde inferior de la 6ª." },
+            { text: "C1 a C3", isCorrect: false, rationale: "Demasiado alto." },
+            { text: "C6 a T2", isCorrect: false, rationale: "Eso corresponde a la tráquea cervical." },
+            { text: "T1 a T4", isCorrect: false, rationale: "Nivel torácico." }
+        ]},
+        { id: 2, q: "2. ¿Cuál de los siguientes cartílagos laríngeos es impar?", options: [
+            { text: "Cricoides", isCorrect: true, rationale: "Correcto. Los cartílagos impares son: Tiroides, Cricoides y Epiglótico." },
+            { text: "Aritenoides", isCorrect: false, rationale: "Es par." },
+            { text: "Corniculado", isCorrect: false, rationale: "Es par." },
+            { text: "Cuneiforme", isCorrect: false, rationale: "Es par." }
+        ]},
+        { id: 3, q: "3. El 'anillo' completo que forma la base de la laringe es el cartílago:", options: [
+            { text: "Cricoides", isCorrect: true, rationale: "Correcto. Es el único anillo completo de la vía aérea, con forma de sello." },
+            { text: "Tiroides", isCorrect: false, rationale: "Tiene forma de escudo abierto atrás." },
+            { text: "Epiglotis", isCorrect: false, rationale: "Forma de hoja." },
+            { text: "Traqueal", isCorrect: false, rationale: "Son anillos incompletos." }
+        ]},
+        { id: 4, q: "4. ¿Qué estructura une el cartílago tiroides con el hueso hioides?", options: [
+            { text: "Membrana tirohioidea", isCorrect: true, rationale: "Correcto. Suspende la laringe desde el hioides." },
+            { text: "Ligamento cricotiroideo", isCorrect: false, rationale: "Une cricoides y tiroides." },
+            { text: "Cono elástico", isCorrect: false, rationale: "Es una membrana intrínseca." },
+            { text: "Ligamento vocal", isCorrect: false, rationale: "Está dentro de la laringe." }
+        ]},
+        { id: 5, q: "5. ¿Cuál es la función principal de la epiglotis durante la deglución?", options: [
+            { text: "Cerrar la entrada a la laringe (aditus)", isCorrect: true, rationale: "Correcto. Protege la vía aérea de la aspiración." },
+            { text: "Tensar las cuerdas vocales", isCorrect: false, rationale: "No." },
+            { text: "Producir sonidos", isCorrect: false, rationale: "No." },
+            { text: "Mantener abierta la tráquea", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 6, q: "6. El único músculo laríngeo inervado por el nervio laríngeo superior (rama externa) es:", options: [
+            { text: "Cricotiroideo", isCorrect: true, rationale: "Correcto. Es la gran excepción; tensa las cuerdas vocales." },
+            { text: "Cricoaritenoideo posterior", isCorrect: false, rationale: "Inervado por el recurrente." },
+            { text: "Tiroaritenoideo", isCorrect: false, rationale: "Inervado por el recurrente." },
+            { text: "Aritenoideo transverso", isCorrect: false, rationale: "Inervado por el recurrente." }
+        ]},
+        { id: 7, q: "7. ¿Cuál es el único músculo abductor de los pliegues vocales (abre la glotis)?", options: [
+            { text: "Cricoaritenoideo posterior", isCorrect: true, rationale: "Correcto. Su parálisis bilateral impide la respiración." },
+            { text: "Cricoaritenoideo lateral", isCorrect: false, rationale: "Es aductor." },
+            { text: "Aritenoideo oblicuo", isCorrect: false, rationale: "Es aductor." },
+            { text: "Vocal", isCorrect: false, rationale: "Tensa la cuerda." }
+        ]},
+        { id: 8, q: "8. Los pliegues vestibulares son conocidos comúnmente como:", options: [
+            { text: "Cuerdas vocales falsas", isCorrect: true, rationale: "Correcto. Se sitúan superiores a los pliegues vocales verdaderos." },
+            { text: "Cuerdas vocales verdaderas", isCorrect: false, rationale: "No." },
+            { text: "Bandas sonoras", isCorrect: false, rationale: "No." },
+            { text: "Pliegues ariepiglóticos", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 9, q: "9. La hendidura glótica (glotis) es el espacio entre:", options: [
+            { text: "Los pliegues vocales", isCorrect: true, rationale: "Correcto. Es la parte más estrecha de la laringe." },
+            { text: "Los pliegues vestibulares", isCorrect: false, rationale: "Esa es la hendidura vestibular." },
+            { text: "La epiglotis y la lengua", isCorrect: false, rationale: "Son las valéculas." },
+            { text: "El cricoides y la tráquea", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 10, q: "10. El músculo vocal es la porción medial del músculo:", options: [
+            { text: "Tiroaritenoideo", isCorrect: true, rationale: "Correcto. Ajusta la tensión fina de las cuerdas vocales." },
+            { text: "Cricotiroideo", isCorrect: false, rationale: "No." },
+            { text: "Cricoaritenoideo posterior", isCorrect: false, rationale: "No." },
+            { text: "Aritenoideo transverso", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 11, q: "11. La inervación sensitiva de la mucosa laríngea por ENCIMA de los pliegues vocales proviene de:", options: [
+            { text: "Nervio laríngeo superior (ramo interno)", isCorrect: true, rationale: "Correcto. Atraviesa la membrana tirohioidea." },
+            { text: "Nervio laríngeo recurrente", isCorrect: false, rationale: "Inerva la mucosa por debajo de las cuerdas." },
+            { text: "Nervio glosofaríngeo", isCorrect: false, rationale: "No." },
+            { text: "Nervio hipogloso", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 12, q: "12. El cartílago aritenoides tiene forma de:", options: [
+            { text: "Pirámide triangular", isCorrect: true, rationale: "Correcto. Se asienta sobre la lámina del cricoides." },
+            { text: "Anillo", isCorrect: false, rationale: "Cricoides." },
+            { text: "Escudo", isCorrect: false, rationale: "Tiroides." },
+            { text: "Hoja", isCorrect: false, rationale: "Epiglotis." }
+        ]},
+        { id: 13, q: "13. ¿Qué estructura une el borde inferior del cricoides con el primer anillo traqueal?", options: [
+            { text: "Ligamento cricotraqueal", isCorrect: true, rationale: "Correcto." },
+            { text: "Membrana tirohioidea", isCorrect: false, rationale: "No." },
+            { text: "Cono elástico", isCorrect: false, rationale: "No." },
+            { text: "Ligamento vocal", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 14, q: "14. La arteria laríngea superior es rama de:", options: [
+            { text: "Arteria tiroidea superior", isCorrect: true, rationale: "Correcto. Acompaña al nervio laríngeo interno." },
+            { text: "Arteria tiroidea inferior", isCorrect: false, rationale: "Da la laríngea inferior." },
+            { text: "Carótida interna", isCorrect: false, rationale: "No." },
+            { text: "Arteria lingual", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 15, q: "15. El ventrículo laríngeo (de Morgagni) se encuentra entre:", options: [
+            { text: "El pliegue vestibular y el pliegue vocal", isCorrect: true, rationale: "Correcto. Es un receso lateral." },
+            { text: "La epiglotis y el pliegue vestibular", isCorrect: false, rationale: "No." },
+            { text: "Debajo del pliegue vocal", isCorrect: false, rationale: "No." },
+            { text: "Detrás de los aritenoides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 16, q: "16. El nervio laríngeo recurrente IZQUIERDO rodea:", options: [
+            { text: "El arco de la aorta", isCorrect: true, rationale: "Correcto. Tiene un trayecto más largo que el derecho." },
+            { text: "La arteria subclavia derecha", isCorrect: false, rationale: "Eso lo hace el recurrente derecho." },
+            { text: "La carótida común", isCorrect: false, rationale: "No." },
+            { text: "El bronquio principal", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 17, q: "17. Los procesos vocales de los aritenoides sirven de inserción posterior para:", options: [
+            { text: "El ligamento vocal", isCorrect: true, rationale: "Correcto." },
+            { text: "El ligamento cricotiroideo", isCorrect: false, rationale: "No." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." },
+            { text: "El músculo cricotiroideo", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 18, q: "18. ¿Qué músculos cierran la entrada de la laringe (aditus)?", options: [
+            { text: "Aritenoideos oblicuos y ariepiglóticos", isCorrect: true, rationale: "Correcto. Actúan como esfínter del aditus." },
+            { text: "Cricoaritenoideo posterior", isCorrect: false, rationale: "Abre la glotis." },
+            { text: "Cricotiroideo", isCorrect: false, rationale: "Tensa las cuerdas." },
+            { text: "Tirohioideo", isCorrect: false, rationale: "Eleva la laringe." }
+        ]},
+        { id: 19, q: "19. El cono elástico se extiende desde el cricoides hasta:", options: [
+            { text: "El ligamento vocal", isCorrect: true, rationale: "Correcto. El borde libre superior del cono elástico forma el ligamento vocal." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." },
+            { text: "El hioides", isCorrect: false, rationale: "No." },
+            { text: "La lengua", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 20, q: "20. La lámina del cartílago cricoides se sitúa:", options: [
+            { text: "Posteriormente", isCorrect: true, rationale: "Correcto. Es la parte ancha del anillo." },
+            { text: "Anteriormente", isCorrect: false, rationale: "Ahí está el arco." },
+            { text: "Lateralmente", isCorrect: false, rationale: "No." },
+            { text: "Superiormente", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 21, q: "21. El músculo tirohioideo es un músculo:", options: [
+            { text: "Extrínseco de la laringe", isCorrect: true, rationale: "Correcto. Eleva la laringe hacia el hioides." },
+            { text: "Intrínseco", isCorrect: false, rationale: "No." },
+            { text: "De la masticación", isCorrect: false, rationale: "No." },
+            { text: "De la nuca", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 22, q: "22. La inervación motora de la laringe proviene del par craneal:", options: [
+            { text: "X (Vago)", isCorrect: true, rationale: "Correcto. A través de los nervios laríngeo superior y recurrente." },
+            { text: "IX (Glosofaríngeo)", isCorrect: false, rationale: "No." },
+            { text: "XI (Accesorio)", isCorrect: false, rationale: "No." },
+            { text: "XII (Hipogloso)", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 23, q: "23. La prominencia laríngea es más marcada en:", options: [
+            { text: "Hombres (ángulo de 90º)", isCorrect: true, rationale: "Correcto. En mujeres el ángulo es de aprox. 120º." },
+            { text: "Mujeres", isCorrect: false, rationale: "No." },
+            { text: "Niños", isCorrect: false, rationale: "No." },
+            { text: "Ancianos", isCorrect: false, rationale: "No depende de la edad senil." }
+        ]},
+        { id: 24, q: "24. Los cartílagos corniculados se sitúan sobre:", options: [
+            { text: "Los vértices de los aritenoides", isCorrect: true, rationale: "Correcto." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." },
+            { text: "El cricoides", isCorrect: false, rationale: "No." },
+            { text: "El tiroides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 25, q: "25. La función del músculo cricoaritenoideo lateral es:", options: [
+            { text: "Aducción de los pliegues vocales (cierre)", isCorrect: true, rationale: "Correcto. Antagonista del posterior." },
+            { text: "Abducción", isCorrect: false, rationale: "No." },
+            { text: "Tensión", isCorrect: false, rationale: "No." },
+            { text: "Relajación", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 26, q: "26. La cavidad laríngea superior al pliegue vestibular se llama:", options: [
+            { text: "Vestíbulo laríngeo", isCorrect: true, rationale: "Correcto. Va desde el aditus hasta los pliegues vestibulares." },
+            { text: "Ventrículo", isCorrect: false, rationale: "Espacio intermedio." },
+            { text: "Cavidad infraglótica", isCorrect: false, rationale: "Espacio inferior." },
+            { text: "Faringe", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 27, q: "27. El nervio laríngeo recurrente pasa justo por detrás de:", options: [
+            { text: "La articulación cricotiroidea", isCorrect: true, rationale: "Correcto. Punto crítico en cirugía." },
+            { text: "El hioides", isCorrect: false, rationale: "No." },
+            { text: "La mandíbula", isCorrect: false, rationale: "No." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 28, q: "28. Los cartílagos cuneiformes se encuentran en:", options: [
+            { text: "El espesor de los pliegues ariepiglóticos", isCorrect: true, rationale: "Correcto. No articulan directamente con otros cartílagos." },
+            { text: "Sobre el cricoides", isCorrect: false, rationale: "No." },
+            { text: "En la tráquea", isCorrect: false, rationale: "No." },
+            { text: "En la lengua", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 29, q: "29. La articulación cricotiroidea permite:", options: [
+            { text: "La rotación y deslizamiento del tiroides sobre el cricoides", isCorrect: true, rationale: "Correcto. Fundamental para tensar las cuerdas." },
+            { text: "La deglución", isCorrect: false, rationale: "No directamente." },
+            { text: "El cierre de la epiglotis", isCorrect: false, rationale: "No." },
+            { text: "No tiene movimiento", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 30, q: "30. El músculo aritenoideo transverso es:", options: [
+            { text: "Un músculo impar que une ambos aritenoides", isCorrect: true, rationale: "Correcto. Aduce los aritenoides cerrando la glotis posterior." },
+            { text: "Un músculo par", isCorrect: false, rationale: "El oblicuo es par, el transverso es impar." },
+            { text: "Un músculo extrínseco", isCorrect: false, rationale: "Es intrínseco." },
+            { text: "Un abductor", isCorrect: false, rationale: "Es aductor." }
+        ]},
+        { id: 31, q: "31. ¿Qué arteria irriga la porción inferior de la laringe?", options: [
+            { text: "Arteria laríngea inferior (rama de la tiroidea inferior)", isCorrect: true, rationale: "Correcto." },
+            { text: "Arteria facial", isCorrect: false, rationale: "No." },
+            { text: "Arteria lingual", isCorrect: false, rationale: "No." },
+            { text: "Aorta directa", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 32, q: "32. La membrana cuadrangular se extiende entre:", options: [
+            { text: "Epiglotis y aritenoides", isCorrect: true, rationale: "Correcto. Su borde inferior forma el ligamento vestibular." },
+            { text: "Cricoides y tiroides", isCorrect: false, rationale: "Cono elástico." },
+            { text: "Hioides y tiroides", isCorrect: false, rationale: "Membrana tirohioidea." },
+            { text: "Tráquea y cricoides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 33, q: "33. La glándula tiroides se adhiere a la laringe principalmente a nivel de:", options: [
+            { text: "El cartílago cricoides y los primeros anillos traqueales", isCorrect: true, rationale: "Correcto." },
+            { text: "El hioides", isCorrect: false, rationale: "No." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." },
+            { text: "La mandíbula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 34, q: "34. ¿Cuál es el principal tensor de las cuerdas vocales?", options: [
+            { text: "Músculo cricotiroideo", isCorrect: true, rationale: "Correcto. Alarga las cuerdas aumentando el tono." },
+            { text: "Músculo tiroaritenoideo", isCorrect: false, rationale: "Relaja o tensa isométricamente, pero el tensor principal es el cricotiroideo." },
+            { text: "Músculo ariepiglótico", isCorrect: false, rationale: "No." },
+            { text: "Músculo esternohioideo", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 35, q: "35. Las valéculas epiglóticas se encuentran:", options: [
+            { text: "Entre la base de la lengua y la epiglotis", isCorrect: true, rationale: "Correcto. Son depresiones importantes en la intubación." },
+            { text: "Dentro de la laringe", isCorrect: false, rationale: "Están fuera." },
+            { text: "En la tráquea", isCorrect: false, rationale: "No." },
+            { text: "En el esófago", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 36, q: "36. El nervio laríngeo interno atraviesa la membrana tirohioidea junto con:", options: [
+            { text: "La arteria laríngea superior", isCorrect: true, rationale: "Correcto." },
+            { text: "La arteria carótida", isCorrect: false, rationale: "No." },
+            { text: "La vena yugular", isCorrect: false, rationale: "No." },
+            { text: "El nervio hipogloso", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 37, q: "37. El asta inferior del cartílago tiroides se articula con:", options: [
+            { text: "La cara lateral del cricoides", isCorrect: true, rationale: "Correcto. Formando la articulación cricotiroidea." },
+            { text: "El hioides", isCorrect: false, rationale: "Se une por ligamento al asta superior." },
+            { text: "La tráquea", isCorrect: false, rationale: "No." },
+            { text: "El aritenoides", isCorrect: false, rationale: "No." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            currentPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

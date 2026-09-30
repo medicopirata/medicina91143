@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 9 (Cuello)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 9</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 9: El Cuello</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Resultados</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. ¿Cuál es el límite superior anatómico del cuello?", options: [
+            { text: "Borde inferior de la mandíbula y línea nucal superior", isCorrect: true, rationale: "Correcto. Este límite separa el cuello de la cabeza." },
+            { text: "Hueso hioides", isCorrect: false, rationale: "El hioides está dentro del cuello." },
+            { text: "Clavícula", isCorrect: false, rationale: "Es el límite inferior." },
+            { text: "Cartílago tiroides", isCorrect: false, rationale: "Es una estructura interna." }
+        ]},
+        { id: 2, q: "2. El músculo platisma se encuentra en:", options: [
+            { text: "Tejido subcutáneo (fascia superficial)", isCorrect: true, rationale: "Correcto. Es un músculo de la mímica que migró al cuello." },
+            { text: "Capa pretraqueal", isCorrect: false, rationale: "Esa capa envuelve vísceras." },
+            { text: "Capa prevertebral", isCorrect: false, rationale: "Envuelve músculos profundos." },
+            { text: "Vaina carotídea", isCorrect: false, rationale: "Envuelve vasos." }
+        ]},
+        { id: 3, q: "3. La fascia cervical profunda se divide en tres capas. ¿Cuál es la más externa?", options: [
+            { text: "Capa de revestimiento", isCorrect: true, rationale: "Correcto. Envuelve al trapecio y esternocleidomastoideo." },
+            { text: "Capa prevertebral", isCorrect: false, rationale: "Es la más profunda." },
+            { text: "Capa pretraqueal", isCorrect: false, rationale: "Es la capa media." },
+            { text: "Vaina carotídea", isCorrect: false, rationale: "Es una formación tubular independiente." }
+        ]},
+        { id: 4, q: "4. El hueso hioides se sitúa a nivel de la vértebra:", options: [
+            { text: "C3", isCorrect: true, rationale: "Correcto. Es su nivel vertebral estándar en reposo." },
+            { text: "C1", isCorrect: false, rationale: "Demasiado alto." },
+            { text: "C6", isCorrect: false, rationale: "Nivel del cartílago cricoides." },
+            { text: "T1", isCorrect: false, rationale: "Nivel torácico." }
+        ]},
+        { id: 5, q: "5. ¿Qué músculo divide el cuello en regiones anterior y lateral (posterior)?", options: [
+            { text: "Esternocleidomastoideo", isCorrect: true, rationale: "Correcto. Es la referencia clave de la anatomía del cuello." },
+            { text: "Trapecio", isCorrect: false, rationale: "Marca el límite posterior del triángulo lateral." },
+            { text: "Digástrico", isCorrect: false, rationale: "Divide subregiones del triángulo anterior." },
+            { text: "Omohioideo", isCorrect: false, rationale: "Divide el triángulo lateral en dos partes." }
+        ]},
+        { id: 6, q: "6. Los músculos infrahioideos son conocidos como:", options: [
+            { text: "Músculos acintados", isCorrect: true, rationale: "Correcto. Por su forma larga y plana." },
+            { text: "Músculos prevertebrales", isCorrect: false, rationale: "Esos están detrás de las vísceras." },
+            { text: "Músculos de la mímica", isCorrect: false, rationale: "No." },
+            { text: "Escalenos", isCorrect: false, rationale: "Son laterales profundos." }
+        ]},
+        { id: 7, q: "7. ¿Cuál de estos músculos NO es un infrahioideo?", options: [
+            { text: "Estilohioideo", isCorrect: true, rationale: "Correcto. Es un músculo suprahioideo." },
+            { text: "Esternohioideo", isCorrect: false, rationale: "Es infrahioideo superficial." },
+            { text: "Omohioideo", isCorrect: false, rationale: "Es infrahioideo superficial." },
+            { text: "Tirohioideo", isCorrect: false, rationale: "Es infrahioideo profundo." }
+        ]},
+        { id: 8, q: "8. El músculo omohioideo tiene:", options: [
+            { text: "Dos vientres (superior e inferior) unidos por un tendón intermedio", isCorrect: true, rationale: "Correcto. Se extiende desde la escápula hasta el hioides." },
+            { text: "Un solo vientre", isCorrect: false, rationale: "No." },
+            { text: "Inserción en la mandíbula", isCorrect: false, rationale: "No." },
+            { text: "Inervación por el nervio frénico", isCorrect: false, rationale: "Inervado por el asa cervical." }
+        ]},
+        { id: 9, q: "9. La inervación de la mayoría de los infrahioideos depende de:", options: [
+            { text: "Asa cervical (C1-C3)", isCorrect: true, rationale: "Correcto. Excepto el tirohioideo (C1 vía nervio hipogloso)." },
+            { text: "Nervio facial", isCorrect: false, rationale: "Inerva platisma y estilohioideo." },
+            { text: "Nervio trigémino", isCorrect: false, rationale: "Inerva el milohioideo." },
+            { text: "Nervio accesorio", isCorrect: false, rationale: "Inerva ECM y trapecio." }
+        ]},
+        { id: 10, q: "10. El músculo milohioideo forma:", options: [
+            { text: "El suelo de la boca", isCorrect: true, rationale: "Correcto. Separa la región sublingual de la submandibular." },
+            { text: "El techo de la faringe", isCorrect: false, rationale: "No." },
+            { text: "La pared de la laringe", isCorrect: false, rationale: "No." },
+            { text: "Parte del ECM", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 11, q: "11. El vientre posterior del músculo digástrico está inervado por:", options: [
+            { text: "Nervio facial (VII)", isCorrect: true, rationale: "Correcto. El vientre anterior es por el trigémino (V3)." },
+            { text: "Nervio hipogloso", isCorrect: false, rationale: "No." },
+            { text: "Nervio glosofaríngeo", isCorrect: false, rationale: "No." },
+            { text: "Asa cervical", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 12, q: "12. La vaina carotídea contiene:", options: [
+            { text: "Carótida común, vena yugular interna y nervio vago", isCorrect: true, rationale: "Correcto. Es el paquete vasculonervioso del cuello." },
+            { text: "Carótida externa y nervio frénico", isCorrect: false, rationale: "No." },
+            { text: "Vena yugular externa y nervio laríngeo", isCorrect: false, rationale: "No." },
+            { text: "Esófago y tráquea", isCorrect: false, rationale: "Esas están en el compartimento visceral." }
+        ]},
+        { id: 13, q: "13. El espacio retrofaríngeo se localiza entre:", options: [
+            { text: "Fascia bucofaríngea y fascia prevertebral", isCorrect: true, rationale: "Correcto. Es una vía importante de diseminación de infecciones." },
+            { text: "Tráquea y esófago", isCorrect: false, rationale: "No." },
+            { text: "ECM y trapecio", isCorrect: false, rationale: "No." },
+            { text: "Hioides y mandíbula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 14, q: "14. El triángulo carotídeo está limitado por:", options: [
+            { text: "ECM, vientre posterior del digástrico y vientre superior del omohioideo", isCorrect: true, rationale: "Correcto. Aquí se palpa el pulso carotídeo." },
+            { text: "ECM, trapecio y clavícula", isCorrect: false, rationale: "Ese es el triángulo lateral." },
+            { text: "Mandíbula y digástrico", isCorrect: false, rationale: "Ese es el submandibular." },
+            { text: "Línea media y hioides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 15, q: "15. El nervio frénico discurre sobre la cara anterior del músculo:", options: [
+            { text: "Escaleno anterior", isCorrect: true, rationale: "Correcto. Referencia quirúrgica y anatómica vital." },
+            { text: "Escaleno medio", isCorrect: false, rationale: "Está por detrás del plexo braquial." },
+            { text: "Largo del cuello", isCorrect: false, rationale: "Es medial." },
+            { text: "Esternohioideo", isCorrect: false, rationale: "Es superficial." }
+        ]},
+        { id: 16, q: "16. ¿Qué estructuras pasan por el espacio interescalénico (entre anterior y medio)?", options: [
+            { text: "Plexo braquial y arteria subclavia", isCorrect: true, rationale: "Correcto. La vena subclavia pasa por delante del escaleno anterior." },
+            { text: "Vena yugular y nervio vago", isCorrect: false, rationale: "Están en la vaina carotídea." },
+            { text: "Arteria carótida y nervio frénico", isCorrect: false, rationale: "No." },
+            { text: "Esófago y tráquea", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 17, q: "17. El cartílago cricoides se encuentra a nivel de:", options: [
+            { text: "C6", isCorrect: true, rationale: "Correcto. Marca el inicio de la tráquea y el esófago." },
+            { text: "C3", isCorrect: false, rationale: "Hioides." },
+            { text: "C4", isCorrect: false, rationale: "Bifurcación carotídea." },
+            { text: "T2", isCorrect: false, rationale: "Escotadura yugular." }
+        ]},
+        { id: 18, q: "18. El nervio accesorio (XI) inerva a:", options: [
+            { text: "ECM y Trapecio", isCorrect: true, rationale: "Correcto. Cruza el triángulo lateral del cuello." },
+            { text: "Músculos suprahioideos", isCorrect: false, rationale: "No." },
+            { text: "Lengua", isCorrect: false, rationale: "No." },
+            { text: "Diafragma", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 19, q: "19. La glándula tiroides se sitúa:", options: [
+            { text: "Profunda a los músculos esternohioideo y esternotiroideo", isCorrect: true, rationale: "Correcto. A nivel de C5-T1." },
+            { text: "Por encima del hioides", isCorrect: false, rationale: "No." },
+            { text: "Dentro de la vaina carotídea", isCorrect: false, rationale: "No." },
+            { text: "Detrás del esófago", isCorrect: false, rationale: "Es anterior a la tráquea." }
+        ]},
+        { id: 20, q: "20. La arteria carótida común se bifurca a nivel de:", options: [
+            { text: "Borde superior del cartílago tiroides (C4)", isCorrect: true, rationale: "Correcto. En carótida interna y externa." },
+            { text: "Hueso hioides", isCorrect: false, rationale: "No." },
+            { text: "Clavícula", isCorrect: false, rationale: "No." },
+            { text: "Ángulo de la mandíbula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 21, q: "21. ¿Qué nervio se encarga de la sensibilidad de la piel del cuello?", options: [
+            { text: "Ramos cutáneos del plexo cervical (C1-C4)", isCorrect: true, rationale: "Correcto (occipital menor, auricular mayor, cervical transverso, supraclaviculares)." },
+            { text: "Nervio trigémino", isCorrect: false, rationale: "Inerva la cara." },
+            { text: "Nervio facial", isCorrect: false, rationale: "Es principalmente motor." },
+            { text: "Nervio hipogloso", isCorrect: false, rationale: "Es motor para la lengua." }
+        ]},
+        { id: 22, q: "22. El músculo escaleno anterior se inserta en:", options: [
+            { text: "La 1ª costilla (tubérculo de Lisfranc)", isCorrect: true, rationale: "Correcto." },
+            { text: "La 2ª costilla", isCorrect: false, rationale: "Allí se inserta el escaleno posterior." },
+            { text: "El esternón", isCorrect: false, rationale: "No." },
+            { text: "La escápula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 23, q: "23. El músculo largo del cuello pertenece al grupo:", options: [
+            { text: "Prevertebral", isCorrect: true, rationale: "Correcto. Se sitúa en la cara anterior de los cuerpos vertebrales cervicales." },
+            { text: "Suprahioideo", isCorrect: false, rationale: "No." },
+            { text: "Lateral", isCorrect: false, rationale: "No." },
+            { text: "Superficial", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 24, q: "24. ¿Cuál de estos es un contenido del triángulo submandibular?", options: [
+            { text: "Glándula submandibular y arteria facial", isCorrect: true, rationale: "Correcto." },
+            { text: "Arteria carótida interna", isCorrect: false, rationale: "Está en el triángulo carotídeo." },
+            { text: "Glándula tiroides", isCorrect: false, rationale: "Está en el triángulo muscular." },
+            { text: "Vena yugular externa", isCorrect: false, rationale: "Es superficial al ECM." }
+        ]},
+        { id: 25, q: "25. El 'punto nervioso del cuello' (Erb) se localiza en:", options: [
+            { text: "Borde posterior del ECM", isCorrect: true, rationale: "Correcto. Donde emergen los ramos cutáneos del plexo cervical." },
+            { text: "Borde anterior del ECM", isCorrect: false, rationale: "No." },
+            { text: "Escotadura yugular", isCorrect: false, rationale: "No." },
+            { text: "Ángulo de la mandíbula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 26, q: "26. El triángulo muscular (omotraqueal) contiene:", options: [
+            { text: "Músculos infrahioideos, glándulas tiroides y paratiroides", isCorrect: true, rationale: "Correcto." },
+            { text: "Arteria subclavia", isCorrect: false, rationale: "Triángulo omoclavicular." },
+            { text: "Nervio accesorio", isCorrect: false, rationale: "Triángulo lateral." },
+            { text: "Glándula submandibular", isCorrect: false, rationale: "Triángulo submandibular." }
+        ]},
+        { id: 27, q: "27. La vena yugular externa drena habitualmente en:", options: [
+            { text: "Vena subclavia", isCorrect: true, rationale: "Correcto. Cruza oblicuamente el ECM." },
+            { text: "Vena yugular interna", isCorrect: false, rationale: "No." },
+            { text: "Vena braquiocefálica", isCorrect: false, rationale: "No." },
+            { text: "Vena facial", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 28, q: "28. El músculo escaleno medio se origina en:", options: [
+            { text: "Tubérculos posteriores de procesos transversos C2-C7", isCorrect: true, rationale: "Correcto." },
+            { text: "Apófisis espinosas", isCorrect: false, rationale: "No." },
+            { text: "Hueso occipital", isCorrect: false, rationale: "No." },
+            { text: "Manubrio esternal", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 29, q: "29. ¿Qué estructura separa la arteria subclavia de la vena subclavia?", options: [
+            { text: "Músculo escaleno anterior", isCorrect: true, rationale: "Correcto. La vena es anterior al músculo y la arteria posterior." },
+            { text: "Clavícula", isCorrect: false, rationale: "Ambas pasan por debajo." },
+            { text: "Primera costilla", isCorrect: false, rationale: "Ambas pasan por encima." },
+            { text: "ECM", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 30, q: "30. Los ganglios linfáticos cervicales profundos se sitúan a lo largo de:", options: [
+            { text: "Vena yugular interna", isCorrect: true, rationale: "Correcto. Reciben casi toda la linfa de cabeza y cuello." },
+            { text: "Vena yugular externa", isCorrect: false, rationale: "No." },
+            { text: "Nervio vago", isCorrect: false, rationale: "No." },
+            { text: "Arteria carótida externa", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 31, q: "31. El istmo de la glándula tiroides suele cruzar delante de:", options: [
+            { text: "2º y 3º anillos traqueales", isCorrect: true, rationale: "Correcto." },
+            { text: "Cartílago tiroides", isCorrect: false, rationale: "No." },
+            { text: "Cartílago cricoides", isCorrect: false, rationale: "No." },
+            { text: "Esófago", isCorrect: false, rationale: "La tráquea está por delante del esófago." }
+        ]},
+        { id: 32, q: "32. El tronco simpático cervical se sitúa:", options: [
+            { text: "Posterior a la vaina carotídea, delante de la fascia prevertebral", isCorrect: true, rationale: "Correcto." },
+            { text: "Dentro de la vaina carotídea", isCorrect: false, rationale: "No." },
+            { text: "Detrás de los cuerpos vertebrales", isCorrect: false, rationale: "No." },
+            { text: "Superficial al ECM", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 33, q: "33. ¿Cuál es la rama más inferior de la arteria carótida externa?", options: [
+            { text: "Arteria tiroidea superior", isCorrect: true, rationale: "Correcto. Irriga el polo superior de la tiroides." },
+            { text: "Arteria lingual", isCorrect: false, rationale: "Es la segunda rama anterior." },
+            { text: "Arteria faríngea ascendente", isCorrect: false, rationale: "Es la rama medial." },
+            { text: "Arteria facial", isCorrect: false, rationale: "Es la tercera rama anterior." }
+        ]},
+        { id: 34, q: "34. El seno carotídeo es un:", options: [
+            { text: "Barorreceptor (presión)", isCorrect: true, rationale: "Correcto. Localizado en la base de la carótida interna." },
+            { text: "Quimiorreceptor (químico)", isCorrect: false, rationale: "Ese es el cuerpo carotídeo." },
+            { text: "Ganglio linfático", isCorrect: false, rationale: "No." },
+            { text: "Músculo", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 35, q: "35. El nervio hipogloso (XII) cruza el cuello para inervar:", options: [
+            { text: "Músculos intrínsecos y extrínsecos de la lengua", isCorrect: true, rationale: "Correcto." },
+            { text: "ECM", isCorrect: false, rationale: "Accesorio." },
+            { text: "Músculos infrahioideos", isCorrect: false, rationale: "Asa cervical." },
+            { text: "Piel del mentón", isCorrect: false, rationale: "Trigémino." }
+        ]},
+        { id: 36, q: "36. La arteria vertebral es rama de:", options: [
+            { text: "Arteria subclavia (1ª porción)", isCorrect: true, rationale: "Correcto. Asciende por los forámenes transversos." },
+            { text: "Arteria carótida común", isCorrect: false, rationale: "No." },
+            { text: "Tronco braquiocefálico directamente", isCorrect: false, rationale: "No." },
+            { text: "Arteria aorta", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 37, q: "37. El triángulo submentoniano es un triángulo:", options: [
+            { text: "Impar y medio", isCorrect: true, rationale: "Correcto. Entre los vientres anteriores de los digástricos." },
+            { text: "Par y lateral", isCorrect: false, rationale: "No." },
+            { text: "Posterior", isCorrect: false, rationale: "No." },
+            { text: "Contiene la carótida", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 38, q: "38. ¿Qué estructura NO forma parte de la capa prevertebral de la fascia cervical?", options: [
+            { text: "Esófago", isCorrect: true, rationale: "Correcto. El esófago está en la capa pretraqueal (visceral)." },
+            { text: "Músculos escalenos", isCorrect: false, rationale: "Están envueltos por ella." },
+            { text: "Plexo braquial", isCorrect: false, rationale: "Está cubierto por ella al emerger." },
+            { text: "Vértebras cervicales", isCorrect: false, rationale: "Están detrás de ella." }
+        ]},
+        { id: 39, q: "39. El nervio laríngeo recurrente izquierdo rodea:", options: [
+            { text: "El arco de la aorta", isCorrect: true, rationale: "Correcto. El derecho rodea la arteria subclavia." },
+            { text: "La arteria carótida", isCorrect: false, rationale: "No." },
+            { text: "El hioides", isCorrect: false, rationale: "No." },
+            { text: "La primera costilla", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 40, q: "40. Las glándulas paratiroides suelen ser:", options: [
+            { text: "Cuatro, en la cara posterior de los lóbulos tiroideos", isCorrect: true, rationale: "Correcto." },
+            { text: "Dos, delante del istmo", isCorrect: false, rationale: "No." },
+            { text: "Inconstantes", isCorrect: false, rationale: "No, son vitales." },
+            { text: "Dentro de la lengua", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 41, q: "41. El plexo braquial se origina de los ramos anteriores de:", options: [
+            { text: "C5-T1", isCorrect: true, rationale: "Correcto. Pasa por el espacio interescalénico." },
+            { text: "C1-C4", isCorrect: false, rationale: "Plexo cervical." },
+            { text: "T1-T12", isCorrect: false, rationale: "Nervios intercostales." },
+            { text: "C3-C5", isCorrect: false, rationale: "Origen del frénico." }
+        ]},
+        { id: 42, q: "42. El músculo escaleno posterior se inserta en:", options: [
+            { text: "Borde externo de la 2ª costilla", isCorrect: true, rationale: "Correcto." },
+            { text: "1ª costilla", isCorrect: false, rationale: "Escaleno anterior y medio." },
+            { text: "Clavícula", isCorrect: false, rationale: "No." },
+            { text: "Hioides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 43, q: "43. La arteria tiroidea inferior es rama de:", options: [
+            { text: "Tronco tirocervical (rama de la subclavia)", isCorrect: true, rationale: "Correcto." },
+            { text: "Arteria carótida externa", isCorrect: false, rationale: "Esa da la tiroidea superior." },
+            { text: "Arteria vertebral", isCorrect: false, rationale: "No." },
+            { text: "Aorta torácica", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 44, q: "44. ¿Cuál es el contenido del triángulo occipital?", options: [
+            { text: "Nervio accesorio (XI) y ramos del plexo cervical", isCorrect: true, rationale: "Correcto. Es la parte superior del triángulo lateral." },
+            { text: "Arteria subclavia", isCorrect: false, rationale: "Está en el triángulo omoclavicular (inferior)." },
+            { text: "Vena yugular interna", isCorrect: false, rationale: "No." },
+            { text: "Glándula tiroides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 45, q: "45. La 'danza arterial' en el cuello suele ser visible en:", options: [
+            { text: "Insuficiencia aórtica (pulso carotídeo visible)", isCorrect: true, rationale: "Correcto. Signo clínico característico." },
+            { text: "ECM sano", isCorrect: false, rationale: "No." },
+            { text: "Glándula submandibular", isCorrect: false, rationale: "No." },
+            { text: "Vena yugular externa", isCorrect: false, rationale: "Eso sería ingurgitación venosa." }
+        ]},
+        { id: 46, q: "46. El músculo geniohioideo se sitúa:", options: [
+            { text: "Superior al milohioideo", isCorrect: true, rationale: "Correcto. En contacto con la lengua." },
+            { text: "Inferior al milohioideo", isCorrect: false, rationale: "No." },
+            { text: "Detrás de la faringe", isCorrect: false, rationale: "No." },
+            { text: "En la nuca", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 47, q: "47. La membrana tirohioidea une:", options: [
+            { text: "Cartílago tiroides y hueso hioides", isCorrect: true, rationale: "Correcto. Es perforada por el nervio laríngeo superior." },
+            { text: "Tiroides y cricoides", isCorrect: false, rationale: "Membrana cricotiroidea." },
+            { text: "ECM y esternón", isCorrect: false, rationale: "No." },
+            { text: "Mandíbula e hioides", isCorrect: false, rationale: "No." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

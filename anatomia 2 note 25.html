@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Anatomía y Embriología</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Pantallas */
+        #start-screen, #end-screen {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        /* Layout del Quiz */
+        #quiz-container {
+            display: none;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        /* Sidebar (Índice) */
+        #sidebar {
+            position: sticky;
+            top: 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .index-btn {
+            padding: 8px 4px;
+            text-align: center;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; border-color: var(--success); color: #166534; }
+        .index-btn.incorrect { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+        .index-btn.marked::after {
+            content: '★';
+            position: absolute;
+            top: -5px;
+            right: -2px;
+            color: var(--warning);
+            font-size: 1.2em;
+        }
+
+        /* Botones generales */
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin: 5px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+        .btn-finish {
+            width: 100%;
+            background-color: var(--danger);
+        }
+        .btn-finish:hover { background-color: #b91c1c; }
+
+        /* Lista de preguntas */
+        #questions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 0;
+            padding-right: 15px;
+        }
+
+        .mark-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #fffbeb;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #fde68a;
+            font-size: 0.9em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 10px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-label:hover:not(.disabled) { background: #f1f5f9; }
+        .option-label input { margin-top: 5px; margin-right: 10px; cursor: pointer; }
+        .option-label.disabled { cursor: default; opacity: 0.8; }
+        .option-label.correct-anim { border-color: var(--success); background: #dcfce7; }
+        .option-label.incorrect-anim { border-color: var(--danger); background: #fee2e2; }
+
+        /* Explicación */
+        .feedback {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            animation: fadeIn 0.4s ease;
+        }
+        .feedback.correct { background: #dcfce7; border-left: 4px solid var(--success); }
+        .feedback.incorrect { background: #fee2e2; border-left: 4px solid var(--danger); }
+        
+        .feedback-title { font-weight: bold; margin-bottom: 5px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #quiz-container { grid-template-columns: 1fr; }
+            #sidebar { position: static; max-height: none; margin-bottom: 20px; }
+            .index-grid { grid-template-columns: repeat(5, 1fr); }
+            .question-header { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h2>Quiz de Anatomía y Embriología</h2>
+        <p>40 preguntas disponibles. ¿Cómo deseas realizar el cuestionario?</p>
+        <button onclick="startQuiz('original')">Orden Preestablecido</button>
+        <button onclick="startQuiz('random')">Orden Aleatorio</button>
+    </div>
+
+    <div id="quiz-container">
+        <div id="sidebar">
+            <h3>Índice de Preguntas</h3>
+            <div id="index-grid" class="index-grid"></div>
+            <button class="btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="questions-container"></div>
+    </div>
+
+    <div id="end-screen">
+        <h2>Resultados del Cuestionario</h2>
+        <h1 id="score-display" style="font-size: 3em; margin: 10px 0; color: var(--primary);"></h1>
+        <p id="stats-display"></p>
+        
+        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="resetApp('all')">Repetir Completo (Todas las 40)</button>
+            <button id="btn-repeat-failed" onclick="resetApp('failed')">Repetir SOLO Falladas/No respondidas</button>
+            <button id="btn-repeat-marked" onclick="resetApp('marked')">Repetir SOLO Marcadas</button>
+            <button id="btn-repeat-failed-marked" onclick="resetApp('failed_marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// BASE DE DATOS LITERAl DE LAS 40 PREGUNTAS
+const database = [
+{
+    id: 1,
+    q: 'Embriología renal: El desarrollo del riñón definitivo (metanefros) comienza en la 5ª semana. ¿Qué estructura es absolutamente indispensable que aparezca (como evaginación del conducto mesonéfrico) e invada el tejido para "inducir" la formación del riñón?',
+    opts: [
+        { t: "El conducto de Müller.", c: false },
+        { t: "La yema o brote ureteral.", c: true },
+        { t: "El seno urogenital.", c: false },
+        { t: "La cresta gonadal.", c: false }
+    ],
+    exp: "El documento indica que el conducto mesonéfrico emite el brote ureteral que penetra en el metanefros e induce la formación del futuro riñón."
+},
+{
+    id: 2,
+    q: 'Durante la vida fetal, los riñones producen orina a partir del tercer mes. ¿Qué consecuencia directa tiene para el feto una agenesia renal bilateral (ausencia de riñones) o la falta de producción de esta orina?',
+    opts: [
+        { t: "Cierre prematuro de la cloaca.", c: false },
+        { t: "Formación de un riñón en herradura masivo.", c: false },
+        { t: "Disminución o ausencia de líquido amniótico (oligohidramnios).", c: true },
+        { t: "Persistencia del uraco.", c: false }
+    ],
+    exp: "La presentación señala explícitamente: \"Esta orina contribuye a formar el líquido amniótico\"."
+},
+{
+    id: 3,
+    q: 'Anomalías de migración renal: Si observamos un "riñón pelviano" ectópico que nunca ascendió, ¿qué dos características anatómicas lo definen frente a un riñón ptósico (que sí ascendió pero luego cayó)?',
+    opts: [
+        { t: "Carece de uréter y drena en el conducto de Müller.", c: false },
+        { t: "Su arteria nace a nivel de la bifurcación de la aorta y presenta una rotación incompleta con el hilio anterior.", c: true },
+        { t: "Siempre está fusionado con el riñón contralateral.", c: false },
+        { t: "Su arteria nace en L1 y está muy estirada hacia la pelvis.", c: false }
+    ],
+    exp: "Durante el ascenso normal, el riñón toma vasos más altos. Si no sube (ectopia), conserva su arteria originada en zonas bajas (bifurcación aórtica) y el hilio queda mirando hacia adelante (no rota hacia la aorta)."
+},
+{
+    id: 4,
+    q: 'Diferenciación sexual: La proteína SRY es el factor determinante testicular. El testículo embrionario produce testosterona (Leydig) y otra sustancia clave desde las células de Sertoli para masculinizar el tracto. ¿Cuál es y qué función tiene?',
+    opts: [
+        { t: "Estrógenos, que atrofian el conducto de Wolff.", c: false },
+        { t: "Factor Inhibidor Mülleriano (HAM), que provoca la atrofia de los conductos de Müller (paramesonéfricos).", c: true },
+        { t: "5-alfa-reductasa, que forma los ovarios.", c: false },
+        { t: "Progesterona, que forma la próstata.", c: false }
+    ],
+    exp: "El factor inhibidor mülleriano asegura que se atrofien las estructuras que darían lugar al útero y trompas en el varón."
+},
+{
+    id: 5,
+    q: 'En el embrión de fenotipo femenino, al no haber gen SRY ni Factor Inhibidor Mülleriano, el conducto de Müller (paramesonéfrico) persiste y se desarrolla. ¿A qué estructuras dará lugar?',
+    opts: [
+        { t: "A los ovarios y el ligamento ancho.", c: false },
+        { t: "Al conducto deferente y epidídimo.", c: false },
+        { t: "A la trompa de Falopio, el útero y el tercio superior de la vagina.", c: true },
+        { t: "A los labios mayores y menores.", c: false }
+    ],
+    exp: "En la mujer, los conductos de Müller se fusionan caudalmente formando el útero, las trompas y la cúpula/tercio superior vaginal."
+},
+{
+    id: 6,
+    q: 'El origen de la Vejiga Urinaria es mixto. Mientras que el saco vesical en sí deriva del seno urogenital (endodermo), el espacio comprendido entre los orificios ureterales y uretral (Trígono Vesical) tiene un origen diferente. ¿Cuál es?',
+    opts: [
+        { t: "Ectodérmico.", c: false },
+        { t: "Mesodérmico, originado por la incorporación distal de los conductos mesonéfricos (de Wolff).", c: true },
+        { t: "Del saco vitelino.", c: false },
+        { t: "De la notocorda.", c: false }
+    ],
+    exp: "El trígono vesical es de origen Wolffiano, lo cual es crítico funcional y oncológicamente por su estirpe celular (mesodermo)."
+},
+{
+    id: 7,
+    q: 'Desarrollo de la Vagina: Al igual que la vejiga, la vagina tiene un origen embriológico doble que se fusiona. Mientras su tercio superior procede de los conductos de Müller, ¿de dónde derivan sus dos tercios inferiores?',
+    opts: [
+        { t: "De los conductos de Wolff.", c: false },
+        { t: "De la yema ureteral.", c: false },
+        { t: "Del seno urogenital (senos bulbovaginales) de origen endodérmico.", c: true },
+        { t: "Del tabique urorrectal.", c: false }
+    ],
+    exp: "Los senos bulbovaginales crecen desde el seno urogenital, formando el cordón vaginal que se ahueca constituyendo los 2/3 inferiores."
+},
+{
+    id: 8,
+    q: 'Envolturas del Testículo (1): El testículo desciende desde el abdomen arrastrando capas. El profesor es tajante ante la pregunta de una alumna: ¿Forma la Túnica Albugínea parte de las capas de envoltura de la bolsa escrotal?',
+    opts: [
+        { t: "Sí, es la capa más externa de la bolsa.", c: false },
+        { t: "Sí, es la capa intermedia muscular.", c: false },
+        { t: "No, es la propia cápsula de la gónada (el testículo en sí mismo) que crea los tabiques internos, no una capa de la bolsa escrotal.", c: true },
+        { t: "Es una dependencia de la aponeurosis del oblicuo mayor.", c: false }
+    ],
+    exp: "El profesor corrige: \"no se incluye en las capas de la bolsa porque solamente es la cobertura de la propia gónada... es el propio tejido\"."
+},
+{
+    id: 9,
+    q: 'Envolturas del Testículo (2): ¿Qué capa del escroto está formada por músculo liso, es responsable de arrugar la piel y es la capa donde se acumula masivamente la orina en caso de rotura uretral (extravasación)?',
+    opts: [
+        { t: "Músculo cremáster.", c: false },
+        { t: "Túnica vaginal.", c: false },
+        { t: "Fascia espermática interna.", c: false },
+        { t: "Músculo Dartos (capa celular subcutánea).", c: true }
+    ],
+    exp: "El Dartos, compuesto de tejido celular subcutáneo laxo y músculo liso, es el espacio continuo con el pene donde se acumula la orina en un falso sondaje."
+},
+{
+    id: 10,
+    q: 'Envolturas del Testículo (3): A diferencia del Dartos (liso y autónomo), hay un músculo estriado que envuelve el cordón espermático y eleva activamente el testículo (Reflejo cremastérico). ¿De qué capa abdominal deriva este músculo Cremáster?',
+    opts: [
+        { t: "Del músculo recto del abdomen exclusivamente.", c: false },
+        { t: "De las fibras del músculo oblicuo menor (interno) y transverso del abdomen.", c: true },
+        { t: "Del peritoneo parietal.", c: false },
+        { t: "De la fascia transversalis.", c: false }
+    ],
+    exp: "Al atravesar el conducto inguinal, el testículo arrastra fibras de los músculos oblicuo menor y transverso, constituyendo el cremáster."
+},
+{
+    id: 11,
+    q: 'TRAMPA CLÍNICA (Falso Sondaje): El profesor explica un accidente urológico grave. Al introducir una sonda rígida en un varón, ¿en qué punto anatómico exacto ("codo") suele producirse la rotura por forzar el paso?',
+    opts: [
+        { t: "En el cuello de la vejiga.", c: false },
+        { t: "En la transición o ángulo entre la uretra membranosa (fija al periné) y la uretra esponjosa (laxa y móvil).", c: true },
+        { t: "En la fosa navicular del glande.", c: false },
+        { t: "En pleno espesor de la próstata.", c: false }
+    ],
+    exp: "La uretra membranosa es rígida al atravesar el diafragma urogenital; la esponjosa cuelga libre. En ese codo de unión es donde choca la sonda y perfora la pared si no se alinea bien el pene."
+},
+{
+    id: 12,
+    q: 'En la porción funicular del Conducto Deferente (dentro del cordón espermático), encontramos tres arterias que irrigan distintas estructuras. ¿De dónde procede la Arteria Cremastérica?',
+    opts: [
+        { t: "De la aorta abdominal directamente (L2).", c: false },
+        { t: "De la arteria ilíaca interna.", c: false },
+        { t: "De un pequeño ramo de las arterias epigástricas inferiores.", c: true },
+        { t: "De la arteria umbilical obliterada.", c: false }
+    ],
+    exp: "La cremastérica nace de la epigástrica inferior. La testicular nace de la aorta L2, y la deferencial nace de la umbilical."
+},
+{
+    id: 13,
+    q: 'Siguiendo con la irrigación del cordón espermático, ¿de dónde procede la Arteria Deferencial (la que acompaña al conducto deferente en su retorno a la pelvis)?',
+    opts: [
+        { t: "De las arterias epigástricas inferiores.", c: false },
+        { t: "De la porción no obliterada de la arteria umbilical (rama de la ilíaca interna).", c: true },
+        { t: "De la aorta abdominal directamente.", c: false },
+        { t: "De la arteria pudenda interna.", c: false }
+    ],
+    exp: "El profesor detalla que procede de la porción permeable de la arteria umbilical y acompaña al conducto deferente en su trayecto."
+},
+{
+    id: 14,
+    q: 'Drenaje venoso asimétrico: La vena testicular rodea a la arteria testicular formando el plexo pampiniforme para refrigerar la sangre. ¿Dónde drena obligatoriamente la Vena Testicular IZQUIERDA?',
+    opts: [
+        { t: "En la vena cava inferior directamente.", c: false },
+        { t: "En la vena mesentérica inferior.", c: false },
+        { t: "Asciende hasta drenar en ángulo recto en la vena renal izquierda.", c: true },
+        { t: "En la vena ilíaca interna.", c: false }
+    ],
+    exp: "Mientras la derecha va a la cava, la izquierda asciende y drena en la renal izquierda, siendo un punto crítico que explica la prevalencia del varicocele en el lado izquierdo."
+},
+{
+    id: 15,
+    q: 'Dolor referido: Cualquier afectación nociceptiva del testículo (inflamación, distensión) produce un dolor que viaja por las vías vegetativas. ¿En qué región se manifestará este dolor según su nivel de origen (L1-L2)?',
+    opts: [
+        { t: "En la fosa isquioanal (perineo puro).", c: false },
+        { t: "En la cara medial del muslo exclusivamente.", c: false },
+        { t: "Como un dolor de origen lumbar alto (similar al renal), ya que las gónadas se desarrollaron a nivel de L1-L2 y arrastraron su inervación.", c: true },
+        { t: "En el hombro izquierdo.", c: false }
+    ],
+    exp: "El profesor indica que \"duele a un nivel lumbar alto... como un dolor de origen renal\" debido a que la gónada y su plexo vegetativo proceden embriológicamente de ese nivel alto."
+},
+{
+    id: 16,
+    q: 'Relación anatómica clave: Cuando el conducto deferente ingresa en la pelvis y desciende por la cara posteroinferior de la vejiga, se cruza con el uréter. ¿Cuál es su relación topográfica?',
+    opts: [
+        { t: "El conducto deferente pasa por debajo (caudal) del uréter.", c: false },
+        { t: "El conducto deferente cruza pasando por encima (craneal/medial) del uréter.", c: true },
+        { t: "El conducto deferente perfora el uréter.", c: false },
+        { t: "No llegan a cruzarse en ningún momento.", c: false }
+    ],
+    exp: "\"Le pasa cranealmente... salta por encima del conducto ureteral\"."
+},
+{
+    id: 17,
+    q: 'En la mujer, existe una relación quirúrgica homóloga y vital (riesgo de ligadura en histerectomías) entre el uréter pélvico y la vascularización principal del útero. ¿Cuál es?',
+    opts: [
+        { t: "El uréter cruza por encima de la arteria uterina.", c: false },
+        { t: "La arteria uterina salta y cruza por encima (anterior) del uréter a unos 1.5 cm lateral al cérvix (\"el agua pasa bajo el puente\").", c: true },
+        { t: "La arteria uterina discurre medial y paralela al uréter sin cruzarlo.", c: false },
+        { t: "La arteria ovárica cruza por debajo del uréter.", c: false }
+    ],
+    exp: "Esquema clásico de la pelvis femenina. La arteria uterina (rama de la ilíaca interna) cruza por encima del uréter para llegar al cuello del útero."
+},
+{
+    id: 18,
+    q: 'La Glándula Prostática tiene forma de castaña invertida. ¿En qué lóbulo prostático se encuentra la mayor masa glandular y, por tanto, tiene mayor representación y facilidad de exploración a través del tacto rectal?',
+    opts: [
+        { t: "Lóbulo anterior (istmo).", c: false },
+        { t: "Lóbulo medio puro.", c: false },
+        { t: "Lóbulo o cara posterior.", c: true },
+        { t: "Lóbulos laterales superiores.", c: false }
+    ],
+    exp: "El profesor recalca que \"la porción mayoritaria de la glándula no atraviesa la porción medial... mayoritariamente está representado por la cara posterior\". Esta cercanía al recto permite su palpación."
+},
+{
+    id: 19,
+    q: 'Anatomía del Seno Prostático: En la pared posterior de la uretra prostática existe una elevación longitudinal (cresta uretral) con un abultamiento central llamado colículo seminal. En su centro presenta un pequeño fondo de saco ciego denominado:',
+    opts: [
+        { t: "Fosa navicular.", c: false },
+        { t: "Utrículo prostático.", c: true },
+        { t: "Seno bulbar.", c: false },
+        { t: "Conducto eyaculador.", c: false }
+    ],
+    exp: "El utrículo prostático es un orificio ciego situado en la línea media del colículo seminal (resto embrionario de los conductos de Müller)."
+},
+{
+    id: 20,
+    q: 'A ambos lados de este utrículo prostático (en el colículo seminal), desembocan dos conductos que vierten el líquido seminal y los espermatozoides a la uretra prostática. Se trata de:',
+    opts: [
+        { t: "Los uréteres.", c: false },
+        { t: "Los conductos eferentes.", c: false },
+        { t: "Los conductos eyaculadores.", c: true },
+        { t: "Los túbulos seminíferos rectos.", c: false }
+    ],
+    exp: "Los conductos eyaculadores (formados por la unión de la vesícula seminal y la ampolla del deferente) atraviesan la próstata y desembocan allí."
+},
+{
+    id: 21,
+    q: '¿Qué es el Ligamento Ancho del Útero?',
+    opts: [
+        { t: "Un cordón fibroso que va desde el fondo del útero hasta los labios mayores.", c: false },
+        { t: "Una condensación de la fascia pélvica a nivel del cérvix (parametrio).", c: false },
+        { t: "Una amplia doble lámina de peritoneo (en forma de \"alas de murciélago\") que recae sobre el útero, englobando a las trompas (mesosálpinx) y sosteniendo al ovario (mesoovario).", c: true },
+        { t: "El tejido conectivo que separa el útero de la vejiga.", c: false }
+    ],
+    exp: "Visualmente en las diapositivas, el ligamento ancho (mesometrio) es el gran pliegue peritoneal que se extiende lateralmente tapizando los anexos uterinos."
+},
+{
+    id: 22,
+    q: 'Recesos peritoneales en la pelvis femenina: El peritoneo cae desde la cavidad abdominal sobre las vísceras pélvicas. ¿Cómo se llama el fondo de saco situado entre el útero (anterior) y el recto (posterior), que constituye el punto de mayor declive de la cavidad peritoneal?',
+    opts: [
+        { t: "Fondo de saco vesicouterino.", c: false },
+        { t: "Fondo de saco de Douglas (rectouterino).", c: true },
+        { t: "Espacio retropúbico de Retzius.", c: false },
+        { t: "Fosa ovárica.", c: false }
+    ],
+    exp: "Es el receso de declive natural anatómico en la mujer."
+},
+{
+    id: 23,
+    q: 'En el hombre, el receso peritoneal análogo al saco de Douglas, que se forma al caer el peritoneo desde el recto directamente sobre la cara posterosuperior de la vejiga, se denomina:',
+    opts: [
+        { t: "Fondo de saco rectovesical.", c: true },
+        { t: "Transcavidad de los epiplones.", c: false },
+        { t: "Espacio de Retzius.", c: false },
+        { t: "Tabique rectoprostático.", c: false }
+    ],
+    exp: "Al no haber útero, el peritoneo cae directamente creando el fondo de saco rectovesical."
+},
+{
+    id: 24,
+    q: 'Inervación del escroto y periné: ¿Qué nervio principal, procedente del plexo sacro, abandona la pelvis y proporciona inervación somática voluntaria y sensitiva a la bolsa escrotal, labios mayores y región anal?',
+    opts: [
+        { t: "Nervio genitofemoral (ramo genital).", c: false },
+        { t: "Nervio obturador.", c: false },
+        { t: "Nervio Pudendo.", c: true },
+        { t: "Nervios esplácnicos pélvicos.", c: false }
+    ],
+    exp: "El nervio pudendo distribuye inervación sensitiva y motora esquelética al rombo perineal, escroto y pene."
+},
+{
+    id: 25,
+    q: 'Aislamiento prostático: La próstata y las vesículas seminales no están sueltas en la pelvis, sino que están separadas mecánicamente de la cara anterior del recto por un denso tabique de tejido conectivo fundamental como barrera tumoral. Es el:',
+    opts: [
+        { t: "Ligamento puboprostático.", c: false },
+        { t: "Tabique rectovesical (fascia de Denonvilliers).", c: true },
+        { t: "Membrana perineal.", c: false },
+        { t: "Músculo transverso profundo del periné.", c: false }
+    ],
+    exp: "El tabique de tejido conectivo rectovesical aísla el compartimento digestivo del urogenital masculino."
+},
+{
+    id: 26,
+    q: 'La vía seminal intracrotal: Los espermatozoides se forman en los túbulos seminíferos y convergen hacia el mediastino testicular. ¿Qué red de canales anastomosados se forma en el interior de este mediastino antes de salir hacia el epidídimo?',
+    opts: [
+        { t: "Conductos eyaculadores.", c: false },
+        { t: "Rete testis (Red de Haller).", c: true },
+        { t: "Ampolla deferencial.", c: false },
+        { t: "Conductillos eferentes exclusivamente.", c: false }
+    ],
+    exp: "El profesor detalla: \"una red de testis que empieza a asomar por el mediastino... a partir de él aparecen unos vasos largos que van a conformar la cabeza del epidídimo\" (conductillos eferentes)."
+},
+{
+    id: 27,
+    q: '¿Qué ligamento embrionario (remanente del gubernaculum testis) es responsable de fijar el polo inferior del testículo y la túnica vaginal al fondo de la bolsa escrotal, previniendo la rotación libre y la peligrosa "torsión testicular"?',
+    opts: [
+        { t: "Ligamento suspensorio del pene.", c: false },
+        { t: "Ligamento inguinal.", c: false },
+        { t: "Ligamento escrotal.", c: true },
+        { t: "Cordón espermático.", c: false }
+    ],
+    exp: "El ligamento escrotal ancla pasivamente el testículo al fondo de la bolsa para que no oscile como \"badajo de campana\" y se torsione."
+},
+{
+    id: 28,
+    q: 'Las Glándulas Seminales (Vesículas Seminales) aportan gran parte del volumen del líquido seminal. Topográficamente en la pelvis, ¿dónde se ubican estas estructuras de aspecto "arrugado" o "acinar"?',
+    opts: [
+        { t: "En la cara anterior del pubis.", c: false },
+        { t: "En el interior del escroto, por encima del epidídimo.", c: false },
+        { t: "En la cara posteroinferior de la vejiga urinaria, laterales a las ampollas del conducto deferente.", c: true },
+        { t: "Embebidas dentro del espesor del músculo elevador del ano.", c: false }
+    ],
+    exp: "Se adosan a la cara posterior e inferior de la vejiga, convergiendo con el deferente para formar el eyaculador."
+},
+{
+    id: 29,
+    q: 'Uretra masculina distal: La última dilatación de la uretra esponjosa, situada justo antes del meato uretral externo en el espesor del glande del pene y con forma de "tienda de campaña" u ojival, se denomina:',
+    opts: [
+        { t: "Utrículo.", c: false },
+        { t: "Fosa navicular.", c: true },
+        { t: "Seno bulbar.", c: false },
+        { t: "Glándula de Cowper.", c: false }
+    ],
+    exp: "La uretra anterior tiene una dilatación proximal (seno del bulbo) y una dilatación terminal en el glande (fosa navicular)."
+},
+{
+    id: 30,
+    q: 'El Meato Uretral Externo: Según explica el profesor, el orificio externo de la uretra femenina es arrosariado/estrellado, pero el masculino tiene una conformación diferente. ¿Cómo es el meato masculino?',
+    opts: [
+        { t: "Esférico perfecto.", c: false },
+        { t: "Una hendidura vertical (sagital) o \"bilabial\".", c: true },
+        { t: "Transversal u horizontal.", c: false },
+        { t: "Triangular.", c: false }
+    ],
+    exp: "El profesor describe que en el hombre el orificio es una hendidura sagital \"bilabial\" (de ventral a dorsal)."
+},
+{
+    id: 31,
+    q: 'Genitales externos femeninos: El órgano eréctil homólogo al pene masculino es el Clítoris (derivado del tubérculo genital). ¿Qué elementos de tejido eréctil componen la raíz y el cuerpo del clítoris profundo anclado a la pelvis?',
+    opts: [
+        { t: "Dos bulbos vestibulares y un cuerpo esponjoso masivo.", c: false },
+        { t: "Dos cuerpos cavernosos (pilares) que convergen en la línea media y un glande terminal.", c: true },
+        { t: "Únicamente el capuchón mucoso y el frenillo.", c: false },
+        { t: "Las glándulas de Bartolino.", c: false }
+    ],
+    exp: "Al igual que los pilares del pene, el clítoris tiene dos cuerpos cavernosos unidos y un glande, pero no está atravesado por la uretra (que iría en el esponjoso)."
+},
+{
+    id: 32,
+    q: 'El uraco es un cordón fibroso que asciende desde el vértice o cúpula de la vejiga urinaria hacia el ombligo (ligamento umbilical medio). Embriológicamente, es el remanente obliterado de:',
+    opts: [
+        { t: "La vena umbilical izquierda.", c: false },
+        { t: "Las arterias umbilicales.", c: false },
+        { t: "La alantoides.", c: true },
+        { t: "El conducto de Wolff.", c: false }
+    ],
+    exp: "La vejiga se continúa con la alantoides, la cual al obliterarse forma el uraco."
+},
+{
+    id: 33,
+    q: 'Topografía uterina: En condiciones normales, el útero no está rígido ni vertical, sino que su cuerpo descansa volcado hacia adelante, formando un ángulo agudo con el cuello uterino y la vagina. Esta posición de descanso sobre la vejiga se denomina:',
+    opts: [
+        { t: "Retroversión y retroflexión.", c: false },
+        { t: "Anteversión y anteflexión.", c: true },
+        { t: "Prolapso uterino de primer grado.", c: false },
+        { t: "Ectopia endometrial.", c: false }
+    ],
+    exp: "El útero sano se apoya fisiológicamente en anteversión y anteflexión sobre la cara posterosuperior vesical."
+},
+{
+    id: 34,
+    q: 'El Ovario es una gónada intraperitoneal muy particular porque NO está recubierta por el peritoneo liso y brillante típico, sino por un epitelio cúbico modificado que le permite romperse durante la ovulación. Se le conoce como:',
+    opts: [
+        { t: "Endometrio ovárico.", c: false },
+        { t: "Epitelio germinal (o recubrimiento peritoneal del ovario).", c: true },
+        { t: "Túnica albugínea externa.", c: false },
+        { t: "Mesosálpinx.", c: false }
+    ],
+    exp: "Las imágenes del \"genital femenino\" señalan el \"Epitelio germinal\" como la cobertura externa del ovario, diferenciándolo del resto del peritoneo (mesovario)."
+},
+{
+    id: 35,
+    q: 'Vía de abordaje quirúrgico: Existe un espacio lleno de tejido conectivo laxo situado entre la sínfisis del pubis y la cara anterior de la vejiga urinaria (y de la próstata). Permite a los cirujanos acceder a la vejiga sin tener que perforar la cavidad peritoneal. Se denomina:',
+    opts: [
+        { t: "Espacio de Retzius (espacio retropúbico).", c: true },
+        { t: "Fosa isquioanal.", c: false },
+        { t: "Saco de Douglas.", c: false },
+        { t: "Conducto inguinal.", c: false }
+    ],
+    exp: "El espacio retropúbico de Retzius es el área anterior a la vejiga y posterior al pubis."
+},
+{
+    id: 36,
+    q: 'Suelo Pélvico: El plano profundo que sostiene como un embudo a todas las vísceras pélvicas y atraviesa la uretra y el recto está formado fundamentalmente por el músculo:',
+    opts: [
+        { t: "Transverso profundo del periné.", c: false },
+        { t: "Isquiocavernoso.", c: false },
+        { t: "Elevador del ano (y músculo coccígeo).", c: true },
+        { t: "Esfínter interno del ano.", c: false }
+    ],
+    exp: "El diafragma pélvico está constituido primordialmente por los fascículos del músculo elevador del ano y el coccígeo."
+},
+{
+    id: 37,
+    q: 'Embriología externa: En la diferenciación de los genitales externos de un feto varón, los pliegues uretrales se fusionan en la línea media para originar:',
+    opts: [
+        { t: "Los labios menores.", c: false },
+        { t: "El escroto.", c: false },
+        { t: "La uretra peneana.", c: true },
+        { t: "El prepucio.", c: false }
+    ],
+    exp: "En el varón, los pliegues uretrales se cierran sobre el surco, originando la uretra peneana. (Los pliegues genitales formarán el escroto)."
+},
+{
+    id: 38,
+    q: 'Embriología externa: Por el contrario, en el feto con fenotipo femenino, estos mismos pliegues uretrales NO se fusionan y quedan separados a los lados del vestíbulo, originando:',
+    opts: [
+        { t: "El clítoris.", c: false },
+        { t: "Los labios menores de la vulva.", c: true },
+        { t: "Los labios mayores.", c: false },
+        { t: "El monte de Venus.", c: false }
+    ],
+    exp: "\"En el fenotipo mujer, los pliegues uretrales no se van a fusionar y forman los labios menores\"."
+},
+{
+    id: 39,
+    q: 'La trompa uterina (de Falopio) se divide en varias porciones. La porción más distal, que tiene forma de embudo y presenta unas proyecciones digitiformes (fimbrias) para atrapar al ovocito en la ovulación, se denomina:',
+    opts: [
+        { t: "Istmo tubárico.", c: false },
+        { t: "Ampolla.", c: false },
+        { t: "Infundíbulo.", c: true },
+        { t: "Porción intramural o uterina.", c: false }
+    ],
+    exp: "El infundíbulo es el extremo abdominal de la trompa, coronado por las fimbrias."
+},
+{
+    id: 40,
+    q: 'Desarrollo de los conductos mesonéfricos: Mientras que el metanefros formará el riñón, los primitivos túbulos caudales del mesonefros se integrarán en el testículo en desarrollo para formar los:',
+    opts: [
+        { t: "Túbulos seminíferos contorneados.", c: false },
+        { t: "Conductos eferentes (ductuli efferentes).", c: true },
+        { t: "Las células de Leydig.", c: false },
+        { t: "El utrículo prostático.", c: false }
+    ],
+    exp: "El esquema embriológico muestra que los túbulos excretores del mesonefros conectan con la rete testis y se convierten en los conductos (o conductillos) eferentes del testículo adulto."
+}
+];
+
+// ESTADOS GLOBALES
+let activeQuestions = [];
+let markedQuestions = new Set();
+let userAnswers = {}; // id -> {answered: bool, correct: bool}
+
+// Función auxiliar para barajar arrays (Fisher-Yates)
+function shuffleArray(array) {
+    let newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+// INICIAR EL QUIZ
+function startQuiz(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'grid';
+
+    activeQuestions = [...database];
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    
+    renderQuiz();
+}
+
+// REINICIAR SEGÚN MODOS
+function resetApp(mode) {
+    document.getElementById('end-screen').style.display = 'none';
+    
+    let newPool = [];
+    if (mode === 'all') {
+        newPool = [...database];
+    } else if (mode === 'failed') {
+        newPool = database.filter(q => {
+            return !userAnswers[q.id] || !userAnswers[q.id].correct;
+        });
+    } else if (mode === 'marked') {
+        newPool = database.filter(q => markedQuestions.has(q.id));
+    } else if (mode === 'failed_marked') {
+        newPool = database.filter(q => {
+            const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+            const marked = markedQuestions.has(q.id);
+            return failed || marked;
+        });
+    }
+
+    activeQuestions = newPool;
+    
+    // Preguntar por el orden del nuevo bloque
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('start-screen').innerHTML = `
+        <h2>Se han seleccionado ${activeQuestions.length} preguntas.</h2>
+        <p>¿Cómo deseas ordenarlas para este intento?</p>
+        <button onclick="startSpecificPool('original')">Orden Original</button>
+        <button onclick="startSpecificPool('random')">Orden Aleatorio</button>
+    `;
+    document.getElementById('start-screen').style.display = 'block';
+}
+
+function startSpecificPool(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    // Limpiamos los answers pero mantenemos las marcas si se desea
+    userAnswers = {}; 
+    document.getElementById('quiz-container').style.display = 'grid';
+    renderQuiz();
+}
+
+
+// RENDERIZAR INTERFAZ
+function renderQuiz() {
+    const sidebarGrid = document.getElementById('index-grid');
+    const questionsContainer = document.getElementById('questions-container');
+    
+    sidebarGrid.innerHTML = '';
+    questionsContainer.innerHTML = '';
+
+    activeQuestions.forEach((q, displayIndex) => {
+        const num = displayIndex + 1;
+        
+        // 1. Crear botón en el índice
+        const btn = document.createElement('a');
+        btn.href = `#q-${q.id}`;
+        btn.className = 'index-btn';
+        btn.id = `btn-index-${q.id}`;
+        btn.innerText = num;
+        if(markedQuestions.has(q.id)) btn.classList.add('marked');
+        sidebarGrid.appendChild(btn);
+
+        // 2. Barajar opciones
+        const shuffledOpts = shuffleArray(q.opts);
+
+        // 3. Crear tarjeta de pregunta
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.id}`;
+
+        let optionsHTML = shuffledOpts.map((opt, i) => `
+            <div class="option-item">
+                <label class="option-label" id="label-${q.id}-${i}">
+                    <input type="radio" name="q-${q.id}" value="${opt.c}" onchange="checkAnswer(${q.id}, ${opt.c}, ${i}, this)">
+                    <span>${opt.t}</span>
+                </label>
+            </div>
+        `).join('');
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${num}. ${q.q}</h3>
+                <label class="mark-container">
+                    <input type="checkbox" ${markedQuestions.has(q.id) ? 'checked' : ''} onchange="toggleMark(${q.id}, this)">
+                    Marcar/Flag
+                </label>
+            </div>
+            <div class="options-list">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.id}">
+                <div class="feedback-title" id="feedback-title-${q.id}"></div>
+                <div><strong>Explicación:</strong> ${q.exp}</div>
+            </div>
+        `;
+
+        questionsContainer.appendChild(card);
+    });
+}
+
+// INTERACCIÓN: MARCAR PREGUNTA
+function toggleMark(id, checkbox) {
+    const btn = document.getElementById(`btn-index-${id}`);
+    if (checkbox.checked) {
+        markedQuestions.add(id);
+        if(btn) btn.classList.add('marked');
+    } else {
+        markedQuestions.delete(id);
+        if(btn) btn.classList.remove('marked');
+    }
+}
+
+// INTERACCIÓN: RESPONDER PREGUNTA
+function checkAnswer(questionId, isCorrect, optIndex, radioElement) {
+    // Si ya fue respondida, no hacer nada (bloqueado)
+    if (userAnswers[questionId]) return;
+
+    userAnswers[questionId] = { answered: true, correct: isCorrect };
+
+    // Bloquear todas las opciones de esta pregunta
+    const radios = document.querySelectorAll(`input[name="q-${questionId}"]`);
+    radios.forEach(r => {
+        r.disabled = true;
+        r.parentElement.classList.add('disabled');
+        // Marcar visualmente cuál era la verdadera si falló
+        if(r.value === 'true') {
+            r.parentElement.style.border = "2px solid var(--success)";
+        }
+    });
+
+    // Colorear la seleccionada
+    const selectedLabel = document.getElementById(`label-${questionId}-${optIndex}`);
+    const feedbackDiv = document.getElementById(`feedback-${questionId}`);
+    const feedbackTitle = document.getElementById(`feedback-title-${questionId}`);
+    const indexBtn = document.getElementById(`btn-index-${questionId}`);
+
+    feedbackDiv.style.display = 'block';
+
+    if (isCorrect) {
+        selectedLabel.classList.add('correct-anim');
+        feedbackDiv.classList.add('correct');
+        feedbackTitle.innerText = "¡Correcto!";
+        feedbackTitle.style.color = "var(--success)";
+        if(indexBtn) indexBtn.classList.add('correct');
+    } else {
+        selectedLabel.classList.add('incorrect-anim');
+        feedbackDiv.classList.add('incorrect');
+        feedbackTitle.innerText = "Incorrecto";
+        feedbackTitle.style.color = "var(--danger)";
+        if(indexBtn) indexBtn.classList.add('incorrect');
+    }
+}
+
+// FINALIZAR QUIZ
+function finishQuiz() {
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'block';
+
+    let correctCount = 0;
+    let answeredCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (userAnswers[q.id]) {
+            answeredCount++;
+            if (userAnswers[q.id].correct) correctCount++;
+        }
+    });
+
+    const unattempted = activeQuestions.length - answeredCount;
+    const scoreDisplay = document.getElementById('score-display');
+    const statsDisplay = document.getElementById('stats-display');
+
+    scoreDisplay.innerText = `${correctCount} / ${activeQuestions.length}`;
+    statsDisplay.innerHTML = `
+        <strong>Aciertos:</strong> ${correctCount}<br>
+        <strong>Fallos:</strong> ${answeredCount - correctCount}<br>
+        <strong>No respondidas:</strong> ${unattempted}<br>
+        <strong>Marcadas para revisión:</strong> ${markedQuestions.size}
+    `;
+
+    // Evaluar estado de botones de repetición
+    const btnFailed = document.getElementById('btn-repeat-failed');
+    const btnMarked = document.getElementById('btn-repeat-marked');
+    const btnFailedMarked = document.getElementById('btn-repeat-failed-marked');
+
+    const totalFailedOrUnanswered = activeQuestions.length - correctCount;
+    
+    btnFailed.disabled = totalFailedOrUnanswered === 0;
+    btnMarked.disabled = markedQuestions.size === 0;
+    
+    // Falladas + Marcadas
+    let combinedCount = 0;
+    database.forEach(q => {
+        const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+        const marked = markedQuestions.has(q.id);
+        if(failed || marked) combinedCount++;
+    });
+    btnFailedMarked.disabled = combinedCount === 0;
+}
+</script>
+
+</body>
+</html>

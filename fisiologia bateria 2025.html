@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Fisiología 2025</title>
+    <style>
+        :root {
+            --primary: #2980b9;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: #333;
+            background-color: #f4f6f7;
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 320px;
+            background-color: var(--dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a252f;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 4px;
+            overflow-y: auto;
+            padding-right: 5px;
+            flex-grow: 1;
+            align-content: start;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 6px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #ecf0f1;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.1s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary); transform: scale(1.1); z-index: 2; }
+        .nav-btn.active { background-color: var(--secondary); border: 2px solid white; }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--danger); color: white; }
+        .nav-btn.marked { box-shadow: inset 0 0 0 2px var(--warning); }
+
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        /* Main Content */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .screen { display: none; max-width: 900px; margin: 0 auto; }
+        .screen.active { display: block; }
+
+        /* UI Elements */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.1s, box-shadow 0.2s;
+            min-width: 200px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--dark); color: white; }
+        .btn-exam { background-color: var(--danger); color: white; }
+        .btn-action { background-color: var(--success); color: white; }
+        .btn-warning { background-color: var(--warning); color: #2c3e50; }
+
+        /* Question Styles */
+        .question-container {
+            background: white;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .question-text { font-size: 1.2em; font-weight: 600; color: #2c3e50; line-height: 1.4; text-align: left; }
+        
+        .mark-check {
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 28px;
+            transition: color 0.2s;
+            user-select: none;
+            margin-left: 15px;
+        }
+        .mark-check.marked { color: var(--warning); }
+        
+        .options-grid { display: grid; gap: 12px; }
+        .option {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+            text-align: left;
+        }
+        .option:hover:not(.disabled) { background-color: #e2e6ea; border-color: #adb5bd; }
+        .option.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
+        .option.disabled { cursor: default; pointer-events: none; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-radius: 8px;
+            display: none;
+            border-left: 5px solid var(--success);
+            text-align: left;
+        }
+        .feedback.error { background-color: #fdeaea; border-color: var(--danger); }
+
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3 id="sidebar-title">Navegación</h3>
+        <div id="nav-grid"></div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--success)"></div> Bien</span>
+            <span><div class="dot" style="background:var(--danger)"></div> Mal</span>
+            <span><div class="dot" style="background:var(--warning)"></div> Marca</span>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="start-screen" class="screen active">
+            <div class="card">
+                <h1 style="color:var(--primary)">Fisiología Celular y Tisular</h1>
+                <h3 style="color:#7f8c8d">Examen Completo 2025</h3>
+                <p>135 Preguntas disponibles</p>
+                <hr style="margin: 30px 0; opacity: 0.2">
+                
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <button class="btn btn-primary" onclick="startQuiz('ordered')">Modo Estudio: Orden Numérico</button>
+                    <button class="btn btn-secondary" onclick="startQuiz('random')">Modo Estudio: Orden Aleatorio</button>
+                    <button class="btn btn-exam" onclick="startQuiz('exam20')">Simulacro Examen (20 Preguntas)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="questions-list"></div>
+            <div id="controls">
+                <button class="btn btn-exam" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);" onclick="finishQuiz()">Finalizar Test</button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <div class="card">
+                <h2 style="color:var(--primary)">Resultados</h2>
+                <div id="score-display" style="font-size: 3em; font-weight:bold; color:var(--secondary); margin: 20px 0;"></div>
+                <div id="stats-display" style="color:#7f8c8d; font-size: 1.2em;"></div>
+                
+                <hr style="margin: 30px 0; opacity: 0.2">
+                <h3>Opciones de Repaso</h3>
+                <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+                    <button class="btn btn-exam" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn btn-warning" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-secondary" onclick="resetQuiz('failed_marked')">Falladas + Marcadas</button>
+                    <button class="btn btn-action" onclick="resetQuiz('all')">Repetir Test Completo</button>
+                </div>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Data Base (135 Questions) ---
+    const questionsDB = [
+        { id: 1, text: "¿Cuál es el principal ion intracelular en las células humanas?", options: ["Sodio (Na⁺)", "Potasio (K⁺)", "Cloro (Cl⁻)", "Calcio (Ca²⁺)"], correct: 1 },
+        { id: 2, text: "¿Qué estructura del sistema nervioso regula la homeostasis?", options: ["Cerebelo", "Corteza prefrontal", "Hipotálamo", "Bulbo raquídeo"], correct: 2 },
+        { id: 3, text: "¿Cuál es el efecto del aumento de la permeabilidad al sodio en una membrana neuronal?", options: ["Hiperpolarización", "Repolarización", "Despolarización", "Inhibición sináptica"], correct: 2 },
+        { id: 4, text: "¿Qué tipo de transporte celular requiere energía en forma de ATP?", options: ["Difusión simple", "Difusión facilitada", "Ósmosis", "Transporte activo"], correct: 3 },
+        { id: 5, text: "La Ley de Starling del corazón establece que:", options: ["La frecuencia cardíaca es constante sin importar el volumen sanguíneo", "El gasto cardíaco es independiente del retorno venoso", "El volumen sistólico aumenta con el incremento del retorno venoso", "La contracción cardíaca depende exclusivamente del sistema nervioso simpático"], correct: 2 },
+        { id: 6, text: "¿Qué proteína es fundamental para la contracción muscular al interactuar con la actina?", options: ["Miosina", "Troponina", "Calmodulina", "Distrofina"], correct: 0 },
+        { id: 7, text: "¿Cuál de las siguientes hormonas tiene un efecto hiperglucemiante?", options: ["Insulina", "Glucagón", "Somatostatina", "Tiroxina"], correct: 1 },
+        { id: 8, text: "En la nefrona, ¿dónde ocurre principalmente la reabsorción de sodio?", options: ["Asa de Henle", "Túbulo contorneado proximal", "Glomérulo", "Túbulo colector"], correct: 1 },
+        { id: 9, text: "¿Cuál es el principal regulador de la ventilación en condiciones normales?", options: ["Nivel de oxígeno en sangre", "Nivel de dióxido de carbono en sangre", "pH del plasma", "Presión osmótica"], correct: 1 },
+        { id: 10, text: "¿Qué tipo de sinapsis permite la transmisión más rápida de impulsos nerviosos?", options: ["Sinapsis química", "Sinapsis eléctrica", "Sinapsis inhibitoria", "Sinapsis sensorial"], correct: 1 },
+        { id: 11, text: "¿Cuál es la función principal del retículo sarcoplásmico en el músculo esquelético?", options: ["Producción de ATP", "Almacenamiento de calcio", "Síntesis de proteínas", "Transmisión del potencial de acción"], correct: 1 },
+        { id: 12, text: "¿Qué molécula actúa como el principal transportador de oxígeno en la sangre?", options: ["Mioglobina", "Hemoglobina", "Albúmina", "Fibrinógeno"], correct: 1 },
+        { id: 13, text: "¿Qué evento marca el inicio de la fase de despolarización en un potencial de acción?", options: ["Cierre de canales de potasio", "Entrada masiva de calcio", "Apertura de canales de sodio dependientes de voltaje", "Salida de cloro hacia el exterior celular"], correct: 2 },
+        { id: 14, text: "¿En qué parte del sistema digestivo ocurre la mayor absorción de nutrientes?", options: ["Estómago", "Duodeno", "Íleon", "Colon"], correct: 1 },
+        { id: 15, text: "¿Qué efecto tiene la acetilcolina sobre el corazón?", options: ["Aumenta la frecuencia cardíaca", "Disminuye la frecuencia cardíaca", "Incrementa la contractilidad ventricular", "No tiene ningún efecto"], correct: 1 },
+        { id: 16, text: "¿Cuál es la principal hormona reguladora del metabolismo basal?", options: ["Cortisol", "Insulina", "Tiroxina (T4)", "Glucagón"], correct: 2 },
+        { id: 17, text: "¿Qué determina principalmente la presión osmótica de un líquido?", options: ["La cantidad de proteínas", "La concentración de solutos disueltos", "La presión arterial", "El pH del medio"], correct: 1 },
+        { id: 18, text: "¿Qué estructura del corazón actúa como marcapasos natural?", options: ["Nodo auriculoventricular (AV)", "Haz de His", "Fibras de Purkinje", "Nodo sinoauricular (SA)"], correct: 3 },
+        { id: 19, text: "¿Cuál es el principal estímulo para la secreción de aldosterona?", options: ["Hipocalemia", "Activación del sistema renina-angiotensina", "Aumento del pH sanguíneo", "Disminución de la glucosa plasmática"], correct: 1 },
+        { id: 20, text: "¿Qué parte del sistema nervioso autónomo está involucrada en la respuesta de lucha o huida?", options: ["Parasimpático", "Simpático", "Somático", "Entérico"], correct: 1 },
+        { id: 21, text: "¿Cuál es la principal función de la hemoglobina en los glóbulos rojos?", options: ["Regular el pH", "Transportar dióxido de carbono", "Transportar oxígeno", "Producir energía"], correct: 2 },
+        { id: 22, text: "¿Qué enzima convierte la angiotensina I en angiotensina II?", options: ["Renina", "Aldosterona", "Enzima convertidora de angiotensina (ECA)", "Vasopresina"], correct: 2 },
+        { id: 23, text: "¿Cuál es el efecto del aumento del CO₂ en la sangre sobre el pH?", options: ["Aumenta el pH (alcalosis)", "Disminuye el pH (acidosis)", "No tiene efecto", "Neutraliza el pH"], correct: 1 },
+        { id: 24, text: "¿Qué tipo de músculo es controlado de forma voluntaria?", options: ["Músculo liso", "Músculo cardíaco", "Músculo esquelético", "Músculo bronquial"], correct: 2 },
+        { id: 25, text: "¿Qué estructura del riñón filtra la sangre para formar la orina primaria?", options: ["Túbulo proximal", "Glomérulo", "Asa de Henle", "Uréter"], correct: 1 },
+        { id: 26, text: "¿Qué factor determina principalmente la dirección del flujo de agua a través de una membrana semipermeable?", options: ["Gradiente de presión osmótica", "Diferencia de temperatura", "Concentración de proteínas", "Gradiente de presión atmosférica"], correct: 0 },
+        { id: 27, text: "¿Qué estructura del ojo regula la cantidad de luz que ingresa?", options: ["Retina", "Cristalino", "Iris", "Córnea"], correct: 2 },
+        { id: 28, text: "¿Qué neurotransmisor es liberado en la sinapsis neuromuscular para iniciar la contracción muscular?", options: ["Dopamina", "Noradrenalina", "Acetilcolina", "GABA"], correct: 2 },
+        { id: 29, text: "¿Cuál de las siguientes hormonas regula los niveles de calcio en la sangre?", options: ["Insulina", "Calcitonina", "Aldosterona", "Glucagón"], correct: 1 },
+        { id: 30, text: "¿Qué gas difunde más rápidamente a través de la membrana alveolar?", options: ["Oxígeno (O₂)", "Dióxido de carbono (CO₂)", "Nitrógeno (N₂)", "Monóxido de carbono (CO)"], correct: 1 },
+        { id: 31, text: "¿Cuál es el principal tampón del plasma sanguíneo?", options: ["Bicarbonato", "Fosfato", "Hemoglobina", "Albumina"], correct: 0 },
+        { id: 32, text: "¿Dónde se produce principalmente la eritropoyetina?", options: ["Hígado", "Médula ósea", "Riñón", "Bazo"], correct: 2 },
+        { id: 33, text: "¿Qué tipo de receptores detectan cambios en la presión arterial?", options: ["Quimiorreceptores", "Mecanorreceptores", "Barorreceptores", "Termorreceptores"], correct: 2 },
+        { id: 34, text: "¿Cuál es la función del ATP en la contracción muscular?", options: ["Estabilizar la actina", "Inhibir la miosina", "Romper el puente cruzado entre actina y miosina", "Generar el potencial de acción"], correct: 2 },
+        { id: 35, text: "¿Cuál es la principal fuente de energía en reposo para el músculo esquelético?", options: ["Glucosa", "Ácidos grasos", "Aminoácidos", "Lactato"], correct: 1 },
+        { id: 36, text: "¿Cuál es el principal efecto del sistema nervioso parasimpático sobre el aparato digestivo?", options: ["Inhibición de la secreción gástrica", "Disminución de la motilidad intestinal", "Estimulación de la digestión y motilidad", "Aumento del pH gástrico"], correct: 2 },
+        { id: 37, text: "¿Qué estructura almacena y libera calcio en el músculo esquelético?", options: ["Mitocondria", "Aparato de Golgi", "Retículo sarcoplásmico", "Lisosoma"], correct: 2 },
+        { id: 38, text: "¿Qué hormona es esencial para la reabsorción de agua en los túbulos renales?", options: ["Aldosterona", "Insulina", "Vasopresina (ADH)", "Tiroxina"], correct: 2 },
+        { id: 39, text: "¿Qué estructura del sistema nervioso central regula el ciclo sueño-vigilia?", options: ["Hipotálamo", "Cerebelo", "Bulbo raquídeo", "Hipocampo"], correct: 0 },
+        { id: 40, text: "¿Qué componente del sistema inmunológico es responsable de la inmunidad celular?", options: ["Linfocitos B", "Linfocitos T", "Macrófagos", "Neutrófilos"], correct: 1 },
+        { id: 41, text: "¿Cuál es el principal sitio de intercambio gaseoso en los pulmones?", options: ["Bronquios", "Bronquiolos", "Alvéolos", "Pleura"], correct: 2 },
+        { id: 42, text: "¿Qué enzima pancreática es responsable de la digestión de las grasas?", options: ["Amilasa", "Lipasa", "Pepsina", "Tripsina"], correct: 1 },
+        { id: 43, text: "¿Qué ion es esencial para la contracción muscular y la transmisión sináptica?", options: ["Sodio (Na⁺)", "Cloro (Cl⁻)", "Potasio (K⁺)", "Calcio (Ca²⁺)"], correct: 3 },
+        { id: 44, text: "¿Cuál es el principal órgano de producción de insulina?", options: ["Hígado", "Páncreas", "Riñón", "Intestino delgado"], correct: 1 },
+        { id: 45, text: "¿Qué tipo de músculo forma el miocardio?", options: ["Músculo esquelético", "Músculo liso", "Músculo cardíaco", "Músculo mixto"], correct: 2 },
+        { id: 46, text: "¿Cuál es el principal mecanismo de transporte del oxígeno en la sangre?", options: ["Disuelto en el plasma", "Unido a la albúmina", "Unido a la hemoglobina", "En forma de dióxido de carbono"], correct: 2 },
+        { id: 47, text: "¿Qué hormona estimula la producción de glóbulos rojos?", options: ["Tiroxina", "Eritropoyetina", "Cortisol", "Prolactina"], correct: 1 },
+        { id: 48, text: "¿Qué parte del cerebro controla las funciones respiratorias automáticas?", options: ["Corteza cerebral", "Cerebelo", "Bulbo raquídeo", "Hipocampo"], correct: 2 },
+        { id: 49, text: "¿Cuál es la función principal del aparato de Golgi en la célula?", options: ["Producción de energía", "Almacenamiento de calcio", "Modificación y empaquetamiento de proteínas", "Replicación del ADN"], correct: 2 },
+        { id: 50, text: "¿Qué parte del corazón recibe sangre desoxigenada del cuerpo?", options: ["Aurícula izquierda", "Ventrículo izquierdo", "Aurícula derecha", "Ventrículo derecho"], correct: 2 },
+        { id: 51, text: "¿Cuál es el principal estímulo para la liberación de insulina?", options: ["Aumento de glucosa en sangre", "Disminución de ácidos grasos", "Aumento de calcio intracelular", "Descenso de potasio plasmático"], correct: 0 },
+        { id: 52, text: "¿Qué estructura del riñón es responsable de la filtración de la sangre?", options: ["Túbulo contorneado distal", "Glomérulo", "Asa de Henle", "Ureter"], correct: 1 },
+        { id: 53, text: "¿Cuál es la función principal de la mitocondria?", options: ["Almacenamiento de calcio", "Síntesis de proteínas", "Producción de ATP", "Replicación del ADN"], correct: 2 },
+        { id: 54, text: "¿Qué hormona estimula la secreción de ácido clorhídrico en el estómago?", options: ["Secretina", "Gastrina", "Colecistocinina", "Somatostatina"], correct: 1 },
+        { id: 55, text: "¿Cuál es la principal proteína transportadora de oxígeno en la sangre?", options: ["Mioglobina", "Hemoglobina", "Albúmina", "Ferritina"], correct: 1 },
+        { id: 56, text: "¿Qué tipo de célula inmunitaria produce anticuerpos?", options: ["Linfocito T", "Linfocito B", "Macrófago", "Eosinófilo"], correct: 1 },
+        { id: 57, text: "¿Qué parte del sistema nervioso autónomo predomina en situaciones de estrés?", options: ["Parasimpático", "Entérico", "Simpático", "Sensorial"], correct: 2 },
+        { id: 58, text: "¿Cuál es el principal ion intracelular?", options: ["Sodio (Na⁺)", "Cloro (Cl⁻)", "Potasio (K⁺)", "Calcio (Ca²⁺)"], correct: 2 },
+        { id: 59, text: "¿Qué parte del tubo digestivo es el principal sitio de absorción de nutrientes?", options: ["Estómago", "Intestino delgado", "Intestino grueso", "Esófago"], correct: 1 },
+        { id: 60, text: "¿Qué estructura del oído convierte las ondas sonoras en impulsos nerviosos?", options: ["Tímpano", "Martillo", "Cóclea", "Trompa de Eustaquio"], correct: 2 },
+        { id: 61, text: "¿Qué gas actúa como un potente vasodilatador endógeno?", options: ["Oxígeno", "Dióxido de carbono", "Óxido nítrico", "Monóxido de carbono"], correct: 2 },
+        { id: 62, text: "¿Cuál es el principal determinante de la presión arterial sistémica?", options: ["Frecuencia respiratoria", "Volumen sanguíneo", "Resistencia vascular periférica", "Temperatura corporal"], correct: 2 },
+        { id: 63, text: "¿Qué hormona regula el equilibrio de sodio y agua a nivel renal?", options: ["Prolactina", "Aldosterona", "Insulina", "Calcitonina"], correct: 1 },
+        { id: 64, text: "¿Qué región del cerebro es esencial para la memoria y el aprendizaje?", options: ["Tálamo", "Hipotálamo", "Hipocampo", "Bulbo raquídeo"], correct: 2 },
+        { id: 65, text: "¿Qué mecanismo permite el paso de iones a través de la membrana celular?", options: ["Difusión simple", "Ósmosis", "Canales iónicos", "Fagocitosis"], correct: 2 },
+        { id: 66, text: "¿Cuál es el papel principal del hígado en el metabolismo de la glucosa?", options: ["Producción de insulina", "Gluconeogénesis", "Secreción de bilis", "Filtración de sangre"], correct: 1 },
+        { id: 67, text: "¿Qué tipo de músculo controla el peristaltismo en el intestino?", options: ["Esquelético", "Cardíaco", "Liso", "Estriado"], correct: 2 },
+        { id: 68, text: "¿Qué vitamina es esencial para la coagulación sanguínea?", options: ["Vitamina A", "Vitamina C", "Vitamina K", "Vitamina D"], correct: 2 },
+        { id: 69, text: "¿Qué parte del corazón impulsa la sangre hacia los pulmones?", options: ["Aurícula izquierda", "Ventrículo derecho", "Aurícula derecha", "Ventrículo izquierdo"], correct: 1 },
+        { id: 70, text: "¿Qué estructura protege al encéfalo de sustancias potencialmente tóxicas?", options: ["Meninges", "Barrera hematoencefálica", "Plexo coroideo", "Sustancia gris"], correct: 1 },
+        { id: 71, text: "¿Qué tipo de célula muscular tiene la capacidad de autorritmicidad?", options: ["Músculo esquelético", "Músculo liso", "Músculo cardíaco", "Músculo visceral"], correct: 2 },
+        { id: 72, text: "¿Qué hormona es liberada por la glándula pineal y regula el ciclo circadiano?", options: ["Cortisol", "Melatonina", "Tiroxina", "Glucagón"], correct: 1 },
+        { id: 73, text: "¿Qué tipo de receptores sensoriales responden al dolor?", options: ["Termorreceptores", "Mecanorreceptores", "Nociceptores", "Quimiorreceptores"], correct: 2 },
+        { id: 74, text: "¿Cuál es el efecto de la parathormona sobre los niveles de calcio?", options: ["Disminuye el calcio plasmático", "Aumenta el calcio plasmático", "Inhibe la absorción intestinal de calcio", "Promueve la excreción renal de calcio"], correct: 1 },
+        { id: 75, text: "¿Qué componente del sistema respiratorio tiene cilios para eliminar partículas?", options: ["Alvéolos", "Bronquios", "Pleura", "Diafragma"], correct: 1 },
+        { id: 76, text: "¿Qué estructura almacena la bilis antes de su liberación en el intestino?", options: ["Hígado", "Vesícula biliar", "Páncreas", "Duodeno"], correct: 1 },
+        { id: 77, text: "¿Qué función principal cumple la aldosterona en los riñones?", options: ["Aumentar la excreción de potasio", "Inhibir la reabsorción de sodio", "Estimular la liberación de insulina", "Reducir la presión arterial"], correct: 0 },
+        { id: 78, text: "¿Cuál es el principal neurotransmisor inhibidor en el sistema nervioso central?", options: ["Glutamato", "Acetilcolina", "GABA", "Dopamina"], correct: 2 },
+        { id: 79, text: "¿Dónde ocurre principalmente la hematopoyesis en adultos?", options: ["Bazo", "Médula ósea roja", "Hígado", "Timo"], correct: 1 },
+        { id: 80, text: "¿Qué hormona estimula la secreción de insulina tras una comida?", options: ["Glucagón", "Grelina", "Incretinas", "Cortisol"], correct: 2 },
+        { id: 81, text: "¿Cuál es el principal regulador de la ventilación pulmonar?", options: ["Nivel de oxígeno en sangre", "Nivel de dióxido de carbono en sangre", "Nivel de nitrógeno en sangre", "Temperatura corporal"], correct: 1 },
+        { id: 82, text: "¿Qué parte de la nefrona es responsable de la reabsorción masiva de agua y solutos?", options: ["Asa de Henle", "Túbulo contorneado proximal", "Glomérulo", "Conducto colector"], correct: 1 },
+        { id: 83, text: "¿Qué hormona aumenta la permeabilidad del túbulo colector al agua?", options: ["Aldosterona", "Insulina", "Hormona antidiurética (ADH)", "Calcitonina"], correct: 2 },
+        { id: 84, text: "¿Cuál es el efecto de la estimulación del sistema nervioso parasimpático sobre el corazón?", options: ["Aumento de la frecuencia cardíaca", "Disminución de la frecuencia cardíaca", "Aumento de la contractilidad", "Ningún efecto sobre el corazón"], correct: 1 },
+        { id: 85, text: "¿Qué tipo de contracción muscular ocurre sin cambio en la longitud del músculo?", options: ["Concéntrica", "Excéntrica", "Isométrica", "Isotónica"], correct: 2 },
+        { id: 86, text: "¿Qué proteína se une al calcio para permitir la contracción muscular?", options: ["Actina", "Miosina", "Tropomiosina", "Troponina"], correct: 3 },
+        { id: 87, text: "¿Dónde se produce la mayor parte del ATP durante la respiración celular?", options: ["Citosol", "Mitocondria", "Retículo endoplasmático", "Núcleo"], correct: 1 },
+        { id: 88, text: "¿Cuál es el principal efecto de la hormona glucagón?", options: ["Aumentar la captación de glucosa", "Estimular la gluconeogénesis y glucogenólisis", "Inhibir la producción de glucosa hepática", "Promover la síntesis de glucógeno"], correct: 1 },
+        { id: 89, text: "¿Qué parte del encéfalo regula la temperatura corporal?", options: ["Cerebelo", "Hipotálamo", "Tálamo", "Bulbo raquídeo"], correct: 1 },
+        { id: 90, text: "¿Qué tipo de transporte celular requiere energía en forma de ATP?", options: ["Difusión simple", "Difusión facilitada", "Transporte activo", "Ósmosis"], correct: 2 },
+        { id: 91, text: "¿Qué parte del sistema nervioso controla los reflejos?", options: ["Cerebro", "Médula espinal", "Cerebelo", "Tálamo"], correct: 1 },
+        { id: 92, text: "¿Cuál es la función de la hemoglobina en los glóbulos rojos?", options: ["Regular la presión osmótica", "Transportar oxígeno", "Producir energía", "Sintetizar proteínas"], correct: 1 },
+        { id: 93, text: "¿Qué enzima inicia la digestión de los carbohidratos en la boca?", options: ["Pepsina", "Lipasa pancreática", "Amilasa salival", "Tripsina"], correct: 2 },
+        { id: 94, text: "¿Cuál es la principal función del sistema linfático?", options: ["Transportar oxígeno", "Regular el metabolismo", "Mantener el equilibrio de líquidos y la defensa inmunológica", "Producir hormonas"], correct: 2 },
+        { id: 95, text: "¿Qué hormona regula el metabolismo basal en el cuerpo?", options: ["Insulina", "Cortisol", "Hormonas tiroideas", "Prolactina"], correct: 2 },
+        { id: 96, text: "¿Qué componente del plasma sanguíneo es esencial para la coagulación?", options: ["Hemoglobina", "Plaquetas", "Eritrocitos", "Glóbulos blancos"], correct: 1 },
+        { id: 97, text: "¿Qué neurotransmisor es predominante en la unión neuromuscular?", options: ["Dopamina", "Noradrenalina", "Acetilcolina", "Serotonina"], correct: 2 },
+        { id: 98, text: "¿Cuál es la principal función del cortisol?", options: ["Disminuir el metabolismo de la glucosa", "Regular la respuesta al estrés y el metabolismo", "Inhibir la gluconeogénesis", "Estimular la producción de insulina"], correct: 1 },
+        { id: 99, text: "¿Qué estructura del ojo controla la cantidad de luz que entra?", options: ["Retina", "Cristalino", "Pupila", "Iris"], correct: 3 },
+        { id: 100, text: "¿Qué tipo de tejido conecta músculos con huesos?", options: ["Cartílago", "Ligamento", "Tendón", "Fascia"], correct: 2 },
+        { id: 101, text: "¿Cuál es la función principal de la aldosterona?", options: ["Aumentar la reabsorción de glucosa", "Regular el equilibrio de sodio y agua", "Estimular la secreción de insulina", "Disminuir la presión arterial"], correct: 1 },
+        { id: 102, text: "¿Qué tipo de músculo presenta control voluntario?", options: ["Músculo cardíaco", "Músculo liso", "Músculo esquelético", "Músculo visceral"], correct: 2 },
+        { id: 103, text: "¿Qué estructura del riñón es responsable de la filtración de la sangre?", options: ["Túbulo distal", "Asa de Henle", "Glomérulo", "Uréter"], correct: 2 },
+        { id: 104, text: "¿Cuál es el efecto de la insulina sobre los niveles de glucosa en sangre?", options: ["Aumenta la glucogenólisis", "Disminuye la glucosa en sangre", "Inhibe la captación de glucosa", "Estimula la lipólisis"], correct: 1 },
+        { id: 105, text: "¿Qué tipo de neuronas transmiten impulsos desde el cuerpo hacia el sistema nervioso central?", options: ["Neuronas motoras", "Neuronas sensoriales", "Interneuronas", "Neuronas simpáticas"], correct: 1 },
+        { id: 106, text: "¿Qué componente del sistema nervioso autónomo prepara al cuerpo para situaciones de estrés?", options: ["Parasimpático", "Sensorial", "Simpático", "Somático"], correct: 2 },
+        { id: 107, text: "¿Qué ion es fundamental para la contracción muscular?", options: ["Sodio (Na⁺)", "Potasio (K⁺)", "Calcio (Ca²⁺)", "Cloruro (Cl⁻)"], correct: 2 },
+        { id: 108, text: "¿Cuál es el principal sitio de intercambio gaseoso en los pulmones?", options: ["Tráquea", "Bronquios", "Bronquiolos", "Alvéolos"], correct: 3 },
+        { id: 109, text: "¿Qué hormona estimula la liberación de glucosa desde el hígado?", options: ["Insulina", "Glucagón", "ADH", "Aldosterona"], correct: 1 },
+        { id: 110, text: "¿Qué parte del encéfalo coordina el equilibrio y la postura?", options: ["Tálamo", "Hipotálamo", "Cerebelo", "Médula espinal"], correct: 2 },
+        { id: 111, text: "¿Cuál es el principal gas que estimula la respiración?", options: ["Oxígeno (O₂)", "Nitrógeno (N₂)", "Dióxido de carbono (CO₂)", "Helio (He)"], correct: 2 },
+        { id: 112, text: "¿Qué estructura regula la entrada de alimentos al estómago?", options: ["Esfínter pilórico", "Válvula ileocecal", "Esfínter esofágico inferior", "Cardias"], correct: 2 },
+        { id: 113, text: "¿Cuál es el efecto del pH bajo en la afinidad de la hemoglobina por el oxígeno?", options: ["Aumenta la afinidad", "Disminuye la afinidad", "No tiene efecto", "Aumenta la saturación"], correct: 1 },
+        { id: 114, text: "¿Qué hormona es producida por la glándula pineal y regula el ciclo sueño-vigilia?", options: ["Cortisol", "Melatonina", "Tiroxina", "Insulina"], correct: 1 },
+        { id: 115, text: "¿Dónde se lleva a cabo principalmente la digestión de las grasas?", options: ["Estómago", "Intestino delgado", "Hígado", "Colon"], correct: 1 },
+        { id: 116, text: "¿Qué parte de la célula es responsable de la producción de energía?", options: ["Núcleo", "Mitocondria", "Ribosoma", "Lisosoma"], correct: 1 },
+        { id: 117, text: "¿Cuál es el principal mecanismo de transporte de oxígeno en la sangre?", options: ["Disuelto en plasma", "Unido a la hemoglobina", "Transportado por linfa", "Difusión pasiva"], correct: 1 },
+        { id: 118, text: "¿Qué glándula produce la hormona paratiroidea (PTH)?", options: ["Tiroides", "Paratiroides", "Suprarrenal", "Páncreas"], correct: 1 },
+        { id: 119, text: "¿Qué proceso permite el paso del agua a través de una membrana semipermeable?", options: ["Difusión", "Ósmosis", "Fagocitosis", "Pinocitosis"], correct: 1 },
+        { id: 120, text: "¿Qué célula del sistema inmunológico produce anticuerpos?", options: ["Macrófago", "Linfocito T", "Linfocito B", "Neutrófilo"], correct: 2 },
+        { id: 121, text: "¿Qué estructura del corazón evita el reflujo de sangre?", options: ["Aurículas", "Ventrículos", "Válvulas cardíacas", "Tabique interventricular"], correct: 2 },
+        { id: 122, text: "¿Cuál es la función principal del hígado en el metabolismo de carbohidratos?", options: ["Producción de insulina", "Almacenamiento de glucosa en forma de glucógeno", "Producción de bilis", "Absorción de glucosa"], correct: 1 },
+        { id: 123, text: "¿Qué ion es más abundante en el líquido intracelular?", options: ["Sodio (Na⁺)", "Cloruro (Cl⁻)", "Potasio (K⁺)", "Calcio (Ca²⁺)"], correct: 2 },
+        { id: 124, text: "¿Cuál es la principal función de la lipasa pancreática?", options: ["Digestión de proteínas", "Digestión de lípidos", "Digestión de carbohidratos", "Digestión de ácidos nucleicos"], correct: 1 },
+        { id: 125, text: "¿Qué parte del sistema nervioso controla las funciones involuntarias del cuerpo?", options: ["Sistema nervioso somático", "Sistema nervioso autónomo", "Corteza cerebral", "Médula espinal"], correct: 1 },
+        { id: 126, text: "¿Qué hormona es responsable de la reabsorción de agua en los riñones?", options: ["Insulina", "Glucagón", "Hormona antidiurética (ADH)", "Tiroxina"], correct: 2 },
+        { id: 127, text: "¿Qué parte del sistema digestivo absorbe la mayoría de los nutrientes?", options: ["Estómago", "Intestino delgado", "Colon", "Hígado"], correct: 1 },
+        { id: 128, text: "¿Cuál es la función principal del diafragma en la respiración?", options: ["Regular el pH sanguíneo", "Facilitar el intercambio de gases", "Generar el impulso respiratorio", "Controlar el volumen torácico"], correct: 3 },
+        { id: 129, text: "¿Qué hormona regula los niveles de calcio en sangre?", options: ["Insulina", "Parathormona (PTH)", "Glucagón", "Aldosterona"], correct: 1 },
+        { id: 130, text: "¿Qué estructura del oído es responsable del equilibrio?", options: ["Cóclea", "Martillo", "Yunque", "Canales semicirculares"], correct: 3 },
+        { id: 131, text: "¿Qué neurotransmisor está asociado con la sensación de bienestar y felicidad?", options: ["Dopamina", "Adrenalina", "Noradrenalina", "GABA"], correct: 0 },
+        { id: 132, text: "¿Qué glándula endocrina produce la insulina?", options: ["Tiroides", "Páncreas", "Suprarrenal", "Hipófisis"], correct: 1 },
+        { id: 133, text: "¿Qué parte del sistema cardiovascular distribuye sangre oxigenada al cuerpo?", options: ["Venas cavas", "Arteria pulmonar", "Aorta", "Aurícula derecha"], correct: 2 },
+        { id: 134, text: "¿Cuál es el principal sitio de producción de eritrocitos?", options: ["Hígado", "Médula ósea", "Bazo", "Riñón"], correct: 1 },
+        { id: 135, text: "¿Qué ion es esencial para la transmisión del impulso nervioso?", options: ["Hierro (Fe²⁺)", "Calcio (Ca²⁺)", "Potasio (K⁺)", "Magnesio (Mg²⁺)"], correct: 2 }
+    ];
+
+    // --- Quiz Logic ---
+    let currentQuestions = [];
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentMode = 'ordered';
+
+    function startQuiz(mode) {
+        currentMode = mode;
+        userAnswers = {};
+        markedQuestions.clear();
+        
+        let indices = questionsDB.map((_, i) => i);
+        
+        if (mode === 'random') {
+            indices.sort(() => Math.random() - 0.5);
+        } else if (mode === 'exam20') {
+            indices.sort(() => Math.random() - 0.5);
+            indices = indices.slice(0, 20);
+        }
+
+        loadQuestions(indices);
+        
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function loadQuestions(indices) {
+        currentQuestions = indices;
+        const container = document.getElementById('questions-list');
+        const navGrid = document.getElementById('nav-grid');
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        indices.forEach((qIndex, displayIndex) => {
+            const q = questionsDB[qIndex];
+            
+            // Randomize options map
+            let optionIndices = [0, 1, 2, 3];
+            optionIndices.sort(() => Math.random() - 0.5);
+            
+            // Render HTML
+            const div = document.createElement('div');
+            div.className = 'question-container';
+            div.id = `q-${qIndex}`;
+            div.innerHTML = `
+                <div class="question-header">
+                    <span class="question-text">${displayIndex + 1}. ${q.text}</span>
+                    <span class="mark-check" onclick="toggleMark(${qIndex})" id="mark-${qIndex}" title="Marcar para revisar">★</span>
+                </div>
+                <div class="options-grid">
+                    ${optionIndices.map(optIdx => `
+                        <div class="option" onclick="selectAnswer(${qIndex}, ${optIdx}, this, ${q.correct})">
+                            ${q.options[optIdx]}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="feedback" id="feedback-${qIndex}"></div>
+            `;
+            container.appendChild(div);
+
+            // Sidebar Item
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.innerText = displayIndex + 1;
+            navBtn.id = `nav-${qIndex}`;
+            navBtn.onclick = () => {
+                document.getElementById(`q-${qIndex}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            navGrid.appendChild(navBtn);
+        });
+    }
+
+    function selectAnswer(qIndex, selectedOptIdx, optionElem, correctOptIdx) {
+        if (userAnswers[qIndex]) return; // Already answered
+
+        const isCorrect = selectedOptIdx === correctOptIdx;
+        userAnswers[qIndex] = { selectedOption: selectedOptIdx, isCorrect: isCorrect };
+
+        // UI Updates
+        const parent = optionElem.parentNode;
+        const options = parent.getElementsByClassName('option');
+        
+        for(let opt of options) {
+            opt.classList.add('disabled');
+            if (opt.innerText.trim() === questionsDB[qIndex].options[correctOptIdx]) {
+                opt.classList.add('correct');
+            }
+        }
+
+        if (!isCorrect) {
+            optionElem.classList.add('incorrect');
+        }
+
+        // Show Feedback (Simple correct answer display since no detailed explanation provided in source)
+        const feedbackEl = document.getElementById(`feedback-${qIndex}`);
+        feedbackEl.style.display = 'block';
+        feedbackEl.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Respuesta Incorrecta'}</strong><br>La respuesta correcta es: ${questionsDB[qIndex].options[correctOptIdx]}`;
+        feedbackEl.classList.add(isCorrect ? 'success' : 'error');
+
+        // Update Sidebar
+        const navBtn = document.getElementById(`nav-${qIndex}`);
+        navBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qIndex) {
+        if (markedQuestions.has(qIndex)) {
+            markedQuestions.delete(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.remove('marked');
+            document.getElementById(`nav-${qIndex}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.add('marked');
+            document.getElementById(`nav-${qIndex}`).classList.add('marked');
+        }
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = total > 0 ? ((correct / total) * 10).toFixed(1) : 0;
+
+        const scoreEl = document.getElementById('score-display');
+        const statsEl = document.getElementById('stats-display');
+
+        scoreEl.innerHTML = `Nota: ${score} / 10`;
+        statsEl.innerHTML = `Aciertos: ${correct} / ${total}`;
+
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+    }
+
+    function resetQuiz(criteria) {
+        let nextIndices = [];
+
+        if (criteria === 'all') {
+            startQuiz(currentMode); // Restart with same mode logic
+            return;
+        }
+
+        if (criteria === 'failed') {
+            nextIndices = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+        } else if (criteria === 'marked') {
+            nextIndices = Array.from(markedQuestions);
+        } else if (criteria === 'failed_marked') {
+            const failed = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+            const marked = Array.from(markedQuestions);
+            nextIndices = [...new Set([...failed, ...marked])];
+        }
+
+        if (nextIndices.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        // Reset tracking for new round
+        userAnswers = {};
+        // Keep marked questions? Usually simpler to clear marks for a fresh retry of subset, 
+        // or keep them. Let's clear logic for simplicity in this specific "retry" context.
+        
+        // Shuffle the subset for good measure
+        nextIndices.sort(() => Math.random() - 0.5);
+
+        loadQuestions(nextIndices);
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Digestión y Absorción de Proteínas (Tema 5)</title>
+    <style>
+        :root {
+            --primary: #0e6251;
+            --secondary: #1abc9c;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --light: #f4fdfb;
+            --bg: #e8f8f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar Numérico --- */
+        #sidebar {
+            width: 85px;
+            background: var(--primary);
+            color: white;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) var(--primary);
+        }
+
+        .nav-btn {
+            width: 42px;
+            height: 42px;
+            margin: 4px 0;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { background: var(--secondary); }
+        .nav-btn.active { background: var(--secondary); border: 2px solid white; transform: scale(1.05); }
+        .nav-btn.correct { background: var(--success); }
+        .nav-btn.wrong { background: var(--danger); }
+        .nav-btn.marked { border: 2px solid var(--warning); color: var(--warning); background: rgba(243, 156, 18, 0.2); }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .quiz-card {
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+            max-width: 850px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .screen { display: none; text-align: center; }
+        .screen.active { display: block; }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        h2 { color: var(--primary); border-left: 5px solid var(--secondary); padding-left: 15px; text-align: left; }
+
+        /* --- Opciones --- */
+        .options-list { margin: 25px 0; text-align: left; }
+        .opt-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.2s;
+            text-align: left;
+            line-height: 1.4;
+        }
+        .opt-btn:hover:not([disabled]) { border-color: var(--secondary); background: #f0fbf9; }
+        .opt-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .opt-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        /* --- Feedback y Explicación --- */
+        .explanation-box {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #eafaf1;
+            border-radius: 8px;
+            text-align: left;
+            border-left: 5px solid var(--success);
+            line-height: 1.6;
+        }
+        .explanation-box.show { display: block; animation: fadeIn 0.4s; }
+
+        /* --- Botones de Control --- */
+        .nav-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+        }
+        .btn-next { background: var(--primary); color: white; }
+        .btn-next:hover { background: #0b4f41; }
+        .btn-mark { background: var(--warning); color: #fff; }
+        .btn-finish { background: #7f8c8d; color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .mark-indicator {
+            color: var(--warning);
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: none;
+            text-align: left;
+        }
+        .mark-indicator.visible { display: block; }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar"></div>
+
+<div id="main-content">
+    <div class="quiz-card">
+        <div id="start-screen" class="screen active">
+            <h1>Tema 5: Digestión y Absorción de Proteínas</h1>
+            <p>Batería de 60 preguntas sobre enzimas, transportadores y patologías metabólicas.</p>
+            <div style="margin-top: 40px;">
+                <button class="btn btn-next" onclick="initQuiz(false)">Iniciar con Orden Original</button>
+                <button class="btn btn-next" onclick="initQuiz(true)" style="background: var(--secondary);">Iniciar con Orden Aleatorio</button>
+            </div>
+        </div>
+
+        <div id="question-screen" class="screen">
+            <div id="mark-tag" class="mark-indicator">★ PREGUNTA MARCADA</div>
+            <h2 id="q-title">Pregunta</h2>
+            <p id="q-text" style="font-size: 18px; text-align: left; font-weight: 500;"></p>
+            
+            <div class="options-list" id="options-container"></div>
+            
+            <div id="explanation" class="explanation-box"></div>
+
+            <div class="nav-controls">
+                <button class="btn btn-mark" id="mark-btn" onclick="handleMark()">Marcar Pregunta</button>
+                <div>
+                    <button class="btn btn-finish" onclick="showResults()">Finalizar</button>
+                    <button class="btn btn-next" id="prev-btn" onclick="changeQuestion(-1)" style="background: #95a5a6;">Anterior</button>
+                    <button class="btn btn-next" id="next-btn" onclick="changeQuestion(1)">Siguiente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <h1>Resumen del Test</h1>
+            <div id="score-display" style="font-size: 35px; margin: 20px 0; color: var(--primary); font-weight: bold;"></div>
+            <p>Selecciona cómo deseas continuar:</p>
+            <div class="result-grid">
+                <button class="btn btn-next" onclick="location.reload()">Repetir Todo el Test</button>
+                <button class="btn btn-next" onclick="retry('failed')" style="background: var(--danger);">Repetir Solo Falladas</button>
+                <button class="btn btn-mark" onclick="retry('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-finish" onclick="retry('both')" style="background: var(--primary);">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const rawQuestions = [
+        { q: "1. Según la clase, la absorción de proteínas en el intestino es un proceso muy eficiente. Aproximadamente, ¿cuánto nitrógeno se pierde por las heces al día?", a: "B", opts: {A: "10-20 g de nitrógeno.", B: "1-2 g de nitrógeno (equivalente a 6-12 g de proteína).", C: "50 g de nitrógeno.", D: "El 100% del nitrógeno ingerido."}, exp: "Respuesta correcta: B. Explicación: El sistema es muy eficiente y somos capaces de absorber casi 10 veces lo que excretamos, perdiéndose solo entre 1 y 2 gramos de nitrógeno." },
+        { q: "2. ¿Qué nombre reciben las enzimas encargadas de partir o hidrolizar las proteínas rompiendo el enlace peptídico en el interior de la cadena de aminoácidos?", a: "C", opts: {A: "Exopeptidasas.", B: "Ligasas.", C: "Endopeptidasas.", D: "Aminopeptidasas."}, exp: "Respuesta correcta: C. Explicación: Las endopeptidasas son las enzimas que rompen los enlaces peptídicos situados dentro de la cadena de la proteína." },
+        { q: "3. ¿Cómo se clasifican las enzimas que eliminan o hidrolizan los enlaces en los extremos de la cadena proteica?", a: "B", opts: {A: "Endopeptidasas.", B: "Exopeptidasas.", C: "Amilasas.", D: "Lipasas."}, exp: "Respuesta correcta: B. Explicación: Las exopeptidasas actúan sobre los extremos de la cadena, dividiéndose a su vez en aminopeptidasas y carboxipeptidasas." },
+        { q: "4. ¿Qué enzima exopeptidasa es la encargada de cortar específicamente por el extremo carboxilo de la proteína?", a: "C", opts: {A: "Aminopeptidasa.", B: "Pepsina.", C: "Carboxipeptidasa.", D: "Tripsina."}, exp: "Respuesta correcta: C. Explicación: Su nombre indica su lugar de acción: rompe los enlaces en la parte del grupo carboxilo terminal." },
+        { q: "5. (¡Pista Profesora!) La mayoría de las enzimas digestivas de proteínas se secretan en forma de \"zimógeno\". ¿Qué significa esto?", a: "B", opts: {A: "Que actúan inmediatamente al salir de la célula.", B: "Que se secretan en una forma inactiva (proenzima) y necesitan ser activadas posteriormente para poder ejercer su función.", C: "Que solo actúan en un pH neutro.", D: "Que degradan exclusivamente lípidos."}, exp: "Respuesta correcta: B. Explicación: La profesora recalcó que la célula secreta la enzima de forma no activa (zimógeno) como mecanismo de control, requiriendo un proceso posterior para activarse y no dañar los tejidos." },
+        { q: "6. ¿Cuáles son las tres fases principales de la digestión proteica según el lugar donde se sintetizan las enzimas?", a: "B", opts: {A: "Oral, esofágica y gástrica.", B: "Gástrica, pancreática e intestinal.", C: "Hepática, pancreática y biliar.", D: "Duodenal, yeyunal e ileal."}, exp: "Respuesta correcta: B. Explicación: La digestión se clasifica en base a las células que secretan las enzimas: fase gástrica (estómago), pancreática (páncreas) e intestinal (mucosa del intestino)." },
+        { q: "7. En la digestión gástrica, ¿cuál es la principal enzima encargada de degradar las proteínas?", a: "B", opts: {A: "Tripsina.", B: "Pepsina.", C: "Elastasa.", D: "Quimotripsina."}, exp: "Respuesta correcta: B. Explicación: La pepsina es la principal enzima que inicia la digestión química cortando las proteínas en el estómago." },
+        { q: "8. ¿Qué factor del estómago es indispensable para la desnaturalización inicial de las proteínas y para ayudar a activar el pepsinógeno?", a: "B", opts: {A: "El pH alcalino (bicarbonato).", B: "El pH ácido (1-2) generado por el ácido clorhídrico.", C: "La bilis.", D: "La amilasa salival."}, exp: "Respuesta correcta: B. Explicación: El ácido clorhídrico secretado proporciona los protones necesarios para desnaturalizar proteínas y activar el pepsinógeno inactivo a pepsina." },
+        { q: "9. ¿Qué células de la mucosa gástrica son las encargadas de secretar el ácido clorhídrico y el pepsinógeno?", a: "B", opts: {A: "Células endocrinas intestinales.", B: "Células parietales (y principales).", C: "Enterocitos.", D: "Células de Kupffer."}, exp: "Respuesta correcta: B. Explicación: Las células parietales segregan el medio ácido y el pepsinógeno al interior del estómago." },
+        { q: "10. Una vez que la pepsina genera péptidos cortos en el estómago, estos viajan al intestino. ¿Qué hormona se libera como respuesta a la llegada de estos péptidos al duodeno?", a: "B", opts: {A: "Grelina.", B: "Colecistoquinina (CCK).", C: "Insulina.", D: "Glucagón."}, exp: "Respuesta correcta: B. Explicación: Los péptidos cortos estimulan a las células endocrinas intestinales para que liberen la hormona CCK, iniciando la cascada de señales." },
+        { q: "11. ¿Cuál es la función de la hormona Colecistoquinina (CCK) en la fase pancreática?", a: "B", opts: {A: "Inhibir la producción de ácido en el estómago.", B: "Estimular la liberación de enzimas proteolíticas inoperantes (zimógenos) desde el páncreas hacia el intestino.", C: "Absorber directamente los aminoácidos.", D: "Destruir las enzimas pancreáticas."}, exp: "Respuesta correcta: B. Explicación: La CCK avisa al páncreas para que secrete tripsinógeno y el resto de enzimas necesarias para continuar la digestión en el duodeno." },
+        { q: "12. (¡Pista Profesora!) Para que el tripsinógeno (inactivo) proveniente del páncreas se convierta en tripsina (activa) en el intestino, requiere estrictamente la acción de una enzima de la mucosa intestinal. ¿Cuál es?", a: "C", opts: {A: "Quimotripsina.", B: "Pepsina.", C: "Enteropeptidasa (o enterocinasa).", D: "Colipasa."}, exp: "Respuesta correcta: C. Explicación: La profesora insistió en que si no hay enteropeptidasa secretada por el intestino, no hay activación de tripsina, y por tanto la digestión falla." },
+        { q: "13. (¡Pista Profesora!) ¿Por qué la Tripsina es considerada una enzima \"superimportante\" en el proceso digestivo?", a: "B", opts: {A: "Porque es la única que funciona en el estómago.", B: "Porque es la encargada de dar la señal química para activar todas las demás proenzimas pancreáticas (quimotripsina, elastasa, carboxipeptidasa).", C: "Porque absorbe la glucosa.", D: "Porque desnaturaliza el gluten."}, exp: "Respuesta correcta: B. Explicación: Sin la tripsina, el resto de zimógenos pancreáticos permanecerían inactivos, provocando una activación pobre y una digestión ineficaz." },
+        { q: "14. ¿Qué ocurre si un paciente tiene una mutación metabólica y no puede secretar enteropeptidasa?", a: "C", opts: {A: "La digestión no se ve afectada.", B: "Se absorben las proteínas enteras.", C: "No podrá activar el tripsinógeno a tripsina, generando graves problemas de mala absorción y mala digestión.", D: "Producirá exceso de pepsina."}, exp: "Respuesta correcta: C. Explicación: Cada paso es vital; sin enteropeptidasa, la cascada de activación enzimática en el intestino no puede iniciarse." },
+        { q: "15. ¿A qué pH óptimo actúan las enzimas pancreáticas (tripsina, quimotripsina, elastasa) en el intestino?", a: "C", opts: {A: "pH muy ácido (1-2).", B: "pH neutro exacto (7.0).", C: "pH alcalino o básico (8-9).", D: "pH 4-5."}, exp: "Respuesta correcta: C. Explicación: A diferencia de la pepsina, las enzimas pancreáticas requieren el ambiente alcalino (pH 8-9) facilitado por la secreción de bicarbonato." },
+        { q: "16. Respecto a la especificidad de las enzimas pancreáticas, la Tripsina escinde o corta las proteínas preferentemente en:", a: "C", opts: {A: "Residuos aromáticos.", B: "Aminoácidos hidrofóbicos.", C: "Residuos básicos (con carga positiva) como la arginina y la lisina.", D: "Enlaces glucosídicos."}, exp: "Respuesta correcta: C. Explicación: La tripsina busca sustratos específicos con cargas positivas, como la arginina y la lisina, para efectuar su corte." },
+        { q: "17. ¿En qué residuos específicos actúa la enzima Quimotripsina para romper los enlaces peptídicos?", a: "B", opts: {A: "Glicina y Alanina.", B: "Residuos aromáticos (Tirosina, Fenilalanina, Triptófano).", C: "Arginina y Lisina.", D: "Ácidos grasos."}, exp: "Respuesta correcta: B. Explicación: La quimotripsina es específica para aminoácidos aromáticos o sin carga, actuando de forma complementaria a la tripsina." },
+        { q: "18. La Elastasa, otra endopeptidasa pancreática importante, hidroliza los enlaces cercanos a aminoácidos de tipo:", a: "C", opts: {A: "Aromáticos.", B: "Con carga positiva.", C: "Hidrofóbicos o pequeños (como Glicina, Alanina, Serina).", D: "Disulfuro."}, exp: "Respuesta correcta: C. Explicación: Cada enzima tiene su sustrato; la elastasa reconoce y corta en residuos hidrofóbicos específicos." },
+        { q: "19. En la fase intestinal (borde en cepillo), ¿qué importante exopeptidasa secretada por la propia mucosa intestinal ayuda a la digestión final?", a: "C", opts: {A: "Pepsina.", B: "Tripsina.", C: "Aminopeptidasa.", D: "Amilasa."}, exp: "Respuesta correcta: C. Explicación: La aminopeptidasa se sintetiza y actúa directamente en la mucosa intestinal para cortar por el extremo amino, dejando péptidos muy cortos." },
+        { q: "20. ¿Cuáles son los productos finales de la hidrólisis en la luz intestinal que están listos para entrar al enterocito?", a: "B", opts: {A: "Proteínas completas y polipéptidos de 50 aminoácidos.", B: "Aminoácidos libres, dipéptidos y tripéptidos.", C: "Solamente aminoácidos libres.", D: "Glucosa y ácidos grasos libres."}, exp: "Respuesta correcta: B. Explicación: La célula no puede absorber cadenas grandes; la digestión luminal debe reducir las proteínas a un tamaño máximo de tres aminoácidos." },
+        { q: "21. (¡Pista Profesora - Transporte!) Para ingresar desde la luz intestinal al interior del enterocito, los aminoácidos libres utilizan un transportador que es:", a: "C", opts: {A: "Dependiente de protones (H+).", B: "Independiente de cualquier ion (difusión pasiva).", C: "Dependiente de Sodio (Na+).", D: "Exclusivo para potasio."}, exp: "Respuesta correcta: C. Explicación: Los aminoácidos libres entran mediante un simportador dependiente de Sodio, el cual entra a favor de gradiente." },
+        { q: "22. ¿A qué estructura de la membrana basolateral está funcionalmente asociado el transporte de aminoácidos dependiente de Sodio?", a: "C", opts: {A: "Al canal de cloro.", B: "A la bomba de protones estomacal.", C: "A la bomba Sodio/Potasio ATPasa (Na+/K+ ATPasa).", D: "Al transportador GLUT2."}, exp: "Respuesta correcta: C. Explicación: El transporte va en contra de gradiente para el aminoácido y requiere la energía generada por la bomba Na+/K+ ATPasa que saca el sodio de la célula." },
+        { q: "23. ¿Cómo logran entrar los dipéptidos y tripéptidos al interior del enterocito desde la luz intestinal?", a: "C", opts: {A: "Por el mismo transportador de sodio que los aminoácidos.", B: "Mediante endocitosis.", C: "Utilizando un transportador dependiente de protones (H+).", D: "A través de la bomba de calcio."}, exp: "Respuesta correcta: C. Explicación: Las cadenas de dos o tres aminoácidos usan un transportador distinto e independiente de sodio, que acopla su entrada a la de protones (H+)." },
+        { q: "24. (¡Pista Profesora!) Una vez dentro del enterocito, ¿qué DEBE ocurrir con los dipéptidos y tripéptidos para que puedan salir hacia el torrente sanguíneo?", a: "C", opts: {A: "Deben unirse a un quilomicrón.", B: "Salen directamente a la sangre como dipéptidos.", C: "Deben ser degradados a aminoácidos simples por dipeptidasas y tripeptidasas intracelulares.", D: "Se almacenan indefinidamente en el citosol."}, exp: "Respuesta correcta: C. Explicación: La profesora fue muy enfática: \"solo salen de las células si son simples aminoácidos\". Las enzimas intracelulares finalizan la degradación." },
+        { q: "25. Si un paciente tiene un defecto genético que inactiva las dipeptidasas dentro de sus enterocitos, ¿cuál será la consecuencia directa a nivel celular?", a: "C", opts: {A: "Se excretarán directamente por la orina.", B: "Los aminoácidos saldrán más rápido a la sangre.", C: "Los dipéptidos se acumularán dentro de la célula al no poder ser degradados a aminoácidos simples y, por tanto, no podrán salir a la sangre.", D: "La pepsina dejará de funcionar en el estómago."}, exp: "Respuesta correcta: C. Explicación: Como los transportadores de salida basolateral solo reconocen aminoácidos libres, el defecto enzimático intracelular generará acumulación celular y malabsorción sistemática." },
+        { q: "26. ¿Cómo salen finalmente los aminoácidos simples desde el enterocito hacia los capilares sanguíneos a través de la membrana basolateral?", a: "B", opts: {A: "Por difusión simple a través de la bicapa.", B: "Usando un transportador específico totalmente INDEPENDIENTE de sodio.", C: "Mediante un transportador dependiente de protones.", D: "Usando el transportador GLUT4."}, exp: "Respuesta correcta: B. Explicación: En la salida a la sangre, los aminoácidos utilizan transportadores que no dependen de sodio ni de protones." },
+        { q: "27. A diferencia de la digestión y absorción de los lípidos de cadena larga (que forman micelas y quilomicrones), la absorción de aminoácidos se caracteriza por:", a: "C", opts: {A: "Depender exclusivamente de difusión simple a través de la membrana lipídica.", B: "No necesitar ninguna enzima pancreática.", C: "Requerir proteínas transportadoras específicas transmembrana tanto para entrar como para salir del enterocito.", D: "Viajar por el sistema linfático."}, exp: "Respuesta correcta: C. Explicación: Los aminoácidos son hidrofílicos y necesitan mecanismos de transporte mediados por proteínas receptoras/transportadoras en la membrana, al igual que los glúcidos." },
+        { q: "28. ¿Qué enfermedad clásica, mencionada como la anomalía de absorción más común, se caracteriza por una mala degradación de una proteína (gliadina) que provoca atrofia de las vellosidades e inflamación autoinmune?", a: "B", opts: {A: "Fibrosis quística.", B: "Celiaquía (Enteropatía Sensible al Gluten).", C: "Cistinuria.", D: "Enfermedad de Hartnup."}, exp: "Respuesta correcta: B. Explicación: El gluten/gliadina interactúa con el epitelio, desencadenando una inflamación que destruye la mucosa y bloquea la absorción general." },
+        { q: "29. La Enfermedad de Hartnup es un trastorno hereditario de la absorción que afecta específicamente al transporte de:", a: "C", opts: {A: "Aminoácidos ácidos como el Glutamato.", B: "Exclusivamente glucosa.", C: "Aminoácidos neutros y aromáticos, afectando especialmente al Triptófano.", D: "Lípidos de cadena corta."}, exp: "Respuesta correcta: C. Explicación: Es una patología derivada de la alteración de un sistema de transporte celular concreto, afectando la captación de este grupo de aminoácidos." },
+        { q: "30. Si un paciente padece Cistinuria, ¿cuál es el problema bioquímico subyacente?", a: "B", opts: {A: "Produce un exceso de tripsina.", B: "Presenta un defecto en los transportadores de aminoácidos básicos y cistina, afectando sobre todo a la absorción de Cisteína.", C: "No puede degradar lactosa.", D: "Fabrica demasiada melanina."}, exp: "Respuesta correcta: B. Explicación: La cistinuria es otro ejemplo de enfermedad provocada por la falta o fallo de un transportador específico de membrana." },
+        { q: "31. Los aminoácidos son precursores vitales de muchas biomoléculas. ¿Qué aminoácido es el precursor directo para la síntesis de Histamina?", a: "C", opts: {A: "Tirosina.", B: "Glutamato.", C: "Histidina.", D: "Glicina."}, exp: "Respuesta correcta: C. Explicación: En el esquema de vías metabólicas, la histidina se descarboxila para formar histamina, fundamental en respuestas inmunes y gástricas." },
+        { q: "32. ¿A partir de qué aminoácido precursor se sintetizan las catecolaminas, la melanina y las hormonas tiroideas (tiroxina)?", a: "C", opts: {A: "Triptófano.", B: "Prolina.", C: "Tirosina.", D: "Cisteína."}, exp: "Respuesta correcta: C. Explicación: La tirosina es una molécula central a partir de la cual se derivan pigmentos, neurotransmisores simpáticos y hormonas." },
+        { q: "33. Si un paciente tiene una dieta muy deficiente en Triptófano o no puede absorberlo (ej. Enfermedad de Hartnup), podría presentar déficits en la síntesis del neurotransmisor:", a: "B", opts: {A: "GABA.", B: "Serotonina.", C: "Adrenalina.", D: "Acetilcolina."}, exp: "Respuesta correcta: B. Explicación: El triptófano es el sustrato inicial obligatorio para la formación de serotonina." },
+        { q: "34. El aminoácido Glutamato actúa en el sistema nervioso como precursor de:", a: "B", opts: {A: "Porfirinas.", B: "GABA y glutatión.", C: "Histamina.", D: "Tirosina."}, exp: "Respuesta correcta: B. Explicación: El glutamato se transforma en GABA (un inhibidor neurológico clave) y forma parte del tripéptido antioxidante glutatión." },
+        { q: "35. Para la formación de la Melanina en los melanosomas de los melanocitos, la Tirosina debe ser procesada por una enzima limitante específica denominada:", a: "C", opts: {A: "Tripsina.", B: "Aminopeptidasa.", C: "Tirosinasa.", D: "L-DOPA reductasa."}, exp: "Respuesta correcta: C. Explicación: La tirosinasa convierte la tirosina en DOPA y dopaquinona, bifurcándose hacia eumelanina o feomelanina." },
+        { q: "36. Respecto a la captación de aminoácidos por las distintas células del cuerpo (ej. una neurona), es cierto que:", a: "C", opts: {A: "Solo existe un tipo de receptor único para los 20 aminoácidos.", B: "Los aminoácidos entran libremente sin proteínas de membrana.", C: "Existen diferentes tipos de sistemas de transporte (ej. ASCT-1) específicos para las características del grupo radical (aromáticos, básicos, ácidos, etc.).", D: "Las células absorben polipéptidos enteros de la sangre."}, exp: "Respuesta correcta: C. Explicación: Las células somáticas poseen una batería de transportadores específicos para captar los aminoácidos del plasma según su necesidad metabólica." },
+        { q: "37. ¿Cuál es el destino fisiológico final principal de los aminoácidos absorbidos una vez que entran en las células del cuerpo?", a: "C", opts: {A: "Excretarse como glucosa por orina.", B: "Formar la estructura de micelas hepáticas.", C: "Incorporarse a la síntesis de nuevas proteínas estructurales, enzimas y como precursores de hormonas y vitaminas.", D: "Servir exclusivamente como material de desecho."}, exp: "Respuesta correcta: C. Explicación: La profesora define a las proteínas como la \"estructura de la función y de la forma del cuerpo\"; proveen los bloques para la biosíntesis general." },
+        { q: "38. La procarboxipeptidasa A y B, secretadas por el páncreas en forma inactiva, se clasifican funcionalmente como:", a: "A", opts: {A: "Exopeptidasas.", B: "Endopeptidasas.", C: "Transportadores de membrana.", D: "Hormonas endocrinas."}, exp: "Respuesta correcta: A. Explicación: Una vez activadas por la tripsina, actúan como exopeptidasas hidrolizando los aminoácidos del extremo carboxilo terminal." },
+        { q: "39. Al comparar la absorción de los carbohidratos con la de las proteínas en el enterocito, ambos macronutrientes comparten un mecanismo similar en la membrana apical. ¿Cuál es?", a: "C", opts: {A: "Ambos usan la bomba de protones exclusivamente.", B: "Ambos entran a la célula por difusión simple.", C: "Los monosacáridos (como glucosa/galactosa) y los aminoácidos libres utilizan transportadores activos secundarios dependientes de Na+.", D: "Ambos requieren ser empaquetados en quilomicrones."}, exp: "Respuesta correcta: C. Explicación: Según el esquema final comparativo, tanto los monosacáridos como los aminoácidos usan la energía del gradiente de sodio para entrar." },
+        { q: "40. ¿Qué proteína precursora inactiva es segregada por el páncreas y corta preferentemente residuos como la glicina, alanina y serina tras ser activada?", a: "C", opts: {A: "Tripsinógeno.", B: "Pepsinógeno.", C: "Proelastasa.", D: "Procarboxipeptidasa A."}, exp: "Respuesta correcta: C. Explicación: La proelastasa es el zimógeno pancreático que, al activarse a elastasa por la tripsina, corta en estos residuos pequeños/hidrofóbicos." },
+        { q: "41. Durante la digestión gástrica, además del HCl, ¿qué otro mecanismo facilita la activación de moléculas adicionales de pepsinógeno?", a: "B", opts: {A: "La activación por enteropeptidasa.", B: "La autocatálisis (la pepsina ya formada ayuda a activar más pepsinógeno).", C: "El aumento del pH por encima de 7.", D: "La acción de la colecistoquinina (CCK)."}, exp: "Respuesta correcta: B. Explicación: El pepsinógeno sufre ruptura proteolítica inicial por el pH ácido y por la autoactivación mediada por la propia pepsina ya existente." },
+        { q: "42. ¿Por qué una atrofia de las vellosidades intestinales (como la observada en mucosas patológicas por celiaquía) conduce a malnutrición a pesar de una fase gástrica normal?", a: "B", opts: {A: "Porque el estómago deja de producir ácido.", B: "Porque se pierde la superficie de absorción y la localización de las enzimas y transportadores del borde en cepillo necesarios para la fase final.", C: "Porque el páncreas deja de sintetizar tripsinógeno.", D: "Porque los aminoácidos se destruyen con el gluten."}, exp: "Respuesta correcta: B. Explicación: La inflamación destruye la arquitectura de la mucosa (las microvellosidades), donde residen las aminopeptidasas y transportadores vitales." },
+        { q: "43. ¿De qué depende que una misma célula somática exprese distintos sistemas de transporte para captar aminoácidos del torrente sanguíneo?", a: "C", opts: {A: "De su temperatura.", B: "Del nivel de insulina gástrica.", C: "De sus necesidades y condiciones metabólicas (ej. una neurona necesitará más triptófano si requiere sintetizar mucha serotonina).", D: "Del momento del día de manera aleatoria."}, exp: "Respuesta correcta: C. Explicación: Las células adaptan sus receptores/transportadores de membrana dependiendo de sus requerimientos para la biosíntesis en cada momento." },
+        { q: "44. El proceso en el que la tripsina activa a la quimotripsina, la elastasa y a las carboxipeptidasas es un claro ejemplo bioquímico de:", a: "C", opts: {A: "Un sistema de transporte activo.", B: "Un bloqueo competitivo.", C: "Una cascada de activación por ruptura proteolítica.", D: "Una reacción reversible."}, exp: "Respuesta correcta: C. Explicación: La tripsina hidroliza pequeños fragmentos de las proenzimas inactivas (zimógenos) para descubrir su centro activo, generando una cascada." },
+        { q: "45. En la cascada enzimática pancreática, las procarboxipeptidasas A y B se activan por la acción directa de la:", a: "D", opts: {A: "Enteropeptidasa.", B: "Pepsina.", C: "Quimotripsina.", D: "Tripsina."}, exp: "Respuesta correcta: D. Explicación: El esquema muestra a la tripsina en el centro activando tanto a la quimotripsina y elastasa como a las dos carboxipeptidasas." },
+        { q: "46. Según los esquemas del tema, la absorción de los Ácidos Grasos de Cadena Corta difiere de los de cadena larga en que:", a: "B", opts: {A: "Necesitan el transportador de sodio para entrar.", B: "Pasan por difusión simple y se dirigen directamente a la sangre sin empaquetarse en quilomicrones.", C: "Son hidrolizados por peptidasas intracelulares.", D: "Se convierten en aminoácidos aromáticos."}, exp: "Respuesta correcta: B. Explicación: En el esquema integrador, los de cadena corta difunden directo al capilar, mientras los de cadena larga resintetizan triglicéridos para el quilomicrón." },
+        { q: "47. Si un fármaco inhibiera selectivamente la enzima aminopeptidasa en la mucosa del paciente, se esperaría un aumento en la concentración intestinal de:", a: "C", opts: {A: "Aminoácidos libres y monosacáridos.", B: "Proteínas intactas gigantes.", C: "Pequeños oligopéptidos y péptidos que conservan su extremo amino terminal intacto.", D: "Quilomicrones."}, exp: "Respuesta correcta: C. Explicación: Al fallar la enzima del borde en cepillo que corta desde el extremo amino, la fase final de la digestión se detiene, acumulándose péptidos." },
+        { q: "48. El aminoácido Glicina es considerado un precursor metabólico importante para la síntesis de:", a: "B", opts: {A: "Serotonina.", B: "Porfirinas (necesarias para la hemoglobina).", C: "Dopamina.", D: "Ácido clorhídrico."}, exp: "Respuesta correcta: B. Explicación: La glicina es un componente fundamental en la biosíntesis del anillo de porfirina." },
+        { q: "49. ¿Qué pasaría si intentáramos digerir las proteínas exclusivamente con enzimas pancreáticas sin que pasaran por la fase gástrica del estómago?", a: "B", opts: {A: "La digestión sería idéntica y eficiente.", B: "La digestión sería muy deficiente, ya que las proteínas no estarían desnaturalizadas por el pH ácido ni tendrían los cortes previos de la pepsina.", C: "El intestino produciría su propio ácido para compensar.", D: "Las proteínas se absorberían intactas por endocitosis masiva."}, exp: "Respuesta correcta: B. Explicación: La fase gástrica es el primer paso vital para \"desenrollar\" las proteínas y exponer sus enlaces internos a las enzimas pancreáticas posteriores." },
+        { q: "50. Un diagnóstico de \"Síndrome de mal absorción intestinal\" por celiaquía implicará frecuentemente déficits sistémicos de vitaminas, hierro y aminoácidos porque:", a: "B", opts: {A: "El sistema inmune ataca directamente a la comida.", B: "La atrofia vellositaria disminuye drásticamente el área superficial disponible para que los nutrientes pasen del intestino a la sangre.", C: "Hay un exceso de secreción biliar.", D: "Los transportadores basolaterales se invierten."}, exp: "Respuesta correcta: B. Explicación: La mucosa patológica pierde la superficie ampliada de las vellosidades, convirtiéndose en un embudo bloqueado físicamente para la absorción general." },
+        { q: "51. La enteropeptidasa, enzima clave que la profesora recalca a lo largo de la clase, se localiza físicamente en:", a: "C", opts: {A: "Disuelta en la luz del estómago.", B: "Dentro de la vesícula biliar.", C: "El borde en cepillo de la mucosa intestinal (duodeno).", D: "El tejido adiposo."}, exp: "Respuesta correcta: C. Explicación: Es una enzima segregada por las células epiteliales de la mucosa intestinal para contactar y activar al tripsinógeno que llega del páncreas." },
+        { q: "52. Si un paciente tiene una dieta en la que consume 100 g de proteína, pero padece una enfermedad que anula la secreción de CCK (Colecistoquinina), presentará grandes problemas de digestión porque:", a: "B", opts: {A: "No producirá ácido clorhídrico.", B: "El páncreas no recibirá la señal hormonal para liberar sus zimógenos hacia el intestino.", C: "La pepsina hidrolizará sus propios tejidos.", D: "Sus aminoácidos libres se convertirán en glucosa instantáneamente."}, exp: "Respuesta correcta: B. Explicación: La CCK es el mensajero que conecta la presencia de alimento en el estómago/duodeno con la orden de secreción del páncreas exocrino." },
+        { q: "53. (¡Pista Profesora!) En la práctica clínica y de diagnóstico por imagen (endoscopia), ¿qué se busca típicamente para confirmar problemas severos de absorción en un paciente con dolor abdominal y mala digestión de proteínas?", a: "B", opts: {A: "Presencia de bacterias en el esófago.", B: "Atrofia e inflamación visible de las vellosidades intestinales, indicativo de que algo está fallando en la barrera de captación (ej. celiaquía).", C: "Aumento del tamaño del páncreas.", D: "Ausencia de estómago."}, exp: "Respuesta correcta: B. Explicación: Las pruebas de imagen buscan signos de atrofia en el intestino (como las de las diapositivas) porque repercuten visual y funcionalmente en el síndrome de malabsorción." },
+        { q: "54. El transportador de membrana ASCT-1 es específico para la captación de aminoácidos con características de:", a: "B", opts: {A: "Radiales básicos y muy grandes.", B: "Cadena corta (R corta) como Alanina (Ala), Treonina (Thr) y Serina (Ser).", C: "Cadena ácida como el Glutamato.", D: "Anillos aromáticos gigantes."}, exp: "Respuesta correcta: B. Explicación: Existen distintos sistemas y el ASCT-1 está especializado en los aminoácidos más pequeños o de cadena corta." },
+        { q: "55. Si falla el sistema de transporte que reconoce aminoácidos con cadenas R aromáticas o hidrofóbicas, ¿la captación de qué par de aminoácidos se verá comprometida?", a: "C", opts: {A: "Glutamato y Aspartato.", B: "Lisina y Arginina.", C: "Fenilalanina (Phe) y Valina (Val).", D: "Prolina e Hidroxiprolina."}, exp: "Respuesta correcta: C. Explicación: Phe, Tyr, Met, Val, Leu, e Ile usan este sistema específico, y si falla, no entrarán en las células adecuadamente." },
+        { q: "56. La Prolina tiene una estructura química particular (es un iminoácido cíclico). Por lo tanto, en los sistemas de transporte de membrana celular:", a: "B", opts: {A: "Usa el sistema ASCT-1 universal.", B: "Dispone de su propio sistema de transporte específico numerado en la clasificación celular (Sistema 3).", C: "Usa el de los aminoácidos básicos.", D: "Entra por los canales de potasio."}, exp: "Respuesta correcta: B. Explicación: Por su conformación inusual, necesita un transportador separado y específico en las membranas celulares." },
+        { q: "57. El enlace que une dos unidades de aminoácidos en una cadena proteica, formado por la pérdida de una molécula de agua, se conoce bioquímicamente como:", a: "C", opts: {A: "Enlace glucosídico.", B: "Enlace éster.", C: "Enlace peptídico.", D: "Enlace puente de hidrógeno."}, exp: "Respuesta correcta: C. Explicación: Este enlace covalente es el objetivo estructural que las peptidasas deben romper mediante hidrólisis." },
+        { q: "58. En resumen, las enzimas digestivas rompen los enlaces peptídicos añadiendo:", a: "C", opts: {A: "Una molécula de dióxido de carbono.", B: "Una molécula de oxígeno.", C: "Una molécula de agua (proceso de hidrólisis).", D: "Una molécula de nitrógeno."}, exp: "Respuesta correcta: C. Explicación: Los enlaces peptídicos requieren de agua para disolverse e hidrolizarse bajo la acción enzimática." },
+        { q: "59. En el proceso metabólico general para usar los aminoácidos en el enterocito y células, además de fabricar enzimas y proteínas, otra función fundamental que mencionó la profesora es que los productos digeridos deben integrarse al sistema:", a: "B", opts: {A: "Excretor para perder calor.", B: "Hormonal y de vitaminas (como precursores).", C: "Esquelético para formar hueso compacto puro.", D: "Exclusivamente respiratorio."}, exp: "Respuesta correcta: B. Explicación: Muchos aminoácidos son los ladrillos base (precursores) que el sistema hormonal usa para sintetizar vitaminas y hormonas (como tiroideas, aminas biógenas, etc.)." },
+        { q: "60. Como visión global comparativa al final de la clase, ¿qué elemento estructural comparten en su ruta de absorción celular TANTO los péptidos de la digestión proteica COMO los azúcares de la digestión de carbohidratos, pero que los lípidos (ácidos grasos libres) NO necesitan?", a: "D", opts: {A: "Necesidad absoluta de ácidos biliares.", B: "Unión a apolipoproteínas en el citosol.", C: "Entrada al vaso quilífero (linfático) central de la vellosidad.", D: "Necesidad obligatoria de proteínas transportadoras transmembrana (simportadores) ancladas al borde en cepillo para entrar a la célula."}, exp: "Respuesta correcta: D. Explicación: En el resumen final de la profesora y el esquema del PDF, glúcidos y péptidos/aminoácidos requieren transportadores (como los asociados a Na+ o H+), mientras que las grasas entran de forma pasiva por difusión simple a través de los lípidos de membrana." }
+    ];
+
+    let questions = [];
+    let currentIdx = 0;
+    let state = {};
+
+    function initQuiz(random) {
+        questions = [...rawQuestions];
+        if (random) questions.sort(() => Math.random() - 0.5);
+        
+        state = {};
+        questions.forEach((_, i) => {
+            state[i] = { answered: false, selected: null, correct: false, marked: false };
+        });
+
+        renderSidebar();
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('question-screen').classList.add('active');
+        showQuestion(0);
+    }
+
+    function renderSidebar() {
+        const side = document.getElementById('sidebar');
+        side.innerHTML = '';
+        questions.forEach((_, i) => {
+            const b = document.createElement('button');
+            b.className = 'nav-btn';
+            b.id = `nav-${i}`;
+            b.innerText = i + 1;
+            b.onclick = () => showQuestion(i);
+            side.appendChild(b);
+        });
+    }
+
+    function showQuestion(idx) {
+        currentIdx = idx;
+        const q = questions[idx];
+        const s = state[idx];
+
+        document.getElementById('q-title').innerText = `Pregunta ${idx + 1} de ${questions.length}`;
+        document.getElementById('q-text').innerText = q.q;
+        
+        const markBtn = document.getElementById('mark-btn');
+        const markTag = document.getElementById('mark-tag');
+        
+        if (s.marked) {
+            markTag.classList.add('visible');
+            markBtn.innerText = 'Desmarcar Pregunta';
+        } else {
+            markTag.classList.remove('visible');
+            markBtn.innerText = 'Marcar Pregunta';
+        }
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        
+        const keys = ['A', 'B', 'C', 'D'].sort(() => Math.random() - 0.5);
+        
+        keys.forEach(k => {
+            const b = document.createElement('button');
+            b.className = 'opt-btn';
+            if (s.answered) {
+                if (k === q.a) b.classList.add('correct');
+                if (k === s.selected && k !== q.a) b.classList.add('wrong');
+                b.disabled = true;
+            }
+            b.innerText = `${k}) ${q.opts[k]}`;
+            b.onclick = () => checkAnswer(k);
+            container.appendChild(b);
+        });
+
+        const exp = document.getElementById('explanation');
+        exp.innerText = q.exp;
+        exp.className = `explanation-box ${s.answered ? 'show' : ''}`;
+
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`nav-${idx}`).classList.add('active');
+        
+        document.getElementById('prev-btn').disabled = idx === 0;
+        document.getElementById('next-btn').disabled = idx === questions.length - 1;
+        
+        // Scroll to top of card automatically when moving
+        document.getElementById('main-content').scrollTop = 0;
+    }
+
+    function checkAnswer(k) {
+        if (state[currentIdx].answered) return;
+        state[currentIdx].answered = true;
+        state[currentIdx].selected = k;
+        state[currentIdx].correct = (k === questions[currentIdx].a);
+        
+        const nav = document.getElementById(`nav-${currentIdx}`);
+        nav.classList.add(state[currentIdx].correct ? 'correct' : 'wrong');
+        showQuestion(currentIdx);
+    }
+
+    function handleMark() {
+        state[currentIdx].marked = !state[currentIdx].marked;
+        document.getElementById(`nav-${currentIdx}`).classList.toggle('marked', state[currentIdx].marked);
+        showQuestion(currentIdx);
+    }
+
+    function changeQuestion(n) {
+        const next = currentIdx + n;
+        if (next >= 0 && next < questions.length) showQuestion(next);
+    }
+
+    function showResults() {
+        document.getElementById('question-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+        
+        const correct = Object.values(state).filter(s => s.correct).length;
+        document.getElementById('score-display').innerHTML = `Has acertado ${correct} de ${questions.length}<br><small style="color: #7f8c8d; font-size: 20px;">Nota final: ${((correct/questions.length)*10).toFixed(2)} / 10</small>`;
+    }
+
+    function retry(type) {
+        let subset = [];
+        const oldQs = [...questions];
+        const oldState = {...state};
+
+        oldQs.forEach((q, i) => {
+            const isFailed = oldState[i].answered && !oldState[i].correct;
+            const isMarked = oldState[i].marked;
+
+            if (type === 'failed' && isFailed) subset.push(q);
+            else if (type === 'marked' && isMarked) subset.push(q);
+            else if (type === 'both' && (isFailed || isMarked)) subset.push(q);
+        });
+
+        if (subset.length === 0) {
+            alert("No hay preguntas almacenadas en este filtro. ¡Buen trabajo!");
+            return;
+        }
+
+        questions = subset;
+        state = {};
+        questions.forEach((_, i) => {
+            state[i] = { answered: false, selected: null, correct: false, marked: false };
+        });
+
+        renderSidebar();
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('question-screen').classList.add('active');
+        showQuestion(0);
+    }
+</script>
+
+</body>
+</html>

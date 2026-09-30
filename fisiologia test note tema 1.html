@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Fisiología: Introducción y Líquidos</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f7;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- PANTALLAS (Overlay) --- */
+        #start-screen, #results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        h2 { color: var(--primary); margin-bottom: 20px; }
+        p { font-size: 1.1em; color: #555; max-width: 600px; margin-bottom: 20px; }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0,0,0,0.15); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--accent); color: white; }
+        .btn-danger { background-color: var(--error); color: white; }
+        .btn-warning { background-color: var(--warning); color: #333; }
+        .btn-info { background-color: #3498db; color: white; }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        #app-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navegación */
+        #sidebar {
+            width: 70px;
+            background-color: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .nav-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .nav-dot:hover { background-color: rgba(255,255,255,0.4); }
+        .nav-dot.active { border-color: white; transform: scale(1.15); font-weight: bold; }
+        .nav-dot.correct { background-color: var(--success); }
+        .nav-dot.wrong { background-color: var(--error); }
+        .nav-dot.marked { border-color: var(--warning); color: var(--warning); font-weight: bold; }
+        .nav-dot.marked.correct { background-color: var(--success); color: white; border-color: var(--warning); }
+        .nav-dot.marked.wrong { background-color: var(--error); color: white; border-color: var(--warning); }
+
+        /* Área de Preguntas */
+        #main-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--accent);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.4;
+            width: 85%;
+        }
+
+        /* Checkbox de Marcar */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            user-select: none;
+        }
+        .mark-container input { display: none; }
+        .mark-icon { font-size: 1.5em; margin-right: 5px; transition: color 0.2s; }
+        .mark-container input:checked ~ .mark-icon { color: var(--warning); }
+        .mark-container input:checked ~ span { color: #d35400; font-weight: bold; }
+        .mark-icon::before { content: '☆'; }
+        .mark-container input:checked ~ .mark-icon::before { content: '★'; }
+
+        /* Opciones */
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: left;
+            font-size: 1em;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background-color: #f0f8ff; }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background-color: #f8d7da; border-color: var(--error); color: #721c24; }
+        
+        /* Explicación */
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-left: 4px solid var(--success);
+            border-radius: 4px;
+            color: #2c3e50;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Botón Flotante Finalizar */
+        #finish-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Stats en Modal */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .stat-box { text-align: center; }
+        .stat-number { display: block; font-size: 2.5em; font-weight: bold; }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--error); }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Quiz Fisiología: Introducción</h1>
+        <p>25 Preguntas | Homeostasis y Líquidos Corporales</p>
+        <p>Selecciona el modo de orden de las preguntas:</p>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="initQuiz('ordered')">Orden Numérico (1-25)</button>
+            <button class="btn-secondary" onclick="initQuiz('random')">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav id="sidebar"></nav>
+        <main id="main-area"></main>
+        <button id="finish-btn" class="btn-danger" onclick="showResults()">Finalizar Quiz</button>
+    </div>
+
+    <div id="results-modal" class="hidden">
+        <h2>Resultados</h2>
+        <div class="stats-row">
+            <div class="stat-box">
+                <span class="stat-number text-success" id="res-correct">0</span>
+                <span>Aciertos</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number text-danger" id="res-wrong">0</span>
+                <span>Fallos</span>
+            </div>
+        </div>
+        <p id="res-msg"></p>
+
+        <h3>Opciones de Reintento</h3>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-danger" id="btn-retry-failed" onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button class="btn-warning" id="btn-retry-marked" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-info" id="btn-retry-combo" onclick="restartQuiz('combo')">Falladas + Marcadas</button>
+        </div>
+        <br>
+        <button style="background:transparent; color:#777; border:1px solid #ccc; font-size:0.9em;" onclick="closeModal()">Volver a revisar respuestas</button>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS DE PREGUNTAS ---
+        const dbQuestions = [
+            { id: 1, q: "Según la definición de fisiología explicada en clase, ¿cuál es el objeto principal de su estudio?", options: ["La estructura anatómica de los órganos.", "El funcionamiento normal de un organismo vivo y sus componentes físico-químicos.", "El estudio exclusivo de las patologías cuando fallan los mecanismos de compensación.", "La interacción de los átomos para formar moléculas inertes."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 2, q: "¿Qué ocurre cuando los mecanismos de compensación de la homeostasis fallan y no logran restablecer el equilibrio interno?", options: ["El organismo entra en un estado de \"steady state\" o estado estacionario.", "Se produce la adaptación evolutiva inmediata.", "Se entra en un estado de enfermedad o fisiopatología.", "Se incrementa el metabolismo basal indefinidamente."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 3, q: "Respecto a la distribución del agua corporal, ¿dónde se encuentra el mayor volumen de agua en un individuo promedio?", options: ["En el líquido intersticial (25%).", "En el plasma sanguíneo (8%).", "En el líquido intracelular (aprox. 67% o 2/3).", "En el líquido transcelular (LCR, sinovial, etc.)."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 4, q: "El profesor mencionó un ejemplo importante sobre la dosificación de medicamentos. Si comparamos a un atleta con mucha masa muscular y a una persona obesa del mismo peso, ¿cómo es su contenido de agua corporal?", options: ["Es idéntico, ya que pesan lo mismo.", "La persona obesa tiene más agua porque la grasa retiene líquido.", "El atleta tiene mayor proporción de agua corporal total que la persona obesa.", "Depende exclusivamente de la edad, no de la composición corporal."], ans: 2, exp: "Respuesta correcta: C Nota del audio: El tejido adiposo tiene solo un 10% de agua, mientras que el músculo tiene un 73%." },
+            { id: 5, q: "¿Cuál es la principal diferencia de permeabilidad entre la barrera endotelial (capilares) y la membrana celular?", options: ["Ambas son impermeables a los iones.", "La membrana celular es permeable a las proteínas, el endotelio no.", "El endotelio es permeable a agua e iones, pero impermeable a proteínas; la membrana celular es impermeable a iones sin transportadores.", "El endotelio es impermeable al agua."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 6, q: "¿Qué consecuencia fisiológica inmediata tendría la ruptura de la impermeabilidad a proteínas de la barrera endotelial?", options: ["Deshidratación celular.", "Paso de proteínas al intersticio y formación de edema.", "Aumento masivo de la presión arterial.", "Disminución del volumen intracelular."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 7, q: "En los líquidos corporales, ¿cuál es el catión más abundante en el líquido intracelular (LIC) y en el extracelular (LEC) respectivamente?", options: ["Na+ en LIC / K+ en LEC.", "Ca2+ en LIC / Mg2+ en LEC.", "K+ en LIC / Na+ en LEC.", "K+ en LIC / Ca2+ en LEC."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 8, q: "Según el principio de electroneutralidad explicado en el audio:", options: ["El interior de la célula es siempre positivo respecto al exterior.", "Cada compartimento (plasma, intersticio, intracelular) es eléctricamente neutro en su conjunto macroscópico.", "El líquido extracelular tiene una carga neta positiva debido al sodio.", "La membrana plasmática no separa cargas eléctricas."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 9, q: "Si disolvemos 1 mol de cloruro cálcico (CaCl2) en agua, ¿cuántos osmoles contribuyen a la solución?", options: ["1 Osmol.", "2 Osmoles.", "3 Osmoles.", "0 Osmoles."], ans: 2, exp: "Respuesta correcta: C Nota: Se disocia en 1 Ca2+ y 2 Cl-." },
+            { id: 10, q: "¿Cuál es el valor aproximado de la osmolaridad en los tres compartimentos líquidos en condiciones normales?", options: ["150 mOsm/L.", "290-300 mOsm/L.", "600 mOsm/L.", "Varía drásticamente entre el plasma y el intracelular."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 11, q: "Para medir el volumen del plasma sanguíneo mediante la técnica de dilución, ¿qué sustancia indicadora es la más adecuada según el profesor?", options: ["Agua tritiada.", "Inulina.", "Sodio radiactivo.", "Azul de Evans (o T-1824)."], ans: 3, exp: "Respuesta correcta: D Nota: Porque se une a la albúmina y no sale al intersticio." },
+            { id: 12, q: "¿Qué marcador utilizaría para medir el volumen del líquido extracelular (LEC)?", options: ["Inulina o Sodio radiactivo.", "Agua deuterada.", "Albúmina marcada.", "Azul de Evans."], ans: 0, exp: "Respuesta correcta: A Nota: Deben atravesar el endotelio pero no entrar en la célula." },
+            { id: 13, q: "¿Cómo se calcula el volumen del líquido intersticial, dado que no se puede medir directamente con un marcador?", options: ["Volumen total - Volumen plasmático.", "Volumen extracelular - Volumen plasmático.", "Volumen intracelular + Volumen plasmático.", "Mediante biopsia directa."], ans: 1, exp: "Respuesta correcta: B Deducción explicada en clase: se mide el LEC y el Plasma, y se restan." },
+            { id: 14, q: "¿Qué ocurre con el volumen celular si colocamos un glóbulo rojo en una solución hipotónica?", options: ["Se arruga (crenación).", "No cambia su volumen.", "Se hincha y puede llegar a la hemólisis.", "Sale agua de la célula."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 15, q: "El profesor hizo hincapié en no confundir osmolaridad con tonicidad. Una solución de Urea 300 mOsm es isoosmótica respecto a la célula, pero ¿cómo es su tonicidad?", options: ["Isotónica.", "Hipertónica.", "Hipotónica.", "No se puede determinar."], ans: 2, exp: "Respuesta correcta: C Nota del audio: La urea penetra en la célula, arrastra agua consigo y la célula se hincha." },
+            { id: 16, q: "¿Cuál es la concentración aproximada de Na+ en el líquido extracelular?", options: ["4 mM.", "10 mM.", "140-145 mM.", "100 mM."], ans: 2, exp: "Respuesta correcta: C Dato básico de fisiología reiterado en las tablas de iones." },
+            { id: 17, q: "En la técnica de dilución de colorantes para medir volúmenes, la fórmula base es:", options: ["C1 / V1 = C2 / V2", "C1 x V1 = C2 x V2 (Conservación de la masa).", "C1 + V1 = C2 + V2", "V1 = C1 x C2"], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 18, q: "Según el audio, el agua corporal total se mide utilizando:", options: ["Inulina.", "Agua deuterada o tritiada (óxido de deuterio).", "Sodio radiactivo.", "Azul de metileno."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 19, q: "El término \"Homeostasis\" implica:", options: ["Un estado estático e invariable.", "Un estado de constancia relativa mantenido por mecanismos de regulación.", "Que el medio interno es idéntico al medio externo.", "Que no hay gasto de energía."], ans: 1, exp: "Respuesta correcta: B Nota: El profesor explica que \"Homeo\" es similar, no igual; y \"Stasis\" es condición, no estático." },
+            { id: 20, q: "¿Qué afirmación es CORRECTA sobre las proteínas en los líquidos corporales?", options: ["Su concentración es idéntica en plasma e intersticio.", "Atraviesan libremente la membrana celular por difusión simple.", "Su concentración es mucho mayor en el plasma que en el líquido intersticial.", "No ejercen presión oncótica."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 21, q: "En el audio se menciona un \"proverbio\" sobre la importancia de los elementos. ¿Qué elemento es el solvente universal de la vida y compone el 60% del peso?", options: ["Carbono.", "Oxígeno gas.", "Agua.", "Glucosa."], ans: 2, exp: "Respuesta correcta: C" },
+            { id: 22, q: "Según la Ley de Fick (mencionada en el Kahoot del audio), la velocidad de difusión es directamente proporcional a:", options: ["El grosor de la membrana.", "La resistencia de la membrana.", "El tamaño molecular.", "La superficie de intercambio y el gradiente de concentración."], ans: 3, exp: "Respuesta correcta: D" },
+            { id: 23, q: "¿Qué solución recomendaría el profesor para rehidratar a un paciente por vía intravenosa (mencionado en el Kahoot)?", options: ["Agua destilada pura.", "Una solución isotónica (como suero salino fisiológico).", "Una solución hipertónica de glucosa.", "Una solución de urea."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 24, q: "El profesor mencionó que el calcio (Ca2+) está más concentrado fuera de la célula, pero dentro de la célula existen almacenes con alta concentración. ¿Cuáles son?", options: ["El núcleo y los ribosomas.", "El Retículo Endoplasmático y la mitocondria.", "El aparato de Golgi y los lisosomas.", "El citosol libre."], ans: 1, exp: "Respuesta correcta: B" },
+            { id: 25, q: "¿Cuál es el porcentaje aproximado de agua en el tejido adiposo (grasa) según el audio?", options: ["73%", "50%", "10%", "90%"], ans: 2, exp: "Respuesta correcta: C Nota: Dato específico dado para explicar la diferencia entre obesos y atletas." }
+        ];
+
+        // --- ESTADO ---
+        let currentList = [];
+        let markedIds = new Set();
+        let failedIds = new Set();
+        let answeredIds = new Set();
+        
+        // --- UTILIDADES ---
+        const shuffle = (array) => {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        };
+
+        // --- INICIALIZACIÓN ---
+        function initQuiz(mode, customList = null) {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('results-modal').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            const container = document.getElementById('main-area');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = "";
+            sidebar.innerHTML = "";
+            
+            let sourceList = customList ? customList : [...dbQuestions];
+            
+            if (!customList) {
+                markedIds.clear();
+                failedIds.clear();
+                answeredIds.clear();
+            }
+
+            // Clonar y mezclar opciones
+            currentList = sourceList.map(q => {
+                let optionsObj = q.options.map((txt, idx) => ({ txt, isCorrect: idx === q.ans }));
+                return { ...q, shuffledOpts: shuffle(optionsObj) };
+            });
+
+            // Ordenar preguntas
+            if (mode === 'random') {
+                currentList = shuffle(currentList);
+            } else {
+                currentList.sort((a,b) => a.id - b.id);
+            }
+
+            // Renderizar
+            currentList.forEach((q, index) => {
+                // 1. Sidebar Dot
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.innerText = q.id;
+                dot.id = `dot-${q.id}`;
+                dot.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                if(markedIds.has(q.id)) dot.classList.add('marked');
+                sidebar.appendChild(dot);
+
+                // 2. Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${q.id}`;
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'q-header';
+                
+                const title = document.createElement('div');
+                title.className = 'q-title';
+                title.innerText = `${q.id}. ${q.q}`;
+
+                const markLabel = document.createElement('label');
+                markLabel.className = 'mark-container';
+                const markInput = document.createElement('input');
+                markInput.type = 'checkbox';
+                markInput.checked = markedIds.has(q.id);
+                markInput.onchange = (e) => toggleMark(q.id, e.target.checked);
+                
+                const markIcon = document.createElement('i');
+                markIcon.className = 'mark-icon';
+                const markText = document.createElement('span');
+                markText.innerText = "Revisar";
+
+                markLabel.append(markInput, markIcon, markText);
+                header.append(title, markLabel);
+
+                // Opciones
+                const optList = document.createElement('div');
+                optList.className = 'options-list';
+
+                q.shuffledOpts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt.txt;
+                    btn.onclick = () => handleAnswer(q, opt, btn, card);
+                    optList.appendChild(btn);
+                });
+
+                // Explicación
+                const expBox = document.createElement('div');
+                expBox.className = 'explanation';
+                expBox.innerHTML = `<strong>${q.exp}</strong>`;
+
+                card.append(header, optList, expBox);
+                container.appendChild(card);
+            });
+        }
+
+        // --- LÓGICA DE RESPUESTA ---
+        function handleAnswer(qObj, optObj, btnElem, cardElem) {
+            if (btnElem.disabled || cardElem.getAttribute('data-answered') === 'true') return;
+            
+            cardElem.setAttribute('data-answered', 'true');
+            answeredIds.add(qObj.id);
+            
+            const allBtns = cardElem.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            // Marcar visualmente
+            if (optObj.isCorrect) {
+                btnElem.classList.add('correct');
+                if(failedIds.has(qObj.id)) failedIds.delete(qObj.id);
+            } else {
+                btnElem.classList.add('wrong');
+                failedIds.add(qObj.id);
+                // Mostrar correcta
+                const correctBtnText = qObj.shuffledOpts.find(o => o.isCorrect).txt;
+                allBtns.forEach(b => {
+                    if(b.innerText === correctBtnText) b.classList.add('correct');
+                });
+            }
+
+            // Actualizar Dot
+            const dot = document.getElementById(`dot-${qObj.id}`);
+            dot.classList.add(optObj.isCorrect ? 'correct' : 'wrong');
+            if (markedIds.has(qObj.id)) dot.classList.add('marked');
+
+            // Mostrar explicación
+            cardElem.querySelector('.explanation').style.display = 'block';
+        }
+
+        function toggleMark(id, isChecked) {
+            const dot = document.getElementById(`dot-${id}`);
+            if (isChecked) {
+                markedIds.add(id);
+                dot.classList.add('marked');
+            } else {
+                markedIds.delete(id);
+                dot.classList.remove('marked');
+            }
+        }
+
+        // --- FINALIZACIÓN ---
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const total = currentList.length;
+            
+            // Calcular aciertos en la sesión actual
+            let currentFails = 0;
+            let currentCorrect = 0;
+            
+            currentList.forEach(q => {
+               const card = document.getElementById(`card-${q.id}`);
+               if (card && card.getAttribute('data-answered') === 'true') {
+                   if (card.querySelector('.option-btn.wrong')) currentFails++;
+                   else currentCorrect++;
+               }
+            });
+
+            document.getElementById('res-correct').innerText = currentCorrect;
+            document.getElementById('res-wrong').innerText = currentFails;
+            
+            const answeredCount = currentCorrect + currentFails;
+            document.getElementById('res-msg').innerText = `Has respondido ${answeredCount} de ${total} preguntas mostradas.`;
+
+            // Botones de reintento
+            const btnFailed = document.getElementById('btn-retry-failed');
+            const btnMarked = document.getElementById('btn-retry-marked');
+            const btnCombo = document.getElementById('btn-retry-combo');
+
+            btnFailed.disabled = failedIds.size === 0;
+            btnMarked.disabled = markedIds.size === 0;
+            btnCombo.disabled = (failedIds.size === 0 && markedIds.size === 0);
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        function restartQuiz(mode) {
+            if (mode === 'all') {
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('results-modal').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+                return;
+            }
+
+            let idsToFilter = new Set();
+            if (mode === 'failed') idsToFilter = failedIds;
+            else if (mode === 'marked') idsToFilter = markedIds;
+            else if (mode === 'combo') idsToFilter = new Set([...failedIds, ...markedIds]);
+
+            const filteredList = dbQuestions.filter(q => idsToFilter.has(q.id));
+            
+            if (filteredList.length === 0) {
+                alert("No hay preguntas en esta selección.");
+                return;
+            }
+
+            initQuiz('random', filteredList);
+        }
+
+    </script>
+</body>
+</html>

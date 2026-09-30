@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Repaso Inteligente</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #2c3e50;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #1a5f7a;
+            margin-bottom: 20px;
+        }
+        .stats-bar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 10px;
+            z-index: 1000;
+            border-top: 4px solid #1a5f7a;
+        }
+        .question-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .question-text {
+            font-size: 1.15em;
+            font-weight: 700;
+            line-height: 1.4;
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+        .mark-review {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            color: #e67e22;
+            cursor: pointer;
+            white-space: nowrap;
+            background: #fff8e1;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid #ffe0b2;
+        }
+        .mark-review input {
+            margin-right: 5px;
+            cursor: pointer;
+            transform: scale(1.2);
+        }
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: #f8f9fa;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1em;
+            transition: all 0.2s;
+            line-height: 1.3;
+        }
+        .option-btn:hover:not(:disabled) {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+        .option-btn.correct {
+            background-color: #d1e7dd;
+            border-color: #badbcc;
+            color: #0f5132;
+            font-weight: 600;
+        }
+        .option-btn.incorrect {
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+            color: #842029;
+        }
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 6px;
+            border-left: 4px solid #2196f3;
+            display: none;
+            font-size: 0.95em;
+        }
+        .final-screen {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        .btn-retry {
+            background-color: #1a5f7a;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .btn-retry:hover {
+            background-color: #134b61;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Quiz Anatomía - Modo Estudio</h1>
+
+    <div class="stats-bar" id="statsBar">
+        <span>Pregunta <span id="current">0</span> de <span id="total">0</span></span>
+        <span style="font-weight:bold; color: #2e7d32;">Aciertos: <span id="score">0</span></span>
+    </div>
+
+    <div id="quiz-container"></div>
+
+    <div id="final-screen" class="final-screen">
+        <h2>¡Cuestionario finalizado!</h2>
+        <p style="font-size: 1.2em; margin: 20px 0;">Tu puntuación final: <strong id="final-score">0</strong></p>
+        <p id="retry-info" style="color: #666;"></p>
+        <button id="btn-retry" class="btn-retry" onclick="retryFailedAndMarked()">
+            Repetir falladas y marcadas ↺
+        </button>
+        <br><br>
+        <button class="btn-retry" style="background-color: #6c757d;" onclick="location.reload()">
+            Reiniciar todo el examen
+        </button>
+    </div>
+
+<script>
+    // --- BASE DE DATOS COMPLETA (126 preguntas) ---
+    const fullQuizData = [
+        { q: "Por el orificio craneal de la membrana interósea (tibia-peroné) discurre:", options: ["Arteria tibial anterior", "Arteria peronea", "Arteria tibial posterior"], answer: 0, exp: "La arteria tibial anterior atraviesa el hiato superior de la membrana interósea." },
+        { q: "Por el hiato del aductor pasa, de cara anterior a posterior:", options: ["Arteria poplítea", "Vena femoral", "Vena safena menor"], answer: 1, exp: "En el hiato del aductor, la vena femoral se sitúa posterolateral a la arteria." },
+        { q: "Por el orificio dorsal (distal) de la membrana interósea de la pierna discurre:", options: ["Arteria tibial anterior", "Arteria tibial posterior", "Rama perforante de la arteria peronea"], answer: 2, exp: "La rama perforante de la arteria peronea pasa al compartimento anterior distalmente." },
+        { q: "Sobre el flexor largo del dedo gordo, es FALSO que:", options: ["Está inervado por el nervio tibial", "Tiene origen en el compartimento posterior", "Pertenece al grupo profundo del compartimento anterior"], answer: 2, exp: "Es falso porque pertenece al compartimento posterior, no al anterior." },
+        { q: "¿Qué nervio queda cubierto por el músculo palmar cutáneo (corto)?", options: ["Nervio mediano", "Nervio radial", "Nervio cubital"], answer: 2, exp: "El palmar corto cubre el canal de Guyon (nervio cubital)." },
+        { q: "Músculo que impulsa el cuerpo al levantar los dedos en la marcha:", options: ["Flexor Largo del dedo gordo", "Flexor Largo de los dedos", "Tibial Posterior"], answer: 0, exp: "El flexor largo del hallux es fundamental para el despegue." },
+        { q: "Crestas que delimitan la cara posterior del cuerpo del peroné:", options: ["Cresta Interna y Externa", "Cresta Externa y Cresta Interósea", "Cresta Anterior e Interna"], answer: 0, exp: "Cara posterior delimitada por cresta medial (interna) y borde posterior (externa)." },
+        { q: "Elemento óseo en la cara lateral del calcáneo:", options: ["Surco calcáneo", "Sustentaculum Tali", "Tróclea peroneal"], answer: 2, exp: "La tróclea peroneal o tubérculo de los peroneos está en la cara lateral." },
+        { q: "Músculo plantar que NO pertenece a la primera capa:", options: ["Aductor del dedo gordo", "Flexor corto de los dedos", "Abductor del dedo gordo"], answer: 0, exp: "El Aductor está en el tercer plano (profundo)." },
+        { q: "Ligamento que delimita los agujeros ciáticos mayor y menor:", options: ["Ligamento sacroespinoso", "Ligamento inguinal", "Ligamento sacrotuberoso"], answer: 0, exp: "El ligamento sacroespinoso convierte las escotaduras en agujeros." },
+        { q: "¿Qué nervio inerva la cabeza corta del bíceps femoral?", options: ["Nervio Tibial", "Nervio Femoral", "Nervio Peroneo Común"], answer: 2, exp: "Es la única parte de los isquios inervada por el peroneo común." },
+        { q: "Signo tras sección del nervio tibial en cara posterior de la tibia:", options: ["Pie caído", "Perdida sensorial de la planta del pie", "Pérdida sensorial del dorso"], answer: 1, exp: "El nervio tibial da la sensibilidad plantar." },
+        { q: "Dificultad para flexionar y rotar medialmente el muslo al subir escaleras:", options: ["Recto femoral", "Tensor de la fascia lata", "Semitendinoso"], answer: 1, exp: "El TFL flexiona, abduce y rota internamente (medialmente) la cadera." },
+        { q: "¿Dónde comienza el borde posterior de la pelvis (coxal)?", options: ["Promontorio", "Escotadura ciática", "Espina iliaca posterosuperior"], answer: 2, exp: "La EIPS marca el inicio del borde posterior." },
+        { q: "Se trata de 'Coxa valga' cuando el ángulo cervicodiafisiario es:", options: ["Menor de 115º", "Menor de 130º", "Mayor de 140º"], answer: 2, exp: "Ángulo aumentado (>135-140º) se considera valgo." },
+        { q: "Entre el plexo braquial posterior y anterior nos encontramos...:", options: ["Arteria braquial", "Ninguna es correcta", "Vena cefálica", "Arteria subclavia", "Arteria carótida"], answer: 3, exp: "La arteria subclavia (que pasa a ser axilar) discurre entre los fascículos." },
+        { q: "El músculo Psoas Mayor...:", options: ["C- Es el único flexor de la articulación de la cadera", "D- A y B son ciertas", "A- Se relaciona estrechamente con el ilíaco con el que comparte un único tendón de inserción", "E- Se origina en los cuerpos vertebrales de L3 a L5", "B- Es un potente flexor de la articulación de la cadera"], answer: 1, exp: "La correcta es 'A y B son ciertas' (Opción D). Es potente flexor (B) y se une al ilíaco (A)." },
+        { q: "El músculo obturador externo...:", options: ["Es un rotador interno de la articulación de la cadera", "Se origina en la cara anterior de la tuberosidad del isquion", "Ninguna de las anteriores es cierta", "Rodea ventralmente la articulación de la cadera", "Se inserta en el trocánter mayor, en la cara lateral"], answer: 2, exp: "Ninguna de las anteriores. Es rotador externo y se inserta en la fosa trocantérea." },
+        { q: "El ligamento que refuerza posteriormente la articulación de la cadera es:", options: ["Ninguna de las anteriores es cierta", "El ligamento isquiofemoral", "El ligamento pubofemoral", "El ligamento iliofemoral", "No está reforzada por ligamentos, sino exclusivamente por los músculos"], answer: 1, exp: "El ligamento isquiofemoral refuerza la cara posterior." },
+        { q: "Indique cual de los siguientes músculos no tiene componente de rotador lateral de la cadera:", options: ["Gemelo superior", "Glúteo menor", "Piriforme", "Obturador interno", "Gemelo inferior"], answer: 1, exp: "El Glúteo menor es rotador medial (interno)." },
+        { q: "El plano profundo de la región glútea esta formado por los siguientes músculos:", options: ["Piriforme, géminos y cuadrado femoral", "Obturador interno y cuadrado femoral", "Glúteo menor, glúteo medio y glúteo mayor", "Piriforme, obturador interno y tensor de la fascia lata", "Piriforme, obturador interno, géminos y cuadrado femoral"], answer: 4, exp: "El grupo pelvitrocantéreo profundo completo." },
+        { q: "Necrosis avascular de la cabeza femoral. ¿Arteria lesionada?:", options: ["Rama descendente de la circunfleja femoral lateral", "Rama ascendente de la circunfleja femoral medial", "Circunfleja ilíaca profunda", "Primera rama perforante de la femoral profunda", "Rama acetabular de la obturatriz"], answer: 1, exp: "La circunfleja femoral medial aporta la mayor parte de la irrigación a la cabeza." },
+        { q: "Lesión de rodilla con bloqueo y desgarro de menisco en 'asa de cubo'. ¿Ligamento asociado?:", options: ["Lig. colateral medial", "Lig. colateral lateral", "Lig. rotuliano", "Lig. cruzado posterior", "Lig. Cruzado anterior"], answer: 4, exp: "La lesión del LCA se asocia frecuentemente a roturas meniscales." },
+        { q: "¿Cuáles de estos tendones discurre por el canal calcáneo interno?", options: ["Pedio", "Sóleo", "A y C son ciertas", "Extensor largo del primer dedo", "Flexor común de los dedos"], answer: 4, exp: "El Flexor largo (común) de los dedos pasa por el túnel del tarso." },
+        { q: "La existencia de huesos sesamoideos en la cabeza del primer metatarsiano puede causar:", options: ["A- Trastornos durante la marcha y bipedestación", "B- Dolores punzantes en la planta del pie", "D- La pronación del pie al andar", "C- No tienen por qué causar patología", "E- A y B son ciertas siempre"], answer: 4, exp: "Suelen causar dolor (sesamoiditis) y alterar la marcha (Opción E: A y B)." },
+        { q: "Señala la afirmación correcta:", options: ["Coracobraquial nace en el tubérculo infraglenoideo", "El subescapular se inserta en el troquín", "El subclavio es inervado por el supraescapular", "Ligamento glenohumeral cierra el surco bicipital", "Romboides nace en el borde lateral de la escápula"], answer: 1, exp: "El subescapular se inserta en el tubérculo menor o troquín." },
+        { q: "¿Qué parte inerva el nervio braquial cutáneo interno?", options: ["Región interna de la mano", "Región antero interna brazo-muñeca", "Región postero interna brazo-muñeca", "A y C son ciertas", "Región interna de la muñeca"], answer: 1, exp: "Inerva la piel de la cara medial (interna) del brazo." },
+        { q: "El ángulo cervicodiafisiario en el recién nacido mide:", options: ["120º", "Ninguna de las anteriores", "150º", "130º", "90º"], answer: 2, exp: "Al nacer es muy valgo, alrededor de 150º." },
+        { q: "Origen del aductor largo o medio:", options: ["Tuberosidad isquiática", "Escotadura ciática menor", "Espina ciática", "Cara anterior del cuerpo del pubis", "Cresta pectínea del pubis"], answer: 3, exp: "Se origina en el cuerpo del pubis." },
+        { q: "Acción del músculo semitendinoso:", options: ["Extensor de la rodilla", "Ninguna de las anteriores", "Abductor del muslo", "Flexor y rotador interno de rodilla", "Flexor y rotador externo de rodilla"], answer: 3, exp: "Flexiona la rodilla y rota medialmente (pata de ganso)." },
+        { q: "En el borde posterior del hueso coxal NO se encuentra:", options: ["La escotadura ciática mayor", "La tuberosidad isquiática", "La espina del pubis", "La escotadura ilíaca dorsal", "La escotadura ciática menor"], answer: 2, exp: "La espina del pubis está en el borde anterior." },
+        { q: "¿Qué ligamento limita los movimientos de abducción del muslo?", options: ["Ligamento transverso del acetábulo", "Ligamento isquiofemoral", "Ligamento pubofemoral", "Ligamento rotuliano", "Ligamento en Y de Bigelow"], answer: 2, exp: "El pubofemoral se tensa en abducción." },
+        { q: "Sección del nervio tibial en fosa poplítea. ¿Signo resultante?:", options: ["Pie caído", "Incapacidad para extender la rodilla", "Incapacidad para flexionar la rodilla", "Pie en flexión plantar e inversión", "Pie en flexión dorsal y eversión"], answer: 4, exp: "El pie queda en calcaneovalgo (flex dorsal + eversión) por acción de los músculos inervados por el peroneo." },
+        { q: "Fractura trimaleolar de tobillo (lateral, medial y posterior). ¿Qué otro hueso se afecta?:", options: ["B y D son correctas", "Navicular", "Cuneiforme", "Calcáneo", "Astrágalo"], answer: 4, exp: "Suele acompañarse de luxación del astrágalo." },
+        { q: "Pie caído con sensibilidad conservada en dorso y pantorrilla posterior. ¿Nervio lesionado?:", options: ["Nervio ciático", "Nervio peroneo común", "Nervio femoral", "Nervio peroneo profundo", "Nervio peroneo superficial"], answer: 3, exp: "Lesión del peroneo profundo (motor tibial anterior + sensibilidad espacio interdigital, preservando resto dorso)." },
+        { q: "En la extremidad acromial de la clavícula se fijan:", options: ["El músculo deltoides y el trapecio", "Ninguno de los anteriores", "A, B y C", "El músculo subclavio y el trapecio", "El músculo esternocleidomastoideo y el esternohioideo"], answer: 0, exp: "Trapecio y Deltoides." },
+        { q: "Cuál de los siguientes ligamentos refuerza la articulación esternoclavicular:", options: ["Acromioclavicular", "Interclavicular", "A, C y D son correctas", "Costoclavicular", "Esternoclavicular anterior"], answer: 2, exp: "Reforzada por Interclavicular, Costoclavicular y Esternoclavicular." },
+        { q: "En la cara posterointerna del cuerpo del fémur se inserta el músculo:", options: ["Crural", "Recto femoral", "Vasto interno", "Subcrural", "Ninguno de los anteriores"], answer: 2, exp: "El Vasto interno (medial) en el labio medial de la línea áspera." },
+        { q: "El ligamento pubofemoral:", options: ["Está constituido por dos fascículos", "A y C son correctas", "Limita los movimientos de abducción del muslo", "Es un ligamento intraarticular", "Refuerza la cara posterior de la cápsula articular"], answer: 2, exp: "Limita la abducción." },
+        { q: "En el intersticio de la línea áspera se inserta el músculo:", options: ["Vasto lateral", "Aductor mayor", "Ninguno de los anteriores", "Cabeza larga del bíceps femoral", "Pectíneo"], answer: 1, exp: "Los aductores se insertan en el intersticio." },
+        { q: "La línea glútea inferior se origina:", options: ["Justo por debajo de la espina ilíaca posteroinferior", "Justo por encima de la espina ilíaca anteroinferior", "Ninguna de las anteriores es correcta", "En el borde posterior del acetábulo", "En el borde lateral de la cresta ilíaca"], answer: 1, exp: "Va desde la escotadura mayor hasta la EIAI." },
+        { q: "¿Cuál de estas ramas NO se origina a partir de la arteria axilar?", options: ["Arteria circunfleja humeral anterior", "Arteria toracoacromial", "Arteria subescapular", "Arteria torácica superior", "Arteria colateral cubital inferior"], answer: 4, exp: "La colateral cubital inferior es rama de la humeral (braquial)." },
+        { q: "En la mano, la arteria radial colabora principalmente en la irrigación de:", options: ["A y B son correctas", "La zona lateral del dedo índice", "Todos los dedos de la mano", "El pulgar", "La zona medial del dedo índice"], answer: 0, exp: "Irriga pulgar y lateral del índice (Opción A y B son correctas)." },
+        { q: "Si se observa el húmero en una visión dorsal, no es posible observar:", options: ["Tróclea humeral", "Fosa olecraneana", "Surco para el nervio cubital", "Troquiter", "Ninguna es cierta"], answer: 0, exp: "La tróclea es fundamentalmente anterior." },
+        { q: "El nervio dorsal de la escápula inerva:", options: ["Músculo romboides menor", "Músculo elevador de la escápula", "Todas son ciertas", "Ninguna es cierta", "Músculo romboides mayor"], answer: 2, exp: "Inerva a los Romboides (mayor y menor) y al Elevador." },
+        { q: "El cuello quirúrgico del húmero se encuentra rodeado por:", options: ["Arteria braquial profunda", "Cuello anatómico", "Arteria axilar", "Ninguna es cierta", "Arteria circunfleja humeral anterior y posterior"], answer: 4, exp: "Las circunflejas rodean el cuello quirúrgico." },
+        { q: "Di cual de las siguiente afirmaciones es verdadera:", options: ["A y C son ciertas", "La articulación glenohumeral es inervada por el nervio axilar", "El nervio axilar sale de la fosa axilar", "Ninguna es correcta"], answer: 0, exp: "El axilar inerva la articulación y sale de la fosa." },
+        { q: "El músculo dorsal ancho está inervado por:", options: ["Nervio dorsal anterior", "Nervio mediano", "Nervio dorsal de la escápula", "Nervio toracordorsal", "Nervio axilar"], answer: 3, exp: "Nervio Toracodorsal." },
+        { q: "¿Qué tipo de necrosis es frecuente en el hueso semilunar?", options: ["Necrosis crónica", "Necrosis infecciosa", "Necrosis aguda", "Ninguna es correcta", "Necrosis aséptica"], answer: 4, exp: "Necrosis aséptica (Kienböck)." },
+        { q: "¿Cuál es el principal músculo que al inflamarse produce 'codo del tenista'?", options: ["Extensor propio del índice", "Cubital anterior", "Extensor común de los dedos", "Tríceps braquial", "Supinador corto"], answer: 2, exp: "Suele ser el 2º Radial o el Extensor Común de los dedos." },
+        { q: "Sobre la arteria humeral, ¿cuál NO es correcta?", options: ["Cruza la articulación del codo por el lado anterior", "Se sitúa medial al coracobraquial", "Es una continuación de la arteria axilar", "Comienza en el borde inferior del redondo menor", "Da dos vasos colaterales cubitales"], answer: 3, exp: "Comienza en el borde inferior del redondo MAYOR, no menor." },
+        { q: "La arteria principal del índice:", options: ["Ninguna es correcta", "Es una rama de la arteria radial", "Es una rama de la arteria cubital", "Discurre superficial al interóseo", "A y C son correctas"], answer: 1, exp: "Rama de la radial." },
+        { q: "¿A qué dedos irriga la arteria cubital?", options: ["Ninguno", "A todos", "A la cara lateral del índice", "Al pulgar", "Meñique, anular y medial mitad medial del índice"], answer: 4, exp: "Territorio cubital (arco superficial)." },
+        { q: "Sobre la arteria radial NO es cierta:", options: ["Se anastomosa con la arteria cubital", "Discurre por la tabaquera anatómica", "Forma el arco palmar superficial", "Discurre por el canal del pulso", "Da la arteria principal del pulgar"], answer: 2, exp: "La radial forma el arco PROFUNDO, no el superficial." },
+        { q: "El nervio femoral inerva al músculo:", options: ["Ninguno de ellos", "Pectíneo", "Grácil", "Aductor largo", "Obturador externo"], answer: 1, exp: "Pectíneo." },
+        { q: "El tensor de la fascia lata está inervado por:", options: ["El nervio del cuadrado femoral", "Ninguna es correcta", "El nervio glúteo superior", "El nervio glúteo inferior", "El nervio femoral"], answer: 2, exp: "Glúteo superior." },
+        { q: "El nervio tibial (en la pierna) inerva:", options: ["Al músculo sóleo", "Al músculo gastrocnemio", "Al músculo poplíteo", "Ninguna", "Todas son correctas"], answer: 4, exp: "Todas son correctas." },
+        { q: "El músculo abductor del dedo gordo está inervado por el nervio:", options: ["Peroneo profundo", "Tibial anterior", "Sural", "Plantar externo", "Plantar interno"], answer: 4, exp: "Plantar interno (medial)." },
+        { q: "La arteria femoral pasa a la fosa poplítea al atravesar:", options: ["El triángulo de Scarpa", "El orificio intermembranoso superior", "El canal de Hunter", "Ninguna es cierta", "El anillo del aductor mayor o hiato tendinoso"], answer: 4, exp: "Hiato del aductor." },
+        { q: "En la fosa poplítea, la vena poplítea recibe a:", options: ["La vena obturatriz", "La vena femoral común", "La vena safena externa (menor)", "La vena safena interna", "Ninguna es cierta"], answer: 2, exp: "Safena menor." },
+        { q: "La arteria tibial anterior es una rama de:", options: ["La arteria tibial posterior", "Ninguna es cierta", "La arteria peronea", "La arteria femoral común", "La arteria poplítea"], answer: 4, exp: "Poplítea." },
+        { q: "La arteria iliaca interna irriga:", options: ["El contenido pélvico", "La región glútea", "El compartimento medial del muslo", "A, B y D son ciertas", "A y B son ciertas"], answer: 3, exp: "Contenido pélvico, glúteo y medial muslo (vía obturatriz)." },
+        { q: "El flexor común profundo de los dedos está inervado por:", options: ["Nervio mediano", "Nervio cubital", "A y B son ciertas", "Ninguna es cierta", "Nervio radial"], answer: 2, exp: "Inervación doble (Mediano y Cubital)." },
+        { q: "El nervio torácico largo:", options: ["Inerva al dorsal ancho", "Inerva al serrato anterior", "Ninguna es cierta", "B y D son ciertas", "Proviene de C5, C6 y C7"], answer: 3, exp: "Inerva al serrato (B) y proviene de C5-C7." },
+        { q: "La M del mediano esta formada, de lateral a medial, por los nervios:", options: ["Musculocutáneo, radial y cubital", "Ninguna es cierta", "Radial, mediano y cubital", "Musculocutáneo, mediano y cubital", "Cubital, mediano y radial"], answer: 3, exp: "Musculocutáneo, Mediano y Cubital." },
+        { q: "¿Qué acción se ve dañada si se lesiona el “recto anterior”?", options: ["e. A y C son ciertas", "c. Extensión de la rodilla", "b. Flexión de la pierna", "a. Flexión de la cadera", "d. Abducción de la cadera"], answer: 0, exp: "El recto anterior flexiona cadera y extiende rodilla." },
+        { q: "¿Qué nervio se presiona en el síndrome del túnel tarsiano?", options: ["b. Nervio sural", "d. Nervio plantar lateral", "e. Nervio plantar medial", "c. Nervio tibial posterior", "a. Nervio peroneo superficial"], answer: 3, exp: "El nervio tibial posterior (opción c)." },
+        { q: "¿Que vena atraviesa la fascia lata a través de un hiato, a la altura del Ligamento inguinal y desemboca en la Vena Femoral?", options: ["d. Vena Femoral Superficial.", "a. Vena Safena Mayor.", "b. Vena Safena Menor.", "c. Vena Poplítea.", "e. Ninguna de lo anterior."], answer: 1, exp: "La Vena Safena Mayor (a)." },
+        { q: "La arteria tibial anterior:", options: ["b. Es rama de la arteria poplítea.", "e. B y C son correctas.", "c. Atraviesa la membrana interósea y discurre anterior a ella.", "a. Es rama de la Arteria Peronea.", "d. Discurre junto al Músculo Flexor común de los dedos del pie."], answer: 1, exp: "Es rama de poplítea y atraviesa membrana." },
+        { q: "Del Arco Venoso dorsal del Pie, NO es correcto:", options: ["b. Recoge la sangre venosa de las venas metatarsianas dorsales.", "e. Es fácil de palpar y visualizar con el pie descalzo.", "a. Da lugar a las venas Safenas mayor y menor.", "d. Se introduce en el Seno del tarso.", "c. Se une a la red venosa plantar y la red venosa dorsal para dar lugar a las venas marginales."], answer: 3, exp: "No se introduce en el seno del tarso (d)." },
+        { q: "¿Por dónde pasa la rama profunda de la arteria glútea superior?", options: ["b. Por el agujero obturador.", "a. Entre los músculos glúteo medio y glúteo menor.", "d. Por la superficie profunda del músculo glúteo mayor.", "c. Entre los músculos glúteo mayor y glúteo medio.", "e. Las opciones b y c son correctas."], answer: 1, exp: "Entre glúteo medio y menor (a)." },
+        { q: "¿Qué nombre recibe una de las ramas de la arteria iliaca interna cuya función principal es la irrigación del compartimento medial del muslo?", options: ["c. Arteria glútea superior.", "d. Arteria femoral.", "e. Arteria ciática mayor.", "a. Arteria ilíaca externa.", "Ninguna (Arteria obturatriz)"], answer: 4, exp: "La arteria obturatriz. Ninguna de las listadas." },
+        { q: "¿Por dónde abandona la vena glútea superior la pelvis?", options: ["d. A través del agujero obturador.", "e. Las opciones a y b son correctas.", "a. A través del agujero ciático mayor.", "b. Por encima del músculo piriforme.", "c. Por debajo del músculo piriforme."], answer: 1, exp: "Sale por el ciático mayor y por encima del piriforme." },
+        { q: "La vena safena menor…", options: ["e. …atraviesa el orificio obturador y se une a la vena iliaca interna.", "a. …atraviesa el hiato safeno, pasa bajo el ligamento inguinal y se une a la vena femoral.", "b. …se une a la safena mayor, y esta pasa por el hiato safeno...", "d. …pasa bajo el ligamento rotuliano antes de unirse a la vena poplítea.", "c. …se une a la vena poplítea en la región posterior de la pierna, para formar después la vena femoral."], answer: 4, exp: "Se une a la poplítea en la región posterior (c)." },
+        { q: "La arteria circunfleja femoral lateral pasa en profundidad al…", options: ["c. …sartorio y recto femoral.", "b. …recto femoral.", "d. …sartorio, recto femoral y pectíneo.", "a. …sartorio.", "e. …recto femoral y pectíneo."], answer: 0, exp: "Sartorio y Recto femoral (c)." },
+        { q: "¿Con qué hueso se articula el hueso piramidal?", options: ["b. Con el hueso escafoides", "a. Con el 5º metacarpiano", "e. Ninguna es correcta", "d. B y C son ciertas", "c. Con el hueso grande"], answer: 2, exp: "El piramidal articula con el Ganchoso y Pisiforme." },
+        { q: "Di cuál de las siguientes afirmaciones sobre el abductor largo del pulgar NO es cierta:", options: ["b. En su camino hacia la inserción pasa por la 1ª corredera osteofibrosa del carpo.", "a. Abduce el pulgar.", "c. Se encuentra profundo al extensor corto del pulgar.", "d. Su origen se encuentra en la región posterior del antebrazo.", "e. Concretamente se origina en la membrana interósea, el radio y el cúbito."], answer: 2, exp: "No es profundo al extensor corto." },
+        { q: "¿Qué se inserta en la tuberosidad cubital?", options: ["b. El bíceps braquial", "e. Ninguna es correcta", "a. El ligamento anular", "d. El músculo braquial", "c. El flexor superficial de los dedos"], answer: 3, exp: "El músculo braquial (d)." },
+        { q: "¿Cuales son las estructuras que delimitan el cuadrilátero de Velpau?", options: ["a. Borde superior del redondo mayor, borde inferior del redondo menor y tendón de origen de la porción larga del bíceps braquial.", "e. Ninguna de las respuestas es correcta.", "b. Borde superior del redondo mayor, borde inferior del redondo menor, tendón de la porción larga del tríceps y borde lateral de la escápula.", "c. Borde superior del redondo mayor, borde inferior del redondo menor, porción larga del tríceps braquial y cuello quirúrgico del húmero.", "d. Borde inferior del redondo mayor, borde superior del redondo mayor, tríceps y borde lateral del húmero."], answer: 3, exp: "Redondos, tríceps y húmero (c)." },
+        { q: "¿Qué músculo se inserta en la espina ilíaca anterosuperior?", options: ["d. Músculo Tensor de la Fascia Lata", "a. Músculo Sartorio", "e. A y D son ciertas", "c. Músculo Grácil", "b. Músculo Ilíaco"], answer: 2, exp: "Sartorio y TFL (e)." },
+        { q: "¿Qué músculo se inserta craneal a la fosa digital trocantérica?", options: ["e. A y C son ciertas", "a. Gemelos o Géminos", "d. Obturador Externo", "b. Glúteo Medio", "c. Obturador Interno"], answer: 0, exp: "Géminos y Obturador interno (e)." },
+        { q: "¿Qué músculo se inserta en la cara posteroexterna de la diáfisis femoral?", options: ["b. Músculo Subcrural", "d. Bíceps Femoral", "c. Vasto Interno", "e. C y D son correctas", "a. Músculo Crural", "Vasto Externo (No listado)"], answer: 1, exp: "Bíceps femoral (línea áspera)." },
+        { q: "¿Qué ligamento se sitúa posterior en la articulación coxofemoral?", options: ["e. Ninguna de las anteriores", "c. Ligamento iliofemoral", "a. Ligamento redondo", "d. Ligamento Pubofemoral", "b. Ligamento Isquiofemoral"], answer: 4, exp: "Isquiofemoral (b)." },
+        { q: "La articulación de Chopart esta formada por:", options: ["a. Subastragalina", "d. Calcaneocuboidea", "b. Astragalocalcanea", "e. C y D con correctas", "c. Astragalocalcaneaescafoidea"], answer: 4, exp: "Astrágalo-escafoidea y Calcáneo-cuboidea (e)." },
+        { q: "El nervio crural se dirige hacia el miembro inferior:", options: ["b. Por el agujero obturador.", "e. Ninguna es cierta.", "a. Por delante del ligamento inguinal.", "c. Por el agujero ciático menor.", "d. Por detrás del ligamento inguinal."], answer: 4, exp: "Pasa por detrás del ligamento inguinal (d)." },
+        { q: "El nervio peroneo profundo inerva:", options: ["d. Tercer peroneo.", "b. Extensor largo del dedo gordo.", "a. Músculo tibial anterior.", "c. Extensor largo de los dedos.", "e. Todas son ciertas."], answer: 4, exp: "Todas son ciertas (e)." },
+        { q: "¿Cómo se denomina la línea, que divide la cara interna o medial del hueso coxal en dos partes?", options: ["Línea áspera", "Línea ileopectínea o arcuata", "Línea innominada", "Ninguna es cierta", "Línea intertrocantérea"], answer: 1, exp: "Línea arcuata o innominada." },
+        { q: "¿Cuáles de los siguientes ligamentos de la articulación de la cadera, refuerzan la cara anterior de la cápsula articular?", options: ["A y C son ciertas", "Ligamento isquiofemoral", "Ligamento iliofemoral de Bertin o en Y de Bigelow", "Ligamento pubofemoral", "Ligamento redondo o de la cabeza del fémur"], answer: 0, exp: "Iliofemoral y Pubofemoral." },
+        { q: "De los músculos que forman el compartimento medial del muslo, ¿Cuáles de los siguientes son rotadores externos?", options: ["Pectíneo", "Aductor mayor", "Aductor corto o menor", "Obturador externo", "Grácil o Recto Interno"], answer: 3, exp: "Obturador externo." },
+        { q: "El ligamento medial (ligamento deltoideo):", options: ["Se subdivide en cuadro porciones...", "Su vértice se inserta por encima del maléolo medial", "Es grande, fuerte y de forma triangular", "Es uno de los que estabiliza la articulación del tobillo", "Todas son ciertas."], answer: 4, exp: "Todas." },
+        { q: "En el tubérculo de Gerdy:", options: ["A y B son correctas", "Tiene su origen el músculo tibial anterior", "Se origina el peroneo anterior", "Se inserta el músculo tensor de la fascia lata", "Se origina el músculo extensor largo del dedo gordo"], answer: 3, exp: "Inserción del TFL." },
+        { q: "La articulación del tobillo:", options: ["Las superficies articulares están cubiertas de cartílago hialino", "Es de tipo sinovial...", "A y C son verdaderas", "Permite la pronación y supinación del pie", "Los ligamentos astragalocalcaneo..."], answer: 2, exp: "A y C son verdaderas." },
+        { q: "La fractura de fémur suele producirse:", options: ["En el tercio distal del hueso.", "En el tercio medio del hueso.", "A nivel del cuello quirúrgico.", "A nivel del cuello anatómico.", "Por debajo del cuello anatómico."], answer: 2, exp: "Cuello (quirúrgico o anatómico, más frecuente cuello)." },
+        { q: "El hueso escafoides:", options: ["No es difícil que se fracture...", "Raramente se fractura.", "Es mas difícil que se fracture que el ganchoso.", "Se fractura por una aducción forzada.", "Se fractura por una abducción forzada."], answer: 0, exp: "Es el hueso del carpo que más se fractura." },
+        { q: "La epicondilitis:", options: ["Afecta al músculo extensor común de los dedos.", "Afecta al músculo flexor común profundo de los dedos.", "Es llamada también muñeca del tenista.", "Afecta al músculo flexor superficial de los dedos.", "Afecta al músculo palmar largo."], answer: 0, exp: "Extensor común." },
+        { q: "La arteria radial se continúa con:", options: ["La red dorsal del carpo.", "El arco palmar superficial.", "El arco palmar profundo.", "Rama palmar superficial.", "C y D son ciertas."], answer: 2, exp: "Arco profundo." },
+        { q: "¿Qué estamos haciendo cuando realizamos la maniobra de Ortoloni?:", options: ["Ninguna de ellas es correcta.", "Estamos colocando los meniscos en su sitio.", "Estamos corrigiendo una luxación de tobillo.", "Estamos luxando la articulación de la cadera.", "Estamos introduciendo la cabeza del fémur en la cavidad cotiloidea."], answer: 4, exp: "Reducción." },
+        { q: "El signo clínico de la escápula en forma de alas de ángel se debe a:", options: ["El debilitamiento del músculo pectoral mayor", "Una lesión en el nervio músculocutaneo", "B y D son verdaderos", "El debilitamiento del músculo serrato anterior", "Una lesión en el nervio torácico largo."], answer: 2, exp: "Serrato anterior por lesión del nervio torácico largo." },
+        { q: "Si se compromete el nervio cubital.", options: ["Se produce atrofias de la región hipotenar", "C y D son verdaderas", "Se produce dolor intenso y prolongado en el brazo", "Se produce el signo clínico de la mano del predicador.", "Se produce contractura de todos los dedos"], answer: 0, exp: "Atrofia hipotenar." },
+        { q: "¿Cuáles de los siguientes músculos se inserta en la cresta subtroquiniana?", options: ["El músculo coracobraquial", "El músculo redondo menor", "El músculo braquial anterior", "El músculo redondo mayor", "El músculo pectoral mayor"], answer: 3, exp: "Redondo mayor." },
+        { q: "El ligamento en Y de Bigelow recibe también el nombre de:", options: ["Ligamento lateral tibial", "Ligamento iliofemoral", "Ligamento isquiopubiano", "Ligamento isquiofemoral", "Ligamento pubofemoral"], answer: 1, exp: "Iliofemoral." },
+        { q: "El nervio tibial al atravesar el hueco poplíteo da una rama superficial, esta rama es:", options: ["Ninguno de los anteriores", "Nervio cutáneo femoral lateral", "Nervio cutáneo dorsal lateral", "Nervio cutáneo femoral posterior", "Nervio sural o Safeno"], answer: 4, exp: "Nervio Sural." },
+        { q: "Respecto a la articulación talonavicular:", options: ["El escafoides se articula con todos los huesos del tarso mediante carillas articulares.", "El ligamento calcáneonavicular no es el único modo de unión entre calcáneo y escafoides.", "El escafoides se articula de alguna manera con todos los huesos del tarso.", "B y C son ciertas.", "Escafoides y calcáneo se unen mediante un ligamento."], answer: 3, exp: "B y C ciertas." },
+        { q: "¿Qué músculo ejerce la acción de rotación externa y abducción del muslo?", options: ["Músculos Gemelos.", "Músculo Tensor de la Fascia Lata.", "Músculo Cuadriceps Femoral.", "Músculo Piramidal o Piriforme.", "Las respuestas c y d son correctas."], answer: 3, exp: "Piramidal." },
+        { q: "¿Dónde se origina la cabeza lateral del músculo tríceps braquial?", options: ["En una rugosidad lineal superior al surco del nervio radial del húmero.", "En la zona más superior del borde lateral de la escápula.", "En el trocánter o tuberosidad mayor del húmero...", "Por debajo del surco del nervio radial del húmero.", "En el tubérculo supraglenoideo de la escápula."], answer: 0, exp: "Superior al surco radial." },
+        { q: "¿A qué dedo o dedos irriga principalmente la arteria radial?", options: ["A todos excepto al meñique.", "A la zona lateral del dedo índice.", "Al pulgar.", "B y D son correctas.", "A los tres dedos más laterales."], answer: 3, exp: "Pulgar y lateral índice." },
+        { q: "La arteria circunfleja de la escápula:", options: ["Se anastomosa con la arteria circunfleja humeral posterior.", "Es rama de la arteria subescapular.", "Es rama de la arteria supraescapular.", "A y B son correctas.", "Se anastomosa con la arteria circunfleja humeral anterior."], answer: 1, exp: "Rama de subescapular." },
+        { q: "Los vasos femorales…", options: ["Llegan al compartimento anterior del muslo por el agujero ciático mayor.", "Ninguna de las anteriores es correcta.", "Llegan al compartimento medial del muslo por el conducto obturador (subpubiano).", "Llegan al compartimento medial del muslo por detrás del ligamento inguinal.", "Llegan al compartimento anterior del muslo por detrás del ligamento inguinal."], answer: 4, exp: "Pasan tras el ligamento inguinal." },
+        { q: "¿Qué músculo toma como polea de reflexión el ligamento transverso del carpo para insertarse en la I falange distal?", options: ["Flexor largo del pulgar.", "Abductor largo del pulgar.", "Flexor radial del carpo.", "Extensor corto del pulgar.", "Flexor común profundo de los dedos."], answer: 2, exp: "Flexor radial del carpo (Palmar mayor)." },
+        { q: "¿Qué músculos se originan en los tendones del flexor común profundo de los dedos?", options: ["Ninguna de las anteriores.", "A y B son ciertas.", "Interóseos palmares.", "Lumbricales.", "Interóseos dorsales."], answer: 3, exp: "Lumbricales." },
+        { q: "El músculo glúteo menor:", options: ["Todas con correctas", "Se inserta en el borde posterior del trocánter mayor", "Se origina en la cara glútea del coxal", "Está inervado por el nervio glúteo inferior", "Se sitúa en el plano superficial de la región glútea"], answer: 2, exp: "Cara glútea coxal." },
+        { q: "¿Qué prueba o pruebas se realizan para detectar la rotura del ligamento cruzado anterior?", options: ["Ninguna de las anteriores", "A y C son correctas", "Prueba de Lachman", "Prueba del cajón posterior", "Prueba del cajón anterior"], answer: 1, exp: "Lachman y Cajón anterior." },
+        { q: "Acerca de las características de la pelvis masculina, cuál de las siguientes afirmaciones considera correcta:", options: ["L a cavidad pélvica es menos profunda, pues el eje longitudinal es más largo", "La cavidad pélvica es más profunda ya que el eje longitudinal es más corto", "El estrecho superior es circular u ovalado", "Los huesos coxales se encuentran más separados", "El estrecho pélvico inferior es mas estrecho que el de la pelvis femenina"], answer: 4, exp: "Estrecho inferior más cerrado." },
+        { q: "Respecto a la articulación talonavicular:", options: ["El escafoides se articula de alguna manera con todos los huesos del tarso.", "Escafoides y calcáneo se unen mediante un ligamento.", "El ligamento calcáneonavicular no es el único modo de unión entre calcáneo y escafoides.", "El escafoides se articula con todos los huesos del tarso mediante carillas articulares.", "B y C son ciertas."], answer: 4, exp: "B y C." },
+        { q: "Indicar qué nervio o nervios recorren el canal bicipital interno:", options: ["Nervio cubital", "Nervios mediano y cubital", "Nervio mediano", "Nervio radial", "Nervios radial y cubital"], answer: 2, exp: "Mediano." },
+        { q: "El principal aporte sanguíneo del astrágalo consta de:", options: ["Todas son verdaderas", "B y C son verdaderas", "Rama de la arteria tibial anterior", "Ramas de la arteria peronea", "Ramas de la arteria dorsal del pie"], answer: 0, exp: "Todas." },
+        { q: "Si tenemos un ángulo cervicodiafisiario femoral que mide 100º se habla de:", options: ["Coxa valga", "Coxa vala", "Ninguna respuesta es correcta", "Todas son correctas", "Coxa vara"], answer: 4, exp: "Coxa vara." },
+        { q: "El menisco que sufre mas lesiones es:", options: ["Menisco interno situado lateral al ligamento colateral tibial", "A y C son verdaderas", "Menisco externo situado medial al ligamento colateral peroneo", "Menisco interno situado medial al menisco externo", "A, B y C son falsas"], answer: 0, exp: "Menisco interno." },
+        { q: "¿Qué arteria de la pierna dará lugar al arco plantar profundo del pie?", options: ["Arteria tibial anterior.", "Arteria tibial posterior.", "Ninguna de las anteriores.", "Arteria maleolar lateral anterior.", "Arteria peronea."], answer: 1, exp: "La Arteria plantar lateral (rama de la tibial posterior) forma el arco profundo." },
+        { q: "La principal fuente de irrigación para el muslo es:", options: ["Arteria femoral profunda.", "Arteria circunfleja femoral medial.", "Arteria circunfleja femoral lateral.", "Arterias perforantes.", "Arteria obturatriz."], answer: 0, exp: "Femoral profunda." },
+        { q: "¿Qué arteria irriga la cabeza del fémur en la articulación de la cadera?", options: ["La A y la C son correctas.", "Arteria ilíaca.", "Arteria obturatriz.", "Arteria femoral profunda.", "Arteria circunfleja femoral lateral."], answer: 2, exp: "Arteria obturatriz (ligamento cabeza)." },
+        { q: "¿En qué plano se encuentra la fascia clavipectoral?", options: ["Profunda con respecto a pectoral menor.", "B y C son ciertas.", "Superficial a músculo subclavio y pectoral menor.", "Profunda con respecto a pectoral mayor.", "Subcutáneo."], answer: 3, exp: "Profunda al pectoral mayor." },
+        { q: "Las ramas de la arteria subescapular son:", options: ["Circunfleja de la escápula y toracodorsal.", "Toracodorsal y toracoacromial.", "Circunflejas humerales", "Ninguna.", "Circunfleja escapular y toracoacromial"], answer: 0, exp: "Circunfleja escapular y Toracodorsal." },
+        { q: "¿Cuál de las siguientes NO es una rama de la arteria cubital?", options: ["Rama dorsal del carpo y rama palmar del carpo", "Arteria recurrente cubital anterior", "Arteria interósea común", "Arteria recurrente cubital medial", "Arteria recurrente cubital posterior"], answer: 3, exp: "Recurrente cubital medial." },
+        { q: "La vena que perfora la fascia profunda en la mitad distal del brazo es:", options: ["Ninguna.", "Vena axilar", "Vena cefálica", "Vena braquial", "Vena basílica"], answer: 4, exp: "Basílica." }
+    ];
+
+    // Variables de estado
+    let activeIndices = []; 
+    let activeScore = 0;
+    let activeQuestionIndex = 0; // Índice en el array activeIndices
+    
+    // Almacena estado global de cada pregunta (si fue marcada o fallada en algún momento)
+    // Se usa un Set para los índices originales de fullQuizData
+    let markedIndices = new Set();
+    let failedIndices = new Set();
+    
+    const quizContainer = document.getElementById('quiz-container');
+    const finalScreen = document.getElementById('final-screen');
+    const totalSpan = document.getElementById('total');
+    const currentSpan = document.getElementById('current');
+    const scoreSpan = document.getElementById('score');
+
+    // Inicializar el quiz
+    function initQuiz(indices = null) {
+        // Si no se pasan índices, cargar todas
+        if (!indices) {
+            activeIndices = fullQuizData.map((_, i) => i);
+            markedIndices.clear();
+            failedIndices.clear();
+        } else {
+            activeIndices = indices;
+        }
+        
+        activeScore = 0;
+        activeQuestionIndex = 0;
+        
+        // UI reset
+        quizContainer.innerHTML = '';
+        finalScreen.style.display = 'none';
+        quizContainer.style.display = 'block';
+        document.getElementById('statsBar').style.display = 'flex';
+        
+        updateStats();
+        renderQuestions();
+    }
+
+    function renderQuestions() {
+        activeIndices.forEach((originalIndex, i) => {
+            const item = fullQuizData[originalIndex];
+            
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${originalIndex}`;
+
+            // Header con checkbox
+            const header = document.createElement('div');
+            header.className = 'question-header';
+            
+            const title = document.createElement('div');
+            title.className = 'question-text';
+            title.textContent = `${i + 1}. ${item.q}`;
+            
+            const markLabel = document.createElement('label');
+            markLabel.className = 'mark-review';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = markedIndices.has(originalIndex);
+            checkbox.onchange = (e) => toggleMark(originalIndex, e.target.checked);
+            
+            markLabel.appendChild(checkbox);
+            markLabel.appendChild(document.createTextNode(" Repasar luego"));
+            
+            header.appendChild(title);
+            header.appendChild(markLabel);
+            card.appendChild(header);
+
+            // Opciones
+            const optionsGrid = document.createElement('div');
+            optionsGrid.className = 'options-grid';
+
+            item.options.forEach((opt, optIndex) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.onclick = () => handleAnswer(btn, optIndex, item.answer, card, originalIndex);
+                optionsGrid.appendChild(btn);
+            });
+            card.appendChild(optionsGrid);
+
+            // Explicación
+            const expDiv = document.createElement('div');
+            expDiv.className = 'explanation';
+            expDiv.innerHTML = `<strong>Explicación:</strong> ${item.exp}`;
+            card.appendChild(expDiv);
+
+            quizContainer.appendChild(card);
+        });
+    }
+
+    function toggleMark(index, isChecked) {
+        if (isChecked) {
+            markedIndices.add(index);
+        } else {
+            markedIndices.delete(index);
+        }
+    }
+
+    function handleAnswer(btn, selectedIndex, correctIndex, card, originalIndex) {
+        if (card.classList.contains('answered')) return;
+        card.classList.add('answered');
+
+        const buttons = card.querySelectorAll('.option-btn');
+        const expDiv = card.querySelector('.explanation');
+        
+        expDiv.style.display = 'block';
+        
+        let isCorrect = (selectedIndex === correctIndex);
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            activeScore++;
+        } else {
+            btn.classList.add('incorrect');
+            if (correctIndex >= 0 && correctIndex < buttons.length) {
+                buttons[correctIndex].classList.add('correct');
+            }
+            // Agregar a falladas
+            failedIndices.add(originalIndex);
+        }
+
+        buttons.forEach(b => b.disabled = true);
+        
+        activeQuestionIndex++;
+        updateStats();
+
+        // Comprobar final
+        if (activeQuestionIndex === activeIndices.length) {
+            setTimeout(showFinalScreen, 1000);
+        }
+    }
+
+    function updateStats() {
+        totalSpan.textContent = activeIndices.length;
+        currentSpan.textContent = activeQuestionIndex;
+        scoreSpan.textContent = activeScore;
+    }
+
+    function showFinalScreen() {
+        quizContainer.style.display = 'none';
+        document.getElementById('statsBar').style.display = 'none';
+        finalScreen.style.display = 'block';
+        
+        document.getElementById('final-score').textContent = `${activeScore} / ${activeIndices.length}`;
+        
+        // Calcular cuántas hay para repasar
+        // Unión de conjuntos: Falladas U Marcadas
+        const toRetry = new Set([...failedIndices, ...markedIndices]);
+        const count = toRetry.size;
+
+        const retryBtn = document.getElementById('btn-retry');
+        const infoText = document.getElementById('retry-info');
+
+        if (count > 0) {
+            retryBtn.style.display = 'inline-block';
+            retryBtn.textContent = `Repetir falladas y marcadas (${count}) ↺`;
+            infoText.textContent = `Tienes ${failedIndices.size} falladas y ${markedIndices.size} marcadas para repasar.`;
+        } else {
+            retryBtn.style.display = 'none';
+            infoText.textContent = "¡Perfecto! No hay preguntas falladas ni marcadas.";
+        }
+    }
+
+    function retryFailedAndMarked() {
+        // Calcular índices únicos a repetir
+        const unionSet = new Set([...failedIndices, ...markedIndices]);
+        const nextIndices = Array.from(unionSet).sort((a, b) => a - b);
+        
+        // Reiniciar tracking de fallos para la nueva ronda (opcional: ¿queremos que si acierta ahora ya no salga?)
+        // Estrategia: Limpiamos falladas para ver si las acierta ahora. 
+        // Mantenemos marcadas solo si el usuario no las desmarca manualmente.
+        failedIndices.clear();
+        
+        initQuiz(nextIndices);
+    }
+
+    // Arrancar
+    initQuiz();
+</script>
+
+</body>
+</html>

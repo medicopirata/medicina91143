@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Tema 15: La Tráquea</title>
+    <style>
+        :root {
+            --primary-color: #008080; /* Teal para Respiratorio/Tráquea */
+            --secondary-color: #20b2aa;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --background-color: #f4f7f6;
+            --card-background: #ffffff;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #bdc3c7;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            text-align: center;
+            background-color: #1a252f;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.1rem; }
+        
+        .sidebar-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sidebar-stats { font-size: 0.9rem; color: #bdc3c7; }
+
+        .finish-btn-side {
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            width: 80%;
+            transition: 0.2s;
+        }
+        .finish-btn-side:hover { background-color: #c0392b; }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 5px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); }
+        .nav-btn.correct { background-color: var(--success-color); }
+        .nav-btn.incorrect { background-color: var(--error-color); }
+        .nav-btn.marked { border: 2px solid #f1c40f; color: #f1c40f; font-weight: bold; }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h1 { color: var(--primary-color); border-bottom: 3px solid var(--secondary-color); padding-bottom: 10px; }
+
+        .question-card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--secondary-color);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .bookmark-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #95a5a6;
+            padding: 2px 8px;
+        }
+        .bookmark-btn.active { color: #f39c12; border-color: #f39c12; background: #fef9e7; }
+
+        .question-text { font-size: 1.1rem; color: #2c3e50; margin-bottom: 15px; font-weight: 600; line-height: 1.4; }
+
+        .options-grid { display: flex; flex-direction: column; gap: 8px; }
+
+        .option-btn {
+            padding: 10px 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { background-color: #f0f3f4; border-color: var(--primary-color); }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.incorrect { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .option-btn.disabled { cursor: default; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background-color: #e8f8f5; color: #0e6251; }
+        .feedback.error { background-color: #fdedec; color: #78281f; }
+
+        /* RESULT PANEL */
+        .results-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 40px;
+            display: none;
+            margin-bottom: 50px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            background: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { background: #006666; transform: scale(1.05); }
+        .action-btn:active { transform: scale(0.95); }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            .sidebar-nav { grid-template-columns: repeat(8, 1fr); max-height: 150px; }
+            .main-content { overflow: visible; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Tema 15: La Tráquea</h2>
+        <div class="sidebar-controls">
+            <div class="sidebar-stats"><span id="progress-text">0/27</span> respondidas</div>
+            <button class="finish-btn-side" onclick="showResults(true)">Finalizar Test</button>
+        </div>
+    </div>
+    <div id="sidebar-nav" class="sidebar-nav"></div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h1>Anatomía de la Tráquea</h1>
+        <div id="questions-list"></div>
+        
+        <div id="results-panel" class="results-panel">
+            <h2>Test Finalizado</h2>
+            <p id="score-text" style="font-size: 1.4rem; margin: 15px 0;"></p>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="resetQuiz('all')">Repetir Todo</button>
+                <button class="action-btn" onclick="resetQuiz('wrong')">Repetir Falladas</button>
+                <button class="action-btn" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="action-btn" onclick="resetQuiz('wrong_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // BASE DE DATOS - TEMA 15 TRÁQUEA
+    const dbQuestions = [
+        { 
+            id: 1, 
+            original: "1", 
+            q: "Sobre la tráquea una pregunta es errónea:", 
+            options: [
+                { text: "Su eje mayor transverso es sobre los 25mm", correct: false },
+                { text: "Su medida para un adulto ronda los 20cm", correct: true },
+                { text: "Forma parte de las vísceras de la región del cuello", correct: false },
+                { text: "Posee una porción cervical y una torácica", correct: false }
+            ], 
+            exp: "La longitud normal de la tráquea en un adulto es de 10 a 12 cm. 20 cm es incorrecto." 
+        },
+        { 
+            id: 2, 
+            original: "Extra", 
+            q: "La carina de la tráquea se encuentra a nivel de:", 
+            options: [
+                { text: "T5", correct: true },
+                { text: "T2", correct: false },
+                { text: "C6", correct: false },
+                { text: "T10", correct: false }
+            ], 
+            exp: "La bifurcación traqueal (carina) se proyecta habitualmente a nivel de la vértebra T5 (ángulo de Louis)." 
+        },
+        { 
+            id: 3, 
+            original: "Extra", 
+            q: "¿Qué nervio corre en el canal tráqueo - esofágico?", 
+            options: [
+                { text: "Recurrente o laríngeo inferior", correct: true },
+                { text: "Vago", correct: false },
+                { text: "Frénico", correct: false },
+                { text: "Hipogloso", correct: false }
+            ], 
+            exp: "El nervio laríngeo recurrente asciende por el ángulo diedro entre la tráquea y el esófago." 
+        },
+        { 
+            id: 4, 
+            original: "Extra", 
+            q: "La carina de la tráquea se encuentra a nivel de:", 
+            options: [
+                { text: "C8", correct: false },
+                { text: "T5", correct: true },
+                { text: "T2", correct: false },
+                { text: "T7", correct: false }
+            ], 
+            exp: "Repetida: Nivel T5 (o T4-T5)." 
+        },
+        { 
+            id: 5, 
+            original: "4", 
+            q: "Sobre la tráquea y sus relaciones, señale la opción incorrecta:", 
+            options: [
+                { text: "Dorsalmente se sitúa el esófago, del que se separa por el músculo traqueoesofágico.", correct: false },
+                { text: "Lateralmente, ascienden los nervios laríngeos recurrentes.", correct: false },
+                { text: "Dorsalmente a la tráquea, en el espacio torácico, discurre el tronco venoso braquiocefálico izquierdo.", correct: true },
+                { text: "Ventralmente, en la región topográfica del tronco, se sitúa el cayado aórtico y la salida de los vasos de su porción horizontal.", correct: false }
+            ], 
+            exp: "El tronco venoso braquiocefálico izquierdo cruza por DELANTE (ventral) a la tráquea, no dorsalmente." 
+        },
+        { 
+            id: 6, 
+            original: "5", 
+            q: "La tráquea no se encuentra topograficamente por debajo de", 
+            options: [
+                { text: "T8", correct: true },
+                { text: "T2", correct: false },
+                { text: "C8", correct: false },
+                { text: "T5", correct: false }
+            ], 
+            exp: "La tráquea termina en T5. Por tanto, no existe a nivel de T8." 
+        },
+        { 
+            id: 7, 
+            original: "6", 
+            q: "La inervación parasimpatica de la tráquea corre a cargo de:", 
+            options: [
+                { text: "El nervio frénico", correct: false },
+                { text: "El nervio cardioneuroentérico o vago", correct: true },
+                { text: "Ramos anteriores de C3-C6", correct: false },
+                { text: "Cadena simpática paravertebral", correct: false }
+            ], 
+            exp: "El nervio vago (X par) y sus ramas recurrentes proporcionan la inervación parasimpática y sensitiva." 
+        },
+        { 
+            id: 8, 
+            original: "7", 
+            q: "La pared posterior de la tráquea está formada de más ventral a más posterior por:", 
+            options: [
+                { text: "Músculo traqueal, lámina transversa y músculo traqueoesofágico", correct: false },
+                { text: "Lamina transversa, musculo traqueal y musculo traqueoesofagico", correct: true },
+                { text: "Musculo traqueoesofágico, lámina transversa y musculo traqueal", correct: false },
+                { text: "Lamina transversa, musculo traqueoesofagico y musculo traqueal", correct: false }
+            ], 
+            exp: "Según la anatomía detallada en la fuente: Lámina transversa, músculo traqueal y conexiones esofágicas." 
+        },
+        { 
+            id: 9, 
+            original: "8", 
+            q: "La tráquea (Señale la correcta):", 
+            options: [
+                { text: "Los anillos traqueales tienen forma de C invertida, cerrado lateral y posteriormente.", correct: false },
+                { text: "La división de la carina no corresponde con el ángulo de Louis.", correct: false },
+                { text: "El bronquio principal izquierdo es más inclinado verticalmente (más horizontal realmente).", correct: false },
+                { text: "Al realizar una lobectomía, el cirujano puede resecar la mitad inferior de un pulmón sin afectar al resto de regiones adyacentes.", correct: true }
+            ], 
+            exp: "Nota: Esta pregunta parece tener opciones mezcladas en la fuente. La opción sobre lobectomía se refiere a la segmentación broncopulmonar que permite resecciones parciales." 
+        },
+        { 
+            id: 10, 
+            original: "14", 
+            q: "¿Cuál de los siguientes vasos mantiene relación de cercanía con el borde lateral de la tráquea?", 
+            options: [
+                { text: "Arteria subclavia", correct: false },
+                { text: "Arteria torácica interna", correct: false },
+                { text: "Carótida común", correct: true },
+                { text: "Arteria vertebral", correct: false },
+                { text: "Arteria epigástrica superior", correct: false }
+            ], 
+            exp: "La arteria carótida común (especialmente la izquierda en el tórax y ambas en el cuello) asciende lateral a la tráquea." 
+        },
+        { 
+            id: 11, 
+            original: "Extra", 
+            q: "El plano de tejido conectivo con fibras musculares que mantiene vinculado tráquea y esófago, se denomina:", 
+            options: [
+                { text: "Dicha estructura no existe", correct: false },
+                { text: "Membrana esofágica", correct: false },
+                { text: "Músculo traqueal", correct: false },
+                { text: "Músculo traqueoesofágico", correct: true }
+            ], 
+            exp: "El músculo traqueoesofágico une la pared posterior de la tráquea con la anterior del esófago." 
+        },
+        { 
+            id: 12, 
+            original: "Extra", 
+            q: "Acerca de la tráquea, señale la respuesta INCORRECTA:", 
+            options: [
+                { text: "Está compuesta de anillos cartilaginosos incompletos", correct: false },
+                { text: "Dorsalmente, en su trayecto torácico se sitúa la glándula tímica", correct: true },
+                { text: "Posee una lámina dorsal de tejido muscular liso que la separa del esófago", correct: false },
+                { text: "Anteriormente se la relaciona con la glándula tiroides, la cual rodea los primeros anillos", correct: false }
+            ], 
+            exp: "El timo se sitúa ANTERIOR a la tráquea (en el mediastino anterior/superior), no dorsal." 
+        },
+        { 
+            id: 13, 
+            original: "26", 
+            q: "La tráquea:", 
+            options: [
+                { text: "Se divide en la carina a nivel de C4", correct: false },
+                { text: "Es la continuación de la faringe", correct: false },
+                { text: "Su cara anterior es cóncava, mientras que la posterior es ligeramente convexa", correct: false },
+                { text: "Se divide en forma dicotómica", correct: true }
+            ], 
+            exp: "La división es dicotómica (en dos bronquios principales). La carina está en T5, continúa a la laringe, y sus anillos son convexos anteriormente." 
+        },
+        { 
+            id: 14, 
+            original: "50", 
+            q: "La pared posterior de la tráquea está formada de más ventral a más posterior por:", 
+            options: [
+                { text: "Músculo traqueal, lámina transversa y músculo traqueoesofágico", correct: false },
+                { text: "Lámina transversa, músculo traqueal y músculo traqueoesofágico", correct: true },
+                { text: "Músculo traqueoesofágico, lámina transversa y músculo traqual", correct: false },
+                { text: "Lámina transversa, músculo traqueoesofágico y músculo traqueal", correct: false }
+            ], 
+            exp: "Repetida: Lámina transversa -> Músculo traqueal -> Músculo traqueoesofágico." 
+        },
+        { 
+            id: 15, 
+            original: "Extra", 
+            q: "La tráquea: (Repetida)", 
+            options: [
+                { text: "Los anillos traqueales tienen forma de C invertido, cerrado lateral y posteriormente", correct: false },
+                { text: "La división de la Carina no corresponde con el ángulo de Louis", correct: false },
+                { text: "El bronquio principal izquierdo es más inclinado verticalmente", correct: false },
+                { text: "Al realizar una lobectomía, el cirujano puede resecar la mitad inferior de un pulmón sin afectar al resto de regiones adyacentes", correct: true },
+                { text: "Las venas pulmonares son las más inferiores en el pedículo pulmonar", correct: false }
+            ], 
+            exp: "Repetida: Se refiere a la segmentación pulmonar." 
+        },
+        { 
+            id: 16, 
+            original: "Extra", 
+            q: "Acerca de la tráquea, señale la respuesta incorrecta: (Repetida)", 
+            options: [
+                { text: "está compuesta de anillos cartilaginosos incompletos", correct: false },
+                { text: "Dorsalmente, en su trayecto torácico, si sitúa la glándula tímica", correct: true },
+                { text: "Posee una lámina dorsal de tejido muscular liso que la separa del esófago", correct: false },
+                { text: "Anteriormente se le relaciona con la glándula tiroides, la cual rodea los primeros anillos", correct: false }
+            ], 
+            exp: "Repetida: El timo es anterior." 
+        },
+        { 
+            id: 17, 
+            original: "14", 
+            q: "Sobre la tráquea y sus relaciones, señale la opción incorrecta: (Repetida)", 
+            options: [
+                { text: "Dorsalmente a la tráquea, en el espacio torácico, discurre el tronco venoso braquiocefálico izquierdo", correct: true },
+                { text: "Lateralmente, ascienden los nervios laringes recurrentes", correct: false },
+                { text: "Dorsalmente se sitúa el esófago, del que se separa por el músculo traqueoesofágico", correct: false },
+                { text: "ventralmente, en la región topográfica del tronco, se sitúa el cayado aórtico y la salida de los vasos de su porción horizontal", correct: false }
+            ], 
+            exp: "Repetida: El TVBCI es anterior (ventral)." 
+        },
+        { 
+            id: 18, 
+            original: "15", 
+            q: "Acerca de la tráquea, señale la respuesta INCORRECTA: (Repetida)", 
+            options: [
+                { text: "Está compuesta de anillos cartilaginosos incompletos", correct: false },
+                { text: "Dorsalmente, en su trayecto torácico se sitúa glándula tímica", correct: true },
+                { text: "Posee una lámina dorsal de tejido muscular liso que la separa del esófago", correct: false },
+                { text: "Anteriormente se la relaciona con la glándula tiroides, la cual rodea los primeros anillos", correct: false }
+            ], 
+            exp: "Repetida: Timo dorsal es incorrecto." 
+        },
+        { 
+            id: 19, 
+            original: "16", 
+            q: "La tráquea: (Repetida)", 
+            options: [
+                { text: "Se divide en la carina a nivel de C4", correct: false },
+                { text: "Es la continuación de la faringe", correct: false },
+                { text: "Su cara anterior es cóncava, mientras que la posterior es ligeramente convexa", correct: false },
+                { text: "Se divide en forma dicotómica", correct: true }
+            ], 
+            exp: "Repetida: División dicotómica." 
+        },
+        { 
+            id: 20, 
+            original: "17", 
+            q: "La inervación parasimpática de la tráquea corre a cargo de: (Repetida)", 
+            options: [
+                { text: "El nervio frénico", correct: false },
+                { text: "El nervio cardioneuroentérico o vago", correct: true },
+                { text: "Ramos anteriores de C3-C6", correct: false },
+                { text: "Cadena simpática para vertebral", correct: false }
+            ], 
+            exp: "Repetida: Nervio Vago." 
+        },
+        { 
+            id: 21, 
+            original: "18", 
+            q: "La pared posterior de la tráquea está formada de más ventral a más posterior por: (Repetida)", 
+            options: [
+                { text: "Músculo traqueal, lámina transversa y músculo traqueosofágico", correct: false },
+                { text: "Lámina transversa, músculo traqueal y músculo traqueoesofágico", correct: true },
+                { text: "Músculo traqueoesofágico, lámina transversa y músculo traqual", correct: false },
+                { text: "Lámina transversa, músculo traqueoesofágico y músculo traqueal", correct: false }
+            ], 
+            exp: "Repetida: Lámina transversa -> Musculo traqueal -> Musculo traqueoesofágico." 
+        },
+        { 
+            id: 22, 
+            original: "19", 
+            q: "La porción de la cadena simpática paravertebral entre T1 y T5 interviene en formar qué elemento nervioso:", 
+            options: [
+                { text: "Nervio vago", correct: false },
+                { text: "Nervios torácicos", correct: false },
+                { text: "Nervio esplácnico mayor", correct: false },
+                { text: "Nervios cardíacos simpáticos cervicales (y torácicos)", correct: true }
+            ], 
+            exp: "Nota: El texto original pregunta por T1-T5. Estos ganglios dan ramos cardíacos torácicos. La opción más cercana en contexto de inervación torácica simpática son los nervios del plexo cardíaco (aunque la opción dice 'cervicales', a veces se agrupan funcionalmente o se refiere a la aferencia)." 
+        },
+        { 
+            id: 23, 
+            original: "86", 
+            q: "Acerca de la traquea, señale la respuesta incorrecta: (Repetida)", 
+            options: [
+                { text: "está compuesta de anillos cartilaginosos incompletos", correct: false },
+                { text: "Dorsalmente, en su trayecto torácico, si sitúa la glándula tímica", correct: true },
+                { text: "Posee una lamina dorsal de tejido muscular liso que la separa del esófago", correct: false },
+                { text: "Anteriormente se le relaciona con la glándula tiroides, la cual rodea los primeros anillos", correct: false }
+            ], 
+            exp: "Repetida: Timo dorsal es incorrecto." 
+        },
+        { 
+            id: 24, 
+            original: "87", 
+            q: "La inervación parasimpatica de la tráquea corre a cargo de: (Repetida)", 
+            options: [
+                { text: "El nervio frénico", correct: false },
+                { text: "El nervio cardioneuroentérico o vago", correct: true },
+                { text: "Ramos anteriores de C3-C6", correct: false },
+                { text: "Cadena simpática paravertebral", correct: false }
+            ], 
+            exp: "Repetida: Vago." 
+        },
+        { 
+            id: 25, 
+            original: "Extra", 
+            q: "El nervio vago:", 
+            options: [
+                { text: "En el lado derecho se relaciona directamente con la tráquea", correct: true },
+                { text: "En el lado izquierdo se apoya sobre el cayado de la aorta", correct: false },
+                { text: "En el lado derecho pasa bajo la arteria subclavia para dar el nervio laríngeo recurrente", correct: false },
+                { text: "Es posterior al bronquio derecho", correct: false },
+                { text: "Todas son ciertas", correct: false }
+            ], 
+            exp: "Nota: En el texto original, esta pregunta aparece con 'Todas son ciertas'. El Vago derecho baja lateral a la tráquea, cruza subclavia (recurrente). El izquierdo cruza el cayado. Pasan posteriores al pedículo. Se marca 'Todas son ciertas' si se asumen las relaciones correctas." 
+        },
+        { 
+            id: 26, 
+            original: "4", 
+            q: "Con respecto a los bronquios seleccione la respuesta correcta:", 
+            options: [
+                { text: "El bronquio principal izquierdo se bifurca antes de su entrada al hilio", correct: false },
+                { text: "El bronquio principal derecho se bifurca antes de su entrada al hilio", correct: true },
+                { text: "El bronquio principal derecho presenta concavidad anterior", correct: false },
+                { text: "B y C son correctas", correct: false }
+            ], 
+            exp: "El bronquio derecho suele dar el bronquio lobar superior antes de entrar completamente en el hilio (arteria pulmonar pasa por debajo)." 
+        },
+        { 
+            id: 27, 
+            original: "Extra", 
+            q: "La arteria bronquial es rama de:", 
+            options: [
+                { text: "Aorta torácica", correct: true },
+                { text: "Arteria pericardiofrénica", correct: false },
+                { text: "Arteria pulmonar", correct: false },
+                { text: "Arteria torácica interna", correct: false },
+                { text: "Tronco braquiocefálico derecho", correct: false }
+            ], 
+            exp: "Las arterias bronquiales (especialmente las izquierdas) son ramas directas de la aorta torácica descendente." 
+        }
+    ];
+
+    let currentQuestions = [...dbQuestions];
+    let markedIds = new Set();
+    let userAnswers = {};
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz() {
+        const list = document.getElementById('questions-list');
+        const nav = document.getElementById('sidebar-nav');
+        const resultsPanel = document.getElementById('results-panel');
+        
+        list.innerHTML = '';
+        nav.innerHTML = '';
+        resultsPanel.style.display = 'none';
+
+        if(currentQuestions.length === 0) {
+            list.innerHTML = `<div class="question-card"><p>No hay preguntas para los criterios seleccionados.</p></div>`;
+            return;
+        }
+
+        currentQuestions.forEach((q, index) => {
+            const btn = document.createElement('a');
+            btn.href = `#q-${q.id}`;
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            btn.id = `nav-btn-${q.id}`;
+            
+            if (userAnswers[q.id] === true) btn.classList.add('correct');
+            if (userAnswers[q.id] === false) btn.classList.add('incorrect');
+            if (markedIds.has(q.id)) btn.classList.add('marked');
+
+            nav.appendChild(btn);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            const originalOptions = q.options.map((text, i) => ({ text: text.text, isCorrect: text.correct }));
+            const finalOptions = shuffle(originalOptions);
+
+            let optionsHTML = '';
+            finalOptions.forEach(opt => {
+                const safeText = opt.text.replace(/'/g, "&#39;"); 
+                optionsHTML += `<button class="option-btn" onclick="handleAnswer(${q.id}, ${opt.isCorrect}, this)">${opt.text}</button>`;
+            });
+
+            const isMarked = markedIds.has(q.id);
+
+            card.innerHTML = `
+                <div class="question-header-row">
+                    <span>Pregunta ${index + 1} (Ref: ${q.original})</span>
+                    <button class="bookmark-btn ${isMarked ? 'active' : ''}" onclick="toggleMark(${q.id}, this)">
+                        ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                    </button>
+                </div>
+                <div class="question-text">${q.q}</div>
+                <div class="options-grid" id="opts-${q.id}">
+                    ${optionsHTML}
+                </div>
+                <div class="feedback" id="feed-${q.id}"></div>
+            `;
+            list.appendChild(card);
+        });
+        updateProgress();
+    }
+
+    function handleAnswer(id, isCorrect, btn) {
+        if (userAnswers.hasOwnProperty(id)) return;
+        
+        userAnswers[id] = isCorrect;
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        const feedback = document.getElementById(`feed-${id}`);
+        const container = document.getElementById(`opts-${id}`);
+        const qData = dbQuestions.find(x => x.id === id);
+
+        const allBtns = container.querySelectorAll('.option-btn');
+        allBtns.forEach(b => {
+            b.classList.add('disabled');
+            b.onclick = null;
+            // Highlight correct answer logic:
+            // Since we shuffled objects, we find the one that matches text AND isCorrect in original data
+            // But we have the shuffled object in the loop. 
+            // Simplified: Find the button text in original options that is correct.
+            const correctOpt = qData.options.find(o => o.correct);
+            if (b.innerText === correctOpt.text) b.classList.add('correct');
+        });
+
+        if (isCorrect) {
+            feedback.innerHTML = `<strong>¡Correcto!</strong><br>${qData.exp}`;
+            feedback.className = 'feedback success show';
+            if(navBtn) navBtn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            feedback.innerHTML = `<strong>Incorrecto.</strong><br>${qData.exp}`;
+            feedback.className = 'feedback error show';
+            if(navBtn) navBtn.classList.add('incorrect');
+        }
+        updateProgress();
+    }
+
+    function toggleMark(id, btn) {
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        if (markedIds.has(id)) {
+            markedIds.delete(id);
+            btn.innerHTML = '☆ Marcar';
+            btn.classList.remove('active');
+            if(navBtn) navBtn.classList.remove('marked');
+        } else {
+            markedIds.add(id);
+            btn.innerHTML = '★ Marcada';
+            btn.classList.add('active');
+            if(navBtn) navBtn.classList.add('marked');
+        }
+    }
+
+    function updateProgress() {
+        const count = Object.keys(userAnswers).length;
+        const total = currentQuestions.length;
+        document.getElementById('progress-text').innerText = `${count}/${total} respondidas`;
+        
+        if (count === total && total > 0) {
+            showResults(false);
+        }
+    }
+
+    function showResults(manualFinish = false) {
+        const panel = document.getElementById('results-panel');
+        let correct = 0;
+        Object.values(userAnswers).forEach(v => { if(v) correct++; });
+        
+        const total = currentQuestions.length;
+        
+        document.getElementById('score-text').innerText = `Has acertado ${correct} de ${total}`;
+        panel.style.display = 'block';
+        
+        if(manualFinish) {
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setTimeout(() => panel.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
+
+    function resetQuiz(mode) {
+        let nextIds = [];
+
+        if (mode === 'all') {
+            nextIds = dbQuestions.map(q => q.id);
+        } else if (mode === 'wrong') {
+            nextIds = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+        } else if (mode === 'marked') {
+            nextIds = Array.from(markedIds);
+        } else if (mode === 'wrong_marked') {
+            const wrong = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+            const marked = Array.from(markedIds);
+            nextIds = [...new Set([...wrong, ...marked])];
+        }
+
+        if (nextIds.length === 0) {
+            alert("No hay preguntas para los criterios seleccionados.");
+            return;
+        }
+
+        userAnswers = {};
+        currentQuestions = dbQuestions.filter(q => nextIds.includes(q.id));
+        renderQuiz();
+        document.querySelector('.main-content').scrollTop = 0;
+    }
+
+    renderQuiz();
+</script>
+</body>
+</html>

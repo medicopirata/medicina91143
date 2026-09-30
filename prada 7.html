@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Tema 20: Cavidad Abdominopélvica</title>
+    <style>
+        :root {
+            --primary-color: #d35400; /* Tono Tierra/Óxido para Abdomen */
+            --secondary-color: #e67e22;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --background-color: #fdf2e9;
+            --card-background: #ffffff;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #bdc3c7;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            text-align: center;
+            background-color: #1a252f;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.1rem; }
+        
+        .sidebar-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sidebar-stats { font-size: 0.9rem; color: #bdc3c7; }
+
+        .finish-btn-side {
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            width: 80%;
+            transition: 0.2s;
+        }
+        .finish-btn-side:hover { background-color: #c0392b; }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 5px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); }
+        .nav-btn.correct { background-color: var(--success-color); }
+        .nav-btn.incorrect { background-color: var(--error-color); }
+        .nav-btn.marked { border: 2px solid #f1c40f; color: #f1c40f; font-weight: bold; }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h1 { color: var(--primary-color); border-bottom: 3px solid var(--secondary-color); padding-bottom: 10px; }
+
+        .question-card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--secondary-color);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .bookmark-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #95a5a6;
+            padding: 2px 8px;
+        }
+        .bookmark-btn.active { color: #f39c12; border-color: #f39c12; background: #fef9e7; }
+
+        .question-text { font-size: 1.1rem; color: #2c3e50; margin-bottom: 15px; font-weight: 600; line-height: 1.4; }
+
+        .options-grid { display: flex; flex-direction: column; gap: 8px; }
+
+        .option-btn {
+            padding: 10px 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { background-color: #f6ddcc; border-color: var(--primary-color); }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.incorrect { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .option-btn.disabled { cursor: default; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background-color: #e8f8f5; color: #0e6251; }
+        .feedback.error { background-color: #fdedec; color: #78281f; }
+
+        /* RESULT PANEL */
+        .results-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 40px;
+            display: none;
+            margin-bottom: 50px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            background: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { background: #d35400; transform: scale(1.05); }
+        .action-btn:active { transform: scale(0.95); }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: 160px; border-right: none; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            .sidebar-nav { grid-template-columns: repeat(8, 1fr); max-height: 150px; }
+            .main-content { overflow: visible; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Tema 20: Cavidad Abdominopélvica</h2>
+        <div class="sidebar-controls">
+            <div class="sidebar-stats"><span id="progress-text">0/36</span> respondidas</div>
+            <button class="finish-btn-side" onclick="showResults(true)">Finalizar Test</button>
+        </div>
+    </div>
+    <div id="sidebar-nav" class="sidebar-nav"></div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h1>Peritoneo y Retroperitoneo 
+
+[Image of abdominal cavity peritoneum]
+</h1>
+        <div id="questions-list"></div>
+        
+        <div id="results-panel" class="results-panel">
+            <h2>Test Finalizado</h2>
+            <p id="score-text" style="font-size: 1.4rem; margin: 15px 0;"></p>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="resetQuiz('all')">Repetir Todo</button>
+                <button class="action-btn" onclick="resetQuiz('wrong')">Repetir Falladas</button>
+                <button class="action-btn" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="action-btn" onclick="resetQuiz('wrong_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // BASE DE DATOS - TEMA 20
+    const dbQuestions = [
+        { 
+            id: 1, original: "1", 
+            q: "Cuál es el límite posterior del orificio de entrada a la transcavidad de los epiplones:", 
+            options: [
+                { text: "Vena cava inferior", correct: true },
+                { text: "Vena porta", correct: false },
+                { text: "Lóbulo caudado", correct: false },
+                { text: "Duodeno", correct: false }
+            ], 
+            exp: "El Hiato de Winslow está limitado posteriormente por la Vena Cava Inferior." 
+        },
+        { 
+            id: 2, original: "2", 
+            q: "Cual es el límite anterior del orificio de entrada a la transcavidad de los epiplones:", 
+            options: [
+                { text: "Vena cava inferior", correct: false },
+                { text: "Vena porta, arteria hepática y conducto biliar (están en el ligamento hepatoduodenal)", correct: true },
+                { text: "Lóbulo caudado del hígado", correct: false },
+                { text: "Duodeno", correct: false }
+            ], 
+            exp: "El límite anterior es el borde libre del epiplón menor (ligamento hepatoduodenal) que contiene al pedículo hepático." 
+        },
+        { 
+            id: 3, original: "3", 
+            q: "Cuál es el límite superior del orificio de entrada a la transcavidad de los epiplones:", 
+            options: [
+                { text: "Vena cava inferior", correct: false },
+                { text: "Lóbulo caudado del hígado", correct: true },
+                { text: "Primera porción del duodeno", correct: false },
+                { text: "Ligamento hepatoduodenal", correct: false }
+            ], 
+            exp: "El lóbulo caudado (o de Spiegel) del hígado forma el techo del hiato." 
+        },
+        { 
+            id: 4, original: "4", 
+            q: "Qué ligamento es límite anterior del epiplón menor y qué estructuras discurren por él:", 
+            options: [
+                { text: "Ligamento hepatoduodenal (Vena porta, arteria hepática y conducto biliar)", correct: true },
+                { text: "Ligamento gastrohepático", correct: false },
+                { text: "Ligamento falciforme", correct: false },
+                { text: "Ligamento frenoesofágico", correct: false }
+            ], 
+            exp: "El ligamento hepatoduodenal (parte del epiplón menor) contiene la tríada portal." 
+        },
+        { 
+            id: 5, original: "5", 
+            q: "La arteria mesenterica superior penetra en el peritoneo a traves de la:", 
+            options: [
+                { text: "Raiz del mesenterio", correct: true },
+                { text: "Transcavidad de los epiplones", correct: false },
+                { text: "Raiz del mesocolon transverso", correct: false },
+                { text: "Fascia de Toldt", correct: false }
+            ], 
+            exp: "La AMS entra en el mesenterio cruzando la 3ª porción del duodeno." 
+        },
+        { 
+            id: 6, original: "6", 
+            q: "El hiato aórtico del diafragma es atravesado por:", 
+            options: [
+                { text: "Los nervios vagos anterior y posterior y la arteria aórtica", correct: false },
+                { text: "La arteria aorta y el conducto torácico", correct: true },
+                { text: "La arteria aorta, la arteria y venas mamarias internas", correct: false },
+                { text: "Arteria aorta y nervio frénico izquierdo", correct: false }
+            ], 
+            exp: "La aorta pasa junto al conducto torácico (y a veces la vena ácigos) por el hiato aórtico (T12)." 
+        },
+        { 
+            id: 7, original: "7", 
+            q: "Los nervios neumogástricos (vagos) pasan por el diafragma acompañando a:", 
+            options: [
+                { text: "Aorta abdominal", correct: false },
+                { text: "Esófago", correct: true },
+                { text: "Vena cava inferior", correct: false },
+                { text: "Cadena simpática torácica", correct: false }
+            ], 
+            exp: "Pasan por el hiato esofágico (T10)." 
+        },
+        { 
+            id: 8, original: "8", 
+            q: "¿A qué nivel intercostal se encuentran los espacios costodiafragmáticos?", 
+            options: [
+                { text: "Cuarto", correct: false },
+                { text: "Segundo", correct: false },
+                { text: "Octavo", correct: false },
+                { text: "Decimosegundo", correct: true }
+            ], 
+            exp: "El receso costodiafragmático se extiende inferiormente hasta la 12ª costilla (línea paravertebral) o 10º espacio (línea axilar media). Entre las opciones dadas, 'Decimosegundo' marca el límite inferior anatómico." 
+        },
+        { 
+            id: 9, original: "9", 
+            q: "El ligamento redondo se encuentra en el borde libre del:", 
+            options: [
+                { text: "Ligamento redondo (Redundante)", correct: false },
+                { text: "Receso hepatorrenal", correct: false },
+                { text: "Epiplón mayor", correct: false },
+                { text: "Ligamento falciforme", correct: true }
+            ], 
+            exp: "El ligamento redondo (vena umbilical obliterada) corre por el borde libre del ligamento falciforme del hígado." 
+        },
+        { 
+            id: 10, original: "10", 
+            q: "El hipocondrio izquierdo NO contiene:", 
+            options: [
+                { text: "Bazo", correct: false },
+                { text: "Colon transverso (ángulo esplénico)", correct: false },
+                { text: "Estómago", correct: false },
+                { text: "Colon sigmoide", correct: true }
+            ], 
+            exp: "El colon sigmoide está en la fosa ilíaca izquierda." 
+        },
+        { 
+            id: 11, original: "11", 
+            q: "Una estructura perimetral que une la pared de la cavidad abdominal con un órgano y que transporta vasos se denomina:", 
+            options: [
+                { text: "Epiplón", correct: false },
+                { text: "Meso", correct: true },
+                { text: "Ligamento", correct: false },
+                { text: "Fascia de coalescencia", correct: false }
+            ], 
+            exp: "Definición de Meso (ej: mesenterio, mesocolon)." 
+        },
+        { 
+            id: 12, original: "12", 
+            q: "El mesenterio une:", 
+            options: [
+                { text: "El yeyunoileon a la pared posterior", correct: true },
+                { text: "La cola del páncreas a la pared posterior", correct: false },
+                { text: "El colon ascendente a la pared posterior", correct: false },
+                { text: "El recto a la pared posterior", correct: false }
+            ], 
+            exp: "El mesenterio suspende al intestino delgado (yeyuno e íleon)." 
+        },
+        { 
+            id: 13, original: "13", 
+            q: "La transcavidad de los epiplones es:", 
+            options: [
+                { text: "Retrogátrica - prepancreática", correct: true },
+                { text: "Pregástrica - retropancreática", correct: false },
+                { text: "Prepancreática - preesplénica", correct: false },
+                { text: "Retrocolónica - retropancreática", correct: false }
+            ], 
+            exp: "Se sitúa detrás del estómago y delante del páncreas." 
+        },
+        { 
+            id: 14, original: "14", 
+            q: "Una doble lámina que forma un pliegue de peritoneo es denominada:", 
+            options: [
+                { text: "Meso", correct: true },
+                { text: "Eco", correct: false },
+                { text: "Promontorio", correct: false },
+                { text: "Pedículo de fijación", correct: false },
+                { text: "Ninguna es cierta", correct: false }
+            ], 
+            exp: "Generalmente se refiere a mesos, ligamentos o epiplones (todos doble lámina). Meso es la opción más estándar en este contexto." 
+        },
+        { 
+            id: 15, original: "15", 
+            q: "Cuál de los siguientes pliegues del peritoneo es un vestigio del uraco:", 
+            options: [
+                { text: "Pliegue umbilical medial", correct: false },
+                { text: "Pliegue umbilical medio", correct: true },
+                { text: "Pliegue umbilical lateral", correct: false },
+                { text: "Ligamento falciforme", correct: false },
+                { text: "Ligamento redondo", correct: false }
+            ], 
+            exp: "Pliegue umbilical MEDIO: Uraco. Pliegue umbilical MEDIAL: Arteria umbilical obliterada." 
+        },
+        { 
+            id: 16, original: "16", 
+            q: "La fascia de Sibson:", 
+            options: [
+                { text: "Se inserta en el borde medial de la primera costilla y llega hasta la apófisis espinosa de C6", correct: false },
+                { text: "Se inserta en el borde lateral de la primera costilla y llega hasta la apófisis espinosa de C7 (Proceso transverso)", correct: false },
+                { text: "Los escalenos aportan fibras a dicho ligamento", correct: false },
+                { text: "A y C", correct: true },
+                { text: "B y C", correct: false }
+            ], 
+            exp: "También llamada membrana suprapleural, refuerza la cúpula pleural. Tiene expansiones de los escalenos." 
+        },
+        { 
+            id: 17, original: "17", 
+            q: "El peritoneo parietal que tapiza la musculatura del abdomen recibe inervación sensitiva desde:", 
+            options: [
+                { text: "De los nervios esplácnicos mayores", correct: false },
+                { text: "Del plexo hipogástrico inferior", correct: false },
+                { text: "Del vago", correct: false },
+                { text: "La inervación de los propios músculos de la pared (somática)", correct: true }
+            ], 
+            exp: "El peritoneo parietal tiene sensibilidad somática (dolor bien localizado) a través de los nervios de la pared (intercostales, lumbares)." 
+        },
+        { 
+            id: 18, original: "18-A", 
+            q: "Relacione: Pirámides de Malpighi", 
+            options: [
+                { text: "Arteria aorta", correct: false },
+                { text: "Duodeno-Páncreas", correct: false },
+                { text: "Venas pulmonares", correct: false },
+                { text: "Colon ascendente", correct: false },
+                { text: "Riñón", correct: true }
+            ], 
+            exp: "Están en la médula renal." 
+        },
+        { 
+            id: 19, original: "18-B", 
+            q: "Relacione: Ligamento de Treitz", 
+            options: [
+                { text: "Arteria aorta", correct: false },
+                { text: "Duodeno-Páncreas (Ángulo duodenoyeyunal)", correct: true },
+                { text: "Venas pulmonares", correct: false },
+                { text: "Colon ascendente", correct: false },
+                { text: "Riñón", correct: false }
+            ], 
+            exp: "Músculo suspensorio del duodeno." 
+        },
+        { 
+            id: 20, original: "18-C", 
+            q: "Relacione: Ligamento o fascia de Toldt", 
+            options: [
+                { text: "Arteria aorta", correct: false },
+                { text: "Duodeno-Páncreas", correct: false },
+                { text: "Venas pulmonares", correct: false },
+                { text: "Colon ascendente (y descendente)", correct: true },
+                { text: "Riñón", correct: false }
+            ], 
+            exp: "Fascia de coalescencia retrocolónica." 
+        },
+        { 
+            id: 21, original: "18-D", 
+            q: "Relacione: Conducto arterioso de Botalli", 
+            options: [
+                { text: "Arteria aorta (y pulmonar)", correct: true },
+                { text: "Duodeno-Páncreas", correct: false },
+                { text: "Venas pulmonares", correct: false },
+                { text: "Colon ascendente", correct: false },
+                { text: "Riñón", correct: false }
+            ], 
+            exp: "Estructura vascular fetal." 
+        },
+        { 
+            id: 22, original: "19", 
+            q: "¿Cuál de las siguientes arterias se encuentra atrofiada en el adulto?:", 
+            options: [
+                { text: "Uterina", correct: false },
+                { text: "Ovárica", correct: false },
+                { text: "Pudenda", correct: false },
+                { text: "Testicular", correct: false },
+                { text: "Umbilical", correct: true }
+            ], 
+            exp: "La arteria umbilical se oblitera distalmente (ligamento umbilical medial), proximalmente da las vesicales superiores." 
+        },
+        { 
+            id: 23, original: "20", 
+            q: "Donde es más común la aparición de dilataciones venosas por un aumento de la hipertensión portal:", 
+            options: [
+                { text: "Recto", correct: false },
+                { text: "Esófago", correct: false },
+                { text: "Zona periumbilical", correct: false },
+                { text: "A y B son ciertas", correct: false },
+                { text: "Todas son ciertas", correct: true }
+            ], 
+            exp: "Todas son zonas de anastomosis portocava." 
+        },
+        { 
+            id: 24, original: "21", 
+            q: "Con respecto al mesenterio NO ES CIERTO:", 
+            options: [
+                { text: "Contiene grasa y vasos linfáticos", correct: false },
+                { text: "Contiene vasos mesentéricos superiores", correct: false },
+                { text: "Contiene entre sus hojas los vasos mesentéricos superiores e inferiores (Falso, los inferiores son retroperitoneales)", correct: true },
+                { text: "Une el intestino delgado a la pared", correct: false }
+            ], 
+            exp: "La arteria mesentérica inferior es retroperitoneal, no va por el mesenterio." 
+        },
+        { 
+            id: 25, original: "61", 
+            q: "¿Cuál de las siguientes estructuras NO ENCONTRARIA en la pared posterior de la bolsa omental o trascavidad de los epiplones?", 
+            options: [
+                { text: "Páncreas", correct: false },
+                { text: "Riñón izquierdo", correct: false },
+                { text: "Aorta", correct: false },
+                { text: "Bazo", correct: true }
+            ], 
+            exp: "El bazo es el límite lateral izquierdo, no pared posterior." 
+        },
+        { 
+            id: 26, original: "1", 
+            q: "Acerca de la pleura visceral señale la opción correcta (Pregunta desplazada en texto original):", 
+            options: [
+                { text: "Tapiza la cara superior del músculo diafragma", correct: false },
+                { text: "Se introduce en la profundidad de las cisuras pulmonares", correct: true },
+                { text: "Tapiza la cara interna de la parrilla costal", correct: false },
+                { text: "Se nutre por arterias derivadas directamente de la aorta torácica", correct: false },
+                { text: "Está inervada por los nervios intercostales", correct: false }
+            ], 
+            exp: "Única serosa en las cisuras." 
+        },
+        { 
+            id: 27, original: "6", 
+            q: "La arteria de la cual se origina la gástroepiplóica derecha es:", 
+            options: [
+                { text: "Gástrica izquierda", correct: false },
+                { text: "Mesentérica superior", correct: false },
+                { text: "Cólica media", correct: false },
+                { text: "Gastroduodenal (rama hepática común)", correct: true }
+            ], 
+            exp: "Rama terminal de la gastroduodenal." 
+        },
+        { 
+            id: 28, original: "Extra", 
+            q: "La arteria mesentérica superior alcanza el mesenterio cruzando sobre:", 
+            options: [
+                { text: "La cara superior del mesolocon transverso", correct: false },
+                { text: "La tercera porción horizontal del duodeno", correct: true },
+                { text: "La transcavidad de los epiplones", correct: false },
+                { text: "El borde superior del cuerpo del yeyuno", correct: false }
+            ], 
+            exp: "Cruza por delante de D3 (pinza aortomesentérica)." 
+        },
+        { 
+            id: 29, original: "7", 
+            q: "La entrada a la bolsa omental se encuentra:", 
+            options: [
+                { text: "En la curvatura mayor del estómago", correct: false },
+                { text: "Dorsal al borde libre del epiplon menor", correct: true },
+                { text: "En la cara superior del mesocolon transverso", correct: false },
+                { text: "Superior al fundus gástrico", correct: false }
+            ], 
+            exp: "Hiato de Winslow: detrás del ligamento hepatoduodenal." 
+        },
+        { 
+            id: 30, original: "8", 
+            q: "La hoja superior del ligamento coronario es la reflexión de peritoneo que delimita:", 
+            options: [
+                { text: "El lecho biliar para la vesícula", correct: false },
+                { text: "El ligamento hepatorenal", correct: false },
+                { text: "El surco de la vena de Arancio", correct: false },
+                { text: "El receso subfrénico (y área desnuda)", correct: true }
+            ], 
+            exp: "Delimita el área desnuda superiormente." 
+        },
+        { 
+            id: 31, original: "187", 
+            q: "¿Qué músculo es responsable directo del inicio de la marcha?", 
+            options: [
+                { text: "Psoas iliaco", correct: true },
+                { text: "Cuadrado lumbar", correct: false },
+                { text: "Recto del abdomen", correct: false },
+                { text: "Transverso del abdomen", correct: false },
+                { text: "Oblicuo externo", correct: false }
+            ], 
+            exp: "El psoas ilíaco flexiona el muslo." 
+        },
+        { 
+            id: 32, original: "30", 
+            q: "La arteria de la cual se origina la gástrica izquierda es:", 
+            options: [
+                { text: "Mesentérica inferior", correct: false },
+                { text: "Tronco celíaco", correct: true },
+                { text: "Mesentérica superior", correct: false },
+                { text: "Gástrica izquierda", correct: false }
+            ], 
+            exp: "Es la rama más pequeña del Tronco Celíaco." 
+        },
+        { 
+            id: 33, original: "37", 
+            q: "En esta porción se fija el epiplón menor:", 
+            options: [
+                { text: "Fundus", correct: false },
+                { text: "Curvatura menor", correct: true },
+                { text: "Curvatura mayor", correct: false },
+                { text: "Píloro", correct: false }
+            ], 
+            exp: "El epiplón menor (gastrohepático) va de la curvatura menor al hígado." 
+        },
+        { 
+            id: 34, original: "43", 
+            q: "La arteria mesentérica superior alcanza la raíz del mesenterio cruzando sobre: (Repetida)", 
+            options: [
+                { text: "El borde antimesentérico de yeyuno e íleon", correct: false },
+                { text: "El borde superior del cuerpo del yeyuno", correct: false },
+                { text: "La transcavidad de los epiplones", correct: false },
+                { text: "La tercera porción horizontal del duodeno", correct: true }
+            ], 
+            exp: "Repetida." 
+        },
+        { 
+            id: 35, original: "46", 
+            q: "La arteria de la cual se origina la cólica izquierda es:", 
+            options: [
+                { text: "Mesentérica inferior", correct: true },
+                { text: "Mesentérica superior", correct: false },
+                { text: "Tronco celiaco", correct: false },
+                { text: "Gástrica izquierda", correct: false }
+            ], 
+            exp: "Rama de la AMI." 
+        },
+        { 
+            id: 36, original: "Extra", 
+            q: "¿Qué estructura NO está cubierta por peritoneo visceral?", 
+            options: [
+                { text: "Estómago", correct: false },
+                { text: "Hígado (excepto área desnuda)", correct: false },
+                { text: "Ovario", correct: true },
+                { text: "Yeyuno", correct: false }
+            ], 
+            exp: "El ovario está dentro de la cavidad peritoneal pero su epitelio germinal no se considera peritoneo visceral clásico (es intraperitoneal real)." 
+        }
+    ];
+
+    let currentQuestions = [...dbQuestions];
+    let markedIds = new Set();
+    let userAnswers = {};
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz() {
+        const list = document.getElementById('questions-list');
+        const nav = document.getElementById('sidebar-nav');
+        const resultsPanel = document.getElementById('results-panel');
+        
+        list.innerHTML = '';
+        nav.innerHTML = '';
+        resultsPanel.style.display = 'none';
+
+        if(currentQuestions.length === 0) {
+            list.innerHTML = `<div class="question-card"><p>No hay preguntas para los criterios seleccionados.</p></div>`;
+            return;
+        }
+
+        currentQuestions.forEach((q, index) => {
+            const btn = document.createElement('a');
+            btn.href = `#q-${q.id}`;
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            btn.id = `nav-btn-${q.id}`;
+            
+            if (userAnswers[q.id] === true) btn.classList.add('correct');
+            if (userAnswers[q.id] === false) btn.classList.add('incorrect');
+            if (markedIds.has(q.id)) btn.classList.add('marked');
+
+            nav.appendChild(btn);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            const originalOptions = q.options.map((text, i) => ({ text: text.text, isCorrect: text.correct }));
+            const finalOptions = shuffle(originalOptions);
+
+            let optionsHTML = '';
+            finalOptions.forEach(opt => {
+                const safeText = opt.text.replace(/'/g, "&#39;"); 
+                optionsHTML += `<button class="option-btn" onclick="handleAnswer(${q.id}, ${opt.isCorrect}, this)">${opt.text}</button>`;
+            });
+
+            const isMarked = markedIds.has(q.id);
+
+            card.innerHTML = `
+                <div class="question-header-row">
+                    <span>Pregunta ${index + 1} (Ref: ${q.original})</span>
+                    <button class="bookmark-btn ${isMarked ? 'active' : ''}" onclick="toggleMark(${q.id}, this)">
+                        ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                    </button>
+                </div>
+                <div class="question-text">${q.q}</div>
+                <div class="options-grid" id="opts-${q.id}">
+                    ${optionsHTML}
+                </div>
+                <div class="feedback" id="feed-${q.id}"></div>
+            `;
+            list.appendChild(card);
+        });
+        updateProgress();
+    }
+
+    function handleAnswer(id, isCorrect, btn) {
+        if (userAnswers.hasOwnProperty(id)) return;
+        
+        userAnswers[id] = isCorrect;
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        const feedback = document.getElementById(`feed-${id}`);
+        const container = document.getElementById(`opts-${id}`);
+        const qData = dbQuestions.find(x => x.id === id);
+
+        const allBtns = container.querySelectorAll('.option-btn');
+        allBtns.forEach(b => {
+            b.classList.add('disabled');
+            b.onclick = null;
+            const correctText = qData.options.find(o => o.correct).text;
+            if (b.innerText === correctText) b.classList.add('correct');
+        });
+
+        if (isCorrect) {
+            feedback.innerHTML = `<strong>¡Correcto!</strong><br>${qData.exp}`;
+            feedback.className = 'feedback success show';
+            if(navBtn) navBtn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            feedback.innerHTML = `<strong>Incorrecto.</strong><br>${qData.exp}`;
+            feedback.className = 'feedback error show';
+            if(navBtn) navBtn.classList.add('incorrect');
+        }
+        updateProgress();
+    }
+
+    function toggleMark(id, btn) {
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        if (markedIds.has(id)) {
+            markedIds.delete(id);
+            btn.innerHTML = '☆ Marcar';
+            btn.classList.remove('active');
+            if(navBtn) navBtn.classList.remove('marked');
+        } else {
+            markedIds.add(id);
+            btn.innerHTML = '★ Marcada';
+            btn.classList.add('active');
+            if(navBtn) navBtn.classList.add('marked');
+        }
+    }
+
+    function updateProgress() {
+        const count = Object.keys(userAnswers).length;
+        const total = currentQuestions.length;
+        document.getElementById('progress-text').innerText = `${count}/${total} respondidas`;
+        
+        if (count === total && total > 0) {
+            showResults(false);
+        }
+    }
+
+    function showResults(manualFinish = false) {
+        const panel = document.getElementById('results-panel');
+        let correct = 0;
+        Object.values(userAnswers).forEach(v => { if(v) correct++; });
+        
+        const total = currentQuestions.length;
+        
+        document.getElementById('score-text').innerText = `Has acertado ${correct} de ${total}`;
+        panel.style.display = 'block';
+        
+        if(manualFinish) {
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setTimeout(() => panel.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
+
+    function resetQuiz(mode) {
+        let nextIds = [];
+
+        if (mode === 'all') {
+            nextIds = dbQuestions.map(q => q.id);
+        } else if (mode === 'wrong') {
+            nextIds = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+        } else if (mode === 'marked') {
+            nextIds = Array.from(markedIds);
+        } else if (mode === 'wrong_marked') {
+            const wrong = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+            const marked = Array.from(markedIds);
+            nextIds = [...new Set([...wrong, ...marked])];
+        }
+
+        if (nextIds.length === 0) {
+            alert("No hay preguntas para los criterios seleccionados.");
+            return;
+        }
+
+        userAnswers = {};
+        currentQuestions = dbQuestions.filter(q => nextIds.includes(q.id));
+        renderQuiz();
+        document.querySelector('.main-content').scrollTop = 0;
+    }
+
+    renderQuiz();
+</script>
+</body>
+</html>

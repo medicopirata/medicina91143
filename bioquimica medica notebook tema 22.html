@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Bioquímica: Tejido Adiposo y Metabolismo</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22;
+            --correct-color: #27ae60;
+            --incorrect-color: #c0392b;
+            --marked-color: #f1c40f;
+            --bg-color: #fdfefe;
+            --sidebar-width: 90px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantalla de Inicio / Configuración */
+        #setup-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary-color), #34495e);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-start {
+            padding: 15px 35px;
+            margin: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 50px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: bold;
+            transition: transform 0.2s, background 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-start:hover {
+            transform: translateY(-3px);
+            background: #d35400;
+        }
+
+        /* Índice lateral (1 Columna) */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--primary-color);
+            color: white;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .nav-item {
+            width: 45px;
+            height: 45px;
+            line-height: 45px;
+            text-align: center;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-item:hover { background: var(--accent-color); }
+        .nav-item.answered-correct { background: var(--correct-color) !important; }
+        .nav-item.answered-wrong { background: var(--incorrect-color) !important; }
+        .nav-item.marked-q { border-color: var(--marked-color); color: var(--marked-color); font-weight: bold; }
+
+        /* Contenido principal */
+        #main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px 60px;
+            scroll-behavior: smooth;
+            background-color: var(--bg-color);
+        }
+
+        .question-block {
+            background: white;
+            padding: 35px;
+            margin-bottom: 60px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            position: relative;
+            max-width: 850px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .q-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            line-height: 1.5;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 16px 20px;
+            border: 2px solid #eaeded;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.05rem;
+            color: #555;
+        }
+
+        .option:hover {
+            background: #f8f9f9;
+            border-color: var(--accent-color);
+            padding-left: 25px;
+        }
+
+        .option.correct {
+            background: #d4edda !important;
+            border-color: var(--correct-color) !important;
+            color: #155724;
+            font-weight: bold;
+        }
+
+        .option.wrong {
+            background: #f8d7da !important;
+            border-color: var(--incorrect-color) !important;
+            color: #721c24;
+        }
+
+        .option.disabled {
+            pointer-events: none;
+        }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fdf2e9;
+            border-left: 5px solid var(--accent-color);
+            display: none;
+            font-size: 1rem;
+            color: #844405;
+            line-height: 1.4;
+        }
+
+        /* Pestaña de Marcado */
+        .mark-tab {
+            position: absolute;
+            top: 0;
+            right: 40px;
+            background: #eee;
+            padding: 8px 15px;
+            border-radius: 0 0 10px 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            transition: 0.3s;
+            color: #777;
+        }
+
+        .mark-tab.active {
+            background: var(--marked-color);
+            color: #fff;
+        }
+
+        /* Pantalla final */
+        #final-screen {
+            display: none;
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 40px auto 100px auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+        }
+
+        #score-circle {
+            width: 120px;
+            height: 120px;
+            line-height: 120px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            font-size: 2rem;
+            margin: 0 auto 20px auto;
+            font-weight: bold;
+        }
+
+        .btn-finish {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div id="setup-overlay">
+    <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Bioquímica: Tejido Adiposo</h1>
+    <p style="font-size: 1.2rem; opacity: 0.8; margin-bottom: 30px;">Selecciona el modo de inicio</p>
+    <button class="btn-start" onclick="initQuiz('normal')">Orden de Preguntas Literal</button>
+    <button class="btn-start" onclick="initQuiz('shuffle')">Mezclar Preguntas Aleatoriamente</button>
+</div>
+
+<div id="sidebar"></div>
+
+<div id="main-content">
+    <div id="quiz-container"></div>
+    
+    <div id="final-screen">
+        <div id="score-circle">0%</div>
+        <h2 id="final-title">¡Cuestionario Finalizado!</h2>
+        <p id="score-text" style="font-size: 1.1rem; margin-bottom: 30px;"></p>
+        
+        <div style="display: grid; gap: 10px;">
+            <button class="btn-start" onclick="restartQuiz('all')">Repetir Cuestionario Completo</button>
+            <button class="btn-start" style="background:#8e44ad" onclick="restartQuiz('failed')">Repetir solo Falladas</button>
+            <button class="btn-start" style="background:#f39c12" onclick="restartQuiz('marked')">Repetir solo Marcadas</button>
+            <button class="btn-start" style="background:#2c3e50" onclick="restartQuiz('both')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<button class="btn-finish" onclick="finishAndShowResults()">Finalizar y Ver Resultados</button>
+
+<script>
+const rawData = [
+    {
+        q: "1. Según explicó la profesora, ¿por qué el tejido adiposo es estrictamente insulinodependiente para poder almacenar triglicéridos?",
+        options: ["a) Porque la insulina activa directamente a la Lipoproteína Lipasa (LPL).", "b) Porque los adipocitos carecen de la quinasa para fosforilar el glicerol endógeno, necesitando la glucólisis para generar glicerol-3-fosfato.", "c) Porque la insulina es necesaria para activar la termogénesis en el adipocito blanco.", "d) Porque la insulina inhibe la enzima UCP-1."],
+        correct: 1,
+        exp: "Chivatazo de clase. El adipocito no tiene glicerol quinasa. Necesita captar glucosa (vía GLUT4, dependiente de insulina) para hacer glucólisis, generar Dihidroxiacetona Fosfato (DHAP) y reducirla a glicerol-3-fosfato para formar triglicéridos."
+    },
+    {
+        q: "2. ¿Qué linaje celular da origen a los adipocitos de la grasa parda (marrón)?",
+        options: ["a) Precursores que no expresan Myf5 (Myf5 negativo).", "b) Células del sistema inmunitario.", "c) Precursores que expresan el factor miogénico Myf5 (Myf5 positivo).", "d) Adipoblastos derivados exclusivamente del tejido adiposo visceral."],
+        correct: 2,
+        exp: "Según las diapositivas y la profesora, el adipocito pardo deriva de un linaje miogénico (Myf5+), compartiendo origen con el mioblasto. El blanco y el beige son Myf5-."
+    },
+    {
+        q: "3. El tejido adiposo beige surge por un proceso denominado \"pardeado\" (browning). ¿A partir de qué tejido y bajo qué estímulos aparece?",
+        options: ["a) Del tejido adiposo pardo, por estimulación con insulina.", "b) Del tejido adiposo blanco, tras la exposición al frío o por estimulación de receptores β-adrenérgicos.", "c) Del músculo esquelético, inducido por el ejercicio.", "d) De los macrófagos M2, por acción de la adiponectina."],
+        correct: 1,
+        exp: "El adipocito beige es tejido pardo \"inmerso\" en el tejido blanco. Aparece al exponerse al frío o a agonistas β-adrenérgicos."
+    },
+    {
+        q: "4. ¿Cuál es el mecanismo bioquímico por el que la grasa parda (marrón) genera calor (termogénesis)?",
+        options: ["a) Mediante la hiperactividad de la enzima ATPasa, que genera fricción molecular.", "b) Gracias a la proteína desacoplante UCP-1, que impide que los protones pasen por la ATPasa y disipa la energía en forma de calor.", "c) Por la destrucción rápida de vesículas de adiponectina.", "d) Mediante la contracción sostenida del citoesqueleto de actina."],
+        correct: 1,
+        exp: "Explicado paso a paso en clase. Al oxidar ácidos grasos en sus abundantes mitocondrias, los protones no vuelven por la ATP sintasa, sino por la UCP-1, liberando energía como calor en vez de ATP."
+    },
+    {
+        q: "5. Ante una situación de ingesta calórica excesiva, el tejido adiposo puede expandirse mediante hiperplasia o hipertrofia. Señale la afirmación CORRECTA respecto a la HIPERTROFIA:",
+        options: ["a) Aumenta el número de células y es un fenómeno metabólicamente beneficioso.", "b) Mantiene alta la sensibilidad a la insulina y la secreción de adiponectina.", "c) Aumenta el tamaño celular, generando hipoxia, fibrosis, inflamación y resistencia a la insulina.", "d) Favorece la polarización de los macrófagos hacia el fenotipo M2 antiinflamatorio."],
+        correct: 2,
+        exp: "La hipertrofia (aumento de tamaño) es el mecanismo dañino en la obesidad. Provoca muerte celular, hipoxia y liberación masiva de citoquinas proinflamatorias."
+    },
+    {
+        q: "6. ¿Qué ocurre físicamente con la estructura del adipocito hipertrófico que le impide captar glucosa de la sangre?",
+        options: ["a) Destruye físicamente sus receptores de insulina.", "b) Hay una alteración en la dinámica de la actina cortical del citoesqueleto, lo que impide la traslocación de las vesículas con el transportador GLUT4 a la membrana.", "c) La gran vacuola lipídica expulsa al núcleo fuera de la célula.", "d) Se cristalizan los triglicéridos, bloqueando los poros de la membrana."],
+        correct: 1,
+        exp: "Detalle muy remarcado por la profesora. Al inflarse tanto, el citoesqueleto se desorganiza y, aunque haya insulina, el GLUT4 no puede viajar mecánicamente hasta la superficie."
+    },
+    {
+        q: "7. En la obesidad, los adipocitos muertos o apoptóticos son rodeados por macrófagos. ¿Qué nombre recibe esta formación histológica característica?",
+        options: ["a) Placa de ateroma.", "b) Estructuras en forma de corona (\"Crown-like structures\").", "c) Nódulo linfático ectópico.", "d) Granuloma adiposo unilocular."],
+        correct: 1,
+        exp: "En el tejido obeso disfuncional, los macrófagos M1 rodean a los adipocitos necróticos formando estas \"coronas\" productoras de inflamación."
+    },
+    {
+        q: "8. En un tejido adiposo de un individuo delgado y metabólicamente sano, ¿qué perfil de células inmunitarias predomina?",
+        options: ["a) Macrófagos M1 y linfocitos Th1.", "b) Macrófagos M2, linfocitos Th2 y linfocitos T reguladores (Treg).", "c) Únicamente células B plasmáticas.", "d) Neutrófilos y linfocitos CD8+."],
+        correct: 1,
+        exp: "El estado \"sano\" está dominado por células antiinflamatorias (M2, Th2, Treg), que mantienen la homeostasis. El estado obeso atrae a las proinflamatorias (M1, Th1, CD8+)."
+    },
+    {
+        q: "9. ¿A través de qué mecanismo molecular las citoquinas inflamatorias (como el TNF-α) inducen resistencia a la insulina en los tejidos?",
+        options: ["a) Bloqueando la síntesis de glucagón.", "b) Produciendo la fosforilación de residuos de SERINA en el sustrato del receptor de insulina-1 (IRS-1).", "c) Produciendo la fosforilación de residuos de TIROSINA en el sustrato del receptor de insulina-1 (IRS-1).", "d) Destruyendo la proteína GLUT4 en los lisosomas."],
+        correct: 1,
+        exp: "Trampa clásica de bioquímica médica. La señalización normal de la insulina fosforila Tirosina. Las citoquinas proinflamatorias fosforilan la Serina del IRS-1, inactivándolo."
+    },
+    {
+        q: "10. De las siguientes opciones, señale la que contiene EXCLUSIVAMENTE adipoquinas con carácter antiinflamatorio:",
+        options: ["a) Leptina, Resistina y TNF-α.", "b) Adiponectina, IL-10 y SFRP5.", "c) Adiponectina, IL-6 y Visfatina.", "d) Lipocalina 2, RBP4 y SFRP5."],
+        correct: 1,
+        exp: "Adiponectina, Interleucina-10 (IL-10) y SFRP5 son las \"buenas\" o antiinflamatorias. Las demás enumeradas son proinflamatorias."
+    },
+    {
+        q: "11. ¿Cuál es el principal factor fisiológico que eleva las concentraciones circulantes de Leptina en sangre?",
+        options: ["a) El ayuno prolongado.", "b) La exposición al frío.", "c) El exceso de energía almacenada en forma de grasa (obesidad).", "d) La inyección de testosterona."],
+        correct: 2,
+        exp: "Los valores circulantes de leptina dependen casi directamente de la cantidad de masa grasa corporal. A mayor grasa, mayor leptina (aunque haya resistencia a la misma)."
+    },
+    {
+        q: "12. El mecanismo de acción molecular de la Adiponectina (\"la adipoquina buena\") implica la activación de:",
+        options: ["a) La adenilato ciclasa y aumento de AMPc.", "b) La Proteína Quinasa dependiente de AMP (AMPK), p38-MAPK y receptores PPARα.", "c) Exclusivamente la vía JAK2-STAT3.", "d) La inhibición completa de los receptores GLUT4."],
+        correct: 1,
+        exp: "Explicado en profundidad. Al unirse a sus receptores AdipoR1 o AdipoR2, señaliza a través de AMPK, p38MAPK y PPARα para mejorar el perfil lipídico y glucídico."
+    },
+    {
+        q: "13. Una vez que la adiponectina activa a la AMPK celular, esta quinasa actúa sobre la Acetil-CoA Carboxilasa (ACC). ¿Qué le ocurre a la ACC y cuál es el resultado metabólico?",
+        options: ["a) Es desfosforilada y activada, produciendo más ácidos grasos.", "b) Es fosforilada por la AMPK, lo que inactiva a la ACC e inhibe la síntesis de ácidos grasos.", "c) Es degradada, aumentando la síntesis de glucógeno.", "d) Es transportada a la mitocondria para ayudar a la enzima UCP-1."],
+        correct: 1,
+        exp: "La profe se detuvo mucho aquí conectándolo con el primer cuatrimestre. La AMPK fosforila a la ACC (el paso limitante de la síntesis de grasas). Al fosforilarla, la inactiva, cortando de raíz la creación de lípidos y favoreciendo su oxidación."
+    },
+    {
+        q: "14. ¿Qué ocurre con los niveles circulantes de Adiponectina en un individuo que desarrolla obesidad visceral e hiperinsulinemia?",
+        options: ["a) Se elevan exponencialmente para compensar.", "b) Permanecen estables porque solo dependen de la ingesta de proteínas.", "c) Descienden, lo que empeora la acción de la insulina y favorece la DM tipo 2.", "d) Se convierten en leptina."],
+        correct: 2,
+        exp: "A diferencia de la leptina (que sube con la obesidad), la adiponectina \"la buena\" desciende cuando aumenta la grasa visceral y el ambiente proinflamatorio (TNF-α)."
+    },
+    {
+        q: "15. La resistina es considerada una citoquina proinflamatoria. ¿Qué células del tejido adiposo son su principal fuente de producción?",
+        options: ["a) Los adipocitos maduros.", "b) Las células endoteliales de los capilares.", "c) Monocitos y macrófagos residentes.", "d) Los adipoblastos precursores."],
+        correct: 2,
+        exp: "A diferencia de la leptina o la adiponectina (hechas por el adipocito), las diapositivas y el audio especifican que la resistina está producida por monocitos y macrófagos, células del sistema inmune dentro del tejido."
+    },
+    {
+        q: "16. ¿Qué transportador de glucosa (GLUT) es el característico del adipocito y del músculo esquelético, y depende de la insulina para trasladarse a la membrana?",
+        options: ["a) SGLT-1.", "b) GLUT-1.", "c) GLUT-2.", "d) GLUT-4."],
+        correct: 3,
+        exp: "El GLUT-4 es el transportador de alta afinidad insulino-dependiente clave en tejido adiposo y músculo."
+    },
+    {
+        q: "17. En la mucosa intestinal y en los túbulos renales, la absorción de glucosa se realiza junto a un ion de sodio (cotransporte). ¿Qué transportador media este proceso?",
+        options: ["a) GLUT-2.", "b) GLUT-5.", "c) SGLT-1.", "d) GLUT-3."],
+        correct: 2,
+        exp: "En la tabla de transportadores se especifica que el SGLT-1 (Sodium-Glucose Linked Transporter) cotransporta glucosa/galactosa e iones sodio en mucosa intestinal y riñón."
+    },
+    {
+        q: "18. La hipoxia tisular que se genera en el tejido adiposo obeso hipertrofiado desencadena una consecuencia a largo plazo muy perjudicial. ¿Cuál de las siguientes proteínas de transcripción y resultado clínico asocia la profesora con este estado de hipoxia?",
+        options: ["a) Activación de HIF1α que genera fibrosis del tejido adiposo.", "b) Inhibición de JAK2 que genera osteoporosis.", "c) Activación de Myf5 que genera liposarcoma.", "d) Aumento del transportador GLUT5 generando fructosuria."],
+        correct: 0,
+        exp: "La hipoxia celular induce la actividad de los factores de transcripción HIF1α (Hypoxia-Inducible Factor), que activan genes profibróticos, resultando en la fibrosis del tejido adiposo."
+    },
+    {
+        q: "19. Respecto a los receptores de la Adiponectina:",
+        options: ["a) Sólo existe el receptor AdipoR1 ubicado en la retina.", "b) El AdipoR1 se expresa sobre todo en músculo esquelético, y el AdipoR2 en hígado.", "c) Su número aumenta desproporcionadamente durante la hiperinsulinemia de la DM2.", "d) Actúan acoplados exclusivamente a canales iónicos de calcio."],
+        correct: 1,
+        exp: "Diapositivas y audio indican que AdipoR1 se expresa más en músculo, y el AdipoR2 en el hígado (ambos ausentes si hay hiperinsulinemia)."
+    },
+    {
+        q: "20. ¿Qué isoformas tiene el receptor de Leptina (ObR) y qué vías de señalización activan?",
+        options: ["a) Tres isoformas: alfa, beta y gamma.", "b) Una única isoforma acoplada a proteína G.", "c) Dos isoformas: la larga (vía JAK2-STAT3) y la corta (sólo vía JAK2).", "d) Una isoforma nuclear que regula la transcripción del ADN directamente."],
+        correct: 2,
+        exp: "Las diapositivas indican que hay una isoforma larga (JAK2-STAT3) y una corta (solo JAK2, no activa STAT)."
+    },
+    {
+        q: "21. Señale la adipoquina proinflamatoria que es secretada por el adipocito en respuesta a TNF-α y cuyos niveles disminuyen al perder peso:",
+        options: ["a) Interleucina-18 (IL-18).", "b) SFRP5.", "c) Adiponectina.", "d) Glucagón."],
+        correct: 0,
+        exp: "La IL-18 es la citoquina específica mencionada en los apuntes que el adipocito produce al ser estimulado por el TNF-α."
+    },
+    {
+        q: "22. Además de los macrófagos, ¿qué otras células del sistema inmunitario predominantes en el estado proinflamatorio secretan interferón e IL-2, agravando la disfunción adiposa?",
+        options: ["a) Linfocitos Th2 y Eosinófilos.", "b) Células iNKT y Linfocitos Treg.", "c) Linfocitos Th1 y Linfocitos T CD8+.", "d) Glóbulos rojos."],
+        correct: 2,
+        exp: "En el desequilibrio inmunológico hacia la inflamación, predominan los linfocitos Th1 (inmunidad celular, secretan IFN e IL-2) y los T CD8+, desplazando a los Th2 y Treg protectores."
+    },
+    {
+        q: "23. ¿Qué efecto tiene la Leptina a nivel del músculo esquelético, según los apuntes?",
+        options: ["a) Paraliza la vía de la glucólisis anaerobia.", "b) Reduce la entrada de ácidos grasos y su esterificación, incrementando la hidrólisis de triglicéridos e incrementando sensibilidad a la insulina.", "c) Inactiva irreversiblemente a los transportadores GLUT4.", "d) Provoca hiperplasia muscular (aumento del número de miocitos)."],
+        correct: 1,
+        exp: "La leptina intenta evitar la \"lipotoxicidad\" en tejidos periféricos, por lo que frena que el músculo absorba y esterifique más grasas, forzándole a usar (oxidar) las que ya tiene."
+    },
+    {
+        q: "24. El transportador de glucosa GLUT-2 se caracteriza por:",
+        options: ["a) Estar presente casi exclusivamente en el cerebro.", "b) Ser dependiente estricto de los niveles de insulina séricos.", "c) Tener baja afinidad por la glucosa, actuando como \"sensor\" en hígado y células β pancreáticas.", "d) Transportar únicamente fructosa."],
+        correct: 2,
+        exp: "Es el transportador de baja afinidad. Solo entra glucosa al hígado o páncreas cuando sobra mucha en sangre (después de comer), lo que permite a las células β \"censar\" el nivel y segregar insulina."
+    },
+    {
+        q: "25. En clase, la profesora introdujo el concepto de \"Organokinas\". ¿Qué son?",
+        options: ["a) Enzimas proteolíticas que destruyen órganos vitales.", "b) Señales hormonales producidas por los propios órganos diana de la insulina (ej: adipokinas del adipocito, miokinas del músculo, hepatokinas del hígado) que regulan la sensibilidad metabólica.", "c) Fármacos sintéticos para tratar el Síndrome Metabólico.", "d) Citoquinas exclusivas del sistema nervioso central."],
+        correct: 1,
+        exp: "Se definen como sustancias señalizadoras segregadas por los tejidos donde actúa la insulina, capaces de modificar la secreción o la sensibilidad periférica a esta hormona."
+    },
+    {
+        q: "26. Un paciente presenta niveles extremadamente bajos de la proteína UCP-1. ¿Qué disfunción fisiológica presentaría primariamente?",
+        options: ["a) Incapacidad para producir tejido adiposo blanco.", "b) Dificultad para mantener su temperatura corporal (termogénesis adaptativa) al exponerse al frío.", "c) Ausencia total de transportadores GLUT4.", "d) Hipersecreción de adiponectina."],
+        correct: 1,
+        exp: "La Uncoupling Protein 1 (UCP-1) es el motor de la grasa parda para generar calor. Su deficiencia frena la termogénesis inducida por el frío."
+    },
+    {
+        q: "27. ¿Qué función ejerce la adipoquina SFRP5 en el tejido adiposo sano?",
+        options: ["a) Inducir la apoptosis generalizada de los adipocitos maduros.", "b) Atraer macrófagos M1 al lecho capilar.", "c) Es una adipoquina antiinflamatoria que suprime las señales proinflamatorias como WNT5a.", "d) Es la responsable de enviar la señal de \"saciedad\" al cerebro."],
+        correct: 2,
+        exp: "SFRP5 es, junto con la adiponectina, una de las \"buenas\", y su mecanismo específico detallado es antagonizar a la proteína proinflamatoria WNT5a."
+    },
+    {
+        q: "28. La Visfatina es una molécula que:",
+        options: ["a) Es la principal inhibidora del apetito descubierta hasta hoy.", "b) Se produce fundamentalmente en adipocitos y puede inducir la expresión de citoquinas proinflamatorias.", "c) Solo aparece en tejidos tumorales y bloquea la quimioterapia.", "d) Transforma el tejido pardo en tejido blanco irreversiblemente."],
+        correct: 1,
+        exp: "Mencionado en las últimas diapositivas. Es una adipoquina proinflamatoria sintetizada en el propio adipocito."
+    },
+    {
+        q: "29. Ante el fallo metabólico del adipocito obeso (lipotoxicidad), este comienza a liberar a la sangre ácidos grasos libres de manera descontrolada. El acúmulo ECTÓPICO de estos lípidos en el hígado provoca:",
+        options: ["a) Hepatocarcinoma de forma inmediata.", "b) Únicamente un aumento benigno de su tamaño.", "c) Esteatosis hepática, inflamación y resistencia a la insulina en el propio hígado (bloqueando la capacidad de la insulina para frenar la gluconeogénesis).", "d) Aumento masivo de los transportadores SGLT-1 hepáticos."],
+        correct: 2,
+        exp: "Mostrado en el esquema general. La grasa desbordada va al hígado y músculo, donde la inflamación resultante \"rompe\" la señal de la insulina (resistencia sistémica a la insulina)."
+    },
+    {
+        q: "30. Sobre el factor de Necrosis Tumoral α (TNF-α) en el tejido adiposo, señale la FALSA:",
+        options: ["a) Actúa únicamente mediante un receptor (TNFR1) anclado a proteínas G.", "b) Tiene acción dual pro y antiinflamatoria según el contexto.", "c) Disminuye o inhibe la expresión celular de la adiponectina.", "d) Interviene también en la maduración de las células B y en la neurogénesis."],
+        correct: 0,
+        exp: "Es falso que actúe solo por un receptor. Actúa mediante dos receptores transmembrana (TNFR1 y TNFR2) e inhibe la acción \"sana\" de la adiponectina."
+    },
+    {
+        q: "31. La insulina ejerce numerosos efectos anabólicos. A nivel intracelular del adipocito sano, ¿cómo interfiere la insulina en el metabolismo de los lípidos tras captar glucosa?",
+        options: ["a) Destruyendo la enzima lipoproteína lipasa (LPL).", "b) Favorece la conversión de DHAP glucolítica en Glicerol-3-fosfato y activa la esterificación de ácidos grasos en triglicéridos.", "c) Bloqueando permanentemente la vía de la Acetil-CoA carboxilasa.", "d) Induciendo la secreción inmediata de citoquinas inflamatorias."],
+        correct: 1,
+        exp: "La insulina promueve la entrada de glucosa (vía GLUT4), la glucólisis genera DHAP, que se reduce a Glicerol-3-P, y favorece el almacenamiento energético (lipogénesis/adipogénesis)."
+    },
+    {
+        q: "32. Señale el enunciado que define la \"Plasticidad del tejido adiposo\":",
+        options: ["a) Capacidad de transformar tejido muscular estriado en cartílago.", "b) Capacidad de las células blancas y pardas para diferenciarse de precursores en función de factores ambientales y transcripcionales (como el frío o EBF2) para adaptarse a estados nutricionales.", "c) Propiedad exclusiva del tejido visceral de generar calor por UCP-1.", "d) Proceso patológico en el que el adipocito obeso explota."],
+        correct: 1,
+        exp: "El tejido adiposo es altamente dinámico. Puede generar \"browning\" (aparición de beige en el blanco) y adaptarse al frío o a dietas cambiando el tipo de célula precursora a madura."
+    },
+    {
+        q: "33. La profesora destacó un importante inhibidor farmacológico \"orgánico\". ¿Qué fármacos antidiabéticos (hipoglucemiantes orales) tienen como efecto inhibir a la proteína Resistina?",
+        options: ["a) Insulinas recombinantes.", "b) Glucocorticoides.", "c) Tiazolidinedionas (TZDs).", "d) Antiinflamatorios No Esteroideos (AINEs)."],
+        correct: 2,
+        exp: "En el esquema de la resistina, se muestra que las Tiazolidinedionas (TZDs) bloquean específicamente la acción/producción de la resistina, mejorando la sensibilidad a la insulina."
+    },
+    {
+        q: "34. En base a los apuntes de la UCA, de la cantidad de kilocalorías que aporta el tejido adiposo de un adulto sano (aprox 15kg de grasa), ¿en torno a qué rango nos movemos?",
+        options: ["a) 10.000 - 20.000 kcal.", "b) 50.000 - 60.000 kcal.", "c) 130.000 - 140.000 kcal.", "d) Más de 1.000.000 kcal."],
+        correct: 2,
+        exp: "Dato explícito de la diapositiva \"Características metabólicas del tejido adiposo\": un adulto con 15 kg de tejido adiposo almacena unas 130.000-140.000 kcal en forma de TAG."
+    },
+    {
+        q: "35. Un adipocito marrón en pleno funcionamiento de termogénesis por frío:",
+        options: ["a) Exporta todo el ATP generado al torrente sanguíneo.", "b) No necesita ácidos grasos ya que obtiene toda su energía exclusivamente del catabolismo proteico.", "c) Activa su lipólisis por noradrenalina, oxidando sus triglicéridos en las mitocondrias donde el ciclo de Krebs genera NADH/FADH2 que irán a la cadena de transporte, disipando el gradiente en calor por la UCP1.", "d) Detiene por completo la glucólisis."],
+        correct: 2,
+        exp: "Es el resumen perfecto de la explicación oral del funcionamiento bioquímico de la grasa parda tras la señal del sistema nervioso simpático."
+    },
+    {
+        q: "36. Según la tabla de los transportadores, ¿qué GLUT se considera el transportador primario de glucosa con ALTA afinidad en las neuronas del cerebro?",
+        options: ["a) GLUT-1.", "b) GLUT-3.", "c) SGLT-1.", "d) GLUT-5."],
+        correct: 1,
+        exp: "Aunque el GLUT1 está en células endoteliales de la barrera hematoencefálica, el GLUT3 es el transportador primario de altísima afinidad en las neuronas."
+    },
+    {
+        q: "37. Uno de los efectos directos de la proteína Resistina a nivel vascular es:",
+        options: ["a) Promover vasodilatación extrema e hipotensión.", "b) Aumentar la producción de Óxido Nítrico (NO).", "c) Disminuir la producción de Óxido Nítrico y promover la patogénesis de la aterosclerosis (disfunción endotelial).", "d) Destruir las placas de ateroma preexistentes."],
+        correct: 2,
+        exp: "Diapositiva específica de la resistina. Sus efectos son malísimos a nivel vascular: baja HDL, baja Óxido Nítrico, sube inflamación y sube la aterosclerosis."
+    },
+    {
+        q: "38. Cuando se habla de la vía intracelular CPT1 (Carnitina Palmitoiltransferasa 1) en el adipocito y músculo, ¿a qué proceso está vinculada principalmente?",
+        options: ["a) Síntesis de ribosomas.", "b) Entrada de los ácidos grasos a la mitocondria para someterse a β-oxidación.", "c) Salida de glucosa al torrente sanguíneo.", "d) Empaquetamiento de triglicéridos en vesículas (VLDL)."],
+        correct: 1,
+        exp: "Tal y como interpeló la profesora en clase: \"Necesitáis la carnitina para que los ácidos grasos entren dentro de la mitocondria\". La CPT1 es la puerta de entrada para la beta-oxidación."
+    },
+    {
+        q: "39. ¿Cuál es el destino metabólico del malonil-CoA que fabrica la enzima Acetil-CoA Carboxilasa (ACC) antes de que la Adiponectina decida bloquearla?",
+        options: ["a) Ir al ciclo de la urea.", "b) Ser un intermediario indispensable para la de novo SÍNTESIS de Ácidos Grasos.", "c) Entrar directamente a la cadena respiratoria donando electrones.", "d) Transformarse en glucógeno ramificado."],
+        correct: 1,
+        exp: "Aludido directamente en la clase de repaso: El malonil-CoA es la molécula inicial imprescindible para que empiece la lipogénesis (síntesis de lípidos)."
+    },
+    {
+        q: "40. De forma resumida y según lo visto en el Tema 22, la causa principal que convierte al Tejido Adiposo normal en un Tejido Adiposo \"enfermo\" o disfuncional en el desarrollo del Síndrome Metabólico es:",
+        options: ["a) Su crecimiento basado estrictamente en el aumento del número celular (hiperplasia pura).", "b) Su incapacidad para responder al frío ambiental por atrofia del tejido beige.", "c) Su crecimiento descontrolado basado en el aumento del tamaño de la vacuola lipídica (Hipertrofia), que asfixia la célula (hipoxia), daña el citoesqueleto y llama a macrófagos M1 destructivos.", "d) El ataque autoinmune directo de los linfocitos B sobre el colágeno del tejido conjuntivo subyacente."],
+        correct: 2,
+        exp: "Es la idea general fundamental del tema: la hipertrofia es el \"Disparador\" que convierte un tejido fisiológico de almacenamiento en un órgano proinflamatorio disfuncional."
+    }
+];
+
+let questions = [];
+let userState = {}; // qId: {answered: bool, correct: bool, marked: bool}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function initQuiz(mode) {
+    document.getElementById('setup-overlay').style.display = 'none';
+    questions = JSON.parse(JSON.stringify(rawData));
+    
+    if (mode === 'shuffle') shuffle(questions);
+
+    // Mezclar opciones siempre
+    questions.forEach(q => {
+        const correctText = q.options[q.correct];
+        shuffle(q.options);
+        q.correct = q.options.indexOf(correctText);
+    });
+
+    renderQuiz();
+}
+
+function renderQuiz() {
+    const container = document.getElementById('quiz-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+    
+    questions.forEach((data, index) => {
+        const qId = `q-${index}`;
+        userState[qId] = userState[qId] || { answered: false, correct: false, marked: false };
+
+        // Sidebar
+        const nav = document.createElement('div');
+        nav.className = 'nav-item' + (userState[qId].marked ? ' marked-q' : '');
+        nav.id = `nav-${qId}`;
+        nav.innerText = index + 1;
+        nav.onclick = () => document.getElementById(qId).scrollIntoView();
+        sidebar.appendChild(nav);
+
+        // Bloque Pregunta
+        const block = document.createElement('div');
+        block.className = 'question-block';
+        block.id = qId;
+
+        const tab = document.createElement('div');
+        tab.className = `mark-tab ${userState[qId].marked ? 'active' : ''}`;
+        tab.innerText = userState[qId].marked ? '★ Marcada' : '☆ Marcar';
+        tab.onclick = () => toggleMark(qId, tab);
+        block.appendChild(tab);
+
+        const qText = document.createElement('div');
+        qText.className = 'q-text';
+        qText.innerText = data.q;
+        block.appendChild(qText);
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'options-container';
+
+        data.options.forEach((opt, optIdx) => {
+            const btn = document.createElement('div');
+            btn.className = 'option';
+            btn.innerText = opt;
+            btn.onclick = () => handleAnswer(qId, optIdx, data.correct, btn, block, data.exp);
+            optionsDiv.appendChild(btn);
+        });
+
+        block.appendChild(optionsDiv);
+
+        const expDiv = document.createElement('div');
+        expDiv.className = 'explanation';
+        expDiv.id = `exp-${qId}`;
+        expDiv.innerText = `Respuesta Correcta: ${data.options[data.correct]}\n\nExplicación: ${data.exp}`;
+        block.appendChild(expDiv);
+
+        container.appendChild(block);
+    });
+}
+
+function toggleMark(qId, tab) {
+    userState[qId].marked = !userState[qId].marked;
+    tab.classList.toggle('active');
+    tab.innerText = userState[qId].marked ? '★ Marcada' : '☆ Marcar';
+    document.getElementById(`nav-${qId}`).classList.toggle('marked-q');
+}
+
+function handleAnswer(qId, sIdx, cIdx, btn, block, exp) {
+    if (userState[qId].answered) return;
+
+    userState[qId].answered = true;
+    const isCorrect = sIdx === cIdx;
+    userState[qId].correct = isCorrect;
+
+    const btns = block.querySelectorAll('.option');
+    btns.forEach((b, i) => {
+        b.classList.add('disabled');
+        if (i === cIdx) b.classList.add('correct');
+        else if (i === sIdx) b.classList.add('wrong');
+    });
+
+    block.querySelector('.explanation').style.display = 'block';
+    const nav = document.getElementById(`nav-${qId}`);
+    nav.classList.add(isCorrect ? 'answered-correct' : 'answered-wrong');
+}
+
+function finishAndShowResults() {
+    const total = questions.length;
+    const correctas = Object.values(userState).filter(v => v.correct).length;
+    const percent = Math.round((correctas / total) * 100);
+
+    document.getElementById('score-circle').innerText = `${percent}%`;
+    document.getElementById('score-text').innerText = `Has acertado ${correctas} de ${total} preguntas examinadas.`;
+    
+    document.getElementById('final-screen').style.display = 'block';
+    document.getElementById('final-screen').scrollIntoView();
+}
+
+function restartQuiz(mode) {
+    let filtered = [];
+    
+    if (mode === 'all') {
+        filtered = JSON.parse(JSON.stringify(rawData));
+    } else {
+        questions.forEach((q, index) => {
+            const state = userState[`q-${index}`];
+            const isFailed = state.answered && !state.correct;
+            const isMarked = state.marked;
+
+            if (mode === 'failed' && isFailed) filtered.push(q);
+            else if (mode === 'marked' && isMarked) filtered.push(q);
+            else if (mode === 'both' && (isFailed || isMarked)) filtered.push(q);
+        });
+    }
+
+    if (filtered.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return;
+    }
+
+    questions = filtered;
+    userState = {};
+    document.getElementById('final-screen').style.display = 'none';
+    document.getElementById('setup-overlay').style.display = 'flex';
+}
+</script>
+
+</body>
+</html>

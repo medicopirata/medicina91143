@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Fascia, Cuello, Psoas y Retroperitoneo</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantallas */
+        #setup-screen, #results-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen-content {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1, h2 { color: var(--text); margin-bottom: 1.5rem; }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Contenedor principal del Quiz */
+        #quiz-layout {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar izquierdo */
+        #sidebar {
+            width: 80px;
+            min-width: 80px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 5;
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #475569;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .nav-dot:hover { transform: scale(1.1); }
+        .nav-dot.correct { background-color: var(--correct); color: white; }
+        .nav-dot.incorrect { background-color: var(--incorrect); color: white; }
+        
+        .mark-indicator {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            background-color: var(--marked);
+            border-radius: 50%;
+            display: none;
+            border: 2px solid white;
+        }
+        .nav-dot.is-marked .mark-indicator { display: block; }
+
+        /* Área de preguntas */
+        #main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            scroll-margin-top: 2rem;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0;
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+
+        .mark-btn {
+            background: none;
+            border: 2px solid var(--border);
+            color: #64748b;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        .mark-btn:hover { background-color: #f1f5f9; }
+        .mark-btn.marked {
+            border-color: var(--marked);
+            color: var(--marked);
+            background-color: #fffbeb;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .option-btn {
+            text-align: left;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            background-color: white;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background-color: #dcfce7; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2; border-color: var(--incorrect); }
+        .option-btn.missed-correct { background-color: #dcfce7; border-color: var(--correct); border-style: dashed; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+            display: none;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        #finish-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                width: 100%;
+                height: 60px;
+                min-height: 60px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0 1rem;
+                align-items: center;
+            }
+            .nav-dot { margin-bottom: 0; margin-right: 0.5rem; flex-shrink: 0; }
+            #main-content { padding: 1rem; }
+            #finish-btn { bottom: 1rem; right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="screen-content">
+            <h1>Fascia, Cuello, Psoas y Retroperitoneo</h1>
+            <p>Configura tu sesión de estudio:</p>
+            <div style="margin-top: 2rem;">
+                <button class="btn" onclick="startQuiz('original')">Iniciar (Orden Original)</button>
+                <button class="btn" onclick="startQuiz('random')">Iniciar (Orden Aleatorio)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-layout">
+        <div id="sidebar"></div>
+        <div id="main-content">
+            <div id="questions-container"></div>
+            <button id="finish-btn" class="btn" onclick="finishQuiz()" style="background-color: #334155;">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <div class="screen-content">
+            <h2>Resultados</h2>
+            <p id="results-summary" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 2rem;"></p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn" onclick="retakeQuiz('all')">Repetir Completo</button>
+                <button class="btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir Solo Falladas</button>
+                <button class="btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir Solo Marcadas</button>
+                <button class="btn" id="btn-retake-both" onclick="retakeQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Base de datos de 70 preguntas
+const db = [
+    { q: `1. La fascia toracolumbar es una lámina aponeurótica densa e importantísima en la espalda. En su vertiente superficial y dorsal, ¿qué gran músculo emigrado se origina en ella?`, opts: [`El trapecio.`, `El músculo romboides.`, `El músculo dorsal ancho.`, `El músculo serrato posterior superior.`], c: 2 },
+    { q: `2. En la pared abdominal posterior se describe una zona de debilidad anatómica llamada "Triángulo de Petit". Sus límites están formados por la cresta ilíaca en la base y dos músculos: uno medial y otro lateral. ¿Cuáles son?`, opts: [`Dorsal ancho (medial) y Oblicuo mayor (lateral).`, `Cuadrado lumbar y Psoas.`, `Trapecio y Romboides.`, `Oblicuo menor y Transverso.`], c: 0 },
+    { q: `3. ¿Por qué es clínicamente importante el Triángulo de Petit?`, opts: [`Porque por ahí entra la arteria aorta.`, `Porque al fallar la superposición de los tres planos musculares del abdomen, es una zona de debilidad natural propensa a hernias lumbares.`, `Porque es el lugar de punción lumbar.`, `Porque contiene el riñón.`], c: 1 },
+    { q: `4. Cuando una persona muy musculada o muy delgada contrae el dorsal ancho, se le marcan dos característicos "hoyuelos" en la región lumbar baja. Esto ocurre porque:`, opts: [`Los riñones tiran de la piel hacia dentro.`, `Al tensarse la fascia toracolumbar en zonas donde no hay músculo interpuesto, deprime la piel que está adherida a ella.`, `Se disloca la articulación sacroilíaca.`, `Es un defecto del hueso ilíaco.`], c: 1 },
+    { q: `5. La fascia toracolumbar se divide en tres láminas (posterior, media y anterior) que envuelven a los músculos erectores del dorso y al cuadrado lumbar creando compartimentos cerrados. Biomecánicamente, esto sirve para:`, opts: [`Evitar que los músculos respiren.`, `Aumentar enormemente la potencia y rentabilidad muscular, ya que la fascia contiene la expansión del vientre y evita que se disipe la fuerza.`, `Producir líquido sinovial.`, `Limitar el crecimiento óseo.`], c: 1 },
+    { q: `6. Los músculos erectores del dorso más PROFUNDOS (intertransversos, interespinosos, multífidos) se caracterizan por:`, opts: [`Ser los más largos, saltando desde el cráneo hasta el sacro.`, `Ser muy cortos, saltando segmentariamente de una vértebra a la contigua para ajustes precisos.`, `Insertarse en el esternón.`, `Carecer de inervación.`], c: 1 },
+    { q: `7. Los músculos erectores INTERMEDIOS surgen de una masa común en el sacro/fascia toracolumbar y se dividen en tres largos fascículos ("varillas de abanico"). De medial a lateral, estos son:`, opts: [`Psoas, ilíaco, cuadrado.`, `Escaleno, esternocleidomastoideo, trapecio.`, `Epiespinoso, Longísimo (dorsal largo) e Iliocostal.`, `Serrato anterior, medio y posterior.`], c: 2 },
+    { q: `8. Más allá de su función para "extender" o enderezar el tronco, el profesor recalca que los músculos erectores del dorso actúan durante la FLEXIÓN del tronco (inclinarse hacia delante) para:`, opts: [`Acelerar el movimiento.`, `Trabajar excéntricamente frenando la caída, evitando que el gran peso ventral del cuerpo nos haga colapsar bruscamente hacia delante.`, `Detener la respiración.`, `Comprimir los discos intencionalmente.`], c: 1 },
+    { q: `9. En la clínica diaria de las lumbalgias y dorsalgias, ¿cuál es el papel profiláctico (preventivo) de la musculatura erectora del dorso?`, opts: [`Endurecer la piel.`, `Su tonicidad es la que sostiene activamente y mantiene las curvaturas fisiológicas (lordosis/cifosis) adecuadas, impidiendo la sobrecarga pasiva de ligamentos y discos.`, `Evitar que el estómago se dilate.`, `Inmovilizar completamente las vértebras.`], c: 1 },
+    { q: `10. Concepto funcional Prada: Si un paciente hace una dominada colgado de una barra, el dorsal ancho cambia su biomecánica. ¿Qué ocurre?`, opts: [`Se atrofia temporalmente.`, `Invierte su función: su inserción en el húmero (ahora punto fijo) actúa como origen, y tracciona del tronco (origen anatómico) elevando el cuerpo.`, `Deja de funcionar y asume el trabajo el tríceps.`, `Se convierte en músculo inspirador exclusivo.`], c: 1 },
+    { q: `11. El cuello (región cervical) está altamente compartimentado por fascias para evitar la diseminación de infecciones y organizar las estructuras. La fascia que envuelve a los músculos prevertebrales y escalenos se denomina:`, opts: [`Fascia superficialis.`, `Fascia coli profunda (lámina prevertebral).`, `Fascia visceral.`, `Pericardio.`], c: 1 },
+    { q: `12. En la línea media, agrupando al esófago, tráquea y tiroides, encontramos el compartimento visceral. Justo lateral a este, discurre un tubo fascial cerrado importantísimo llamado:`, opts: [`Vaina de los rectos.`, `Vaina pretraqueal.`, `Vaina carotídea.`, `Triángulo suboccipital.`], c: 2 },
+    { q: `13. El contenido clásico y vital de la Vaina Carotídea incluye:`, opts: [`Arteria vertebral, vena yugular externa y nervio frénico.`, `Arteria carótida (primitiva/interna), Vena Yugular Interna y Nervio Vago (PC X).`, `Arteria subclavia, plexo braquial y vena subclavia.`, `Tráquea, esófago y nervio recurrente.`], c: 1 },
+    { q: `14. Entre la fascia que recubre posteriormente al esófago (visceral) y la fascia prevertebral que tapiza la columna, existe un espacio "virtual" (Espacio retrofaríngeo/retroesofágico). ¿Por qué les gusta tanto a los cirujanos?`, opts: [`Porque está lleno de ganglios.`, `Porque es un plano de clivaje laxo y exangüe (sin sangrado) que permite un abordaje limpio a las vértebras o base del cráneo con mínima agresión tisular.`, `Porque por ahí discurre la médula espinal.`, `Porque contiene la arteria aorta.`], c: 1 },
+    { q: `15. La arteria vertebral (rama de la subclavia) entra al cráneo haciendo un bucle o sifón. Justo antes de perforar la membrana occipitoatloidea, pasa por un surco situado en:`, opts: [`El cuerpo de C2.`, `La cara superior del arco posterior del Atlas (C1).`, `La apófisis odontoides.`, `La apófisis transversa de C7.`], c: 1 },
+    { q: `16. En ese punto, la arteria vertebral se encuentra en el fondo del Triángulo Suboccipital. ¿Qué nervio emerge exactamente por ese mismo lugar acompañando a la arteria?`, opts: [`El nervio frénico.`, `El primer par espinal (C1) o nervio suboccipital.`, `El nervio trigémino.`, `El nervio vago.`], c: 1 },
+    { q: `17. Si un cirujano necesita acceder a las articulaciones de los cuerpos vertebrales de C1 y C2 de forma mínimamente invasiva y directa, ¿qué vía de abordaje natural puede utilizar?`, opts: [`Abriendo la nuca (abordaje posterior extremo).`, `Transoral (abriendo la boca y atravesando la faringe directamente hasta la región prevertebral).`, `Por la fosa nasal.`, `Por el tórax.`], c: 1 },
+    { q: `18. Los músculos escalenos (anterior, medio y posterior) se originan en las apófisis transversas cervicales. ¿Qué relación tienen con los tubérculos de estas apófisis?`, opts: [`Todos se originan en el tubérculo anterior.`, `El anterior en el tubérculo anterior; el medio y el posterior en el tubérculo posterior, dejando entre ellos la salida del nervio espinal.`, `Solo nacen del agujero transverso.`, `No se originan en las cervicales.`], c: 1 },
+    { q: `19. El músculo escaleno anterior se inserta inferiormente en el Tubérculo de Lisfranc, situado en:`, opts: [`La clavícula.`, `La cara superior de la primera costilla.`, `El manubrio del esternón.`, `La segunda costilla.`], c: 1 },
+    { q: `20. El espacio triangular que queda entre el escaleno anterior y el escaleno medio (Desfiladero de los Escalenos) es atravesado por dos estructuras vitales para el miembro superior:`, opts: [`Vena subclavia y nervio frénico.`, `Arteria subclavia y Troncos del Plexo Braquial.`, `Arteria carótida y vena yugular.`, `Esófago y tráquea.`], c: 1 },
+    { q: `21. ¿Por dónde pasa la Vena Subclavia respecto a este desfiladero?`, opts: [`Por el medio, junto a la arteria.`, `Perforando el escaleno posterior.`, `Por DELANTE del músculo escaleno anterior (fuera del desfiladero).`, `Por detrás del escaleno medio.`], c: 2 },
+    { q: `22. Existe un elemento intratorácico que asoma su "cúpula" por el estrecho torácico superior, apoyándose directamente sobre los escalenos, la arteria subclavia y la primera costilla. Se trata de:`, opts: [`El apéndice auricular derecho.`, `El vértice de los pulmones (pleura cervical/cúpula pleural).`, `El hígado.`, `El estómago.`], c: 1 },
+    { q: `23. Los músculos escalenos son fundamentalmente flexores y lateralizadores del cuello. Sin embargo, en un paciente ahogándose (disnea), funcionan como:`, opts: [`Músculos abdominales.`, `Músculos inspiradores accesorios (elevando la 1ª y 2ª costilla para ampliar el tórax), causando el signo clínico del "tiraje cordal".`, `Espiradores potentes.`, `Depresores de la mandíbula.`], c: 1 },
+    { q: `24. Si consideramos la rotación de la cabeza, los músculos escalenos se comportan como:`, opts: [`Rotadores homolaterales (giran la cara hacia el mismo lado del músculo que se contrae).`, `Rotadores contralaterales (al contraerse, giran la cara hacia el lado opuesto).`, `No tienen capacidad de rotación.`, `Solo rotan si estamos tumbados.`], c: 1 },
+    { q: `25. El esqueleto cartilaginoso de la laringe está liderado por un cartílago en forma de libro abierto hacia atrás, que forma la prominencia laríngea (nuez de Adán). Es el cartílago:`, opts: [`Cricoides.`, `Epiglotis.`, `Tiroides.`, `Aritenoides.`], c: 2 },
+    { q: `26. Los músculos infrahioideos se encargan de deprimir (bajar) el hueso hioides y la laringe, un movimiento esencial para completar:`, opts: [`La inspiración.`, `La masticación.`, `La fase final de la deglución (tras haberla ascendido para proteger la vía aérea).`, `La sonrisa.`], c: 2 },
+    { q: `27. El plano PROFUNDO de los músculos infrahioideos está formado por dos músculos de trayecto más corto:`, opts: [`Esternohioideo y Omohioideo.`, `Tirohioideo y Esternotiroideo.`, `Digástrico y Estilohioideo.`, `Escaleno anterior y medio.`], c: 1 },
+    { q: `28. El plano SUPERFICIAL está formado por el Esternohioideo (medial) y un músculo lateral muy particular que tiene dos vientres y un tendón intermedio. Este es el músculo:`, opts: [`Platisma.`, `Digástrico del maxilar.`, `Omohioideo (desde la escápula hasta el hioides).`, `Esternocleidomastoideo.`], c: 2 },
+    { q: `29. CLINICA VITAL: El tendón intermedio del músculo Omohioideo cruza superficialmente a la vaina carotídea y emite expansiones que se adhieren a ella. Si la vena Yugular Interna se secciona por un traumatismo en el cuello, ¿qué grave problema añade el omohioideo?`, opts: [`Colapsa la vena e impide la respiración.`, `Al estar en tensión, mantiene las paredes de la vena seccionada ABIERTAS, succionando aire y causando una Embolia Gaseosa masiva y shock.`, `Corta la arteria carótida por compresión.`, `Paraliza las cuerdas vocales.`], c: 1 },
+    { q: `30. El músculo Esternocleidomastoideo (ECOM) es el gran referente lateral del cuello. En su origen inferior, sus dos cabezas (esternal y clavicular) delimitan una pequeña fosa llamada:`, opts: [`Triángulo de Petit.`, `Triángulo de Scarpa.`, `Triángulo de Sédillot (fosa supraclavicular menor).`, `Cuadrilátero de Velpeau.`], c: 2 },
+    { q: `31. ¿Qué utilidad clínica tiene el Triángulo de Sédillot?`, opts: [`Es el punto para pinchar la arteria aorta.`, `Es la referencia anatómica clave para canalizar una vía central en la Vena Yugular Interna.`, `Es donde se extrae médula ósea.`, `Es la zona de traqueotomía.`], c: 1 },
+    { q: `32. El ECOM y el Trapecio comparten inervación motora. Ambos son inervados por el:`, opts: [`Nervio Vago (PC X).`, `Nervio Trigémino (PC V).`, `Nervio Accesorio o Espinal (PC XI).`, `Nervio Frénico.`], c: 2 },
+    { q: `33. Igual que los escalenos, si el ECOM se contrae unilateralmente, respecto a la rotación funciona como un:`, opts: [`Rotador homolateral.`, `Rotador contralateral (dirige la mirada al lado opuesto).`, `No rota la cabeza.`, `Solo actúa al tragar.`], c: 1 },
+    { q: `34. En el plano más superficial de todos, embebido en el tejido celular subcutáneo del cuello y mandíbula, encontramos un músculo laminar muy fino inervado por el nervio Facial (VII). Es el:`, opts: [`Esternohioideo.`, `Platisma (músculo cutáneo del cuello para la mímica y expresión).`, `Buccinador.`, `Escaleno mínimo.`], c: 1 },
+    { q: `35. La pared muscular posterior del abdomen está tapizada fundamentalmente por dos músculos dispuestos verticalmente. Uno es lateral y cuadrangular, y el otro es medial y fusiforme. Son, respectivamente:`, opts: [`Recto anterior y Oblicuo externo.`, `Cuadrado de los lomos (lumbar) y Psoas Mayor.`, `Transverso y Dorsal ancho.`, `Diafragma y Piramidal.`], c: 1 },
+    { q: `36. El músculo Cuadrado Lumbar se origina inferiormente en la cresta ilíaca y asciende para insertarse en las apófisis transversas lumbares y en:`, opts: [`La clavícula.`, `La primera costilla.`, `El borde inferior de la 12ª costilla.`, `El esternón.`], c: 2 },
+    { q: `37. El Psoas Mayor tiene un origen muy amplio y dividido. Su fascículo lateral nace de los vértices de las transversas. Su fascículo medial nace de:`, opts: [`Los procesos espinosos torácicos.`, `Los discos intervertebrales (desde T12-L1 hacia abajo) y mediante arcos tendinosos fibrosos en los cuerpos vertebrales.`, `La cara anterior del estómago.`, `El promontorio exclusivamente.`], c: 1 },
+    { q: `38. La fosa ilíaca interna de la pelvis está tapizada por el músculo Ilíaco. Al llegar al ligamento inguinal, el Ilíaco y el Psoas se unen formando el tendón del Psoasilíaco, que sale del abdomen a través de:`, opts: [`La laguna vascular.`, `El conducto inguinal.`, `La laguna muscular (espacio por debajo del tercio externo del ligamento inguinal).`, `El agujero obturador.`], c: 2 },
+    { q: `39. ¿Dónde termina insertándose el potente tendón del Psoasilíaco para ejercer su función flexora de la cadera?`, opts: [`En la rótula.`, `En el trocánter mayor del fémur.`, `En el trocánter menor del fémur.`, `En el pubis.`], c: 2 },
+    { q: `40. Debido a la compleja disposición de orígenes del Psoas Mayor, queda un espesor muscular reticulado. ¿Qué importante estructura nerviosa se FORMA y transcurre por el interior del espesor del Psoas?`, opts: [`El Plexo Braquial.`, `El Plexo Lumbar (nervios para el abdomen bajo y miembro inferior).`, `El Plexo Sacro.`, `La médula espinal lumbar.`], c: 1 },
+    { q: `41. Los dos primeros grandes nervios del plexo lumbar (nacen de L1 con aporte de T12) se encargan de inervar la pared abdominal baja y genitales externos. Son:`, opts: [`Ciático y Pudendo.`, `Obturador y Femoral.`, `Iliohipogástrico (abdominogenital mayor) e Ilioinguinal (abdominogenital menor).`, `Frénico y Vago.`], c: 2 },
+    { q: `42. Si el músculo Psoas Mayor sufre una fuerte contractura o acortamiento crónico, ¿qué patología neurológica periférica puede desencadenar?`, opts: [`Un ictus cerebral.`, `Una neuralgia o compresión nerviosa periférica al atrapar las raíces del plexo lumbar en su espesor.`, `Sordera.`, `Pérdida de visión.`], c: 1 },
+    { q: `43. En bipedestación (de pie), si el Psoas Mayor está hipertónico o acortado bilateralmente, ejerce un tirón sobre la columna lumbar que biomecánicamente provoca:`, opts: [`Una escoliosis.`, `Una pérdida de toda curvatura (rectificación lumbar).`, `Una hiperlordosis muy acentuada, forzando la columna hacia delante y causando lumbalgia.`, `La rotura del sacro.`], c: 2 },
+    { q: `44. Si un paciente con el Psoas acortado se tumba en la camilla con las piernas estiradas, notará un hueco enorme bajo su zona lumbar. Para reducir esta hiperlordosis pasivamente y calmar el dolor, el paciente debe:`, opts: [`Cruzar los brazos.`, `Extender el cuello.`, `Flexionar las rodillas y caderas (recoger las piernas) para destensar el Psoas.`, `Toser fuerte.`], c: 2 },
+    { q: `45. En exploración física (Test de Thomas modificado descrito por Prada), si un paciente se tumba al borde de una camilla y deja colgar una pierna hacia el suelo, y vemos que ese pie queda notoriamente más alto que si colgamos la otra pierna, estamos evidenciando:`, opts: [`Que tiene una pierna de madera.`, `Un acortamiento o contractura severa del músculo Psoas de ese lado.`, `Una rotura del tendón de Aquiles.`, `Un infarto de miocardio.`], c: 1 },
+    { q: `46. El Psoas y el Cuadrado Lumbar están ubicados en un compartimento situado dorsalmente a la cavidad peritoneal general. Este espacio se denomina:`, opts: [`Mediastino.`, `Espacio epidural.`, `Espacio Retroperitoneal.`, `Espacio subaracnoideo.`], c: 2 },
+    { q: `47. Ambos músculos (Psoas y Cuadrado), en su porción superior, conforman un "lecho" muscular fundamental para alojar a un órgano vital:`, opts: [`El estómago.`, `El hígado.`, `El Riñón (Fosa renal).`, `El bazo.`], c: 2 },
+    { q: `48. En la fosa renal, junto al Psoas y Cuadrado, la porción más craneal posterior del riñón reposa apoyada directamente sobre:`, opts: [`El pulmón.`, `El Diafragma.`, `El corazón.`, `El páncreas.`], c: 1 },
+    { q: `49. Una estructura tubular que drena el riñón desciende verticalmente "cabalgando" y pegada a la cara anterior del músculo Psoas Mayor. Es:`, opts: [`La arteria aorta.`, `La vena cava inferior.`, `El Uréter.`, `El conducto colédoco.`], c: 2 },
+    { q: `50. Junto al uréter, y cruzándolo a medida que descienden sobre la cara anterior del Psoas, encontramos unos vasos sanguíneos muy largos procedentes de la aorta/cava abdominal que buscan la pelvis. Son:`, opts: [`Los vasos ilíacos internos.`, `Los vasos gonadales (arteria y vena testicular en el hombre u ovárica en la mujer).`, `Las arterias lumbares.`, `Las venas suprahepáticas.`], c: 1 },
+    { q: `51. Concepto de "Dolor Referido": Cuando un paciente sufre un cólico nefrítico (una piedra atasca y dilata el uréter), el dolor agudo no solo se siente en la espalda profunda, sino que irradia hacia la ingle o los testículos/labios mayores. Esto se debe a que:`, opts: [`La piedra cae al escroto.`, `La inflamación irrita los nervios del plexo lumbar (ej. genitofemoral, ilioinguinal) que discurren apoyados en el Psoas, y el cerebro proyecta el dolor al dermatoma correspondiente.`, `El riñón explota.`, `El paciente se imagina el dolor.`], c: 1 },
+    { q: `52. Topografía derecha extrema: El Psoas derecho se relaciona en la fosa ilíaca derecha íntimamente con el inicio del intestino grueso. Concretamente con:`, opts: [`El colon sigmoides.`, `El estómago.`, `El Ciego y el Apéndice vermiforme.`, `El bazo.`], c: 2 },
+    { q: `53. EL SIGNO DEL PSOAS: Si a un paciente con dolor abdominal le pedimos que flexione la cadera derecha (levante la pierna estirada) mientras le oponemos resistencia, y al contraer el Psoas se despierta un dolor punzante en la fosa ilíaca derecha, sospecharemos fuertemente de:`, opts: [`Una hernia cervical.`, `Una Apendicitis (el músculo tenso golpea el apéndice inflamado).`, `Un tumor cerebral.`, `Una fractura de fémur.`], c: 1 },
+    { q: `54. A través de los "arcos tendinosos" que forma la inserción medial del Psoas Mayor en los cuerpos vertebrales, existe una estructura nerviosa muy larga que aprovecha para descender longitudinalmente por el retroperitoneo. Es:`, opts: [`La médula espinal.`, `La Cadena Simpática Paravertebral (con sus ganglios).`, `El nervio trigémino.`, `El nervio frénico.`], c: 1 },
+    { q: `55. El músculo Diafragma, al originarse inferiormente, emite unas expansiones tendinosas ("arcadas") que saltan por encima del Psoas y del Cuadrado Lumbar. El arco que salta sobre el Cuadrado Lumbar se llama:`, opts: [`Ligamento inguinal.`, `Ligamento arqueado medial.`, `Ligamento arqueado lateral (arco del cuadrado).`, `Pilares principales.`], c: 2 },
+    { q: `56. La arteria torácica interna (mamaria interna) se bifurca a nivel del reborde costal en dos arterias:`, opts: [`Coronaria derecha e izquierda.`, `Epigástrica superior y Musculofrénica.`, `Ilíaca común e ilíaca externa.`, `Subclavia y axilar.`], c: 1 },
+    { q: `57. Las venas del tórax (ácigos y hemiácigos) recogen la sangre de las venas intercostales. La vena hemiácigos (izquierda) drena habitualmente cruzando la columna para desembocar en:`, opts: [`La vena subclavia.`, `La vena ácigos (derecha).`, `La aurícula izquierda.`, `La vena cava inferior.`], c: 1 },
+    { q: `58. El Sistema Ácigos es vital anatómicamente porque actúa como una gran vía de derivación (anastomosis) entre:`, opts: [`La circulación pulmonar y el corazón derecho.`, `El sistema de la Vena Cava Inferior y el sistema de la Vena Cava Superior.`, `El cerebro y el cuello.`, `La arteria aorta y la arteria pulmonar.`], c: 1 },
+    { q: `59. La gran vía linfática del cuerpo es el conducto torácico. Este vaso se origina en el abdomen a nivel de L1-L2 mediante una dilatación conocida como:`, opts: [`Seno coronario.`, `Cisterna del Quilo (o de Pecquet).`, `Ampolla de Vater.`, `Ganglio centinela.`], c: 1 },
+    { q: `60. El conducto torácico desemboca finalmente devolviendo la linfa a la sangre en:`, opts: [`La vena cava inferior.`, `La aurícula derecha.`, `El ángulo venoso yugulosubclavio IZQUIERDO.`, `La vena pulmonar.`], c: 2 },
+    { q: `61. El drenaje linfático de la mitad derecha del tórax, brazo derecho y mitad derecha de cabeza/cuello NO va al conducto torácico. Drena a través del conducto linfático derecho que acaba en:`, opts: [`El ángulo yugulosubclavio DERECHO.`, `El hígado.`, `El conducto torácico en su parte alta.`, `El bazo.`], c: 0 },
+    { q: `62. El nervio intercostal da inervación sensitiva profunda a la serosa que tapiza la pared interior del tórax. Por eso, si hay una pleuritis o neumonía cercana a la pared, el paciente nota un dolor punzante "como de costilla rota". Esta serosa es la:`, opts: [`Pleura visceral.`, `Pleura parietal.`, `Pericardio fibroso.`, `Peritoneo visceral.`], c: 1 },
+    { q: `63. Los músculos serratos posteriores superiores se consideran funcionalmente:`, opts: [`Inspiradores (elevan las primeras costillas).`, `Espiradores potentes.`, `Rotadores de la escápula.`, `Músculos del manguito de los rotadores.`], c: 0 },
+    { q: `64. ¿Qué particularidad tiene la articulación de las costillas flotantes (11 y 12) con las vértebras?`, opts: [`Tienen doble hemicarilla y se articulan con la transversa.`, `Tienen una carilla completa en un solo cuerpo vertebral y carecen de articulación costotransversaria.`, `Se articulan con el sacro.`, `No se articulan con la columna.`], c: 1 },
+    { q: `65. ¿Qué nervio del plexo lumbar es responsable principal de la inervación de la cara anterior del muslo y desciende por fuera del psoas?`, opts: [`Nervio ciático.`, `Nervio femoral (crural).`, `Nervio pudendo.`, `Nervio glúteo superior.`], c: 1 },
+    { q: `66. La arteria vertebral se origina directamente de:`, opts: [`La arteria aorta ascendente.`, `La arteria carótida primitiva.`, `La arteria subclavia.`, `La arteria axilar.`], c: 2 },
+    { q: `67. En la región cervical superior, si queremos movilizar lateralmente o rotar C1 y C2, un grupo de pequeños músculos prevertebrales encargados de estos ajustes finos son los:`, opts: [`Rectos anteriores y laterales de la cabeza.`, `Escalenos posterior.`, `Esplenios.`, `Platisma.`], c: 0 },
+    { q: `68. ¿Dónde está situado el límite de separación entre el mediastino superior y el inferior?`, opts: [`En el ombligo.`, `En el plano horizontal que pasa por el Ángulo de Louis (T4-T5).`, `En el diafragma.`, `En la escotadura yugular.`], c: 1 },
+    { q: `69. Cuando la musculatura erectora del dorso pierde su tono (hipotonía) o nos cansamos por una mala postura mantenida, ¿qué estructuras soportan pasivamente todo el peso del cuerpo, generando dolor a largo plazo?`, opts: [`Los pulmones y el corazón.`, `Los cartílagos costales.`, `Los ligamentos de la columna y los discos intervertebrales (lo que lleva a hernias y lumbalgias).`, `El hueso ilíaco.`], c: 2 },
+    { q: `70. ¿Cuál de los siguientes es el abordaje más seguro para realizar una intubación o acceder a la vena yugular interna minimizando el riesgo de pinchar la arteria carótida?`, opts: [`Abordando por encima de la mandíbula.`, `Canalizando a través del vértice del Triángulo de Sédillot (entre los dos fascículos del ECOM).`, `A través del Triángulo Suboccipital.`, `Por el ombligo.`], c: 1 }
+];
+
+// Estado de la aplicación
+let activeQuestions = [];
+let answers = {};
+let marked = {};
+let currentOrderMode = 'original';
+
+// Utilidad para mezclar arrays
+function shuffleArray(array) {
+    let newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+// Inicia el quiz
+function startQuiz(orderMode) {
+    currentOrderMode = orderMode;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+    
+    activeQuestions = db.map((item, index) => ({
+        ...item,
+        originalId: index + 1
+    }));
+
+    if (orderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+// Lógica de repetición
+function retakeQuiz(mode) {
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+
+    let toKeep = [];
+    if (mode === 'all') {
+        toKeep = db.map((_, i) => i + 1);
+    } else if (mode === 'failed') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false).map(q => q.originalId);
+    } else if (mode === 'marked') {
+        toKeep = activeQuestions.filter(q => marked[q.originalId]).map(q => q.originalId);
+    } else if (mode === 'failed_marked') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false || marked[q.originalId]).map(q => q.originalId);
+    }
+
+    if (toKeep.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        document.getElementById('results-screen').style.display = 'flex';
+        document.getElementById('quiz-layout').style.display = 'none';
+        return;
+    }
+
+    activeQuestions = db.filter((_, i) => toKeep.includes(i + 1)).map(item => ({
+        ...item,
+        originalId: db.indexOf(item) + 1
+    }));
+
+    if (currentOrderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+function resetState() {
+    answers = {};
+}
+
+// Construcción del DOM
+function buildInterface() {
+    const sidebar = document.getElementById('sidebar');
+    const container = document.getElementById('questions-container');
+    
+    sidebar.innerHTML = '';
+    container.innerHTML = '';
+
+    activeQuestions.forEach((q, index) => {
+        // Dot del sidebar
+        const dot = document.createElement('div');
+        dot.className = `nav-dot ${marked[q.originalId] ? 'is-marked' : ''}`;
+        dot.id = `nav-${q.originalId}`;
+        dot.innerHTML = `${index + 1}<div class="mark-indicator"></div>`;
+        dot.onclick = () => {
+            document.getElementById(`q-${q.originalId}`).scrollIntoView({behavior: 'smooth'});
+        };
+        sidebar.appendChild(dot);
+
+        // Tarjeta de la pregunta
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.originalId}`;
+
+        // Mezclar opciones
+        let optionsWithIndex = q.opts.map((text, i) => ({ text, isCorrect: i === q.c }));
+        optionsWithIndex = shuffleArray(optionsWithIndex);
+
+        let optionsHTML = '';
+        optionsWithIndex.forEach((opt, optIndex) => {
+            optionsHTML += `<button class="option-btn" id="opt-${q.originalId}-${optIndex}" 
+                onclick="selectAnswer(${q.originalId}, ${opt.isCorrect}, ${optIndex}, '${opt.text.replace(/'/g, "\\'")}')">
+                ${opt.text}
+            </button>`;
+        });
+
+        const isMarked = marked[q.originalId] ? 'marked' : '';
+        const markText = marked[q.originalId] ? '★ Marcada' : '☆ Marcar';
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${index + 1}. ${q.q.replace(/^\d+\.\s*/, '')}</h3>
+                <button class="mark-btn ${isMarked}" id="mark-${q.originalId}" onclick="toggleMark(${q.originalId})">${markText}</button>
+            </div>
+            <div class="options-grid" id="grid-${q.originalId}">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.originalId}"></div>
+        `;
+
+        container.appendChild(card);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+// Acción de respuesta
+function selectAnswer(qId, isCorrect, optIndex, optText) {
+    if (answers[qId] !== undefined) return;
+
+    answers[qId] = isCorrect;
+    
+    const grid = document.getElementById(`grid-${qId}`);
+    const buttons = grid.getElementsByClassName('option-btn');
+    const feedback = document.getElementById(`feedback-${qId}`);
+    const navDot = document.getElementById(`nav-${qId}`);
+
+    for (let i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+        if (buttons[i].id === `opt-${qId}-${optIndex}`) {
+            buttons[i].classList.add(isCorrect ? 'correct' : 'incorrect');
+        } else if (buttons[i].getAttribute('onclick').includes('true')) {
+            buttons[i].classList.add('missed-correct');
+        }
+    }
+
+    navDot.classList.add(isCorrect ? 'correct' : 'incorrect');
+    feedback.style.display = 'block';
+    
+    const correctOriginalOptionText = db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).opts[db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).c];
+
+    if (isCorrect) {
+        feedback.innerHTML = `<strong>¡Correcto!</strong> La respuesta es: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--correct)';
+    } else {
+        feedback.innerHTML = `<strong>Incorrecto.</strong> La respuesta correcta era: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--incorrect)';
+    }
+}
+
+// Acción marcar
+function toggleMark(qId) {
+    marked[qId] = !marked[qId];
+    
+    const btn = document.getElementById(`mark-${qId}`);
+    const dot = document.getElementById(`nav-${qId}`);
+
+    if (marked[qId]) {
+        btn.classList.add('marked');
+        btn.innerHTML = '★ Marcada';
+        dot.classList.add('is-marked');
+    } else {
+        btn.classList.remove('marked');
+        btn.innerHTML = '☆ Marcar';
+        dot.classList.remove('is-marked');
+    }
+}
+
+// Acción finalizar
+function finishQuiz() {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unattemptedCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (answers[q.originalId] === true) correctCount++;
+        else if (answers[q.originalId] === false) incorrectCount++;
+        else unattemptedCount++;
+    });
+
+    document.getElementById('quiz-layout').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'flex';
+
+    document.getElementById('results-summary').innerHTML = `
+        Aciertos: <span style="color: var(--correct)">${correctCount}</span> | 
+        Fallos: <span style="color: var(--incorrect)">${incorrectCount}</span> | 
+        Sin responder: ${unattemptedCount}
+    `;
+
+    const totalFailed = activeQuestions.filter(q => answers[q.originalId] === false).length;
+    const totalMarked = Object.values(marked).filter(v => v).length;
+    
+    document.getElementById('btn-retake-failed').disabled = totalFailed === 0;
+    document.getElementById('btn-retake-marked').disabled = totalMarked === 0;
+    document.getElementById('btn-retake-both').disabled = (totalFailed === 0 && totalMarked === 0);
+}
+</script>
+</body>
+</html>

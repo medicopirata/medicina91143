@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Estrés Oxidativo y Envejecimiento</title>
+    <style>
+        :root {
+            --primary: #1a252f;
+            --secondary: #2c3e50;
+            --accent: #27ae60;
+            --error: #c0392b;
+            --mark: #f1c40f;
+            --bg: #f8f9fa;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Barra lateral de navegación */
+        #sidebar {
+            width: 320px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; text-align: center; margin-bottom: 20px; color: var(--accent); }
+
+        .grid-indices {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 2px;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.answered { border-bottom: 3px solid var(--accent); }
+        .index-btn.marked { background: var(--mark) !important; color: black; font-weight: bold; }
+
+        .finish-btn {
+            margin-top: 25px;
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .finish-btn:hover { filter: brightness(1.2); }
+
+        /* Área de contenido */
+        #main-content {
+            margin-left: 320px;
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 35px;
+            border-left: 6px solid #ddd;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mark-check {
+            background: #eee;
+            border: 1px solid #ccc;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mark-check.active { background: var(--mark); border-color: #d4ac0d; font-weight: bold; }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin: 12px 0;
+            border: 2px solid #f0f0f0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0fff4; }
+
+        .correct { background-color: #d4edda !important; border-color: var(--accent) !important; color: #155724; font-weight: bold; }
+        .incorrect { background-color: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            border-left: 5px solid #2196f3;
+            display: none;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Pantallas de Inicio y Resultados */
+        .modal-screen {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .btn-start {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn-retry {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>NAVEGACIÓN</h2>
+    <div class="grid-indices" id="nav-grid"></div>
+    <button class="finish-btn" onclick="showResults()">FINALIZAR CUESTIONARIO</button>
+</div>
+
+<div id="main-content">
+    <div id="setup-screen" class="modal-screen">
+        <h1>Evaluación de Estrés Oxidativo</h1>
+        <p>Selecciona el modo de realización:</p>
+        <button class="btn-start" onclick="startQuiz(false)">Orden Preestablecido</button>
+        <button class="btn-start" onclick="startQuiz(true)">Mezclar Preguntas (Aleatorio)</button>
+    </div>
+
+    <div id="quiz-area" style="display:none;"></div>
+
+    <div id="result-screen" class="modal-screen" style="display:none;">
+        <h2>Resultados del Test</h2>
+        <h1 id="score-display" style="font-size: 4rem; margin: 10px 0; color: var(--accent);">0%</h1>
+        <p id="stats-text"></p>
+        <hr>
+        <div class="results-grid">
+            <button class="btn-retry" onclick="retry('all')">Repetir Completo</button>
+            <button class="btn-retry" onclick="retry('failed')">Repetir Falladas</button>
+            <button class="btn-retry" onclick="retry('marked')">Repetir Marcadas</button>
+            <button class="btn-retry" onclick="retry('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const database = [
+        // BLOQUE 1: 10 Preguntas iniciales
+        { q: "De las siguientes especies reactivas señale la que es un radical libre", options: ["Peróxido de hidrógeno (H2O2)", "Óxido Nitrico (NO)", "Hidroperóxido orgánico (ROOH)", "Anión peroxinitrito (ONOO−)"], correct: 1, exp: "El óxido nítrico es un gas que posee 7 electrones de valencia en sus orbitales externos. Al ser un número impar, implica que tiene un electrón desapareado, dándole las propiedades físicas y químicas de un radical libre. Por el contrario, el peróxido de hidrógeno, el hidroperóxido orgánico y el anión peroxinitrito son especies reactivas pero no son radicales libres." },
+        { q: "Señale la secuencia correcta de formación de especies reactivas del oxígeno", options: ["O2→O2∙−→H2O2→HO∙→H2O", "O2→HO∙→O2∙−→H2O2→H2O", "O2→O2∙−→HO∙→H2O2→H2O", "O2→HO∙→H2O2→O2∙−→H2O"], correct: 0, exp: "La reducción del oxígeno hasta convertirse en agua es un proceso parcial, univalente y sucesivo. Al recibir el primer electrón se forma el radical superóxido (O2∙−). Con otro electrón y protones pasa a peróxido de hidrógeno (H2O2). Posteriormente, se forma el radical hidroxilo (HO∙) y, finalmente, con el último electrón y protón, se llega al agua (H2O)." },
+        { q: "La melatonina, neurohormona con una alta capacidad antioxidante, ¿a partir de qué neurotransmisor se sintetiza?", options: ["Dopamina", "Serotonina", "Acetilcolina", "GABA"], correct: 1, exp: "La melatonina (N-acetil-5 metoxitriptamina) se sintetiza a partir de la serotonina. Este proceso ocurre en dos pasos: primero, la enzima serotonina acetiltransferasa introduce un grupo acetilo, y luego, una metiltransferasa introduce un grupo metilo, por lo que la melatonina es básicamente una 'serotonina acetilada y metilada'." },
+        { q: "¿Cúal de la siguientes isoformas de la superóxido dismutasa es la que se localiza en el interior mitocondrial?", options: ["SOD 3 (Cu/Zn-SOD)", "SOD 2 o (Mn-SOD)", "SOD 1 (Cu/Zn-SOD)"], correct: 1, exp: "Existen tres isoformas de esta enzima: la SOD 1 es citosólica, la SOD 3 es extracelular, y la SOD 2 es la mitocondrial, la cual se caracteriza por ser un homotetrámero que contiene átomos de manganeso (Mn) en su centro activo." },
+        { q: "La superóxido dismutasa cataliza la siguiente reacción : H2O2→(H2O)+(O2)", options: ["Verdadero", "Falso"], correct: 1, exp: "Esta afirmación es falsa. La reacción mostrada, donde el peróxido de hidrógeno (H2O2) se convierte en agua (H2O) y oxígeno (O2), es catalizada por la enzima catalasa. La superóxido dismutasa (SOD) se encarga de dismutar el radical superóxido, catalizando la reacción inversa a nivel de radicales: 2O2∙−+2H+→H2O2+O2." },
+        { q: "Uno de los mecanismos de accción antioxidante del glutation es formar parte de la red de recuperación de antioxidantes", options: ["Verdadero", "Falso"], correct: 0, exp: "Es verdadero. El glutatión actúa mediante tres mecanismos principales: como donador directo de electrones, como coenzima de la glutatión peroxidasa y participando activamente en la red de recuperación de antioxidantes, donde cede electrones para regenerar a otros antioxidantes que se han oxidado, como la vitamina C." },
+        { q: "El NO es un potente vasoconstrictor", options: ["Verdadero", "Falso"], correct: 1, exp: "Es falso. El óxido nítrico (NO), especialmente el sintetizado por la isoforma endotelial (eNOS) en los vasos sanguíneos, funciona fisiológicamente como un importante vasodilatador, no como un vasoconstrictor." },
+        { q: "Las teorías estocásticas del envejecimiento explican este proceso como alteraciones que ocurren de forma aleatoria y que se acumulan a lo largo de la vida.", options: ["Verdadero", "Falso"], correct: 0, exp: "Es verdadero. Según se explica en los fundamentos de las teorías del envejecimiento y la propuesta original de Denham Harman (teoría de los radicales libres), el envejecimiento es un proceso fisiológico progresivo y universal provocado por la acumulación aleatoria a lo largo de la vida del daño tóxico causado por el oxígeno y las especies reactivas (daño continuo a ADN, lípidos y proteínas)." },
+        { q: "De las siguientes enzimas con capacidad antioxidante, señale la que contiene selenio en su estructura como cofactor:", options: ["Superóxido dismutasa", "Glutation Peroxidasa", "Catalasa", "Glutation reductasa"], correct: 1, exp: "La glutatión peroxidasa es una enzima que contiene grupos seleno-cisteína, es decir, utiliza el selenio como cofactor esencial en su centro activo para llevar a cabo la eliminación del peróxido de hidrógeno." },
+        { q: "¿Qué antioxidante exógeno es especialmente importante como protección frente a la lipoperoxidación por su carácter lipofílico?", options: ["Polifenoles", "Vitamina E", "Vitamina C", "Carotenoides"], correct: 1, exp: "La vitamina E es el antioxidante exógeno más destacado en la protección de las membranas. Al ser una molécula liposoluble y lipofílica, se inserta en las membranas celulares e interfiere directamente en la lipoperoxidación, eliminando el efecto de propagación del daño a los lípidos insaturados." },
+
+        // BLOQUE 2: 60 Preguntas (ID 1-60 de la segunda parte)
+        { q: "Al inicio del tema, el profesor hizo una importante distinción terminológica. ¿Cuál de las siguientes moléculas se considera una especie reactiva del oxígeno altamente peligrosa, pero NO es un radical libre por carecer de electrones desapareados?", options: ["El radical superóxido (O2∙−).", "El radical hidroxilo (HO∙).", "El peróxido de hidrógeno (H2O2).", "El óxido nítrico (NO)."], correct: 2, exp: "Trampa muy avisada en clase. El peróxido de hidrógeno es una especie reactiva que oxida biomoléculas, pero no tiene electrones desapareados, por lo que no cumple la definición química de 'radical libre'." },
+        { q: "Las características químicas del oxígeno hacen que su reducción hasta convertirse en agua sea un proceso univalente, secuencial y sucesivo (según Michaelis, 1946). ¿Qué significa esto fisiológicamente?", options: ["Que el oxígeno requiere 4 electrones simultáneos para reaccionar.", "Que los electrones deben llegarle al oxígeno de uno en uno, provocando la formación de intermediarios reactivos en cada paso.", "Que el oxígeno solo puede aceptar protones, no electrones.", "Que el oxígeno se reduce en un solo paso dentro del complejo IV."], correct: 1, exp: "El profesor recalcó que la clave de la toxicidad del oxígeno es que los electrones le llegan de uno en uno, lo que obliga a formar intermediarios intermedios (superóxido, peróxido, hidroxilo) antes de llegar al agua estable." },
+        { q: "Fisiológicamente, ¿cuál es la secuencia cronológica correcta de formación de especies reactivas durante la reducción univalente del oxígeno?", options: ["O2→H2O2→O2∙−→HO∙→H2O", "O2→HO∙→H2O2→O2∙−→H2O", "O2→O2∙−→H2O2→HO∙→H2O", "O2→O2∙−→HO∙→H2O2→H2O"], correct: 2, exp: "Gráfica del PDF y clase. 1 electrón forma radical superóxido; un 2º electrón forma peróxido de hidrógeno; un 3º forma radical hidroxilo; el 4º forma agua." },
+        { q: "Aunque las especies reactivas tienen 'mala fama', el profesor advirtió que a concentraciones fisiológicas bajas son imprescindibles para la vida. ¿Cuál de las siguientes NO es una función fisiológica de los radicales libres?", options: ["Actuar como neurotransmisores y vasodilatadores.", "Participar en la capacitación espermática y la ovulación.", "Actuar como sistema bactericida en los fagocitos.", "Inhibir irreversiblemente la glucólisis anaerobia."], correct: 3, exp: "El profesor enumeró múltiples funciones positivas: neurotransmisores, vasodilatadores, bactericidas, ovulación, síntesis de hormonas tiroideas y prostaglandinas. No inhiben la glucólisis de forma fisiológica." },
+        { q: "El profesor usó la analogía de la 'fábrica de botellas' para explicar cómo se originan los radicales libres en la cadena de transporte electrónico mitocondrial. ¿Qué porcentaje aproximado de electrones 'se caen de la cinta' y no logran llegar al complejo IV?", options: ["Entre el 20 y el 25%.", "Entre el 2 y el 5%.", "Exactamente el 50%.", "Menos del 0,01%."], correct: 1, exp: "Dato explícito. Entre un 2% y un 5% de los electrones que entran en la cadena se pierden o se 'caen' antes de llegar al final, reaccionando con el 2% del oxígeno que respiramos para formar superóxido." },
+        { q: "El principal lugar anatómico de formación del Radical Superóxido (O2∙−) es la mitocondria, pero ¿de qué proceso bioquímico exacto deriva?", options: ["De la oxidación enzimática mediada por la citocromo c oxidasa.", "De la autooxidación NO enzimática de la Flavina mononucleótido (FMN) en un 25%, y de la Ubiquinona en un 75%.", "Del escape de protones del espacio intermembrana al citosol.", "De la degradación lisosomal de lípidos."], correct: 1, exp: "Remarcado en el audio. No participa ninguna enzima. Es una autooxidación espontánea donde la FMN (complejo I) pierde el 25% de electrones descarriados y la Ubiquinona el 75% restante." },
+        { q: "La formación del radical superóxido en la membrana interna mitocondrial es un proceso 'vectorial'. ¿Qué ocurre con la mayoría de este radical libre recién formado?", options: ["El 100% viaja al núcleo celular para dañar el ADN.", "El 70% abandona la mitocondria hacia el citoplasma para neutralizarse.", "Aproximadamente el 30% sale al citosol y el 70% se queda confinado y atrapado dentro de la matriz mitocondrial.", "Se difunde a través de las membranas libremente gracias a su carga eléctrica."], correct: 2, exp: "Dato clave. Es un proceso vectorial donde el 70% del daño y la molécula se queda atrapado dentro de la mitocondria, dañándola primariamente a ella." },
+        { q: "Las Especies Reactivas del Nitrógeno (RNS) derivan del Óxido Nítrico (NO). ¿Qué característica química define al Óxido Nítrico?", options: ["Es un gas diamagnético inerte.", "Es una molécula no radicalaria estable.", "Es un gas con un electrón desapareado, por lo que es una molécula radical en sí misma.", "Es el producto final de la reducción univalente del nitrógeno."], correct: 2, exp: "Clase. El NO tiene 8 electrones del O y 7 del N (15 totales), lo que obliga a tener un electrón desapareado, convirtiéndolo químicamente en un radical estable." },
+        { q: "Cuando el radical superóxido (O2∙−) reacciona con el Óxido Nítrico (NO), se forma un intermediario altamente inestable. ¿Cuál es este compuesto y en qué se escinde?", options: ["Se forma Anión Peroxinitrito (ONOO−), que se rompe rápidamente en Dióxido de Nitrógeno (NO2) y Radical Hidroxilo (HO∙).", "Se forma Peróxido de hidrógeno (H2O2), que se rompe en agua.", "Se forma Citrulina, que pasa al ciclo de la urea.", "Se forma Ácido úrico, que precipita en articulaciones."], correct: 0, exp: "Clase. La unión de ambas vías genera peroxinitrito, el cual es inestable y explota generando el 'malo de la película', el radical hidroxilo." },
+        { q: "La enzima Óxido Nítrico Sintasa Mitocondrial (mtNOS) fue motivo de debate durante décadas. El profesor aclaró que su origen genético proviene de:", options: ["Una copia exacta del gen de la eNOS (endotelial).", "Una modificación postraduccional de la nNOS (neuronal), anclada a la membrana interna.", "El gen iNOS (inducible) activado por el sistema inmune.", "Un plásmido bacteriano."], correct: 1, exp: "Cuidado con esta. La mtNOS no es un gen nuevo, sino la enzima neuronal (nNOS) que sufre modificaciones postraduccionales para ir a trabajar a la mitocondria." },
+        { q: "¿Cuáles son exactamente las dos modificaciones postraduccionales que sufre la nNOS para convertirse en la mtNOS funcional anclada en la mitocondria?", options: ["Glicosilación en el carbono central y sulfatación.", "Miristoilación (adición de ácido mirístico) en la glicina-2 del extremo amino (para anclarse a la membrana) y Fosforilación en la serina-1412 del extremo carboxilo (para activarse).", "Acetilación de la serina y metilación del triptófano.", "Escisión proteolítica por la caspasa-3."], correct: 1, exp: "Descrito con mucho detalle en clase. El ácido mirístico (C14) se une a la glicina 2 tras quitar la metionina, anclándola a la membrana. La quinasa B (Akt) fosforila la Ser1412 para aumentar su actividad." },
+        { q: "En la estructura de la enzima óxido nítrico sintasa (un homodímero), existe un dominio reductasa y un dominio oxigenasa. Para funcionar, necesita la unión de una proteína que actúa como 'sensor de calcio'. ¿Cómo se llama?", options: ["Troponina C.", "Calmodulina.", "Tetrahidrobiopterina.", "Calsecuestrina."], correct: 1, exp: "Clase. La enzima se activa en presencia de calcio, pero el calcio no se une directamente a ella, sino a la calmodulina, que luego se acopla a la NOS y la enciende." },
+        { q: "El profesor denominó al Radical Hidroxilo (HO∙) como el 'Aníbal' o el 'malo de la película'. ¿Cuál es una de las razones bioquímicas que justifican su peligrosidad?", options: ["Porque su vida media es de varios días y puede viajar a otros órganos.", "Porque inhibe la síntesis de insulina.", "Porque 'todos los caminos llevan a Roma'; se forma por múltiples vías diferentes (Fenton, Haber-Weiss, vía del peroxinitrito).", "Porque bloquea los receptores glutamatérgicos cerebrales."], correct: 2, exp: "Clase. Hay un esquema visual del profe donde el HO∙ está en el centro diana. Se forma por múltiples vías y no hay ninguna enzima que se encargue de eliminarlo directamente." },
+        { q: "El peróxido de hidrógeno (H2O2) puede difundir a través de las membranas y salir de la mitocondria. Una vez en el citosol, puede transformarse en el destructivo radical hidroxilo a través de la Reacción de Fenton. ¿Qué elementos catalizan esta reacción exacta?", options: ["La unión de dos moléculas de H2O2 mediada por la catalasa.", "Metales de transición en estado reducido (como el Fe2+ o el Cu+) que ceden un electrón al H2O2.", "La luz ultravioleta incidiendo sobre el núcleo.", "La enzima superóxido dismutasa tipo 1."], correct: 1, exp: "Reacción clave. Fenton es: H2O2+Fe2+→HO∙+OH−+Fe3+. Los metales de transición reducidos rompen el peróxido formando el radical hidroxilo." },
+        { q: "La lipoperoxidación es el proceso destructivo de las membranas celulares. ¿Qué radical libre es el encargado fisiológico de iniciar esta cadena al arrancar un hidrógeno de un ácido graso?", options: ["Radical superóxido.", "Peróxido de hidrógeno.", "Radical hidroxilo (HO∙).", "Óxido nítrico puro."], correct: 2, exp: "Clase. El radical hidroxilo ataca la insaturación del ácido graso, arrancándole un átomo de hidrógeno y convirtiéndolo en un lípido radical (iniciación)." },
+        { q: "Tras el ataque inicial a la membrana lipídica, ¿qué suceso explica que la lipoperoxidación sea tan destructiva a gran escala?", options: ["Que el lípido afectado migra al núcleo e induce apoptosis masiva.", "Que es un proceso autopropagado: el lípido radical capta oxígeno, forma un radical peroxilo y ataca al ácido graso vecino, provocando una reacción en cadena.", "Que cristaliza instantáneamente la membrana, volviéndola sólida.", "Que invierte la polaridad eléctrica de la célula."], correct: 1, exp: "Analogía del estanque. Es una reacción de propagación donde un lípido dañado daña al de al lado, y este al siguiente, amplificando el daño exponencialmente." },
+        { q: "Como consecuencia final de la lipoperoxidación, además del daño estructural a la membrana, se forman compuestos secundarios altamente mutagénicos y carcinogénicos que pueden dañar el ADN mitocondrial. El ejemplo más citado es:", options: ["Ácido araquidónico.", "Malondialdehído.", "Cuerpos cetónicos.", "Bilirrubina indirecta."], correct: 1, exp: "Clase. El malondialdehído (MDA) es un subproducto tóxico y reactivo de la rotura de los lipoperóxidos, usado en clínica como marcador de daño oxidativo." },
+        { q: "En 1954, Rebeca Gerschman formuló una teoría pionera en la revista Science experimentando con ratones. ¿Qué proponía fundamentalmente su teoría?", options: ["Que la radiación ultravioleta promueve la síntesis de vitamina D.", "Que la restricción calórica duplica la vida de los mamíferos.", "Que los radicales libres son el mecanismo tóxico molecular común tanto de las altas presiones de oxígeno como de la irradiación por rayos X.", "Que la telomerasa repara el daño de los radicales libres."], correct: 2, exp: "Historia clave de clase. Gerschman observó que el daño tisular/bioquímico y la reducción de supervivencia de los ratones eran idénticos si se les exponía a mucho O2 o a Rayos X, deduciendo que la vía común era la formación de radicales libres." },
+        { q: "¿Qué hito científico ocurrido en 1969 cambió la mentalidad de la comunidad científica y demostró de forma irrefutable que los radicales libres se producen de manera natural dentro de los seres vivos?", options: ["El descubrimiento de la penicilina.", "La invención del microscopio electrónico.", "El descubrimiento de la enzima Superóxido Dismutasa (SOD), probando que si el cuerpo tiene una enzima para eliminar una especie reactiva, es porque la produce.", "La secuenciación del genoma humano."], correct: 2, exp: "Clase. La aparición de la SOD demostró que nuestro organismo había evolucionado creando defensas específicas, certificando que la amenaza era real e interna." },
+        { q: "El concepto moderno de 'Estrés Oxidativo' (Sies, 1985) se define bioquímicamente de forma muy precisa. Señale la afirmación CORRECTA:", options: ["Es la aparición puntual de radicales libres tras un ejercicio intenso.", "Es el desequilibrio entre la producción de especies reactivas y los sistemas de defensa antioxidantes, lo que provoca un aumento de la concentración en 'estado estacionario' de dichas especies.", "Es la muerte celular programada inducida por el oxígeno.", "Es la completa saturación de la hemoglobina por monóxido de carbono."], correct: 1, exp: "Concepto fundamental. El estrés no es formar ROS (eso ocurre siempre), sino el desequilibrio cuando se forman más de las que se degradan, aumentando su concentración estable (estado estacionario) y causando daño." },
+        { q: "El profesor definió ampliamente qué es un 'Antioxidante'. Según su explicación, ¿qué mecanismo de acción NO corresponde a un antioxidante genuino?", options: ["Ceder un electrón a un radical libre para estabilizarlo directamente.", "Oxidar los metales de transición (capacidad quelante) para prevenir la reacción de Fenton antes de que ocurra.", "Activar la expresión génica de enzimas antioxidantes como la catalasa.", "Fomentar la autooxidación de la Ubiquinona en la mitocondria."], correct: 3, exp: "Fomentar la autooxidación de la ubiquinona es precisamente lo que origina radicales libres (el superóxido), no lo que los evita." },
+        { q: "El grupo de Antioxidantes Endógenos Enzimáticos está compuesto fundamentalmente por tres enzimas. ¿Qué reacción química exacta cataliza la Superóxido Dismutasa (SOD)?", options: ["Convierte H2O2 en agua y oxígeno puro.", "Transfiere electrones del Glutatión al H2O2.", "Dismuta dos moléculas de radical superóxido (O2∙−): oxida una a oxígeno molecular (O2) y reduce la otra a peróxido de hidrógeno (H2O2).", "Une el radical hidroxilo con un protón para formar agua."], correct: 2, exp: "Definición exacta dada en clase. Usa dos superóxidos: le quita un electrón a uno (oxidándolo a O2) y se lo da al otro junto con protones (reduciéndolo a H2O2)." },
+        { q: "Las isoformas de la SOD son clave en el examen. ¿Qué característica estructural/localización corresponde correctamente a la Superóxido Dismutasa Tipo 2 (SOD2)?", options: ["Es un homodímero citosólico dependiente de Cobre y Zinc.", "Es un homotetrámero localizado en la mitocondria que requiere átomos de Manganeso (Mn) en su centro activo.", "Es una enzima extracelular dependiente de hierro.", "Es un monómero anclado a la membrana del peroxisoma."], correct: 1, exp: "Clase. SOD1 (citosólica) y SOD3 (extracelular) son de Cu/Zn. La SOD2 es la única mitocondrial, es tetramérica y usa Manganeso." },
+        { q: "El profesor detalló un experimento de letalidad en ratones knock-out para las isoformas de la SOD. ¿Qué ocurrió al eliminar genéticamente la SOD tipo 2 (mitocondrial) en ratones?", options: ["Vivieron el doble de tiempo gracias a la restricción calórica.", "Su esperanza de vida disminuyó un 30%, similar al efecto en la mosca de la fruta.", "Murieron en un plazo inferior a 24 horas, demostrando la letalidad masiva del superóxido atrapado en la mitocondria.", "Desarrollaron un síndrome similar al Síndrome de Gilbert."], correct: 2, exp: "Hincapié brutal en el audio. Si eliminas la SOD1 (citosólica), viven menos, pero sobreviven. Si eliminas la SOD2 (mitocondrial), no llegan a vivir ni un día." },
+        { q: "La Catalasa es una enzima antioxidante de defensa. Señale su característica principal:", options: ["Es un homotetrámero con grupo hemo localizado en los peroxisomas, con una eficiencia tan alta que no llega a saturarse independientemente de la cantidad de H2O2.", "Utiliza el selenio como cofactor indispensable.", "Depende de los niveles de glutatión oxidado para funcionar.", "Se encuentra exclusivamente flotando libre en el plasma sanguíneo."], correct: 0, exp: "Clase. La catalasa es un tetrámero con grupo hemo, típica de peroxisomas, y destacó que 'por mucho sustrato que le metas, nunca se satura' (altísima eficiencia)." },
+        { q: "La Glutatión Peroxidasa es la tercera enzima de defensa. ¿Qué cofactor oligoelemento inusual contiene obligatoriamente en su centro activo?", options: ["Cobre.", "Zinc.", "Selenio (en forma de seleno-cisteína).", "Cobalto."], correct: 2, exp: "PDF y clase. Las glutatión peroxidasas son el ejemplo clásico en bioquímica de enzimas dependientes de selenio." },
+        { q: "La isoforma de la Glutatión Peroxidasa tipo 4 (GPx4 o fosfolípido hidroperóxido) tiene una estructura particular que le permite realizar una función única. ¿Cuál es?", options: ["Es un tetrámero gigante que frena la glucólisis.", "Es un monómero muy pequeño que puede insertarse en las membranas lipídicas para neutralizar los hidroperóxidos lipídicos y frenar la propagación de la lipoperoxidación.", "Es la única enzima capaz de destruir directamente al radical hidroxilo.", "Viaja al núcleo para fosforilar a la proteína p53."], correct: 1, exp: "Clase. Al ser un monómero, puede meterse en la bicapa lipídica y actuar de 'cortafuegos' a los lipoperóxidos generados durante el daño a la membrana." },
+        { q: "En la 'Red Enzimática Antioxidante' mostrada por el profesor, se evidencia una gran estrategia evolutiva contra el Radical Hidroxilo (HO∙). ¿En qué consiste dicha estrategia?", options: ["Existe una enzima específica súper rápida llamada 'Hidroxilo Dismutasa'.", "Como no hay ninguna enzima que pueda degradar al HO∙ directamente, el sistema desvía el tráfico y elimina agresivamente a sus precursores (O2∙− y H2O2) mediante la SOD, Catalasa y GPx, 'cerrando las vías' de formación del hidroxilo.", "El hidroxilo se bombea activamente al exterior celular a través de un canal de ATP.", "El hidroxilo se une covalentemente al hierro formando un complejo inofensivo."], correct: 1, exp: "Explicado en el audio. Al no tener armas directas contra el hidroxilo, las 3 enzimas cortan el suministro de los componentes que lo originan." },
+        { q: "En cuanto a los Antioxidantes Endógenos No Enzimáticos, el Glutatión (GSH) es la molécula principal del citosol. Químicamente, es un tripéptido (Glutamato-Cisteína-Glicina) con una particularidad:", options: ["Su enlace peptídico se forma con el grupo carboxilo de la cadena lateral del glutamato (gamma-glutamil), y no con el carbono alfa central.", "Contiene enlaces disulfuro irreversibles en su estado natural.", "Carece de grupos amino.", "Incorpora un anillo tetrapirrólico."], correct: 0, exp: "Clase. El profesor remarcó el 'enlace que no cuadra mucho': el glutamato se une a la cisteína usando el carboxilo de su cadena lateral (radical), lo que le da estabilidad frente a peptidasas estándar." },
+        { q: "¿Qué grupo químico específico de la molécula de Glutatión es el responsable físico de ceder electrones y otorgarle su capacidad antioxidante?", options: ["El grupo metilo de la glicina.", "El grupo carboxilo del glutamato.", "El grupo tiol o sulfhidrilo (-SH) central de la cisteína.", "El puente de hidrógeno entre sus aminoácidos."], correct: 2, exp: "Clase. 'La magia de esta molécula se encuentra justamente en este grupo tiol de la cisteína en medio de la molécula'." },
+        { q: "El 'Estado de Estrés Oxidativo' celular puede cuantificarse clínicamente midiendo la ratio del Glutatión. En un tejido sano y sin estrés, ¿cuál es la proporción habitual?", options: ["50% reducido (GSH) / 50% oxidado (GSSG).", "10% reducido (GSH) / 90% oxidado (GSSG).", "90% en estado reducido (GSH) y solo un 10% en forma oxidada de disulfuro (GSSG).", "100% en estado oxidado (GSSG)."], correct: 2, exp: "Explicación de clase. En reposo, el 90% es el glutatión 'listo para usar' (reducido) y un 10% oxidado. Si la balanza se invierte o se acerca, hay estrés oxidativo manifiesto." },
+        { q: "La otra molécula no enzimática estrella fue la Melatonina ('N-acetil-5-metoxitriptamina'). ¿A partir de qué neurotransmisor se sintetiza directamente en la glándula pineal y la retina?", options: ["Dopamina.", "Adrenalina.", "Serotonina.", "GABA."], correct: 2, exp: "Clase. La serotonina es modificada por la acetiltransferasa y luego metilada por la metiltransferasa para convertirse en melatonina." },
+        { q: "¿Qué aporta exactamente la modificación bioquímica del grupo METILO a la molécula de melatonina respecto a su función protectora?", options: ["Le permite atravesar la barrera hematoencefálica.", "Le otorga la capacidad química intrínseca de neutralizar directamente a las especies reactivas, especialmente al radical hidroxilo.", "Le da un efecto sedante exclusivo.", "La convierte en una hormona esteroidea."], correct: 1, exp: "El profesor detalló que el grupo metilo (añadido al anillo indol) es el responsable funcional de neutralizar el radical hidroxilo." },
+        { q: "Por otro lado, ¿qué función cumple el grupo ACETILO añadido en la estructura de la melatonina?", options: ["Aumenta la eficacia de otros antioxidantes exógenos (como la vitamina C y E) mediante una acción sinérgica.", "Elimina la vitamina E del organismo para evitar hipervitaminosis.", "Destruye el núcleo del glutatión oxidado.", "Fosforila el receptor de insulina."], correct: 0, exp: "Audio. El acetilo confiere a la melatonina la capacidad de potenciar en sinergia el efecto de los antioxidantes aportados por la dieta." },
+        { q: "A nivel evolutivo, el profesor mencionó una curiosa teoría sobre el origen biológico de la melatonina hace 2.500 millones de años en seres unicelulares. Según esta teoría, ¿para qué se originó primariamente la melatonina?", options: ["Para regular los ciclos del sueño en bacterias.", "Para proteger a la célula primitiva frente a una atmósfera con alta presión de oxígeno y alta radiación ultravioleta (UV) actuando como puro escudo antioxidante.", "Para promover la fotosíntesis.", "Para digerir metales pesados."], correct: 1, exp: "Relato evolutivo. Se originó como escudo contra los UV y el oxígeno primitivo. Se degradaba por el sol de día y se acumulaba de noche. Esa fluctuación se adaptó después a los ciclos circadianos animales." },
+        { q: "Según la gráfica mostrada sobre los niveles plasmáticos de Melatonina según la edad, ¿en qué momento vital humano se alcanzan los mayores picos de esta hormona?", options: ["En los recién nacidos menores de 1 mes.", "En los individuos mayores de 80 años.", "En la niñez/adolescencia (con picos máximos que empiezan a decaer a partir de los 10-15 años).", "Los niveles se mantienen constantes a lo largo de toda la vida."], correct: 2, exp: "Clase. Los recién nacidos tienen niveles muy bajos, luego sube drásticamente, y a partir de los 10-15 años comienza un declive sostenido que algunos relacionan con el envejecimiento." },
+        { q: "El profesor enumeró varias funciones protectoras de la Melatonina. ¿Cuál de las siguientes acciones NO es una característica de la melatonina?", options: ["Estimular la actividad de enzimas antioxidantes como GPx o catalasa.", "Mejorar la eficiencia de la cadena de transporte electrónico, reduciendo la fuga de electrones a O₂.", "Actuar como un profármaco que inhibe el sistema inmune.", "Regular los ciclos circadianos y presentar posible acción antineoplásica."], correct: 2, exp: "Clase. Es molécula multifuncional, pero mejora (no inhibe) el sistema inmune, reduce las fugas de la ETC y regula el ritmo vigilia-sueño." },
+        { q: "Dentro de los Antioxidantes Exógenos (aportados por la dieta), destaca la Vitamina E (Tocoferol). ¿Cuál es su rol principal en la defensa frente a los radicales libres?", options: ["Es una molécula hidrosoluble que recicla el Glutatión en el plasma.", "Por su marcado carácter lipofílico, se inserta en las membranas celulares cortando la cadena de propagación de la lipoperoxidación iniciada por el radical hidroxilo.", "Atraviesa el núcleo y metila el ADN para silenciar genes pro-apoptóticos.", "Sustituye al Manganeso en el centro activo de la SOD2."], correct: 1, exp: "Clase y PDF. La vitamina E protege directamente el ambiente lipídico de las membranas y frena la oxidación en cadena de las LDL." },
+        { q: "Definir médicamente el 'Envejecimiento' es complejo. Según la clase, es un proceso fisiológico que presenta una serie de características obligatorias. ¿Cuál de las siguientes NO define al envejecimiento?", options: ["Es universal, afecta a todos los organismos vivos.", "Es reversible mediante restricción calórica severa.", "Tiene un carácter supresor y progresivo que conduce al fallo sistémico y a la muerte.", "Es un proceso heterogéneo e individualizado según cada individuo y cada tejido."], correct: 1, exp: "Cuidado con la trampa. El profesor enfatizó que el envejecimiento es 'actualmente un proceso irreversible'. La restricción calórica retrasa el envejecimiento, pero no lo revierte." },
+        { q: "Las teorías que intentan explicar el origen celular del envejecimiento se dividen en dos grandes familias. ¿En qué consisten las teorías ESTOCÁSTICAS?", options: ["Afirman que el envejecimiento es un programa genético predeterminado de apoptosis global, similar a una 'fecha de caducidad' grabada en el ADN.", "Explican el envejecimiento como la consecuencia de daños y alteraciones perjudiciales (como mutaciones y daño oxidativo) que ocurren de forma puramente aleatoria (al azar) y que se acumulan progresivamente con el tiempo.", "Proponen que se debe exclusivamente a un fallo en el sistema inmune.", "Son aquellas que afirman que la vida no tiene un límite máximo teórico."], correct: 1, exp: "Definición exacta. Estocástico significa 'azaroso'. El daño se produce de forma impredecible en biomoléculas y se va acumulando hasta fallar la célula." },
+        { q: "Denham Harman (1956) postuló la 'Teoría del Envejecimiento por Radicales Libres'. Con el avance de los descubrimientos y la biología celular, esta teoría evolucionó y se renombró. ¿A qué concepto anatómico se desplazó la culpa principal del envejecimiento?", options: ["Teoría lisosomal del envejecimiento.", "Teoría retiniana de los telómeros.", "Teoría Mitocondrial del Envejecimiento, al descubrir que la mitocondria es a la vez la principal fuente de los radicales libres y su principal diana.", "Teoría de la glicosilación de membranas eritrocitarias."], correct: 2, exp: "Clase. Harman propuso que el oxígeno mataba, pero al verse que el 90% se formaba en la mitocondria y era la primera en destruirse, evolucionó a la Teoría Mitocondrial." },
+        { q: "Al analizar con un microscopio el tejido de un mamífero anciano, el profesor indicó que observaremos un gran número de 'mitocondrias disfuncionales'. ¿Qué características morfológicas y bioquímicas presentan estas mitocondrias viejas frente a las jóvenes?", options: ["Son mitocondrias diminutas que se multiplican el triple de rápido.", "Son mitocondrias de gran tamaño, muy frágiles, con bajo potencial de membrana, caída severa en la síntesis de ATP y alta acumulación de mutaciones en su ADN interno.", "Son esferas de colesterol puro.", "Son mitocondrias sin crestas internas pero con una capacidad antioxidante cuadruplicada."], correct: 1, exp: "Listado explícito del profe. Son frágiles, grandes, su ADN acumula fallos, caen sus lípidos (falla el potencial) y se hunde la producción de ATP." },
+        { q: "En la 'Teoría Mitocondrial del Envejecimiento', la tasa de renovación de la propia mitocondria es clave para no acumular daño. A este reciclaje/creación de nuevas mitocondrias se le conoce biológicamente como:", options: ["Fisión nuclear asimétrica.", "Biogénesis mitocondrial.", "Mitoptosis.", "Lipoperoxidación lisosomal."], correct: 1, exp: "Clase. El profesor destacó que las mitocondrias no son orgánulos estáticos, tienen vidas medias (semanas) y su proceso de renovación es la biogénesis mitocondrial." },
+        { q: "El control central de esta Biogénesis Mitocondrial recae sorprendentemente sobre una enzima vista anteriormente. ¿Qué molécula señaliza y dicta a la célula que es hora de fabricar/renovar las mitocondrias?", options: ["La catalasa citosólica.", "La enzima ciclooxigenasa (COX).", "El Óxido Nítrico (NO), producido localmente por la enzima mtNOS funcional de la propia mitocondria sana.", "El Malondialdehído excretado por el núcleo celular."], correct: 2, exp: "Audio. El gas NO es el mensajero. 'Los niveles de óxido nítrico normales señalizan para la biogénesis mitocondrial'." },
+        { q: "¿Cuál es la secuencia de eventos bioquímicos en cascada que explica la acumulación de mitocondrias disfuncionales asociada a la edad?", options: ["Mutación del gen p53 → Exceso de óxido nítrico → Estallido mitocondrial.", "El daño acumulado por especies reactivas inactiva a la enzima mtNOS → caen los niveles de NO → se frena la biogénesis mitocondrial → las mitocondrias no se renuevan y se vuelven viejas y disfuncionales.", "Aumento de la síntesis de melatonina → bloqueo de la fosforilación oxidativa → mitocondria disfuncional.", "Destrucción total de la enzima SOD2 → Aumento masivo de ATP → saturación energética."], correct: 1, exp: "La gran secuencia del tema. Especies reactivas dañan proteínas → la mtNOS se estropea → no hay NO → no hay señal para biogénesis → el tejido acumula mitocondrias caducadas que acaban señalizando apoptosis." },
+        { q: "A nivel molecular, la señal del óxido nítrico (NO) actúa sobre un 'interruptor maestro', un coactivador transcripcional vital que viaja al núcleo para encender los genes de la nueva mitocondria. ¿Cuál es el acrónimo famoso de esta proteína clave?", options: ["PGC-1α (Proteína 1-alfa coactivadora del receptor PPAR).", "NF-kB.", "BRCA1 y BRCA2.", "GPx4."], correct: 0, exp: "Explicado en el audio. PGC-1α es el regulador maestro de la biogénesis, del metabolismo y de las defensas antioxidantes. Su actividad depende del estímulo de la mtNOS/NO." },
+        { q: "Si logramos aislar el coactivador PGC-1α humano en el laboratorio, ¿cuál de los siguientes procesos genéticos NO estará regulado directamente por él?", options: ["Activación de los genes de la biogénesis mitocondrial.", "Control de los genes implicados en el metabolismo celular de la glucosa.", "Activación de la síntesis directa de radicales superóxido para la apoptosis local.", "Activación de la expresión de genes codificantes de las enzimas antioxidantes."], correct: 2, exp: "Diapositiva 'PGC-1α' y audio. PGC-1α regula biogénesis, uso de glucosa, oxidación de ácidos grasos y activación génica de antioxidantes. No fabrica radicales superóxido." },
+        { q: "Paralelamente a la teoría mitocondrial, se desarrolló otra teoría biológica ligada al conocido 'Límite de Hayflick'. ¿Qué limitación biológica intrínseca descubrió Leonard Hayflick en los años 60?", options: ["Que una célula somática en cultivo solo es capaz de realizar la glucólisis durante 120 días.", "Que las células humanas somáticas normales tienen un número límite y finito de divisiones celulares (réplicas), situado entre 50 y 60 veces, antes de volverse senescentes o entrar en apoptosis.", "Que el corazón humano tiene un límite de latidos programado desde el nacimiento.", "Que las células germinales se autodestruyen a los 50 años."], correct: 1, exp: "Explicación de clase. El Límite de Hayflick demostró que las células somáticas no son inmortales; tras unas 50 divisiones, dejan de dividirse y mueren." },
+        { q: "La causa molecular subyacente al límite de Hayflick se aclaró en los años 90 con la 'Teoría del Acortamiento de los Telómeros'. ¿Cuál es el problema anatómico en el ADN que genera este fenómeno?", options: ["Las polimerasas que replican el ADN son ineficientes copiando los extremos libres de los cromosomas lineales, lo que provoca la pérdida irrecuperable de las secuencias terminales repetitivas (TTAGGG) en cada mitosis.", "Los telómeros están hechos de ARN inestable que el citosol degrada poco a poco.", "El radical hidroxilo ataca de forma dirigida y exclusiva los centrómeros de los cromosomas.", "Las histonas que envuelven los telómeros precipitan causando nudos en la mitosis."], correct: 0, exp: "Clase y PDF. Nuestro ADN es lineal. La maquinaria de replicación es incapaz de copiar el último fragmento terminal (telómero), por lo que el cromosoma 'encoge' físicamente con cada división somática." },
+        { q: "Existe una enzima capaz de sintetizar de nuevo esas secuencias perdidas en los extremos, evitando el acortamiento. Se llama Telomerasa. Sin embargo, ¿cuál es el 'problema' en el ser humano respecto a esta enzima y el envejecimiento?", options: ["Que el gen de la telomerasa se perdió en la evolución y los mamíferos no lo poseemos.", "Que la telomerasa solo existe en el tejido adiposo pardo de los recién nacidos.", "Que, fisiológicamente, la telomerasa se encuentra 'apagada' o reprimida en la inmensa mayoría de las células somáticas del organismo adulto, limitándose a células madre o línea germinal.", "Que su uso gasta tanto ATP celular que induce infartos a nivel tisular generalizado."], correct: 2, exp: "Audio. La telomerasa existe, pero nuestras células del cuerpo no la expresan habitualmente. Por eso se acortan inevitablemente con la edad. (Nota: el cáncer logra 'encender' este gen)." },
+        { q: "El clímax de la clase fue la FUSIÓN de la Teoría de los Telómeros con la Teoría Mitocondrial del Envejecimiento. Todo confluye en el gen supresor de tumores p53. ¿Qué ocurre exactamente cuando el acortamiento del telómero alcanza un límite crítico peligroso para el genoma?", options: ["El telómero emite señales acústicas moleculares que destruyen las membranas.", "La proteína p53 detecta el peligro de inestabilidad y envía dos señales: una hacia el núcleo induciendo la apoptosis, y otra 'represora' hacia el regulador mitocondrial PGC-1α, paralizando la renovación de las mitocondrias.", "La proteína p53 induce la síntesis masiva de radicales libres para disolver el cromosoma estropeado.", "La célula se transforma automáticamente en un macrófago."], correct: 1, exp: "Final de clase. Pregunta que conecta todo. Al cortarse el ADN, p53 decide que la célula debe morir. Lo hace induciendo apoptosis, pero también bloqueando a PGC-1α, lo que destroza la mitocondria y amplifica la disfunción." },
+        { q: "Fisiológicamente, ¿por qué es de vital importancia la reducción constante del glutatión oxidado (GSSG) a su forma reducida (GSH) a expensas de la enzima glutatión reductasa?", options: ["Para evitar que cristalice en los túbulos renales.", "Porque solo la forma reducida (GSH) posee el grupo tiol con capacidad para actuar donando electrones en la neutralización directa del peróxido de hidrógeno a través de la glutatión peroxidasa.", "Porque el GSSG reacciona con la glucosa plasmática formando hemoglobina glicosilada.", "Para inhibir directamente a la ciclooxigenasa (COX)."], correct: 1, exp: "Repaso bioquímico. El GSH es el arma 'cargada'. Cuando cede electrones pasa a GSSG. Sin GSH la GPx no puede eliminar el dañino H2O2." },
+        { q: "A nivel de nomenclatura científica estricta: ¿Qué característica define de forma excluyente a las Especies Reactivas de Nitrógeno (RNS)?", options: ["Son todas aquellas moléculas cargadas negativamente.", "Tienen que contener al menos una molécula de azufre central.", "Engloban a cualquier especie capaz de nitrar biomoléculas y que contenga en su estructura base átomos de nitrógeno.", "Tienen obligatoriamente que ser radicales libres diamagnéticos."], correct: 2, exp: "Definición de clase. Las RNS contienen al menos un átomo de nitrógeno y su reactividad da lugar a 'nitraciones' en los tejidos diana." },
+        { q: "Siguiendo con la clasificación celular, la formación endógena de Especies Reactivas de Oxígeno no es exclusiva de la mitocondria. El profesor describió una enzima localizada en los leucocitos cuya función PRIMARIA e intencionada es producir radicales libres. ¿Cuál es?", options: ["Citocromo P-450 endotelial.", "La NADPH Oxidasa, que produce grandes cantidades del radical superóxido como mecanismo de defensa para matar patógenos fagocitados.", "La mtNOS en las células de Kupffer.", "La hexoquinasa lisosomal."], correct: 1, exp: "Clase. Los fagocitos usan el complejo NADPH oxidasa deliberadamente para lanzar un 'chorro' tóxico de radicales libres contra las bacterias (estallido respiratorio)." },
+        { q: "El Anión Peroxinitrito (ONOO−) es un potente mediador del estrés nitrosativo. ¿Cuál es el mecanismo de toxicidad más destacado mediado por la vía de los compuestos nitrosativos sobre el componente proteico de nuestras células?", options: ["Rompen los enlaces disulfuro irreversiblemente.", "Generan nitrotirosinas (la nitración de residuos de tirosina de las proteínas), que alteran profundamente la función normal, la estructura o la vida media de esa proteína.", "Provocan la precipitación espontánea de alfa-sinucleína.", "Destruyen las cadenas alfa de las hemoproteínas."], correct: 1, exp: "Comentado durante la clase. Las RNS atacan a los aminoácidos diana (tirosina) para nitrarlos. Estas 'proteínas nitradas' pierden su funcionalidad original." },
+        { q: "En la vía de escape de electrones de la Cadena de Transporte Mitocondrial, ¿cuál es el porcentaje desglosado responsable de la síntesis del radical superóxido por autooxidación?", options: ["50% Flavina mononucleótido / 50% Citocromo c.", "25% Ubiquinona / 75% Complejo ATP Sintasa.", "25% Flavina mononucleótido (FMN) y 75% Ubiquinona (Coenzima Q).", "100% de fugas del Complejo IV."], correct: 2, exp: "Explicado en el audio. El complejo I (FMN) es responsable de la cuarta parte, mientras que la Ubiquinona en la membrana origina las otras tres cuartas partes." },
+        { q: "Respecto al Ácido Lipóico, ¿cuál fue la mención específica realizada por el profesor como mecanismo antioxidante indirecto en el que colabora este compuesto?", options: ["En la vía de acetilación directa de la serotonina.", "Su función como quelante de hierro libre masivo en plasma.", "Forma parte integral de la Red de Recuperación de Antioxidantes, actuando como eslabón químico que cede sus propios electrones para 'reciclar' a otros antioxidantes oxidados.", "Desempeña una acción pro-apoptótica en células senescentes."], correct: 2, exp: "Clase. Citó el ácido lipoico como componente que recicla la cadena de protección antioxidante una vez que estas moléculas han actuado." },
+        { q: "Según los apuntes y el esquema 'Teorías Estocásticas', ¿cuál afirmaba que el envejecimiento era causado por la 'acumulación de proteínas erróneas debido a fallos progresivos en la maquinaria de transcripción/traducción'?", options: ["El Soma Eliminable (Kirkwood, 1984).", "Error-Catástrofe (Orgel, 1963).", "Acortamiento de telómeros (Harley, 1990).", "Entrecruzamientos moleculares (Bjorksten, 1958)."], correct: 1, exp: "PDF. Orgel (1963) propuso que la acumulación de fallos no reparados en la síntesis de macromoléculas acaba en colapso biológico de la célula vieja." },
+        { q: "En el metabolismo general, la reacción de Haber-Weiss pura describe químicamente la interacción entre:", options: ["Dos moléculas de peróxido de hidrógeno.", "El radical superóxido reaccionando directamente con el peróxido de hidrógeno (O2∙−+H2O2→HO∙+OH−+O2).", "La oxidación del colesterol libre.", "La hidratación de la Ubiquinona libre."], correct: 1, exp: "PDF. Combinación de los dos precursores producidos en cadena para generar el radical hidroxilo. In vivo suele requerir metales de transición." },
+        { q: "Al examinar el balance oxidativo en un paciente expuesto a radiación UV, ¿qué proceso del envejecimiento se estaría acelerando de forma secundaria en sus fibroblastos?", options: ["El bloqueo masivo de la enzima Catalasa por luz infrarroja.", "Un hiper-alargamiento patológico de los telómeros.", "Una acumulación aleatoria de mutaciones (Daño ROS), el descenso en la señal de mtNOS, caída de PGC-1α y formación de mitocondrias estructuralmente frágiles y energéticamente defectuosas.", "Activación masiva de la telomerasa."], correct: 2, exp: "Pregunta integradora. El estresor oxidativo descontrola la mtNOS, paraliza la biogénesis guiada por PGC-1α e inunda al tejido con mitocondrias ineficaces." }
+    ];
+
+    let currentQuestions = [];
+    let state = {};
+
+    function startQuiz(randomize) {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        currentQuestions = [...database];
+        if(randomize) currentQuestions.sort(() => Math.random() - 0.5);
+
+        renderNav();
+        renderQuiz();
+        window.scrollTo(0,0);
+    }
+
+    function renderNav() {
+        const nav = document.getElementById('nav-grid');
+        nav.innerHTML = '';
+        currentQuestions.forEach((_, i) => {
+            state[i] = { answered: false, marked: false, correct: false };
+            const btn = document.createElement('button');
+            btn.className = 'index-btn';
+            btn.id = `nav-${i}`;
+            btn.innerText = i + 1;
+            btn.onclick = () => document.getElementById(`q-${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            nav.appendChild(btn);
+        });
+    }
+
+    function renderQuiz() {
+        const container = document.getElementById('quiz-area');
+        container.innerHTML = '';
+        currentQuestions.forEach((q, i) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `q-${i}`;
+
+            // Mezclar opciones para esta carga
+            let optionsWithMeta = q.options.map((t, idx) => ({ text: t, originalIdx: idx }));
+            optionsWithMeta.sort(() => Math.random() - 0.5);
+
+            card.innerHTML = `
+                <div class="question-header">
+                    <strong>PREGUNTA ${i+1}</strong>
+                    <button class="mark-check" id="mark-${i}" onclick="toggleMark(${i})">🔖 Marcar</button>
+                </div>
+                <p>${q.q}</p>
+                <div id="opts-box-${i}">
+                    ${optionsWithMeta.map(o => `
+                        <button class="option-btn" onclick="check(${i}, ${o.originalIdx}, this)">${o.text}</button>
+                    `).join('')}
+                </div>
+                <div class="explanation" id="exp-${i}">${q.exp}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function check(qIdx, selected, btn) {
+        if(state[qIdx].answered) return;
+        
+        const qData = currentQuestions[qIdx];
+        state[qIdx].answered = true;
+        state[qIdx].correct = (selected === qData.correct);
+
+        const container = document.getElementById(`opts-box-${qIdx}`);
+        const buttons = container.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        if(state[qIdx].correct) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            buttons.forEach(b => {
+                if(b.innerText === qData.options[qData.correct]) b.classList.add('correct');
+            });
+        }
+
+        document.getElementById(`exp-${qIdx}`).style.display = 'block';
+        document.getElementById(`nav-${qIdx}`).classList.add('answered');
+    }
+
+    function toggleMark(i) {
+        state[i].marked = !state[i].marked;
+        document.getElementById(`mark-${i}`).classList.toggle('active');
+        document.getElementById(`nav-${i}`).classList.toggle('marked');
+    }
+
+    function showResults() {
+        let corrects = 0;
+        let total = currentQuestions.length;
+        Object.values(state).forEach(s => { if(s.correct) corrects++; });
+        
+        const percent = Math.round((corrects / total) * 100);
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('score-display').innerText = percent + "%";
+        document.getElementById('stats-text').innerText = `Aciertos: ${corrects} | Fallos: ${total - corrects}`;
+        window.scrollTo(0,0);
+    }
+
+    function retry(type) {
+        let nextSet = [];
+        if(type === 'all') {
+            nextSet = [...database];
+        } else {
+            currentQuestions.forEach((q, i) => {
+                const s = state[i];
+                if(type === 'failed' && s.answered && !s.correct) nextSet.push(q);
+                if(type === 'marked' && s.marked) nextSet.push(q);
+                if(type === 'failed-marked' && (s.marked || (s.answered && !s.correct))) nextSet.push(q);
+            });
+        }
+
+        if(nextSet.length === 0) {
+            alert("No hay preguntas registradas con ese criterio.");
+            return;
+        }
+
+        currentQuestions = nextSet;
+        state = {};
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

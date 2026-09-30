@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Digestión de Carbohidratos</title>
+    <style>
+        :root {
+            --primary: #2980b9;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f7;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- PANTALLAS (Overlay) --- */
+        #start-screen, #results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        h2 { color: var(--primary); margin-bottom: 20px; }
+        p { font-size: 1.1em; color: #555; max-width: 600px; margin-bottom: 20px; }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0,0,0,0.15); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--accent); color: white; }
+        .btn-danger { background-color: var(--error); color: white; }
+        .btn-warning { background-color: var(--warning); color: #333; }
+        .btn-info { background-color: #8e44ad; color: white; }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        #app-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navegación */
+        #sidebar {
+            width: 70px;
+            background-color: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .nav-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .nav-dot:hover { background-color: rgba(255,255,255,0.4); }
+        .nav-dot.active { border-color: white; transform: scale(1.15); font-weight: bold; }
+        .nav-dot.correct { background-color: var(--success); }
+        .nav-dot.wrong { background-color: var(--error); }
+        .nav-dot.marked { border-color: var(--warning); color: var(--warning); font-weight: bold; }
+        .nav-dot.marked.correct { background-color: var(--success); color: white; border-color: var(--warning); }
+        .nav-dot.marked.wrong { background-color: var(--error); color: white; border-color: var(--warning); }
+
+        /* Área de Preguntas */
+        #main-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--accent);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.4;
+            width: 85%;
+        }
+
+        /* Checkbox de Marcar */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            user-select: none;
+        }
+        .mark-container input { display: none; }
+        .mark-icon { font-size: 1.5em; margin-right: 5px; transition: color 0.2s; }
+        .mark-container input:checked ~ .mark-icon { color: var(--warning); }
+        .mark-container input:checked ~ span { color: #d35400; font-weight: bold; }
+        .mark-icon::before { content: '☆'; }
+        .mark-container input:checked ~ .mark-icon::before { content: '★'; }
+
+        /* Opciones */
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: left;
+            font-size: 1em;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background-color: #f0f8ff; }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background-color: #f8d7da; border-color: var(--error); color: #721c24; }
+        
+        /* Explicación */
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-left: 4px solid var(--success);
+            border-radius: 4px;
+            color: #2c3e50;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Botón Flotante Finalizar */
+        #finish-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Stats en Modal */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .stat-box { text-align: center; }
+        .stat-number { display: block; font-size: 2.5em; font-weight: bold; }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--error); }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Digestión y Absorción de Carbohidratos</h1>
+        <p>50 Preguntas | Bioquímica y Fisiología</p>
+        <p>Selecciona el modo de orden de las preguntas:</p>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="initQuiz('ordered')">Orden Numérico (1-50)</button>
+            <button class="btn-secondary" onclick="initQuiz('random')">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav id="sidebar"></nav>
+        <main id="main-area"></main>
+        <button id="finish-btn" class="btn-danger" onclick="showResults()">Finalizar Quiz</button>
+    </div>
+
+    <div id="results-modal" class="hidden">
+        <h2>Resultados</h2>
+        <div class="stats-row">
+            <div class="stat-box">
+                <span class="stat-number text-success" id="res-correct">0</span>
+                <span>Aciertos</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number text-danger" id="res-wrong">0</span>
+                <span>Fallos</span>
+            </div>
+        </div>
+        <p id="res-msg"></p>
+
+        <h3>Opciones de Reintento</h3>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-danger" id="btn-retry-failed" onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button class="btn-warning" id="btn-retry-marked" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-info" id="btn-retry-combo" onclick="restartQuiz('combo')">Falladas + Marcadas</button>
+        </div>
+        <br>
+        <button style="background:transparent; color:#777; border:1px solid #ccc; font-size:0.9em;" onclick="closeModal()">Volver a revisar respuestas</button>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS DE PREGUNTAS (50 Items) ---
+        const dbQuestions = [
+            { id: 1, q: "¿Cuál es el objetivo bioquímico final de la digestión de los carbohidratos de la dieta?", options: ["Obtener disacáridos absorbibles.", "Obtener monosacáridos (glucosa, galactosa, fructosa), ya que son las únicas formas que pueden absorber los enterocitos.", "Degradar el almidón hasta maltosa exclusivamente.", "Convertir toda la fibra en glucosa."], ans: 1, exp: "Respuesta: B." },
+            { id: 2, q: "En el contexto de la digestión, ¿qué es un zimógeno? (Pista Audio)", options: ["Una enzima que solo actúa en pH básico.", "Un cofactor inorgánico necesario para la digestión.", "Una proenzima inactiva sintetizada por la célula que se activa únicamente al llegar a la luz intestinal o estomacal.", "Una enzima encargada de degradar grasas."], ans: 2, exp: "Respuesta: C." },
+            { id: 3, q: "¿Qué volumen aproximado de fluidos (secreciones + ingesta) maneja el tracto gastrointestinal diariamente, cuya reabsorción es crítica para evitar la deshidratación? (Pista Audio - \"Dato interesante\")", options: ["2 litros.", "5 litros.", "Cerca de 10 litros.", "20 litros."], ans: 2, exp: "Respuesta: C." },
+            { id: 4, q: "¿Qué tipo de reacción química catalizan todas las enzimas digestivas (amilasas, disacaridasas, proteasas)?", options: ["Oxidación.", "Hidrólisis (ruptura de enlaces con adición de agua).", "Fosforilación.", "Descarboxilación."], ans: 1, exp: "Respuesta: B." },
+            { id: 5, q: "El borde en cepillo (microvellosidades) de los enterocitos es fundamental porque:", options: ["Secreta ácido clorhídrico.", "Aumenta enormemente la superficie de absorción y contiene las enzimas para la fase final de la digestión.", "Almacena glucógeno.", "Impide el paso de agua."], ans: 1, exp: "Respuesta: B." },
+            { id: 6, q: "La alfa-amilasa salival y pancreática hidroliza específicamente los enlaces:", options: ["Alfa (1-6) de las ramificaciones.", "Beta (1-4) de la celulosa.", "Alfa (1-4) internos de la cadena lineal.", "Los enlaces terminales para liberar glucosa libre directamente."], ans: 2, exp: "Respuesta: C." },
+            { id: 7, q: "¿Cuáles son los productos resultantes de la acción de la alfa-amilasa sobre el almidón?", options: ["Solo glucosa libre.", "Maltosa, maltotriosa y dextrinas alfa-límite.", "Fructosa y galactosa.", "Sacarosa y lactosa."], ans: 1, exp: "Respuesta: B." },
+            { id: 8, q: "¿Por qué la alfa-amilasa NO puede degradar completamente el almidón a glucosa?", options: ["Porque se inactiva en el intestino.", "Porque carece de actividad para romper los enlaces alfa (1-6) de las ramificaciones y los enlaces alfa (1-4) terminales.", "Porque el almidón es resistente a la hidrólisis.", "Porque requiere ATP."], ans: 1, exp: "Respuesta: B." },
+            { id: 9, q: "¿Qué enzima del borde en cepillo es necesaria para hidrolizar los enlaces alfa (1-6) de las dextrinas límite (ramificaciones)?", options: ["Lactasa.", "Sacarasa.", "Isomaltasa (o alfa-dextrinasa).", "Trehalasa."], ans: 2, exp: "Respuesta: C." },
+            { id: 10, q: "La enzima alfa-glucosidasa (o maltasa) finaliza la digestión del almidón hidrolizando:", options: ["La lactosa.", "Los enlaces alfa (1-4) de la maltosa y maltotriosa para liberar glucosa libre.", "Los enlaces peptídicos.", "Los lípidos asociados."], ans: 1, exp: "Respuesta: B." },
+            { id: 11, q: "¿Dónde se localizan las disacaridasas (lactasa, sacarasa, maltasa)?", options: ["Disueltas en el jugo gástrico.", "Disueltas libremente en la luz del duodeno (secreción pancreática).", "Ancladas a la membrana apical (borde en cepillo) de los enterocitos.", "Dentro del citoplasma del enterocito."], ans: 2, exp: "Respuesta: C." },
+            { id: 12, q: "La sacarasa es una enzima que hidroliza la sacarosa produciendo:", options: ["Dos moléculas de glucosa.", "Glucosa y Galactosa.", "Glucosa y Fructosa.", "Galactosa y Fructosa."], ans: 2, exp: "Respuesta: C." },
+            { id: 13, q: "Respecto a la inducibilidad de las enzimas digestivas de carbohidratos, la profesora destaca que: (Pista Audio - Pregunta clave)", options: ["Todas son inducibles por la dieta.", "Ninguna es inducible.", "La mayoría son inducibles (sacarasa, maltasa) excepto la lactasa, que no aumenta aunque se consuma mucha leche.", "La lactasa es la única enzima inducible."], ans: 2, exp: "Respuesta: C." },
+            { id: 14, q: "La digestión de la lactosa produce:", options: ["Glucosa + Fructosa.", "Glucosa + Galactosa.", "Maltosa + Glucosa.", "Dos moléculas de Galactosa."], ans: 1, exp: "Respuesta: B." },
+            { id: 15, q: "¿Qué característica define la especificidad de las disacaridasas?", options: ["Una misma enzima degrada cualquier disacárido.", "Actúan como \"llave y cerradura\": la lactasa solo reconoce lactosa, no sacarosa.", "Dependen solo del pH, no del sustrato.", "Son intercambiables entre sí."], ans: 1, exp: "Respuesta: B." },
+            { id: 16, q: "La trehalasa es una enzima específica para degradar trehalosa, un azúcar presente en:", options: ["La leche.", "La caña de azúcar.", "Champiñones e insectos.", "La fruta."], ans: 2, exp: "Respuesta: C (Información complementaria estándar en bioquímica médica)." },
+            { id: 17, q: "El transporte de glucosa desde la luz intestinal al interior del enterocito se realiza principalmente mediante:", options: ["Difusión simple a través de la bicapa.", "El transportador GLUT5.", "El transportador SGLT1 (Transporte activo secundario dependiente de Na+).", "El transportador GLUT2."], ans: 2, exp: "Respuesta: C." },
+            { id: 18, q: "¿Qué monosacárido utiliza el mismo transportador SGLT1 que la glucosa?", options: ["Fructosa.", "Galactosa.", "Manosa.", "Ribosa."], ans: 1, exp: "Respuesta: B." },
+            { id: 19, q: "El transporte de fructosa al interior del enterocito se diferencia del de glucosa en que: (Pista Audio)", options: ["Requiere energía (ATP) directa.", "Es dependiente de sodio.", "Se realiza por difusión facilitada a través de GLUT5 (independiente de Na+).", "Utiliza SGLT1."], ans: 2, exp: "Respuesta: C." },
+            { id: 20, q: "¿Qué proteína transportadora permite la salida de glucosa, galactosa y fructosa desde el enterocito hacia la sangre (membrana basolateral)?", options: ["SGLT1.", "GLUT5.", "GLUT2.", "GLUT4."], ans: 2, exp: "Respuesta: C." },
+            { id: 21, q: "¿Qué función cumple la bomba Na+/K+ ATPasa en la absorción de glucosa?", options: ["Transporta la glucosa directamente.", "Mantiene el gradiente de sodio (sacando Na+ de la célula) necesario para que funcione el SGLT1.", "Hidroliza el almidón.", "No interviene en la absorción de azúcares."], ans: 1, exp: "Respuesta: B." },
+            { id: 22, q: "El transportador GLUT4 se diferencia de los intestinales en que:", options: ["Está presente en el intestino.", "Es dependiente de insulina y se encuentra en músculo y tejido adiposo.", "Transporta fructosa.", "Es un transporte activo."], ans: 1, exp: "Respuesta: B." },
+            { id: 23, q: "¿Cuál de los siguientes transportadores tiene alta afinidad por la glucosa y se encuentra en cerebro y eritrocitos (ingreso basal)?", options: ["GLUT1 / GLUT3.", "GLUT2.", "SGLT1.", "GLUT5."], ans: 0, exp: "Respuesta: A." },
+            { id: 24, q: "El transportador GLUT2 se caracteriza por:", options: ["Tener muy alta afinidad (satura rápido).", "Tener baja afinidad (Km alta), actuando como sensor de glucosa en páncreas e hígado tras las comidas.", "Ser exclusivo de neuronas.", "Transportar solo fructosa."], ans: 1, exp: "Respuesta: B." },
+            { id: 25, q: "Si bloqueamos la bomba Na+/K+ ATPasa del enterocito con ouabaína, ¿qué transporte se vería afectado secundariamente?", options: ["La entrada de fructosa por GLUT5.", "La salida de glucosa por GLUT2.", "La entrada de glucosa por SGLT1.", "La difusión de ácidos grasos."], ans: 2, exp: "Respuesta: C (Razonamiento: SGLT1 depende del gradiente de Na+ creado por la bomba)." },
+            { id: 26, q: "La intolerancia a la lactosa se produce por un déficit de lactasa. ¿Cuál es el mecanismo fisiopatológico de la diarrea asociada? (Pista Audio)", options: ["La lactosa entra en sangre y es tóxica.", "La lactosa no digerida se queda en la luz intestinal, aumentando la presión osmótica (atrae agua) y es fermentada por bacterias (gases).", "La lactosa inhibe al SGLT1.", "La lactosa provoca una reacción autoinmune (alergia)."], ans: 1, exp: "Respuesta: B." },
+            { id: 27, q: "¿Por qué la intolerancia a la lactosa provoca gases y flatulencia?", options: ["Por la fermentación bacteriana de la lactosa no absorbida en el colon.", "Por la reacción del ácido estomacal con la leche.", "Porque la lactasa produce CO2 al actuar.", "Por la deglución de aire al beber leche."], ans: 0, exp: "Respuesta: A." },
+            { id: 28, q: "En un paciente con atrofia de las vellosidades intestinales (ej. celiaquía), la absorción de carbohidratos disminuye principalmente porque:", options: ["Falta amilasa pancreática.", "Se pierde la superficie de membrana donde están las disacaridasas y los transportadores.", "El estómago no produce ácido.", "Aumenta el peristaltismo."], ans: 1, exp: "Respuesta: B." },
+            { id: 29, q: "¿Qué prueba no invasiva se menciona para detectar la intolerancia a la lactosa?", options: ["Biopsia hepática.", "Test de hidrógeno en el aliento (o detección de lactosa en orina en casos severos/biopsia mucosa).", "Tac abdominal.", "Análisis de sangre para ver anticuerpos."], ans: 1, exp: "Respuesta: B." },
+            { id: 30, q: "La deficiencia del complejo sacarasa-isomaltasa es una enfermedad que provoca:", options: ["Intolerancia a la leche.", "Intolerancia al azúcar de mesa (sacarosa) y almidones.", "Diabetes tipo 1.", "Obesidad."], ans: 1, exp: "Respuesta: B." },
+            { id: 31, q: "Tras una ingesta rica en carbohidratos, el aumento de glucosa en sangre estimula al páncreas para secretar:", options: ["Glucagón.", "Insulina.", "Adrenalina.", "Cortisol."], ans: 1, exp: "Respuesta: B." },
+            { id: 32, q: "¿Qué efecto tiene la insulina sobre el metabolismo de la glucosa en el hígado tras la absorción?", options: ["Estimula la gluconeogénesis (crear glucosa).", "Estimula la glucogenólisis (romper glucógeno).", "Estimula la glucogenogénesis (almacenar glucógeno) y la glucólisis.", "Inhibe la captación de glucosa."], ans: 2, exp: "Respuesta: C." },
+            { id: 33, q: "El índice glucémico (IG) de un alimento hace referencia a: (Pista Audio T1 y T4)", options: ["La cantidad total de calorías.", "La rapidez con la que un alimento eleva la glucosa en sangre comparado con un estándar (glucosa pura).", "El contenido de fibra exclusivamente.", "El sabor dulce del alimento."], ans: 1, exp: "Respuesta: B." },
+            { id: 34, q: "¿Qué diferencia bioquímica hay entre el almidón y la celulosa (fibra), considerando que ambos son polímeros de glucosa?", options: ["El almidón tiene enlaces beta y la celulosa alfa.", "El almidón tiene enlaces alfa (digeribles por amilasa) y la celulosa beta (indigeribles por humanos).", "No hay diferencia, ambos se digieren igual.", "La celulosa es de origen animal."], ans: 1, exp: "Respuesta: B." },
+            { id: 35, q: "La fibra soluble ayuda a:", options: ["Aumentar el índice glucémico.", "Retrasar el vaciado gástrico y la absorción de glucosa, aplanando la curva glucémica.", "Hidrolizar el almidón rápidamente.", "Absorber más colesterol."], ans: 1, exp: "Respuesta: B." },
+            { id: 36, q: "¿Qué ocurre con la fructosa una vez absorbida y transportada al hígado?", options: ["Se excreta por orina.", "Se convierte en intermediarios de la glucólisis (ej. gliceraldehído-3P) pudiendo derivar en lipogénesis si hay exceso.", "Se almacena como fructógeno.", "No se metaboliza."], ans: 1, exp: "Respuesta: B." },
+            { id: 37, q: "Si un paciente tiene déficit de GLUT5, ¿qué alimento le causará problemas digestivos?", options: ["Arroz (Almidón).", "Leche (Lactosa).", "Miel o fruta con mucha fructosa.", "Carne."], ans: 2, exp: "Respuesta: C." },
+            { id: 38, q: "La enzima alfa-dextrinasa es sinónimo de:", options: ["Maltasa.", "Lactasa.", "Isomaltasa.", "Amilasa."], ans: 2, exp: "Respuesta: C." },
+            { id: 39, q: "¿Cuál de los siguientes enlaces NO puede ser roto por ninguna enzima digestiva humana en el intestino delgado?", options: ["Alfa 1-4 glucosídico.", "Alfa 1-6 glucosídico.", "Beta 1-4 glucosídico (presente en celulosa).", "Enlace peptídico."], ans: 2, exp: "Respuesta: C." },
+            { id: 40, q: "Sobre la rehidratación oral en casos de diarrea (suero), ¿por qué es importante que contenga glucosa y sodio juntos?", options: ["Para dar sabor.", "Porque el transportador SGLT1 cotransporta Na+ y Glucosa, arrastrando agua osmóticamente y rehidratando eficazmente.", "Porque la glucosa mata a las bacterias.", "Porque el sodio inhibe la lactasa."], ans: 1, exp: "Respuesta: B." },
+            { id: 41, q: "¿Qué enzima se encuentra en la saliva e inicia la digestión de carbohidratos en la boca?", options: ["Pepsina.", "Ptialina o Alfa-amilasa salival.", "Lipasa lingual.", "Tripsina."], ans: 1, exp: "Respuesta: B." },
+            { id: 42, q: "¿Por qué la amilasa salival deja de actuar en el estómago?", options: ["Porque ya no queda almidón.", "Porque el pH ácido del estómago la desnaturaliza/inactiva.", "Porque la pepsina la activa.", "Porque se absorbe rápidamente."], ans: 1, exp: "Respuesta: B." },
+            { id: 43, q: "Los productos finales de la digestión de carbohidratos que pasan a la sangre portal son:", options: ["Almidón y glucógeno.", "Sacarosa, lactosa y maltosa.", "Glucosa, galactosa y fructosa.", "Ácidos grasos volátiles."], ans: 2, exp: "Respuesta: C." },
+            { id: 44, q: "¿Qué ocurre si se administra sacarosa por vía intravenosa?", options: ["Se utiliza inmediatamente como energía.", "Se convierte en glucógeno.", "No puede ser utilizada por las células porque no tienen sacarasa (es una enzima intestinal) y se elimina por orina.", "Es tóxica mortal."], ans: 2, exp: "Respuesta: C." },
+            { id: 45, q: "La maltotriosa está formada por:", options: ["2 glucosas.", "3 glucosas unidas por enlaces alfa 1-4.", "Glucosa + Galactosa + Fructosa.", "Una cadena ramificada."], ans: 1, exp: "Respuesta: B." },
+            { id: 46, q: "¿Qué enzima pancreática es secretada en su forma activa (no como zimógeno) según el contexto de carbohidratos?", options: ["Tripsina.", "Quimotripsina.", "Alfa-amilasa.", "Carboxipeptidasa."], ans: 2, exp: "Respuesta: C (Las proteasas son zimógenos peligrosos; la amilasa no es peligrosa para el páncreas)." },
+            { id: 47, q: "La glucosa y la galactosa compiten por la absorción porque:", options: ["Son enantiómeros.", "Utilizan el mismo transportador (SGLT1).", "Se repelen químicamente.", "La galactosa inhibe al GLUT2."], ans: 1, exp: "Respuesta: B." },
+            { id: 48, q: "En la membrana basolateral del enterocito, la salida de glucosa es:", options: ["Dependiente de sodio.", "Contra gradiente.", "A favor de gradiente mediante difusión facilitada (GLUT2).", "Mediada por vesículas."], ans: 2, exp: "Respuesta: C." },
+            { id: 49, q: "La diarrea osmótica en la intolerancia a la lactosa cesa cuando:", options: ["El paciente ayuna o deja de consumir lácteos.", "El paciente bebe agua.", "El paciente toma antibióticos.", "Nunca cesa."], ans: 0, exp: "Respuesta: A." },
+            { id: 50, q: "¿Qué afirmación resume mejor la digestión de carbohidratos?", options: ["Es un proceso exclusivo del estómago.", "Es un proceso secuencial que reduce polímeros a monosacáridos usando enzimas luminales (amilasa) y de membrana (disacaridasas) para permitir su absorción.", "Es un proceso que absorbe disacáridos directamente.", "Depende exclusivamente de la flora bacteriana."], ans: 1, exp: "Respuesta: B." }
+        ];
+
+        // --- ESTADO ---
+        let currentList = [];
+        let markedIds = new Set();
+        let failedIds = new Set();
+        let answeredIds = new Set();
+        
+        // --- UTILIDADES ---
+        const shuffle = (array) => {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        };
+
+        // --- INICIALIZACIÓN ---
+        function initQuiz(mode, customList = null) {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('results-modal').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            const container = document.getElementById('main-area');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = "";
+            sidebar.innerHTML = "";
+            
+            let sourceList = customList ? customList : [...dbQuestions];
+            
+            if (!customList) {
+                markedIds.clear();
+                failedIds.clear();
+                answeredIds.clear();
+            }
+
+            // Clonar y mezclar opciones
+            currentList = sourceList.map(q => {
+                let optionsObj = q.options.map((txt, idx) => ({ txt, isCorrect: idx === q.ans }));
+                return { ...q, shuffledOpts: shuffle(optionsObj) };
+            });
+
+            // Ordenar preguntas
+            if (mode === 'random') {
+                currentList = shuffle(currentList);
+            } else {
+                currentList.sort((a,b) => a.id - b.id);
+            }
+
+            // Renderizar
+            currentList.forEach((q, index) => {
+                // 1. Sidebar Dot
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.innerText = q.id;
+                dot.id = `dot-${q.id}`;
+                dot.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                if(markedIds.has(q.id)) dot.classList.add('marked');
+                sidebar.appendChild(dot);
+
+                // 2. Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${q.id}`;
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'q-header';
+                
+                const title = document.createElement('div');
+                title.className = 'q-title';
+                title.innerText = `${q.id}. ${q.q}`;
+
+                const markLabel = document.createElement('label');
+                markLabel.className = 'mark-container';
+                const markInput = document.createElement('input');
+                markInput.type = 'checkbox';
+                markInput.checked = markedIds.has(q.id);
+                markInput.onchange = (e) => toggleMark(q.id, e.target.checked);
+                
+                const markIcon = document.createElement('i');
+                markIcon.className = 'mark-icon';
+                const markText = document.createElement('span');
+                markText.innerText = "Revisar";
+
+                markLabel.append(markInput, markIcon, markText);
+                header.append(title, markLabel);
+
+                // Opciones
+                const optList = document.createElement('div');
+                optList.className = 'options-list';
+
+                q.shuffledOpts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt.txt;
+                    btn.onclick = () => handleAnswer(q, opt, btn, card);
+                    optList.appendChild(btn);
+                });
+
+                // Explicación
+                const expBox = document.createElement('div');
+                expBox.className = 'explanation';
+                expBox.innerHTML = `<strong>${q.exp}</strong>`;
+
+                card.append(header, optList, expBox);
+                container.appendChild(card);
+            });
+        }
+
+        // --- LÓGICA DE RESPUESTA ---
+        function handleAnswer(qObj, optObj, btnElem, cardElem) {
+            if (btnElem.disabled || cardElem.getAttribute('data-answered') === 'true') return;
+            
+            cardElem.setAttribute('data-answered', 'true');
+            answeredIds.add(qObj.id);
+            
+            const allBtns = cardElem.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            // Marcar visualmente
+            if (optObj.isCorrect) {
+                btnElem.classList.add('correct');
+                if(failedIds.has(qObj.id)) failedIds.delete(qObj.id);
+            } else {
+                btnElem.classList.add('wrong');
+                failedIds.add(qObj.id);
+                // Mostrar correcta
+                const correctBtnText = qObj.shuffledOpts.find(o => o.isCorrect).txt;
+                allBtns.forEach(b => {
+                    if(b.innerText === correctBtnText) b.classList.add('correct');
+                });
+            }
+
+            // Actualizar Dot
+            const dot = document.getElementById(`dot-${qObj.id}`);
+            dot.classList.add(optObj.isCorrect ? 'correct' : 'wrong');
+            if (markedIds.has(qObj.id)) dot.classList.add('marked');
+
+            // Mostrar explicación
+            cardElem.querySelector('.explanation').style.display = 'block';
+        }
+
+        function toggleMark(id, isChecked) {
+            const dot = document.getElementById(`dot-${id}`);
+            if (isChecked) {
+                markedIds.add(id);
+                dot.classList.add('marked');
+            } else {
+                markedIds.delete(id);
+                dot.classList.remove('marked');
+            }
+        }
+
+        // --- FINALIZACIÓN ---
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const total = currentList.length;
+            
+            // Calcular aciertos en la sesión actual
+            let currentFails = 0;
+            let currentCorrect = 0;
+            
+            currentList.forEach(q => {
+               const card = document.getElementById(`card-${q.id}`);
+               if (card && card.getAttribute('data-answered') === 'true') {
+                   if (card.querySelector('.option-btn.wrong')) currentFails++;
+                   else currentCorrect++;
+               }
+            });
+
+            document.getElementById('res-correct').innerText = currentCorrect;
+            document.getElementById('res-wrong').innerText = currentFails;
+            
+            const answeredCount = currentCorrect + currentFails;
+            document.getElementById('res-msg').innerText = `Has respondido ${answeredCount} de ${total} preguntas mostradas.`;
+
+            // Botones de reintento
+            const btnFailed = document.getElementById('btn-retry-failed');
+            const btnMarked = document.getElementById('btn-retry-marked');
+            const btnCombo = document.getElementById('btn-retry-combo');
+
+            btnFailed.disabled = failedIds.size === 0;
+            btnMarked.disabled = markedIds.size === 0;
+            btnCombo.disabled = (failedIds.size === 0 && markedIds.size === 0);
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        function restartQuiz(mode) {
+            if (mode === 'all') {
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('results-modal').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+                return;
+            }
+
+            let idsToFilter = new Set();
+            if (mode === 'failed') idsToFilter = failedIds;
+            else if (mode === 'marked') idsToFilter = markedIds;
+            else if (mode === 'combo') idsToFilter = new Set([...failedIds, ...markedIds]);
+
+            const filteredList = dbQuestions.filter(q => idsToFilter.has(q.id));
+            
+            if (filteredList.length === 0) {
+                alert("No hay preguntas en esta selección.");
+                return;
+            }
+
+            initQuiz('random', filteredList);
+        }
+
+    </script>
+</body>
+</html>

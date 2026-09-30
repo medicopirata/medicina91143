@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Anatomía: Pared Abdominal, Conducto Inguinal y Suelo Pélvico</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            width: 80px;
+            background: var(--primary);
+            color: white;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            margin: 5px 0;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .nav-btn:hover { background: rgba(255,255,255,0.2); }
+        .nav-btn.active { background: var(--secondary); border-color: white; }
+        .nav-btn.correct { background: var(--success); }
+        .nav-btn.wrong { background: var(--danger); }
+        .nav-btn.marked { border: 2px solid var(--warning); box-shadow: 0 0 8px var(--warning); }
+
+        /* --- Main Content --- */
+        #main-container {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .setup-screen, .results-screen {
+            text-align: center;
+        }
+
+        .question-box { display: none; }
+        .question-box.active { display: block; }
+
+        h2 { color: var(--primary); margin-top: 0; }
+        .options-container { margin: 20px 0; }
+
+        .option {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            text-align: left;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 16px;
+        }
+
+        .option:hover:not([disabled]) { background: #f9f9f9; border-color: var(--secondary); }
+        .option.correct { background: var(--success); color: white; border-color: var(--success); }
+        .option.wrong { background: var(--danger); color: white; border-color: var(--danger); }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            line-height: 1.5;
+        }
+        .feedback.visible { display: block; background: #e8f4fd; border-left: 5px solid var(--secondary); }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        button.btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: 0.3s;
+        }
+
+        .btn-main { background: var(--secondary); color: white; }
+        .btn-end { background: var(--danger); color: white; }
+        .btn-mark { background: var(--warning); color: black; }
+
+        .marker-status {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--warning);
+            margin-bottom: 5px;
+            display: none;
+        }
+        .marker-status.active { display: block; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    </div>
+
+<div id="main-container">
+    <div id="quiz-app" class="card">
+        <div id="setup-screen" class="setup-screen">
+            <h2>Bienvenido al Quiz de Anatomía</h2>
+            <p>Selecciona el modo de orden de las preguntas:</p>
+            <button class="btn btn-main" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-main" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+
+        <div id="question-container"></div>
+
+        <div id="results-screen" class="results-screen" style="display:none;">
+            <h2>Cuestionario Finalizado</h2>
+            <div id="score-text"></div>
+            <div class="menu-grid">
+                <button class="btn btn-main" onclick="resetQuiz('all')">Repetir Completo</button>
+                <button class="btn btn-main" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                <button class="btn btn-main" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="btn btn-main" onclick="resetQuiz('failed-marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const rawQuestions = [
+        {
+            q: "1. El músculo transverso del abdomen tiene una disposición de fibras puramente horizontal. Según el profesor, biomecánicamente se comporta como:",
+            a: "b",
+            options: {
+                a: "Un flexor puro del raquis.",
+                b: "Una faja que contiene las vísceras y aumenta la presión intraabdominal.",
+                c: "Un músculo inspirador principal.",
+                d: "Un rotador contralateral del tronco."
+            },
+            exp: "El profesor insiste en que las fibras van de atrás hacia delante cerrándose en la línea media, comportándose funcionalmente como una faja que estabiliza el tronco y contiene la cavidad."
+        },
+        {
+            q: "2. ¿Cuál es el comportamiento biomecanico del músculo recto anterior del abdomen durante la flexión del tronco desde decúbito supino (tumbado)?",
+            a: "c",
+            options: {
+                a: "Realiza todo el movimiento de flexión hasta tocar las rodillas.",
+                b: "Es puramente expirador, no flexor.",
+                c: "Actúa como flexor efectivo únicamente hasta los primeros 30º de elevación; a partir de ahí, el trabajo lo realiza el psoas.",
+                d: "Fija la pelvis pero no mueve el tronco."
+            },
+            exp: "Concepto 'Prada' clave. Si al hacer abdominales subimos más de 30º, dejamos de trabajar el recto anterior y empezamos a tirar del psoas, lo que castiga la región lumbar."
+        },
+        {
+            q: "3. La Vaina de los Rectos sufre un cambio anatómico importante en su tercio inferior. ¿Cómo se denomina el límite donde las aponeurosis posteriores de los músculos anchos pasan todas por DELANTE del recto anterior?",
+            a: "c",
+            options: {
+                a: "Línea semilunar de Spiegel.",
+                b: "Ligamento de Hesselbach.",
+                c: "Arco de Douglas (línea arqueada).",
+                d: "Ligamento de Henle."
+            },
+            exp: "El profesor lo compara con darle la vuelta a un 'bolsillo'. Por debajo del Arco de Douglas, la cara posterior del recto queda desnuda, solo en contacto con la fascia transversalis, creando una zona de debilidad."
+        },
+        {
+            q: "4. ¿Qué músculo inconstante (ausente en parte de la población) se sitúa anterior e inferior al recto del abdomen y tensa la línea alba?",
+            a: "a",
+            options: {
+                a: "Músculo piramidal del abdomen.",
+                b: "Músculo cremáster.",
+                c: "Músculo cuadrado lumbar.",
+                d: "Músculo pectíneo."
+            },
+            exp: "Es un pequeño músculo triangular en la base del abdomen que se origina en el pubis y refuerza la porción inferior de la vaina de los rectos."
+        },
+        {
+            q: "5. En la cara interna de la pared abdominal (tapizada por peritoneo), en la línea media exacta, existe un cordón fibroso que asciende desde la vejiga hasta el ombligo (Pliegue umbilical mediano). ¿Qué remanente embriológico contiene?",
+            a: "c",
+            options: {
+                a: "Arterias umbilicales obliteradas.",
+                b: "La vena umbilical.",
+                c: "El Uraco (resto de la cloaca/alantoides).",
+                d: "Los vasos epigástricos inferiores."
+            },
+            exp: "El profesor explica que el uraco es el vestigio del alantoides. Si hay mucha presión, este cordón teóricamente cerrado podría volver a permeabilizarse o formar quistes."
+        },
+        {
+            q: "6. Los pliegues umbilicales LATERALES, a diferencia del mediano y los mediales, no contienen vestigios embrionarios cerrados, sino vasos funcionales. ¿Cuáles son?",
+            a: "b",
+            options: {
+                a: "Vasos gonadales.",
+                b: "Arterias y venas epigástricas inferiores.",
+                c: "Arterias ilíacas internas.",
+                d: "Venas lumbares."
+            },
+            exp: "Es fundamental porque estos vasos epigástricos inferiores marcan el límite lateral del Triángulo de Hesselbach, clave para clasificar las hernias inguinales."
+        },
+        {
+            q: "7. El músculo oblicuo mayor (externo) y el oblicuo menor (interno) de lados opuestos trabajan de forma coordinada durante la rotación del tronco. A esto el profesor lo denomina:",
+            a: "b",
+            options: {
+                a: "Respiración paradójica.",
+                b: "Lazada muscular espiroidea (el O. mayor es rotador contralateral y el O. menor es ipsilateral).",
+                c: "Reflejo cremastérico cruzado.",
+                d: "Antagonismo puro."
+            },
+            exp: "Las fibras del oblicuo mayor de un lado continúan la misma dirección que las del oblicuo menor del lado opuesto, trabajando en perfecta sinergia como agonistas en la rotación."
+        },
+        {
+            q: "8. En la pared abdominal posterior, existe un triángulo de debilidad limitado por el dorsal ancho, el oblicuo externo y la cresta ilíaca. Se llama:",
+            a: "c",
+            options: {
+                a: "Triángulo de Scarpa.",
+                b: "Triángulo de Hesselbach.",
+                c: "Trígono de Petit.",
+                d: "Trígono lumbocostal de Bochdalek."
+            },
+            exp: "Es un lugar típico de debilidad fascial por donde pueden asomar hernias lumbares, muy remarcado al hablar de la fascia toracolumbar."
+        },
+        {
+            q: "9. La lámina de tejido conectivo profundo que recubre toda la cara interna de la musculatura abdominal, justo por fuera del peritoneo y la grasa extraperitoneal, se denomina:",
+            a: "c",
+            options: {
+                a: "Fascia superficialis (Camper).",
+                b: "Fascia de Scarpa.",
+                c: "Fascia transversalis.",
+                d: "Aponeurosis del oblicuo externo."
+            },
+            exp: "Cierra toda la cavidad abdominopélvica por dentro y es la responsable de formar el anillo inguinal profundo al invaginarse."
+        },
+        {
+            q: "10. La contracción vigorosa de la musculatura de la pared abdominal anterolateral, combinada con la contracción del diafragma, se utiliza fisiológicamente para:",
+            a: "b",
+            options: {
+                a: "Inspirar tranquilamente en reposo.",
+                b: "Aumentar la presión intraabdominal (prensa abdominal) para la defecación, micción, vómito o el parto.",
+                c: "Dilatar la vena cava inferior.",
+                d: "Relajar los esfínteres pélvicos."
+            },
+            exp: "El profesor insiste en que las vísceras ejercen presión hacia fuera. Para cualquier esfuerzo expulsivo, la pared abdominal y el diafragma trabajan cerrando y presurizando el compartimento."
+        },
+        {
+            q: "11. Aplicando la 'regla de los pares', el hiato por donde la vena cava inferior atraviesa el diafragma se sitúa a nivel de la vértebra:",
+            a: "a",
+            options: {
+                a: "T8.",
+                b: "T10.",
+                c: "T12.",
+                d: "L2."
+            },
+            exp: "De arriba abajo: Cava en T8, Esófago en T10, Aorta en T12."
+        },
+        {
+            q: "12. ¿Qué peculiaridad funcional tiene el orificio de la Vena Cava Inferior respecto a los otros grandes hiatos diafragmáticos?",
+            a: "b",
+            options: {
+                a: "Está formado por músculo estriado que la exprime.",
+                b: "Atraviesa el Centro Tendinoso (centro frénico), por lo que durante la inspiración el tendón se tensa, abre el orificio y favorece el retorno venoso.",
+                c: "Contiene también los troncos vagales.",
+                d: "Se cierra herméticamente en inspiración."
+            },
+            exp: "Trampa clásica de examen. Al no tener fibras musculares a su alrededor, la contracción del diafragma no la estrangula, sino que dilata el hiato."
+        },
+        {
+            q: "13. El hiato esofágico (a nivel de T10) está formado fundamentalmente por las fibras musculares que provienen de:",
+            a: "b",
+            options: {
+                a: "El pilar izquierdo del diafragma.",
+                b: "El pilar derecho del diafragma, que forma un esfínter muscular para evitar el reflujo gastroesofágico.",
+                c: "La porción esternal del diafragma.",
+                d: "El ligamento arqueado medio."
+            },
+            exp: "El pilar derecho forma una 'lazada' alrededor del esófago, actuando como un esfínter funcional."
+        },
+        {
+            q: "14. A través del hiato aórtico (T12), delimitado por el ligamento arqueado medio, pasan hacia el tórax la Aorta abdominal y otra estructura vital:",
+            a: "b",
+            options: {
+                a: "Los nervios vagos.",
+                b: "El conducto torácico (linfático).",
+                c: "La vena cava inferior.",
+                d: "El nervio frénico."
+            },
+            exp: "El conducto torácico asciende desde la cisterna del quilo acompañando a la aorta por detrás del diafragma."
+        },
+        {
+            q: "15. Las inserciones lumbares del diafragma forman arcos. El ligamento arqueado LATERAL salta por encima de la cara anterior del músculo:",
+            a: "c",
+            options: {
+                a: "Psoas mayor.",
+                b: "Ilíaco.",
+                c: "Cuadrado lumbar.",
+                d: "Transverso del abdomen."
+            },
+            exp: "El medial es para el Psoas; el lateral es el 'arco del Cuadrado lumbar'."
+        },
+        {
+            q: "16. Un defecto congénito en el cierre del trígono lumbocostal (ausencia de fibras entre la porción lumbar y costal del diafragma) da lugar a una patología grave en recién nacidos conocida como:",
+            a: "c",
+            options: {
+                a: "Hernia de Morgagni.",
+                b: "Hernia de hiato.",
+                c: "Hernia de Bochdalek.",
+                d: "Eventración diafragmática."
+            },
+            exp: "En la hernia de Bochdalek, el contenido abdominal (intestinos) sube a la cavidad torácica, comprimiendo el pulmón en desarrollo."
+        },
+        {
+            q: "17. La inervación MOTORA exclusiva del músculo diafragma corre a cargo de:",
+            a: "c",
+            options: {
+                a: "Los seis últimos nervios intercostales.",
+                b: "El nervio vago (X).",
+                c: "El nervio frénico (ramas ventrales C3-C5).",
+                d: "El plexo celíaco."
+            },
+            exp: "Los intercostales aportan sensibilidad a la periferia, pero el 'motor' del diafragma es el frénico."
+        },
+        {
+            q: "18. Clínicamente, debido a su origen embrionario cervical (C3-C5), si el centro del diafragma se irrita, el paciente sentirá dolor referido en:",
+            a: "b",
+            options: {
+                a: "La región inguinal.",
+                b: "El hombro y el cuello.",
+                c: "La fosa ilíaca derecha.",
+                d: "La región sacra."
+            },
+            exp: "El cerebro interpreta el dolor como proveniente del dermatoma superficial correspondiente a la raíz C3-C5 (cuello/hombro)."
+        },
+        {
+            q: "19. El músculo Psoas Mayor tiene una relación de 'cautiverio' con una importante estructura nerviosa, ya que esta nace y discurre por dentro de su propio espesor muscular. Hablamos de:",
+            a: "b",
+            options: {
+                a: "El plexo sacro.",
+                b: "El plexo lumbar.",
+                c: "La cadena simpática.",
+                d: "El nervio vago."
+            },
+            exp: "El plexo lumbar (T12-L4) se forma entre los fascículos de origen del psoas mayor. Una hipertrofia o contractura del psoas puede comprimirlo y causar neuralgias en la pierna."
+        },
+        {
+            q: "20. Si un paciente tiene el músculo Psoas Mayor crónicamente acortado (hipertónico), y se tumba boca arriba con las piernas estiradas, ¿qué efecto biomecánico observaremos en su columna?",
+            a: "c",
+            options: {
+                a: "Escoliosis torácica.",
+                b: "Hipercifosis dorsal.",
+                c: "Una hiperlordosis lumbar (hueco debajo de las lumbares).",
+                d: "Rectificación completa del raquis."
+            },
+            exp: "Como el psoas se inserta en los cuerpos lumbares, al estar tenso tracciona de ellos hacia delante. Para aliviar el dolor, el paciente debe flexionar las piernas (destensando el músculo)."
+        },
+        {
+            q: "21. Los nervios Iliohipogástrico e Ilioinguinal (L1) son ramas del plexo lumbar encargadas de inervar:",
+            a: "c",
+            options: {
+                a: "El diafragma pélvico.",
+                b: "La región anterior del muslo.",
+                c: "La pared abdominal baja y región inguinal (sensibilidad infraumbilical).",
+                d: "El esfínter anal."
+            },
+            exp: "Emergen por el borde lateral del psoas y viajan hacia el conducto inguinal y pubis."
+        },
+        {
+            q: "22. El tendón conjunto del Psoas-Ilíaco sale de la pelvis hacia el miembro inferior para insertarse y actuar como flexor de la cadera. ¿A través de qué espacio sale?",
+            a: "b",
+            options: {
+                a: "Conducto inguinal.",
+                b: "Laguna muscular (por debajo del ligamento inguinal).",
+                c: "Anillo crural (laguna vascular).",
+                d: "Foramen obturador."
+            },
+            exp: "El espacio subinguinal se divide en la laguna muscular (por donde sale el psoas y el nervio femoral) y la laguna vascular medialmente (vasos femorales)."
+        },
+        {
+            q: "23. El uréter, en su descenso desde el riñón hacia la pelvis, tiene una relación topográfica íntima porque cabalga apoyado directamente sobre la cara anterior de:",
+            a: "c",
+            options: {
+                a: "El músculo transverso del abdomen.",
+                b: "El músculo cuadrado lumbar.",
+                c: "El músculo psoas mayor.",
+                d: "La vena cava inferior."
+            },
+            exp: "Un cólico nefrítico irrita el uréter, y por cercanía irrita los nervios del plexo lumbar apoyados en el psoas (como el genitofemoral), causando dolor irradiado a los genitales."
+        },
+        {
+            q: "24. El suelo del conducto inguinal está formado por una gruesa dependencia aponeurótica del músculo oblicuo externo que va de la espina ilíaca anterosuperior al pubis. Hablamos de:",
+            a: "c",
+            options: {
+                a: "Ligamento lacunar (de Gimbernat).",
+                b: "Ligamento de Hesselbach.",
+                c: "Ligamento inguinal (arco de Poupart).",
+                d: "Tendón conjunto."
+            },
+            exp: "El ligamento inguinal es el repliegue inferior de la aponeurosis del oblicuo externo y conforma el canal o 'canaleta' por donde discurre el cordón."
+        },
+        {
+            q: "25. El techo del conducto inguinal está formado por las fibras musculares que saltan en arco hacia el tendón conjunto. Estos músculos son:",
+            a: "a",
+            options: {
+                a: "Oblicuo interno y Transverso del abdomen.",
+                b: "Oblicuo externo y Recto del abdomen.",
+                c: "Psoas y Pectíneo.",
+                d: "Cuadrado lumbar y Piramidal."
+            },
+            exp: "Sus bordes inferiores libres forman el techo antes de unirse y caer medialmente como tendón conjunto en la pared posterior."
+        },
+        {
+            q: "26. El anillo inguinal profundo (orificio de entrada al conducto desde el interior del abdomen) es una invaginación en forma de 'dedo de guante' de:",
+            a: "c",
+            options: {
+                a: "El peritoneo parietal.",
+                b: "La aponeurosis del oblicuo externo.",
+                c: "La fascia transversalis.",
+                d: "El músculo recto anterior."
+            },
+            exp: "La fascia transversalis se proyecta hacia fuera creando la cubierta más interna del cordón (fascia espermática interna)."
+        },
+        {
+            q: "27. ¿Cuál es el punto de referencia anatómico crítico para distinguir entre una hernia inguinal directa y una indirecta?",
+            a: "b",
+            options: {
+                a: "El ligamento de Gimbernat.",
+                b: "Los vasos epigástricos inferiores.",
+                c: "El nervio ilioinguinal.",
+                d: "La línea alba."
+            },
+            exp: "Las hernias indirectas salen LATERALES a los vasos epigástricos (por el anillo profundo); las directas salen MEDIALES a ellos (rompiendo el Triángulo de Hesselbach)."
+        },
+        {
+            q: "28. La Hernia Inguinal INDIRECTA (la más frecuente) se caracteriza por:",
+            a: "b",
+            options: {
+                a: "Atravesar directamente la pared posterior del conducto por debilidad muscular.",
+                b: "Entrar por el anillo inguinal profundo (lateral a los epigástricos) y seguir todo el trayecto del conducto inguinal.",
+                c: "Salir por debajo del ligamento inguinal.",
+                d: "Ser exclusiva de mujeres."
+            },
+            exp: "Sigue el mismo camino natural que hizo el testículo al descender embriológicamente."
+        },
+        {
+            q: "29. El músculo cremáster, responsable de elevar el testículo para termorregulación, se forma por fibras musculares arrastradas que provienen de:",
+            a: "b",
+            options: {
+                a: "El músculo recto anterior.",
+                b: "El oblicuo interno y el transverso del abdomen.",
+                c: "La fascia superficialis.",
+                d: "El ligamento inguinal."
+            },
+            exp: "Al salir, el cordón espermático 'arrastra' fibras de estos músculos del techo, creando el cremáster."
+        },
+        {
+            q: "30. El reflejo cremastérico (que se explora acariciando la cara interna del muslo para ver si el testículo asciende) comprueba la integridad de la vía nerviosa aportada por el nervio:",
+            a: "b",
+            options: {
+                a: "Pudendo (S2-S4).",
+                b: "Genitofemoral y las raíces de L1-L2.",
+                c: "Femoral (L2-L4).",
+                d: "Obturador."
+            },
+            exp: "El profesor explica que esta es una exploración clínica vital en niños para confirmar nervios sanos y descartar teste en ascensor/oculto."
+        },
+        {
+            q: "31. La Hernia Crural o Femoral protruye a través de la pared abdominal pero no por el conducto inguinal, sino que sale:",
+            a: "c",
+            options: {
+                a: "Por el ombligo.",
+                b: "Por el anillo inguinal superficial.",
+                c: "Por debajo del ligamento inguinal, a través del conducto femoral (laguna vascular).",
+                d: "Por el hiato aórtico."
+            },
+            exp: "Pasan por debajo del ligamento inguinal medial a la vena femoral. Más frecuente en mujeres debido a la morfología de la pelvis."
+        },
+        {
+            q: "32. El triángulo de Hesselbach (zona de debilidad por donde asoman las hernias directas) está limitado inferiormente por el ligamento inguinal, lateralmente por los vasos epigástricos y medialmente por:",
+            a: "b",
+            options: {
+                a: "El músculo psoas.",
+                b: "El borde lateral del músculo recto del abdomen.",
+                c: "La sínfisis púbica.",
+                d: "El ligamento lacunar."
+            },
+            exp: "Es la clásica zona de 'rotura directa' de la pared posterior (fascia transversalis) sin pasar por el anillo interno."
+        },
+        {
+            q: "33. En el hombre, el contenido principal del conducto inguinal es el cordón espermático (que lleva el conducto deferente, vasos testiculares, etc.). ¿Qué estructura análoga atraviesa el conducto inguinal en la mujer?",
+            a: "c",
+            options: {
+                a: "El ligamento ancho del útero.",
+                b: "La trompa de Falopio.",
+                c: "El ligamento redondo del útero.",
+                d: "La arteria uterina."
+            },
+            exp: "El ligamento redondo se ancla finalmente en los labios mayores, siendo el equivalente anatómico del trayecto testicular."
+        },
+        {
+            q: "34. El orificio de salida exterior del conducto inguinal (Anillo inguinal superficial) es una apertura triangular delimitada por pilares. Estos pilares (externo e interno) son una separación de las fibras de:",
+            a: "c",
+            options: {
+                a: "La fascia transversalis.",
+                b: "El oblicuo menor.",
+                c: "La aponeurosis del oblicuo mayor (externo).",
+                d: "El tendón conjunto."
+            },
+            exp: "Para que esta hendidura no se desgarre, está reforzada por las fibras intercolumnares (arciformes)."
+        },
+        {
+            q: "35. La arteria Epigástrica Superior, que desciende por detrás del recto del abdomen, es la rama terminal de:",
+            a: "c",
+            options: {
+                a: "La arteria aorta torácica.",
+                b: "La arteria ilíaca externa.",
+                c: "La arteria torácica interna (mamaria interna).",
+                d: "La arteria frénica inferior."
+            },
+            exp: "La torácica interna se bifurca en epigástrica superior y musculofrénica al llegar al reborde costal."
+        },
+        {
+            q: "36. Para establecer una gran anastomosis arterial en la pared anterior del abdomen, la Epigástrica Superior se une con la Epigástrica Inferior. Esta última es rama directa de:",
+            a: "c",
+            options: {
+                a: "La aorta abdominal.",
+                b: "La arteria femoral.",
+                c: "La arteria ilíaca externa.",
+                d: "El tronco celíaco."
+            },
+            exp: "Nace justo antes de que la ilíaca externa pase bajo el ligamento inguinal."
+        },
+        {
+            q: "37. El profesor explica que el sistema venoso de la pared abdominal genera anastomosis Cavo-Cavas. ¿Cómo asciende la sangre desde la región epigástrica inferior hacia la Vena Cava Superior?",
+            a: "b",
+            options: {
+                a: "Vía vena porta al hígado.",
+                b: "Venas epigástricas inferiores -> venas epigástricas superiores -> vena torácica interna -> vena subclavia.",
+                c: "Vía venas lumbares a las ácigos.",
+                d: "Vía vena femoral profunda."
+            },
+            exp: "Esta conexión longitudinal permite desviar sangre si la vena cava inferior se obstruye."
+        },
+        {
+            q: "38. Las venas lumbares de la pared posterior del abdomen conectan con dos venas verticales que atraviesan el diafragma hacia el tórax. ¿Cuáles son?",
+            a: "c",
+            options: {
+                a: "Venas epigástricas.",
+                b: "Venas cavas superior e inferior.",
+                c: "Venas Ácigos (derecha) y Hemiácigos (izquierda).",
+                d: "Venas pulmonares."
+            },
+            exp: "Formando así otra gran vía de derivación entre la parte baja y alta del cuerpo."
+        },
+        {
+            q: "39. Topografía linfática superficial: Todo el drenaje linfático de la piel del abdomen que se encuentre POR DEBAJO del nivel del ombligo, drenará irremediablemente hacia:",
+            a: "c",
+            options: {
+                a: "Ganglios axilares.",
+                b: "Ganglios paraesternales.",
+                c: "Ganglios inguinales superficiales.",
+                d: "Ganglios aórticos laterales."
+            },
+            exp: "El ombligo marca una frontera ('el ecuador'). Lo de arriba va a la axila/esternón, lo de abajo va a la ingle."
+        },
+        {
+            q: "40. Además del abdomen inferior, ¿qué otra importante región superficial del cuerpo drena hacia los ganglios inguinales superficiales, siendo clave en la clínica oncológica e infecciosa?",
+            a: "b",
+            options: {
+                a: "Los pulmones.",
+                b: "El tejido superficial de los genitales externos (bolsa escrotal, monte de Venus, labios mayores).",
+                c: "El cerebro.",
+                d: "El estómago."
+            },
+            exp: "Infecciones venéreas o tumores escrotales/vulvares presentan inflamación (adenopatías) en la ingle, no en la pelvis profunda."
+        },
+        {
+            q: "41. La linfa profunda del abdomen e intestinos confluye en una gran dilatación a nivel de L1-L2 llamada Cisterna del Quilo. Desde aquí, la linfa asciende al tórax mediante:",
+            a: "b",
+            options: {
+                a: "El conducto linfático derecho.",
+                b: "El conducto torácico.",
+                c: "La vena ácigos.",
+                d: "El tronco braquiocefálico."
+            },
+            exp: "El conducto torácico desembocará finalmente en el ángulo venoso yugulosubclavio izquierdo."
+        },
+        {
+            q: "42. Exploración sensitiva del abdomen: El dermatoma que cruza horizontalmente justo a la altura del ombligo corresponde al nervio raquídeo:",
+            a: "b",
+            options: {
+                a: "T7.",
+                b: "T10.",
+                c: "L1.",
+                d: "S2."
+            },
+            exp: "Referencia topográfica clásica e invariable (T10 = ombligo)."
+        },
+        {
+            q: "43. La región infraumbilical más baja y la zona inguinal (genitales externos) reciben inervación sensitiva de los nervios iliohipogástrico e ilioinguinal. ¿De qué raíz espinal provienen fundamentalmente?",
+            a: "c",
+            options: {
+                a: "T8.",
+                b: "T10.",
+                c: "L1 (plexo lumbar).",
+                d: "S4."
+            },
+            exp: "Es el nivel metamérico justo por encima del ligamento inguinal."
+        },
+        {
+            q: "44. El Diafragma Pélvico que cierra la cavidad inferior está formado fundamentalmente por dos músculos:",
+            a: "b",
+            options: {
+                a: "Piriforme y Obturador interno.",
+                b: "Elevador del ano y Coccígeo.",
+                c: "Transverso profundo y superficial.",
+                d: "Esfínter anal y vulvar."
+            },
+            exp: "El obturador y piriforme tapizan las paredes, pero el 'suelo' que sostiene las vísceras lo cierran el elevador y el coccígeo."
+        },
+        {
+            q: "45. El músculo Elevador del Ano se compone de tres fascículos que, de medial a lateral, son:",
+            a: "b",
+            options: {
+                a: "Iliococcígeo, isquiocavernoso, bulboesponjoso.",
+                b: "Puborrectal, pubococcígeo e iliococcígeo.",
+                c: "Obturador, piriforme, psoas.",
+                d: "Esfínter externo, interno y medio."
+            },
+            exp: "Forman un embudo orientado hacia las aperturas de los conductos pélvicos."
+        },
+        {
+            q: "46. El fascículo más medial del elevador del ano es el Puborrectal. Biomecánicamente, sus fibras hacen una 'cincha' en forma de U alrededor de la unión anorrectal. Su función principal es:",
+            a: "b",
+            options: {
+                a: "Expulsar la orina.",
+                b: "Mantenimiento de la continencia fecal creando un ángulo agudo en el recto.",
+                c: "Rotar el fémur.",
+                d: "Elevar el coxis."
+            },
+            exp: "Al contraerse tira del canal hacia el pubis, 'estrangulando' el tubo y evitando la salida de heces de forma mecánica voluntaria."
+        },
+        {
+            q: "47. El profesor destaca que el control de la continencia mediante el músculo Puborrectal y el esfínter anal externo es voluntario (consciente) porque sus fibras son:",
+            a: "b",
+            options: {
+                a: "De músculo liso (vegetativo).",
+                b: "De músculo estriado esquelético (inervación somática).",
+                c: "De tejido conectivo puro.",
+                d: "De cartílago."
+            },
+            exp: "A diferencia del esfínter interno (liso/inconsciente), la musculatura del elevador del ano es estriada y nos permite el control aprendido (ej. dejar el pañal)."
+        },
+        {
+            q: "48. El fascículo intermedio del Elevador del Ano, que es la porción más ancha, importante y la que más sufre desgarros o lesiones durante el parto vaginal es:",
+            a: "b",
+            options: {
+                a: "El puborrectal.",
+                b: "El pubococcígeo.",
+                c: "El iliococcígeo.",
+                d: "El coccígeo."
+            },
+            exp: "Situado directamente debajo de la vejiga y rodeando la vagina, soporta el máximo estrés en la coronación fetal."
+        },
+        {
+            q: "49. El fascículo Iliococcígeo tiene un origen particular, ya que no nace del hueso de la pelvis, sino de un engrosamiento fascial llamado:",
+            a: "b",
+            options: {
+                a: "Ligamento inguinal.",
+                b: "Arco tendinoso del músculo obturador interno.",
+                c: "Ligamento sacroespinoso.",
+                d: "Membrana perineal."
+            },
+            exp: "Se ancla en la aponeurosis del obturador interno que tapiza la pared lateral de la pelvis."
+        },
+        {
+            q: "50. El músculo Coccígeo cierra la parte más posterior del diafragma pélvico. Se extiende desde el cóccix y sacro hasta:",
+            a: "b",
+            options: {
+                a: "El pubis.",
+                b: "La espina ciática.",
+                c: "El trocánter mayor.",
+                d: "El ilion."
+            },
+            exp: "Se asienta sobre el ligamento sacroespinoso."
+        },
+        {
+            q: "51. Topográficamente, el Periné (rombo inferior de la pelvis) se divide mediante una línea transversal que une las tuberosidades isquiáticas en dos triángulos:",
+            a: "b",
+            options: {
+                a: "Triángulo anterior y posterior.",
+                b: "Triángulo Urogenital (anterior) y Triángulo Anal (posterior).",
+                c: "Triángulo femoral y crural.",
+                d: "Trígono de Petit y Hesselbach."
+            },
+            exp: "El urogenital está cerrado por la membrana perineal (donde atraviesa uretra/vagina), y el anal contiene el conducto anal y las fosas isquioanales."
+        },
+        {
+            q: "52. En el centro exacto del periné, donde convergen el esfínter anal, los músculos transversos del periné y las fibras del elevador del ano, existe un nódulo fibroso crítico para la integridad del suelo pélvico llamado:",
+            a: "c",
+            options: {
+                a: "Sínfisis del pubis.",
+                b: "Cóccix.",
+                c: "Centro tendinoso del periné (Cuerpo perineal).",
+                d: "Ligamento anococcígeo."
+            },
+            exp: "Su desgarro durante el parto (si no se protege o hace episiotomía correctiva) debilita irremediablemente todo el suelo pélvico."
+        },
+        {
+            q: "53. A los lados del conducto anal existen unos espacios en forma de cuña, llenos de grasa, que permiten la expansión del recto durante la defecación. Son las:",
+            a: "b",
+            options: {
+                a: "Bolsas de Douglas.",
+                b: "Fosas isquioanales (isquiorrectales).",
+                c: "Lagunas vasculares.",
+                d: "Fositas inguinales mediales."
+            },
+            exp: "Al ser solo grasa, comunican entre sí por detrás del canal anal, por lo que un absceso infeccioso puede cruzar de un lado al otro en 'herradura'."
+        },
+        {
+            q: "54. La inervación motora principal del suelo pélvico (periné y esfínteres voluntarios) y la sensibilidad de los genitales externos corre a cargo de un nervio que sale de S2-S4:",
+            a: "c",
+            options: {
+                a: "Nervio femoral.",
+                b: "Nervio ciático.",
+                c: "Nervio pudendo.",
+                d: "Nervio obturador."
+            },
+            exp: "El nervio pudendo es bloqueado con anestesia local (bloqueo pudendo) a nivel de la espina ciática durante el trabajo de parto."
+        },
+        {
+            q: "55. La irrigación principal de las estructuras del periné y genitales externos está asegurada por:",
+            a: "c",
+            options: {
+                a: "Arteria mesentérica inferior.",
+                b: "Arteria epigástrica superficial.",
+                c: "Arteria pudenda interna (rama de la ilíaca interna).",
+                d: "Arteria gonadal."
+            },
+            exp: "Acompaña al nervio pudendo en su trayecto."
+        },
+        {
+            q: "56. La arteria vertebral entra al cráneo haciendo un 'sifón'. Justo antes de entrar por el foramen magno, se apoya en el fondo del Triángulo Suboccipital sobre el hueso de:",
+            a: "c",
+            options: {
+                a: "El arco anterior del Atlas (C1).",
+                b: "El cuerpo del Axis (C2).",
+                c: "El arco posterior del Atlas (C1) (surco de la arteria vertebral).",
+                d: "El occipital directamente."
+            },
+            exp: "Sale del agujero transverso de C1, se tumba sobre el arco posterior y perfora la membrana. Pista clásica de neuroanatomía topográfica."
+        },
+        {
+            q: "57. En el desfiladero de los escalenos (entre escaleno anterior y medio) pasan la Arteria Subclavia y los troncos del Plexo Braquial. ¿Dónde pasa la Vena Subclavia?",
+            a: "c",
+            options: {
+                a: "Por detrás del escaleno medio.",
+                b: "Junto a la arteria en el mismo desfiladero.",
+                c: "Por DELANTE del músculo escaleno anterior.",
+                d: "A través del músculo esternocleidomastoideo."
+            },
+            exp: "La vena (de menor presión) va por fuera del 'túnel' de seguridad muscular, quedando más expuesta para vías centrales o traumatismos."
+        },
+        {
+            q: "58. Si una vena Yugular Interna es seccionada en un traumatismo cervical, el riesgo de embolia gaseosa masiva se multiplica porque la vaina carotídea se mantiene tensa y abierta gracias a su adhesión con el tendón intermedio del músculo:",
+            a: "b",
+            options: {
+                a: "Esternocleidomastoideo.",
+                b: "Omohioideo.",
+                c: "Platisma.",
+                d: "Escaleno anterior."
+            },
+            exp: "El Omohioideo tracciona de la vaina y no permite que las paredes de la vena colapsen, succionando aire hacia el corazón derecho."
+        },
+        {
+            q: "59. En un cólico biliar (inflamación de la vesícula que irrita la cúpula derecha del diafragma), ¿por qué mecanismo neurológico duele el hombro derecho?",
+            a: "b",
+            options: {
+                a: "Inervación de los nervios intercostales que llegan al hombro.",
+                b: "Dolor referido transmitido por el nervio frénico (C3-C5), cuyas raíces comparten metámera sensitiva con el cuello/hombro.",
+                c: "Porque el hígado desplaza la clavícula.",
+                d: "Porque el vago lo conecta con el cerebro."
+            },
+            exp: "El frénico es el 'chivato' del centro del diafragma y pleura/pericardio adyacente."
+        },
+        {
+            q: "60. ¿A través de qué vena se comunican principalmente el sistema digestivo (venas mesentéricas) con el hígado antes de llegar a la Cava Inferior?",
+            a: "c",
+            options: {
+                a: "Vena Hemiácigos.",
+                b: "Vena Suprahepática.",
+                c: "Vena Porta.",
+                d: "Vena esplénica."
+            },
+            exp: "El sistema porta capilariza la sangre digestiva en el hígado ('el gran filtro')."
+        },
+        {
+            q: "61. Si un paciente tiene cirrosis hepática (el 'filtro' se tapona), la sangre busca vías de escape hacia el sistema Cava. En la anastomosis porto-cava esofágica, esto provoca:",
+            a: "b",
+            options: {
+                a: "Hipertensión intracraneal.",
+                b: "Varices esofágicas (venas submucosas dilatadas que pueden sangrar mortalmente).",
+                c: "Hernias inguinales.",
+                d: "Neumotórax."
+            },
+            exp: "Consecuencia de retroceso de flujo. Concepto clínico vital explicado por Prada."
+        },
+        {
+            q: "62. El Triángulo de Sédillot (entre los dos fascículos del esternocleidomastoideo, clavícula y esternón) es la referencia quirúrgica y ecográfica dorada para localizar y canalizar:",
+            a: "b",
+            options: {
+                a: "La arteria aorta.",
+                b: "La vena yugular interna.",
+                c: "La vena yugular externa.",
+                d: "El nervio frénico."
+            },
+            exp: "Permite un abordaje venoso central directo minimizando el riesgo de pinchar la carótida."
+        },
+        {
+            q: "63. Cuando realizamos una laparotomía vertical en la línea alba, ¿cuál es el mayor problema quirúrgico a largo plazo?",
+            a: "b",
+            options: {
+                a: "Destruye el músculo recto.",
+                b: "Al ser una aponeurosis avascular (sin vasos sanguíneos), tiene una curación muy pobre y favorece hernias incisionales (eventraciones).",
+                c: "Corta la arteria aorta.",
+                d: "Secciona el nervio umbilical."
+            },
+            exp: "Los cirujanos prefieren incisiones paramedianas apartando el músculo porque el músculo (vascularizado) cicatriza mucho mejor."
+        },
+        {
+            q: "64. El espacio situado entre la porción posterior de la fascia prevertebral (vertebras/músculos) y la fascia pretraqueal/visceral (esófago) se conoce como Espacio Retrofaríngeo. Es famoso porque:",
+            a: "b",
+            options: {
+                a: "Es el lugar donde nacen las cuerdas vocales.",
+                b: "Es un plano de clivaje laxo y avascular ('exangüe') por donde los cirujanos pueden disecar limpiamente hasta la base del cráneo sin hemorragias.",
+                c: "Contiene el conducto torácico.",
+                d: "Contiene la glándula tiroides."
+            },
+            exp: "Es un espacio fascial puro, sin vasos atravesados, 'autopista' quirúrgica y para infecciones."
+        },
+        {
+            q: "65. El plano transversal de Louis (T4-T5) es 'mágico' en tórax porque marca todos estos eventos EXCEPTO:",
+            a: "d",
+            options: {
+                a: "Ángulo esternal (unión manubrio-cuerpo).",
+                b: "Articulación de la segunda costilla.",
+                c: "Bifurcación de la tráquea en bronquios principales.",
+                d: "Paso del esófago a través del diafragma."
+            },
+            exp: "El paso del esófago es en T10. T4-T5 divide el mediastino y marca el cayado aórtico y la tráquea."
+        },
+        {
+            q: "66. La irrigación del músculo Cremáster y envolturas espermáticas viene dada por la arteria cremastérica, que es una pequeña rama derivada de:",
+            a: "b",
+            options: {
+                a: "La arteria aorta.",
+                b: "La arteria epigástrica inferior.",
+                c: "La arteria femoral profunda.",
+                d: "La arteria pudenda interna."
+            },
+            exp: "Como la epigástrica inferior pasa justo medial al anillo profundo, cede ramas para el cordón."
+        },
+        {
+            q: "67. Durante un esfuerzo de tos o levantamiento de pesas (aumento de presión intraabdominal), ¿qué mecanismo venoso se pone en marcha en los plexos de Batson de la columna?",
+            a: "b",
+            options: {
+                a: "Cierran sus válvulas para evitar congestión medular.",
+                b: "Al ser avalvulares, invierten el flujo venoso hacia la columna para descomprimir la cava, lo que puede arrastrar metástasis.",
+                c: "Drenan todo a la vena porta.",
+                d: "Se rompen provocando hematomas epidurales fisiológicos."
+            },
+            exp: "El gran tema de Prada: avalvular = doble dirección = metástasis directas de pelvis a columna."
+        },
+        {
+            q: "68. En el control biomecánico postural, si la pared abdominal está hipotónica (débil) y el sujeto tiene 'barriga', el centro de gravedad se desplaza hacia delante. Para evitar caerse boca abajo, el cuerpo responde compensando con:",
+            a: "a",
+            options: {
+                a: "Un aumento de la tensión de los erectores del dorso, provocando hiperlordosis compensatoria y dolor lumbar.",
+                b: "Rotación de las rodillas.",
+                c: "Flexión de la columna cervical.",
+                d: "Cifosis lumbar profunda."
+            },
+            exp: "La falta de contrapeso abdominal obliga a la musculatura de la espalda a sobreesforzarse 'como una grúa', causando lumbalgia mecánica."
+        },
+        {
+            q: "69. En la clínica, la localización cutánea ('a punta de dedo') o referida es clave. El dermatoma que cruza las apófisis xifoides (la boca del estómago) es aproximadamente:",
+            a: "b",
+            options: {
+                a: "T4.",
+                b: "T7.",
+                c: "T10.",
+                d: "L1."
+            },
+            exp: "T4 es pezón, T7 xifoides, T10 ombligo, L1 zona inguinal."
+        },
+        {
+            q: "70. La fosa o receso costodiafragmático es el espacio más declive (bajo) de las pleuras. Esto significa que si realizamos una placa de tórax a un paciente de pie con un derrame pleural (líquido en la pleura):",
+            a: "b",
+            options: {
+                a: "El líquido flotará en el vértice superior.",
+                b: "El receso costodiafragmático aparecerá 'borrado' (blanco/radiopaco) porque el líquido se acumula ahí por gravedad.",
+                c: "El líquido empujará el corazón al lado derecho.",
+                d: "El paciente no podrá decir 'sí'."
+            },
+            exp: "Al ser el ángulo agudo más inferior de la cavidad pleural, la gravedad deposita cualquier patología líquida (sangre, pus, efusión) borrando el contorno afilado normal en los Rayos X."
+        }
+    ];
+
+    let currentQuestions = [];
+    let userState = {}; // { indexInCurrent: { answered: bool, correct: bool, marked: bool } }
+    let currentIndex = 0;
+
+    function startQuiz(randomize) {
+        document.getElementById('setup-screen').style.display = 'none';
+        currentQuestions = [...rawQuestions];
+        if (randomize) {
+            currentQuestions.sort(() => Math.random() - 0.5);
+        }
+        initQuizState();
+        renderSidebar();
+        showQuestion(0);
+    }
+
+    function initQuizState() {
+        userState = {};
+        currentQuestions.forEach((_, i) => {
+            userState[i] = { answered: false, correct: false, marked: false, selected: null };
+        });
+    }
+
+    function renderSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.innerHTML = '';
+        currentQuestions.forEach((_, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.id = `nav-${i}`;
+            btn.innerText = i + 1;
+            btn.onclick = () => showQuestion(i);
+            sidebar.appendChild(btn);
+        });
+    }
+
+    function showQuestion(index) {
+        currentIndex = index;
+        const container = document.getElementById('question-container');
+        const q = currentQuestions[index];
+        const state = userState[index];
+
+        // Aleatorizar opciones para esta visualización
+        const optionKeys = ['a', 'b', 'c', 'd'];
+        const shuffledKeys = [...optionKeys].sort(() => Math.random() - 0.5);
+
+        let optionsHtml = '';
+        shuffledKeys.forEach(key => {
+            let className = 'option';
+            if (state.answered) {
+                if (key === q.a) className += ' correct';
+                else if (key === state.selected && key !== q.a) className += ' wrong';
+            }
+
+            optionsHtml += `
+                <button class="${className}" 
+                        onclick="checkAnswer('${key}')" 
+                        ${state.answered ? 'disabled' : ''}>
+                    ${key.toUpperCase()}) ${q.options[key]}
+                </button>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="question-box active">
+                <div class="marker-status ${state.marked ? 'active' : ''}" id="mark-label-${index}">★ MARCADA</div>
+                <h2>Pregunta ${index + 1}</h2>
+                <p style="font-size: 18px; line-height: 1.6;">${q.q}</p>
+                <div class="options-container">${optionsHtml}</div>
+                <div class="feedback ${state.answered ? 'visible' : ''}">
+                    <strong>Explicación:</strong> ${q.exp}
+                </div>
+                <div class="controls">
+                    <button class="btn btn-mark" onclick="toggleMark(${index})">
+                        ${state.marked ? 'Desmarcar' : 'Marcar Pregunta'}
+                    </button>
+                    <div>
+                        <button class="btn btn-end" onclick="endQuiz()">Finalizar</button>
+                        <button class="btn btn-main" onclick="prevQ()" ${index === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="btn btn-main" onclick="nextQ()" ${index === currentQuestions.length - 1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Actualizar UI del sidebar
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`nav-${index}`).classList.add('active');
+    }
+
+    function checkAnswer(key) {
+        const state = userState[currentIndex];
+        const q = currentQuestions[currentIndex];
+        if (state.answered) return;
+
+        state.answered = true;
+        state.selected = key;
+        state.correct = (key === q.a);
+
+        const navBtn = document.getElementById(`nav-${currentIndex}`);
+        navBtn.classList.add(state.correct ? 'correct' : 'wrong');
+
+        showQuestion(currentIndex);
+    }
+
+    function toggleMark(index) {
+        userState[index].marked = !userState[index].marked;
+        const navBtn = document.getElementById(`nav-${index}`);
+        if (userState[index].marked) navBtn.classList.add('marked');
+        else navBtn.classList.remove('marked');
+        showQuestion(index);
+    }
+
+    function nextQ() { if (currentIndex < currentQuestions.length - 1) showQuestion(currentIndex + 1); }
+    function prevQ() { if (currentIndex > 0) showQuestion(currentIndex - 1); }
+
+    function endQuiz() {
+        document.getElementById('question-container').innerHTML = '';
+        document.getElementById('results-screen').style.display = 'block';
+        
+        let correctas = 0;
+        let total = currentQuestions.length;
+        Object.values(userState).forEach(s => { if(s.correct) correctas++; });
+        
+        document.getElementById('score-text').innerHTML = `
+            <h3>Resultado: ${correctas} / ${total}</h3>
+            <p>Puntuación: ${((correctas/total)*10).toFixed(2)} / 10</p>
+        `;
+    }
+
+    function resetQuiz(mode) {
+        let nextSet = [];
+        const oldState = {...userState};
+        const oldQuestions = [...currentQuestions];
+
+        if (mode === 'all') {
+            location.reload(); // Forma más limpia de reiniciar todo
+            return;
+        } else if (mode === 'failed') {
+            oldQuestions.forEach((q, i) => { if (oldState[i].answered && !oldState[i].correct) nextSet.push(q); });
+        } else if (mode === 'marked') {
+            oldQuestions.forEach((q, i) => { if (oldState[i].marked) nextSet.push(q); });
+        } else if (mode === 'failed-marked') {
+            oldQuestions.forEach((q, i) => { 
+                if (oldState[i].marked || (oldState[i].answered && !oldState[i].correct)) nextSet.push(q); 
+            });
+        }
+
+        if (nextSet.length === 0) {
+            alert("No hay preguntas que cumplan con este criterio.");
+            return;
+        }
+
+        currentQuestions = nextSet;
+        initQuizState();
+        renderSidebar();
+        document.getElementById('results-screen').style.display = 'none';
+        showQuestion(0);
+    }
+</script>
+
+</body>
+</html>

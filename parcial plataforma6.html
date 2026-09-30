@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Tronco - Parcial 4</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f9;
+            --sidebar-w: 130px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral en 3 columnas */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-header {
+            color: white;
+            text-align: center;
+            padding: 10px 5px;
+            font-size: 0.75em;
+            font-weight: bold;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            padding: 10px;
+            align-content: start;
+        }
+
+        .nav-dot {
+            aspect-ratio: 1;
+            background: #34495e;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: 0.2s;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        .restart-tab {
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+        }
+
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid var(--accent);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--accent); background: #f0f7ff; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95em;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-header">TRONCO P4</div>
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Anatomía I: Tronco - Examen Parcial 4</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados</h2>
+        <p id="score-text" style="font-size: 1.4rem;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const rawQuestions = [
+        { id: 1, q: "El cuadrado lumbar:", options: ["forma parte de la pared posterior del abdomen", "se relaciona estrechamente con los vasos iliacos", "se sitúa medialmente con respecto al psoas", "ocupa parte de la pelvis mayor"], correct: 0, r: "El músculo cuadrado lumbar se extiende entre la 12ª costilla, las vértebras lumbares y la cresta ilíaca, formando la pared abdominal posterior." },
+        { id: 2, q: "La inervación del periné procede de:", options: ["n. pudendos", "n. iliohipogástrico", "n. ilioinguinal", "n. genitofemoral"], correct: 0, r: "El nervio pudendo (S2-S4) es el principal nervio sensitivo y motor del periné." },
+        { id: 3, q: "Es falso respecto a la fosa isquioanal:", options: ["el nervio pudendo recorre su pared medial", "contiene abundante tejido adiposo", "está limitada lateralmente por el músculo obturador interno", "se comunica por delante con el espacio perineal profundo"], correct: 0, r: "Falso. El nervio pudendo recorre la pared LATERAL de la fosa, dentro del conducto de Alcock (fascia del obturador interno)." },
+        { id: 4, q: "El orificio superficial del conducto inguinal:", options: ["es una hendidura de la aponeurosis del oblicuo mayor", "está limitado por el ligamento interfoveolar", "se sitúa lateral a la arteria epigástrica inferior", "está formado por el músculo transverso"], correct: 0, r: "El anillo inguinal superficial es una apertura en la aponeurosis del músculo oblicuo externo del abdomen." },
+        { id: 5, q: "El ligamento lacunar (de Gimbernat):", options: ["forma el límite medial del anillo femoral", "es una dependencia del músculo transverso", "se inserta en la espina ilíaca anterosuperior", "forma el techo del conducto inguinal"], correct: 0, r: "Es una extensión triangular del ligamento inguinal que se inserta en la línea pectínea del pubis." },
+        { id: 6, q: "Cuál de los siguientes no forma parte del contenido del cordón espermático:", options: ["nervio ilioinguinal", "arteria testicular", "conducto deferente", "plexo pampiniforme"], correct: 0, r: "El nervio ilioinguinal acompaña al cordón por el conducto inguinal pero por fuera de sus cubiertas fasciales." },
+        { id: 7, q: "El músculo transverso del abdomen:", options: ["sus fibras más inferiores forman junto al oblicuo menor el tendón conjunto", "es el músculo más superficial de la pared abdominal", "está inervado exclusivamente por el nervio frénico", "se inserta en la línea arqueada"], correct: 0, r: "El tendón conjunto (hoz inguinal) se forma por la unión de las fibras aponeuróticas del oblicuo interno y el transverso." },
+        { id: 8, q: "La vaina de los rectos por debajo de la línea arqueada:", options: ["todas las aponeurosis pasan por delante del músculo recto", "se mantiene igual que en la porción superior", "la hoja posterior está formada por el músculo transverso", "no existe vaina en esta zona"], correct: 0, r: "A nivel de la línea arqueada de Douglas, todas las capas aponeuróticas se desplazan anteriormente." },
+        { id: 9, q: "El triángulo de Petit (lumbar inferior) está limitado por:", options: ["oblicuo mayor, dorsal ancho y cresta iliaca", "oblicuo menor, serrato y costillas", "cuadrado lumbar y psoas", "recto del abdomen y línea alba"], correct: 0, r: "Es un punto de debilidad de la pared posterior donde pueden producirse hernias lumbares." },
+        { id: 10, q: "La fascia transversalis:", options: ["se sitúa profunda al músculo transverso", "es una capa de la piel", "forma la hoja anterior de la vaina de los rectos", "es superficial al músculo oblicuo mayor"], correct: 0, r: "Es la capa de fascia que recubre la cara interna del músculo transverso del abdomen." },
+        { id: 11, q: "Sobre los vasos epigástricos inferiores es cierto que:", options: ["son ramas de los vasos iliacos externos", "se sitúan superficiales al músculo recto", "pasan mediales al orificio inguinal profundo", "son ramas de la aorta"], correct: 0, r: "La arteria epigástrica inferior nace de la ilíaca externa y marca el límite medial del anillo inguinal profundo." },
+        { id: 12, q: "La arteria subcostal:", options: ["es rama de la aorta", "pasa por encima de la 12ª costilla", "irriga el diafragma únicamente", "es rama de la arteria renal"], correct: 0, r: "La arteria subcostal es la rama parietal de la aorta abdominal que discurre bajo la 12ª costilla." },
+        { id: 13, q: "El triángulo cervical posterior:", options: ["está limitado por la clavícula", "está ocupado por la arteria carótida común", "el escaleno posterior es un elemento limitante", "en él se encuentra la vena yugular interna"], correct: 0, r: "Sus límites son el borde posterior del ECM, el borde anterior del trapecio y la clavícula." },
+        { id: 14, q: "El triángulo submentoniano está limitado por:", options: ["vientre anterior músculo digástrico", "vientre posterior del músculo digástrico", "músculo omohioideo", "borde anterior músculo esternocleidomastoideo"], correct: 0, r: "Se encuentra entre los vientres anteriores de ambos músculos digástricos y el hueso hioides." },
+        { id: 15, q: "De los siguientes enunciados no es cierto que:", options: ["la vena yugular anterior se apoya sobre la cara superficial del músculo ECM", "los ganglios cervicales profundos están asociados a la vena yugular interna", "la lámina prevertebral envuelve entre otros a los músculos prevertebrales", "la vaina carotidea incluye al nervio vago"], correct: 0, r: "Falso. La vena yugular anterior desciende medial al ECM, no sobre su cara superficial (esa es la yugular externa)." }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [];
+
+    function preparePool(questions) {
+        return questions.map(q => {
+            const options = q.options.map((text, i) => ({ text, isCorrect: i === q.correct }));
+            return { ...q, options };
+        });
+    }
+
+    const fullPool = preparePool(rawQuestions);
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        const qData = fullPool.find(f => f.id === qId);
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${qData.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = qData.options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Has acertado <strong>${correctas}</strong> de <strong>${total}</strong> preguntas.`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...fullPool];
+        else if (mode === 'failed') next = fullPool.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = fullPool.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = fullPool.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    currentPool = [...fullPool];
+    initQuiz(currentPool);
+</script>
+</body>
+</html>

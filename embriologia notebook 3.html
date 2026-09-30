@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Embriología: Semanas 3-4 y Anexos</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #8e44ad;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            width: 90px;
+            background: var(--primary);
+            color: white;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .nav-btn {
+            width: 45px;
+            height: 45px;
+            margin: 4px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background: rgba(255,255,255,0.1); }
+        .nav-btn.active { background: var(--secondary); border-color: white; }
+        .nav-btn.correct { background: var(--success); }
+        .nav-btn.wrong { background: var(--danger); }
+        .nav-btn.marked { border: 2px solid var(--warning); color: var(--warning); }
+
+        /* --- Main Content --- */
+        #main-container {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .setup-screen, .results-screen { text-align: center; }
+        .question-box { display: none; }
+        .question-box.active { display: block; }
+
+        h2 { color: var(--primary); margin-top: 0; border-bottom: 2px solid var(--secondary); padding-bottom: 10px; }
+        
+        .option {
+            display: block;
+            width: 100%;
+            padding: 14px 18px;
+            margin: 12px 0;
+            border: 2px solid #eaeeef;
+            border-radius: 10px;
+            background: #fff;
+            text-align: left;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 16px;
+        }
+
+        .option:hover:not([disabled]) { border-color: var(--secondary); background: #fdfaff; }
+        .option.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 18px;
+            border-radius: 10px;
+            display: none;
+            background: #f0f4f8;
+            border-left: 6px solid var(--secondary);
+            font-style: italic;
+        }
+        .feedback.visible { display: block; }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-main { background: var(--secondary); color: white; }
+        .btn-nav { background: #95a5a6; color: white; }
+        .btn-mark { background: var(--warning); color: #2c3e50; }
+        .btn-end { background: #34495e; color: white; }
+
+        .marker-status {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--warning);
+            margin-bottom: 10px;
+            display: none;
+        }
+        .marker-status.active { display: block; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar"></div>
+
+<div id="main-container">
+    <div id="quiz-app" class="card">
+        <div id="setup-screen" class="setup-screen">
+            <h1>Quiz de Embriología Médica</h1>
+            <p>Semanas 3-4, Placenta y Desarrollo de Membranas</p>
+            <hr>
+            <p>Selecciona el modo de inicio:</p>
+            <button class="btn btn-main" onclick="startQuiz(false)">Orden de Audio (Literal)</button>
+            <button class="btn btn-main" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+
+        <div id="question-container"></div>
+
+        <div id="results-screen" class="results-screen" style="display:none;">
+            <h2>Resultados del Cuestionario</h2>
+            <div id="score-text" style="font-size: 24px; margin: 20px 0;"></div>
+            <div class="menu-grid">
+                <button class="btn btn-main" onclick="location.reload()">Reiniciar Todo</button>
+                <button class="btn btn-nav" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                <button class="btn btn-nav" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="btn btn-end" onclick="resetQuiz('failed-marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const questionsData = [
+        { q: "4. ¿Qué estructura debe romperse (\"eclosión\") alrededor del día 5 para que el blastocisto pueda implantarse?", a: "b", options: { a: "El sincitiotrofoblasto.", b: "La zona pelúcida.", c: "El saco vitelino.", d: "La membrana bucofaríngea." }, exp: "Respuesta correcta: b. La zona pelúcida impide la implantación prematura; su rotura permite la unión al endometrio." },
+        { q: "5. Al final de la segunda semana, el disco embrionario está formado por dos capas. ¿Cuáles son?", a: "b", options: { a: "Ectodermo y Endodermo.", b: "Epiblasto e Hipoblasto.", c: "Somatopleura y Esplacnopleura.", d: "Citotrofoblasto y Sincitiotrofoblasto." }, exp: "Respuesta correcta: b. El disco bilaminar precede a la gastrulación." },
+        { q: "6. ¿Qué cavidad se encuentra justo por encima del epiblasto al terminar la segunda semana?", a: "c", options: { a: "Saco vitelino.", b: "Cavidad coriónica.", c: "Cavidad amniótica.", d: "Blastocele." }, exp: "Respuesta correcta: c. El amnios se desarrolla a partir del epiblasto." },
+        { q: "7. ¿Cuál es el proceso fundamental y más característico que ocurre durante la tercera semana del desarrollo embrionario?", a: "b", options: { a: "La fecundación.", b: "La gastrulación.", c: "El plegamiento del embrión.", d: "La formación de los arcos faríngeos." }, exp: "Respuesta correcta: b. La gastrulación establece las tres capas germinales." },
+        { q: "8. La gastrulación da como resultado la formación de:", a: "b", options: { a: "El disco embrionario bilaminar.", b: "El disco embrionario tridérmico o trilaminar.", c: "La mórula.", d: "El blastocisto." }, exp: "Respuesta correcta: b. Se crean Ectodermo, Mesodermo y Endodermo." },
+        { q: "9. El proceso de gastrulación se inicia con la aparición de una estructura en la superficie del epiblasto llamada:", a: "c", options: { a: "Notocorda.", b: "Somita.", c: "Línea primitiva.", d: "Membrana cloacal." }, exp: "Respuesta correcta: c. La línea primitiva es el primer signo de la gastrulación." },
+        { q: "10. Durante la gastrulación, las células que migran hacia abajo sustituyendo a las células del hipoblasto formarán la capa inferior llamada:", a: "c", options: { a: "Ectodermo.", b: "Mesodermo.", c: "Endodermo.", d: "Amnios." }, exp: "Respuesta correcta: c. El endodermo desplaza al hipoblasto original." },
+        { q: "11. Las células que migran y se sitúan en la zona intermedia formarán:", a: "d", options: { a: "El ectodermo.", b: "El endodermo.", c: "El citotrofoblasto.", d: "El mesodermo." }, exp: "Respuesta correcta: d. El mesodermo se sitúa entre las capas externa e interna." },
+        { q: "12. Las células del epiblasto originario que no migran y permanecen en la capa superior pasan a denominarse:", a: "a", options: { a: "Ectodermo.", b: "Neuroectodermo.", c: "Endodermo.", d: "Hipoblasto." }, exp: "Respuesta correcta: a. El epiblasto remanente se convierte en ectodermo." },
+        { q: "13. Existen dos zonas en el disco embrionario donde el ectodermo y el endodermo están en contacto directo sin mesodermo en medio. ¿Cuáles son?", a: "b", options: { a: "La notocorda y el nódulo primitivo.", b: "La membrana bucofaríngea (craneal) y la membrana cloacal (caudal).", c: "Las vellosidades primarias y secundarias.", d: "Los neuroporos craneal y caudal." }, exp: "Respuesta correcta: b. Son las futuras aberturas del tubo digestivo." },
+        { q: "14. ¿Qué estructura futura marca la localización de la membrana bucofaríngea?", a: "b", options: { a: "La zona final del tubo digestivo.", b: "La futura boca.", c: "El corazón.", d: "El sistema nervioso central." }, exp: "Respuesta correcta: b. Se sitúa en el extremo craneal." },
+        { q: "15. La línea primitiva normalmente involuciona y desaparece en la cuarta semana. Si quedan restos celulares pluripotenciales de esta línea en la zona sacrococcígea, pueden originar:", a: "b", options: { a: "Gemelos idénticos.", b: "Teratomas sacrococcígeos.", c: "Un embarazo ectópico.", d: "Espina bífida." }, exp: "Respuesta correcta: b. Es el tumor más frecuente en recién nacidos derivado de restos de la línea primitiva." },
+        { q: "16. ¿Qué característica definitoria tienen los teratomas según la profesora?", a: "c", options: { a: "Son tumores que siempre son malignos.", b: "Son tumores originados por falta de ácido fólico.", c: "Son tumores cuyas células tienen capacidad para diferenciar distintos tipos celulares (hueso, cartílago, uñas, pelo).", d: "Son tumores maternos que invaden al feto." }, exp: "Respuesta correcta: c. Contienen derivados de las tres capas germinales." },
+        { q: "17. ¿Cuál es la incidencia estimada de los teratomas sacrococcígeos?", a: "b", options: { a: "1 de cada 100 nacimientos.", b: "1 de cada 35.000 nacimientos.", c: "1 de cada 500.000 nacimientos.", d: "Son teóricos, nunca se han documentado." }, exp: "Respuesta correcta: b. Dato de frecuencia clínica." },
+        { q: "18. En la parte anterior de la línea primitiva se forma un pequeño relieve conocido como:", a: "b", options: { a: "Membrana cloacal.", b: "Nódulo de Hensen o nódulo primitivo.", c: "Fosita amniótica.", d: "Saco vitelino secundario." }, exp: "Respuesta correcta: b. El nódulo primitivo organiza el eje del embrión." },
+        { q: "19. A partir de las células que proliferan desde el nódulo primitivo hacia la zona anterior se va a formar una estructura clave llamada:", a: "c", options: { a: "El corazón primitivo.", b: "El tubo neural.", c: "La notocorda.", d: "El alantoides." }, exp: "Respuesta correcta: c. La notocorda define el eje longitudinal." },
+        { q: "20. La notocorda se desarrolla inicialmente como un conducto hueco que se dirige hacia la zona anterior, denominado:", a: "a", options: { a: "Proceso notocordal.", b: "Tubo neural.", c: "Conducto de Wolff.", d: "Intestino primitivo." }, exp: "Respuesta correcta: a. Es la fase inicial antes de hacerse maciza." },
+        { q: "21. El proceso notocordal se fusiona temporalmente con el endodermo inferior creando una comunicación transitoria entre la cavidad amniótica (arriba) y el saco vitelino (abajo). Esta comunicación se llama:", a: "c", options: { a: "Canal inguinal.", b: "Conducto vitelino.", c: "Conducto neuroentérico.", d: "Uraco." }, exp: "Respuesta correcta: c. Conexión fugaz durante la tercera semana." },
+        { q: "22. ¿Por qué recibe el nombre de \"conducto neuroentérico\"?", a: "b", options: { a: "Porque conecta nervios con arterias.", b: "Porque arriba se desarrollará el sistema nervioso (ectodermo) y abajo el intestino (saco vitelino/endodermo).", c: "Porque es un conducto por donde pasan neuronas hacia el estómago.", d: "Porque secreta neurotransmisores digestivos." }, exp: "Respuesta correcta: b. Neuro (SN) + Entérico (Intestino)." },
+        { q: "23. Cuando el conducto neuroentérico se cierra, el proceso notocordal se transforma en un cordón celular macizo denominado:", a: "b", options: { a: "Tubo neural.", b: "Notocorda definitiva.", c: "Miotomo.", d: "Celoma." }, exp: "Respuesta correcta: b. Se convierte en una varilla rígida axial." },
+        { q: "24. TRAMPA DE EXAMEN CLÁSICA: La notocorda sirve como eje axial del embrión e induce la formación de la columna vertebral. En el adulto, ¿qué resto anatómico persiste de esta notocorda?", a: "c", options: { a: "La médula espinal.", b: "El cuerpo de la vértebra.", c: "El núcleo pulposo del disco intervertebral.", d: "Las meninges." }, exp: "Respuesta correcta: c. El núcleo pulposo es el único vestigio funcional en el adulto." },
+        { q: "25. Además de inducir la columna vertebral, la notocorda es una estructura inductora fundamental para:", a: "c", options: { a: "El desarrollo de las extremidades.", b: "La formación de la vejiga urinaria.", c: "La inducción del ectodermo suprayacente para desarrollar el sistema nervioso.", d: "La formación del esmalte dental." }, exp: "Respuesta correcta: c. Sin notocorda no hay placa neural." },
+        { q: "26. La zona del ectodermo situada justo por encima de la notocorda que va a formar el sistema nervioso recibe el nombre de:", a: "b", options: { a: "Mesodermo paraxial.", b: "Neuroectodermo.", c: "Endodermo nervioso.", d: "Placa faríngea." }, exp: "Respuesta correcta: b. Células especializadas del ectodermo." },
+        { q: "27. El primer paso morfológico visible en la formación del sistema nervioso central es un engrosamiento del neuroectodermo llamado:", a: "b", options: { a: "Tubo neural.", b: "Placa neural.", c: "Cresta neural.", d: "Somita." }, exp: "Respuesta correcta: b. Se observa a mitad de la tercera semana." },
+        { q: "28. Cuando la placa neural se invagina, forma una hendidura a lo largo de su eje denominada:", a: "a", options: { a: "Surco neural.", b: "Canal neuroentérico.", c: "Estría primitiva.", d: "Hendidura faríngea." }, exp: "Respuesta correcta: a. El surco precede al cierre del tubo." },
+        { q: "29. Al cerrarse progresivamente el surco neural, se desprende del ectodermo superficial y queda en el interior del embrión formando:", a: "b", options: { a: "El tubo digestivo.", b: "El tubo neural.", c: "La notocorda.", d: "La columna vertebral." }, exp: "Respuesta correcta: b. Da origen al cerebro y médula espinal." },
+        { q: "30. Durante el cierre del surco neural, unas células quedan en los pliegues (bordes) y no se incorporan al tubo neural. Estas se denominan:", a: "b", options: { a: "Amnioblastos.", b: "Crestas neurales.", c: "Somitas.", d: "Angioblastos." }, exp: "Respuesta correcta: b. Son células altamente migratorias y pluripotenciales." },
+        { q: "31. PUNTO CLAVE: ¿Qué estructuras se originan a partir de las células de las crestas neurales?", a: "b", options: { a: "Epidermis y pelo.", b: "Ganglios nerviosos, meninges, médula suprarrenal y melanocitos.", c: "El encéfalo y la médula espinal.", d: "Músculo esquelético y huesos largos." }, exp: "Respuesta correcta: b. Se consideran la 'cuarta capa germinal' por su diversidad." },
+        { q: "32. ¿Cómo se denominan las células derivadas de la cresta neural que producen el pigmento de la piel?", a: "b", options: { a: "Queratinocitos.", b: "Melanocitos.", c: "Adipocitos.", d: "Astrocitos." }, exp: "Respuesta correcta: b. Los melanocitos migran a la piel desde las crestas." },
+        { q: "33. ¿En qué dirección \"avanza\" el cierre del tubo neural, comparado por la profesora con una \"cremallera\"?", a: "b", options: { a: "Comienza en el extremo craneal y va hacia el caudal.", b: "Comienza en la zona media y se extiende hacia las partes craneal y caudal simultáneamente.", c: "Comienza en la cola y termina en la cabeza.", d: "Se cierra todo a la vez en un solo día." }, exp: "Respuesta correcta: b. El cierre es bidireccional desde la zona central/cervical." },
+        { q: "34. Al final de la tercera semana, el tubo neural no está completamente cerrado, dejando aberturas en los extremos llamadas:", a: "a", options: { a: "Neuroporos craneal y caudal.", b: "Estomas primarios.", c: "Conductos onfalomesentéricos.", d: "Hendiduras branquiales." }, exp: "Respuesta correcta: a. Permiten la comunicación con la cavidad amniótica." },
+        { q: "35. ¿En qué día aproximado del desarrollo suele cerrarse el neuroporo craneal?", a: "b", options: { a: "Día 14.", b: "Día 24 o 25 (cuarta semana).", c: "Día 40.", d: "En el momento del nacimiento." }, exp: "Respuesta correcta: b. Marca un hito importante en la formación del encéfalo." },
+        { q: "36. El neuroporo caudal se cierra:", a: "c", options: { a: "Una semana antes que el craneal.", b: "Simultáneamente al craneal.", c: "Uno o dos días después del cierre craneal.", d: "Nunca se cierra completamente." }, exp: "Respuesta correcta: c. Ocurre hacia el día 26-27." },
+        { q: "37. Un fallo en el cierre del neuroporo craneal da lugar a:", a: "b", options: { a: "Espina bífida.", b: "Anencefalia (cráneo bífido).", c: "Criptorquidia.", d: "Focomelia." }, exp: "Respuesta correcta: b. Es incompatible con la vida larga." },
+        { q: "38. Un fallo en el cierre del neuroporo caudal da lugar a defectos conocidos clínicamente como:", a: "c", options: { a: "Teratomas.", b: "Sindactilia.", c: "Espina bífida.", d: "Labio leporino." }, exp: "Respuesta correcta: c. La gravedad varía desde oculta hasta mielomeningocele." },
+        { q: "39. ¿Qué suplemento vitamínico es fundamental recomendar a embarazadas para prevenir los defectos del cierre del tubo neural?", a: "b", options: { a: "Vitamina C.", b: "Ácido fólico.", c: "Hierro.", d: "Calcio." }, exp: "Respuesta correcta: b. Debe tomarse incluso antes de la concepción." },
+        { q: "40. En la tercera semana, el mesodermo embrionario se organiza y compacta en tres partes fundamentales de medial a lateral. Estas son:", a: "b", options: { a: "Epiblasto, hipoblasto y endodermo.", b: "Paraxial, intermedio y lateral.", c: "Esclerotomo, miotomo y dermatomo.", d: "Somático, esplácnico y celómico." }, exp: "Respuesta correcta: b. Organización básica del mesodermo." },
+        { q: "41. El mesodermo paraxial (situado a ambos lados de la notocorda) se condensa y segmenta formando bloques llamados:", a: "c", options: { a: "Angioblastos.", b: "Placodas.", c: "Somitas (o somitos).", d: "Crestas neurales." }, exp: "Respuesta correcta: c. Son fundamentales para datar la edad del embrión." },
+        { q: "42. ¿Qué característica física producen los somitas que permite visualizar su desarrollo al microscopio?", a: "b", options: { a: "Se tiñen de azul intenso.", b: "Hacen relieve en la capa del ectodermo que está por encima de ellos.", c: "Generan un surco profundo llamado surco primitivo.", d: "Exudan líquido amniótico." }, exp: "Respuesta correcta: b. Forman abultamientos visibles en la superficie dorsal." },
+        { q: "43. La profesora compara morfológicamente los somitas con:", a: "b", options: { a: "Un racimo de uvas.", b: "Las partes fraccionables de un \"Toblerone\".", c: "Un disco plano.", d: "Una estructura en forma de \"C\"." }, exp: "Respuesta correcta: b. Por su aspecto segmentado y piramidal." },
+        { q: "44. Cada somita se diferencia en tres partes funcionales. ¿Qué originará el dermatomo?", a: "b", options: { a: "La epidermis de la piel.", b: "La dermis de distintas zonas del cuerpo.", c: "El músculo liso intestinal.", d: "Las vértebras." }, exp: "Respuesta correcta: b. La dermis es el tejido conectivo profundo de la piel." },
+        { q: "45. ¿Qué estructuras se originan a partir del miotomo?", a: "b", options: { a: "Cartílagos.", b: "Tejido muscular.", c: "Nervios periféricos.", d: "Tejido óseo." }, exp: "Respuesta correcta: b. Forma la musculatura axial y apendicular." },
+        { q: "46. El esclerotomo, la parte más interna del somita y cercana a la notocorda, dará lugar a:", a: "a", options: { a: "Hueso y cartílago.", b: "La médula espinal.", c: "Sangre.", d: "La glándula mamaria." }, exp: "Respuesta correcta: a. Forma principalmente las vértebras y costillas." },
+        { q: "47. ¿Qué sistema se va a originar fundamentalmente a partir del mesodermo intermedio?", a: "c", options: { a: "Sistema cardiovascular.", b: "Sistema nervioso.", c: "Sistema urogenital (renal y genital).", d: "Aparato respiratorio." }, exp: "Respuesta correcta: c. Genera riñones, gónadas y sus conductos." },
+        { q: "48. El mesodermo lateral se divide en dos hojas (somatopleura y esplacnopleura) que, al plegarse el embrión, delimitan un espacio interno. ¿Cómo se llama este espacio?", a: "b", options: { a: "Celoma extraembrionario.", b: "Celoma intraembrionario.", c: "Blastocele.", d: "Canal neuroentérico." }, exp: "Respuesta correcta: b. Se convertirá en las grandes cavidades corporales." },
+        { q: "49. De las hojas del mesodermo lateral se formarán las membranas serosas que recubren cavidades del organismo. Estas son:", a: "b", options: { a: "Duramadre, piamadre y aracnoides.", b: "Pleura, pericardio y peritoneo.", c: "Mucosa gástrica e intestinal.", d: "Endometrio y miometrio." }, exp: "Respuesta correcta: b. Recubren los pulmones, corazón y abdomen." },
+        { q: "50. En la tercera semana, aparece una proyección o evaginación en la pared posterior del saco vitelino que se dirige hacia el pedículo de fijación. ¿Cómo se denomina?", a: "b", options: { a: "Notocorda.", b: "Divertículo alantoideo (o alantoides).", c: "Saco amniótico.", d: "Tubo neural." }, exp: "Respuesta correcta: b. Participa en la formación de la vejiga." },
+        { q: "51. En los humanos, el alantoides va a estar relacionado anatómicamente con el desarrollo de:", a: "c", options: { a: "El tubo digestivo.", b: "El corazón embrionario.", c: "La vejiga urinaria.", d: "El cerebro posterior." }, exp: "Respuesta correcta: c. Su base forma el uraco." },
+        { q: "52. El conducto que conecta temporalmente la vejiga urinaria con el cordón umbilical (procedente del alantoides) se denomina:", a: "a", options: { a: "Uraco.", b: "Conducto onfalomesentérico.", c: "Canal neuroentérico.", d: "Vellosidad primaria." }, exp: "Respuesta correcta: a. Debe cerrarse antes del nacimiento." },
+        { q: "53. Lo normal es que el uraco se oblitere y cierre, transformándose en el adulto en:", a: "c", options: { a: "El ligamento redondo del hígado.", b: "El uréter.", c: "El ligamento umbilical medio.", d: "La arteria ilíaca." }, exp: "Respuesta correcta: c. Cordón fibroso remanente." },
+        { q: "54. En la tercera semana aparecen los primeros islotes vásculo-sanguíneos. ¿Dónde comienzan a formarse inicialmente?", a: "c", options: { a: "En el mesodermo paraxial.", b: "En el ectodermo superficial.", c: "En el mesénquima extraembrionario.", d: "En el interior del tubo neural." }, exp: "Respuesta correcta: c. La sangre se forma primero fuera del embrión (saco vitelino)." },
+        { q: "55. Las células indiferenciadas de las que derivan tanto las células sanguíneas como el endotelio de los vasos se denominan:", a: "a", options: { a: "Angioblastos.", b: "Somitas.", c: "Amnioblastos.", d: "Trofoblastos." }, exp: "Respuesta correcta: a. Precursores de los vasos sanguíneos." },
+        { q: "56. DATO ESPECÍFICO: Los primeros elementos formes sanguíneos que circulan en el embrión son hematíes (eritrocitos). ¿Qué característica peculiar tienen respecto a los maternos/adultos?", a: "b", options: { a: "Son células gigantes que transportan doble cantidad de hierro.", b: "Son hematíes inicialmente nucleados.", c: "No tienen hemoglobina.", d: "Tienen forma de cubo." }, exp: "Respuesta correcta: b. Los hematíes fetales tempranos conservan el núcleo." },
+        { q: "57. Las células germinales primordiales (gonocitos), precursores de los gametos, aparecen entre el final de la tercera y principios de la cuarta semana. ¿Dónde se pueden identificar antes de iniciar su migración?", a: "a", options: { a: "En la pared del saco vitelino.", b: "En la cresta neural.", c: "En el interior del tubo neural.", d: "En la placoda ótica." }, exp: "Respuesta correcta: a. Migran desde el saco vitelino hacia las crestas gonadales." },
+        { q: "58. ¿Qué evento clínico es indiscutible en la mujer al llegar a la cuarta semana del desarrollo embrionario (día 21-28 post-fecundación)?", a: "b", options: { a: "Se produce la eclosión del blastocisto.", b: "Hay amenorrea (falta de menstruación) y pruebas biológicas de embarazo positivas.", c: "Se empiezan a sentir los movimientos fetales (patadas).", d: "Ocurre la segunda división meiótica." }, exp: "Respuesta correcta: b. Es el momento en que se suele detectar el embarazo." },
+        { q: "59. El evento morfológico principal de la cuarta semana que transforma el disco plano en una estructura cilíndrica tridimensional se denomina:", a: "c", options: { a: "Gastrulación.", b: "Singamia.", c: "Delimitación (o plegamiento) del embrión.", d: "Reacción decidual." }, exp: "Respuesta correcta: c. Plegamiento cefalocaudal y lateral." },
+        { q: "60. Durante la cuarta semana (inicio del periodo de organogénesis), ¿por qué es tan crítica esta etapa del embarazo?", a: "b", options: { a: "Porque la placenta no funciona en absoluto y depende del saco vitelino.", b: "Porque si hay un fallo en los esbozos orgánicos se producen malformaciones congénitas severas.", c: "Porque es cuando ocurre la implantación.", d: "Porque el embrión pierde sus tres capas germinativas." }, exp: "Respuesta correcta: b. Periodo de máxima sensibilidad a teratógenos." },
+        { q: "61. A lo largo del plegamiento, el techo del embrión (cavidad amniótica) crece drásticamente hacia los lados y abajo, ¿qué ocurre con el saco vitelino?", a: "c", options: { a: "Estalla y desaparece por completo.", b: "Crece más rápido que el amnios para proteger al feto.", c: "Se detiene su crecimiento y queda estrangulado progresivamente por la cavidad amniótica.", d: "Se convierte en el líquido amniótico." }, exp: "Respuesta correcta: c. El amnios envuelve al embrión." },
+        { q: "62. El saco vitelino presionado se divide funcionalmente en tres partes. La parte más superior, que quedará englobada dentro del embrión, forma:", a: "b", options: { a: "La vejiga urinaria.", b: "El intestino primitivo.", c: "La cordón umbilical.", d: "El corazón." }, exp: "Respuesta correcta: b. Endodermo plegado." },
+        { q: "63. La parte intermedia y estrecha que conecta el intestino primitivo con el exterior se llama:", a: "c", options: { a: "Pedículo de fijación.", b: "Alantoides.", c: "Conducto vitelino (o conducto onfalomesentérico).", d: "Uraco." }, exp: "Respuesta correcta: c. Estructura que comunica el intestino medio con la vesícula umbilical." },
+        { q: "64. La parte más distal o extremo remanente del saco vitelino pasa a denominarse:", a: "b", options: { a: "Vesícula biliar.", b: "Vesícula umbilical.", c: "Placenta primitiva.", d: "Quiste exocelómico." }, exp: "Respuesta correcta: b. Queda fuera del cuerpo del embrión." },
+        { q: "65. ¿Qué cavidad embrionaria acaba creciendo tanto que ocupa casi todo el espacio del embrión, llegando a fusionarse con el corion y obliterando el celoma extraembrionario?", a: "c", options: { a: "El blastocele.", b: "El conducto de Wolff.", c: "La cavidad amniótica.", d: "El saco vitelino." }, exp: "Respuesta correcta: c. El amnios se expande masivamente." },
+        { q: "66. Durante el plegamiento, ¿qué ocurre con la zona cardiogénica (el esbozo del corazón) que inicialmente estaba craneal a la membrana bucofaríngea?", a: "b", options: { a: "Permanece en la cabeza.", b: "Gira y pasa a situarse ventralmente, en la región torácica, debajo de la futura boca.", c: "Desciende hasta la cavidad pélvica.", d: "Se expulsa hacia el cordón umbilical." }, exp: "Respuesta correcta: b. Desplazamiento por el plegamiento cefálico." },
+        { q: "67. A partir de la cuarta semana aparecen en la futura región del cuello y la cara unas estructuras en forma de barras llamadas:", a: "c", options: { a: "Somitas cefálicos.", b: "Placodas cristalinianas.", c: "Arcos faríngeos (o branquiales).", d: "Ganglios raquídeos." }, exp: "Respuesta correcta: c. Fundamentales para el desarrollo facial y cervical." },
+        { q: "68. ¿De dónde derivan los huesos de la mandíbula, los huesecillos del oído medio y el hueso hioides?", a: "c", options: { a: "De los somitas lumbares.", b: "Del tubo neural posterior.", c: "De los arcos faríngeos.", d: "De la cresta ilíaca primaria." }, exp: "Respuesta correcta: c. Cada arco tiene nervio, músculo y cartílago propios." },
+        { q: "69. Al final de la cuarta semana, se puede observar externamente el embrión en forma de \"C\", la prominencia cardíaca y el inicio de unas yemas en los laterales que darán lugar a:", a: "b", options: { a: "Los pulmones.", b: "El esbozo del miembro superior e inferior (extremidades).", c: "Las vellosidades coriónicas.", d: "El cordón umbilical secundario." }, exp: "Respuesta correcta: b. Aparecen primero las yemas superiores (día 26)." },
+        { q: "70. Hacia el día 42, los rayos digitales de las extremidades están formados por tejido continuo. ¿Qué proceso celular biológico es imprescindible para que los dedos se separen y se formen manos y pies normales?", a: "b", options: { a: "Segmentación.", b: "Apoptosis (muerte celular programada) del tejido interdigital.", c: "Mitosis acelerada.", d: "Inducción ósea de los metacarpianos." }, exp: "Respuesta correcta: b. La muerte celular controlada elimina las membranas interdigitales." },
+        { q: "71. Si la apoptosis entre los rayos digitales falla o está alterada, el recién nacido presentará una patología denominada:", a: "c", options: { a: "Focomelia.", b: "Criptorquidia.", c: "Sindactilia (dedos fusionados o pegados).", d: "Polidactilia." }, exp: "Respuesta correcta: c. Persistencia de la membrana interdigital." },
+        { q: "72. El sistema nervioso central y periférico, los órganos de los sentidos y la glándula mamaria derivan de:", a: "b", options: { a: "El endodermo.", b: "El ectodermo.", c: "El mesodermo paraxial.", d: "El trofoblasto." }, exp: "Respuesta correcta: b. Ectodermo superficial y neuroectodermo." },
+        { q: "73. TRAMPA CLÁSICA: ¿De qué capa germinal deriva la EPIDERMIS de la piel?", a: "c", options: { a: "Mesodermo.", b: "Endodermo.", c: "Ectodermo.", d: "Cresta neural." }, exp: "Respuesta correcta: c. La capa externa de la piel es ectodérmica." },
+        { q: "74. TRAMPA CLÁSICA 2: A diferencia de la epidermis, ¿de qué capa embrionaria deriva la DERMIS (tejido conjuntivo de la piel)?", a: "b", options: { a: "Ectodermo.", b: "Mesodermo.", c: "Endodermo.", d: "Crestas neurales." }, exp: "Respuesta correcta: b. Deriva del dermatomo de los somitas." },
+        { q: "75. ¿De dónde derivan los anexos cutáneos como el pelo, las uñas y las glándulas sudoríparas?", a: "b", options: { a: "Del mesodermo (invaginan en él).", b: "Del ectodermo (son invaginaciones epidérmicas).", c: "Del endodermo.", d: "De los somitas." }, exp: "Respuesta correcta: b. Son derivados de la epidermis ectodérmica." },
+        { q: "76. Todo el tejido conjuntivo, el tejido cartilaginoso, óseo, muscular y el sistema cardiovascular proceden de:", a: "c", options: { a: "El ectodermo.", b: "El endodermo.", c: "El mesodermo.", d: "El nódulo primitivo." }, exp: "Respuesta correcta: c. El mesodermo es la capa del medio y la más masiva estructuralmente." },
+        { q: "77. El epitelio de revestimiento del tubo digestivo y del aparato respiratorio deriva de:", a: "c", options: { a: "El ectodermo.", b: "El mesodermo.", c: "El endodermo (a partir del intestino primitivo).", d: "El amnios." }, exp: "Respuesta correcta: c. La capa más interna del embrión." },
+        { q: "78. Glándulas como el hígado, el páncreas o el tiroides son derivadas de:", a: "c", options: { a: "El mesodermo.", b: "El ectodermo.", c: "El endodermo.", d: "La cresta neural." }, exp: "Respuesta correcta: c. Se originan como yemas del tubo digestivo primitivo." },
+        { q: "79. El sistema urogenital (riñones, gónadas y vías urinarias en su mayor parte) es un derivado característico de:", a: "a", options: { a: "El mesodermo (concretamente el mesodermo intermedio).", b: "El ectodermo.", c: "El endodermo.", d: "El tubo neural." }, exp: "Respuesta correcta: a. Mesodermo intermedio." },
+        { q: "80. Según los periodos críticos explicados por la profesora, ¿qué ocurre habitualmente si un agente patógeno o alteración genética grave afecta al desarrollo durante la primera o segunda semana (antes del inicio de la organogénesis)?", a: "c", options: { a: "El niño nace invariablemente con focomelia.", b: "Se producen malformaciones localizadas en órganos concretos.", c: "Provoca generalmente un aborto espontáneo muy precoz (incluso antes de que la madre sepa del embarazo).", d: "El embrión retrasa su desarrollo y nace un mes más tarde." }, exp: "Respuesta correcta: c. Ley del todo o nada en las primeras 2 semanas." },
+        { q: "81. ¿Cuáles son las funciones principales de las membranas extraembrionarias (amnios y corion)?", a: "b", options: { a: "Realizar la respiración pulmonar del feto.", b: "Evitar el rechazo inmunológico de la madre, dar protección y permitir el intercambio de sustancias.", c: "Producir óvulos adicionales en el ovario materno.", d: "Inducir el parto de forma temprana." }, exp: "Respuesta correcta: b. Esenciales para la supervivencia del feto." },
+        { q: "82. La membrana más interna que forma el \"globo\" lleno de líquido que rodea directamente al embrión es:", a: "b", options: { a: "El corion liso.", b: "El amnios.", c: "La decidua refleja.", d: "El alantoides." }, exp: "Respuesta correcta: b. Contiene el líquido amniótico." },
+        { q: "83. Las tres capas que conforman el CORION (de dentro hacia fuera) son:", a: "c", options: { a: "Ectodermo, Mesodermo, Endodermo.", b: "Epiblasto, Hipoblasto, Cavidad Amniótica.", c: "Mesénquima extraembrionario, Citotrofoblasto y Sincitiotrofoblasto.", d: "Amnios, Saco Vitelino y Celoma." }, exp: "Respuesta correcta: c. Estructura de la pared del saco coriónico." },
+        { q: "84. A medida que la cavidad amniótica crece y oblitera el celoma extraembrionario, el amnios se pega al corion. ¿Cómo se llama esta estructura conjunta resultante?", a: "b", options: { a: "Cordón umbilical primario.", b: "Membrana amniocoriónica (o corioamniótica).", c: "Saco vitelino maduro.", d: "Placenta fetal." }, exp: "Respuesta correcta: b. Es la 'bolsa' que rodea al feto." },
+        { q: "85. ¿Qué relevancia clínica fundamental tiene la membrana amniocoriónica en el embarazo a término?", a: "b", options: { a: "Es la encargada de digerir el meconio.", b: "Es el límite externo del saco gestacional y es la que \"rompe aguas\" (se rompe) en el momento del parto.", c: "Es la estructura que forma el tapón mucoso del cuello uterino.", d: "Se convierte en el primer órgano del recién nacido." }, exp: "Respuesta correcta: b. Su rotura libera el líquido amniótico." },
+        { q: "86. Las vellosidades coriónicas o placentarias, que surgen a partir de la proliferación celular, inicialmente rodean a:", a: "b", options: { a: "Solo la región de la placenta definitiva.", b: "Toda la circunferencia de la pared coriónica.", c: "Exclusivamente al pedículo de fijación.", d: "Al saco vitelino primitivo." }, exp: "Respuesta correcta: b. Cubren todo el saco al principio." },
+        { q: "87. Recordando la estructura del endometrio gestante (Decidua), ¿cómo se llama la porción de decidua situada entre el embrión implantado y la capa muscular del útero (el lugar de la futura placenta)?", a: "b", options: { a: "Decidua parietal.", b: "Decidua basal.", c: "Decidua capsular (o refleja).", d: "Miometrio decidual." }, exp: "Respuesta correcta: b. Forma la parte materna de la placenta." },
+        { q: "88. ¿Cómo se llama la porción de decidua que cubre el polo abembrionario separándolo de la luz de la cavidad uterina?", a: "c", options: { a: "Decidua parietal.", b: "Decidua basal.", c: "Decidua refleja o capsular.", d: "Decidua coriónica." }, exp: "Respuesta correcta: c. Se llama refleja porque 'refleja' sobre el embrión." },
+        { q: "89. Con el avance de las semanas, las vellosidades que apuntan hacia la decidua refleja o capsular involucionan y desaparecen, dejando una superficie lisa. A esta zona del corion se le denomina:", a: "b", options: { a: "Corion frondoso (velloso).", b: "Corion liso (laeve).", c: "Sincitio denso.", d: "Membrana de Heuser." }, exp: "Respuesta correcta: b. Zona no funcional para el intercambio." },
+        { q: "90. Por el contrario, las vellosidades orientadas hacia la decidua basal continúan proliferando fuertemente y desarrollan vasos sanguíneos. Esta zona formará:", a: "c", options: { a: "El cordón umbilical.", b: "El corion liso.", c: "El corion velloso o frondoso (porción fetal de la placenta).", d: "El amnios." }, exp: "Respuesta correcta: c. La zona de máximo intercambio." },
+        { q: "91. Al microscopio óptico, si observamos una sección de la membrana corioamniótica que ha fusionado y presionado sobre la pared uterina opuesta, ¿qué capas veríamos desde la cavidad amniótica hacia el exterior materno?", a: "b", options: { a: "Decidua basal, citotrofoblasto y amnioblasto.", b: "Epitelio cúbico del amnios, tejido conectivo (mesénquima), células del trofoblasto y finalmente tejido de la decidua materna.", c: "Solo células gigantes del sincitiotrofoblasto.", d: "Miometrio y perimetrio exclusivamente." }, exp: "Respuesta correcta: b. Secuencia anatómica de la membrana de la bolsa." },
+        { q: "92. Cuando el embrión y sus anexos crecen enormemente, la decidua refleja es empujada hasta chocar y fusionarse con:", a: "b", options: { a: "La decidua basal.", b: "La decidua parietal (del lado opuesto del útero), obliterando la cavidad uterina.", c: "Las trompas de Falopio.", d: "El cuello uterino, provocando dilatación prematura." }, exp: "Respuesta correcta: b. Por eso desaparece el espacio de la cavidad uterina." },
+        { q: "93. En el proceso formativo de la placenta, ¿qué elemento embrionario contiene la sangre materna con la cual se realizan los intercambios de nutrientes?", a: "c", options: { a: "Los capilares del feto.", b: "El interior de la cavidad amniótica.", c: "Los espacios o lagunas del sincitiotrofoblasto.", d: "Las arterias umbilicales." }, exp: "Respuesta correcta: c. Espacios intervellosos llenos de sangre materna." },
+        { q: "94. ¿Cómo evita el trofoblasto generar un rechazo inmunológico materno agudo masivo, siendo un tejido con el 50% del ADN paterno?", a: "b", options: { a: "Mediante la secreción exclusiva de progesterona.", b: "Funciona como una barrera gracias a las interacciones de membrana y producción de factores tolerogénicos en la interfaz con la decidua (actuando \"como una zona de interfaz\" que evita el rechazo).", c: "Transfiere sangre directamente y mata a los leucocitos maternos.", d: "Ocultando todo su ADN paterno y silenciándolo." }, exp: "Respuesta correcta: b. Tolerancia inmunológica feto-materna." },
+        { q: "95. A nivel terminológico, todo elemento embrionario con el sufijo \"-blasto\" (como angioblasto, amnioblasto, trofoblasto) indica biológicamente que:", a: "c", options: { a: "Son células que están en proceso de muerte apoptótica inminente.", b: "Son células altamente diferenciadas y sin capacidad mitótica.", c: "Son células inmaduras o indiferenciadas que tienen capacidad de proliferar y dar lugar a distintos tipos celulares.", d: "Son restos de la notocorda." }, exp: "Respuesta correcta: c. Células formadoras o germinales de un tejido." },
+        { q: "96. La placa cardiogénica, de la que surgirá el corazón (derivada del mesodermo), en un corte longitudinal antes del plegamiento, ¿en qué posición respecto a la membrana bucofaríngea se sitúa?", a: "c", options: { a: "Caudal (hacia la cola).", b: "Lateral derecha.", c: "Craneal o anterior a la membrana bucofaríngea.", d: "En el centro del nódulo primitivo." }, exp: "Respuesta correcta: c. Inicialmente el corazón está por delante de la boca." },
+        { q: "97. Al microscopio electrónico de barrido, ¿qué estructura embrionaria se distingue claramente sobresaliendo a modo de bultos a lo largo de la espalda incipiente del embrión a los lados del tubo neural?", a: "c", options: { a: "El proceso notocordal.", b: "Los neuroporos.", c: "Los somitas (del mesodermo paraxial).", d: "Las placodas óticas." }, exp: "Respuesta correcta: c. Bloques de mesodermo segmentado." },
+        { q: "98. En el estadio de la cuarta semana, se menciona la aparición del primer arco faríngeo. ¿A qué estructura ósea va a dar lugar prominentemente?", a: "c", options: { a: "Al cráneo frontal.", b: "A las vértebras cervicales.", c: "A la mandíbula (también llamado arco mandibular).", d: "A la clavícula." }, exp: "Respuesta correcta: c. Primer arco = Mandíbula." },
+        { q: "99. ¿En qué momento del desarrollo embrionario desaparece totalmente el llamado \"periodo embrionario\" para dar paso al periodo fetal, caracterizado ya no por organogénesis sino por crecimiento?", a: "b", options: { a: "Al final de la cuarta semana.", b: "Al final de la octava semana.", c: "Al cuarto mes de gestación.", d: "En la gastrulación." }, exp: "Respuesta correcta: b. A partir de la 9ª semana es un feto." },
+        { q: "100. En resumen, si unimos el pedículo de fijación (con los vasos umbilicales), el uraco cerrado, y el conducto vitelino, todas estas estructuras quedarán empaquetadas conformando anatómicamente en el feto:", a: "c", options: { a: "La bolsa amniótica.", b: "El ligamento falciforme.", c: "El cordón umbilical.", d: "El intestino primitivo medio." }, exp: "Respuesta correcta: c. El cordón es el nexo de unión funcional." }
+    ];
+
+    let currentQuestions = [];
+    let userState = {};
+    let currentIndex = 0;
+
+    function startQuiz(randomize) {
+        document.getElementById('setup-screen').style.display = 'none';
+        currentQuestions = [...questionsData];
+        if (randomize) currentQuestions.sort(() => Math.random() - 0.5);
+        initQuizState();
+        renderSidebar();
+        showQuestion(0);
+    }
+
+    function initQuizState() {
+        userState = {};
+        currentQuestions.forEach((_, i) => {
+            userState[i] = { answered: false, correct: false, marked: false, selected: null };
+        });
+    }
+
+    function renderSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.innerHTML = '';
+        currentQuestions.forEach((_, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.id = `nav-${i}`;
+            btn.innerText = i + 1;
+            btn.onclick = () => showQuestion(i);
+            sidebar.appendChild(btn);
+        });
+    }
+
+    function showQuestion(index) {
+        currentIndex = index;
+        const container = document.getElementById('question-container');
+        const q = currentQuestions[index];
+        const state = userState[index];
+
+        const optionKeys = ['a', 'b', 'c', 'd'];
+        // Orden aleatorio de opciones por visualización
+        const shuffledKeys = [...optionKeys].sort(() => Math.random() - 0.5);
+
+        let optionsHtml = '';
+        shuffledKeys.forEach(key => {
+            let className = 'option';
+            if (state.answered) {
+                if (key === q.a) className += ' correct';
+                else if (key === state.selected) className += ' wrong';
+            }
+
+            optionsHtml += `
+                <button class="${className}" 
+                        onclick="checkAnswer('${key}')" 
+                        ${state.answered ? 'disabled' : ''}>
+                    ${key.toUpperCase()}) ${q.options[key]}
+                </button>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="question-box active">
+                <div class="marker-status ${state.marked ? 'active' : ''}">★ MARCADA PARA REPASO</div>
+                <h2>Pregunta ${index + 1}</h2>
+                <p style="font-size: 19px; line-height: 1.5; font-weight: 500;">${q.q}</p>
+                <div class="options-container">${optionsHtml}</div>
+                <div class="feedback ${state.answered ? 'visible' : ''}">
+                    <strong>Explicación:</strong> ${q.exp}
+                </div>
+                <div class="controls">
+                    <button class="btn btn-mark" onclick="toggleMark(${index})">
+                        ${state.marked ? 'Quitar Marca' : 'Marcar Pregunta'}
+                    </button>
+                    <div>
+                        <button class="btn btn-end" onclick="endQuiz()">Finalizar</button>
+                        <button class="btn btn-nav" onclick="prevQ()" ${index === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="btn btn-nav" onclick="nextQ()" ${index === currentQuestions.length - 1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`nav-${index}`).classList.add('active');
+        container.closest('#main-container').scrollTop = 0;
+    }
+
+    function checkAnswer(key) {
+        const state = userState[currentIndex];
+        if (state.answered) return;
+        state.answered = true;
+        state.selected = key;
+        state.correct = (key === currentQuestions[currentIndex].a);
+
+        const navBtn = document.getElementById(`nav-${currentIndex}`);
+        navBtn.classList.add(state.correct ? 'correct' : 'wrong');
+        showQuestion(currentIndex);
+    }
+
+    function toggleMark(index) {
+        userState[index].marked = !userState[index].marked;
+        const navBtn = document.getElementById(`nav-${index}`);
+        if (userState[index].marked) navBtn.classList.add('marked');
+        else navBtn.classList.remove('marked');
+        showQuestion(index);
+    }
+
+    function nextQ() { if (currentIndex < currentQuestions.length - 1) showQuestion(currentIndex + 1); }
+    function prevQ() { if (currentIndex > 0) showQuestion(currentIndex - 1); }
+
+    function endQuiz() {
+        document.getElementById('question-container').innerHTML = '';
+        document.getElementById('results-screen').style.display = 'block';
+        let correctas = Object.values(userState).filter(s => s.correct).length;
+        document.getElementById('score-text').innerHTML = `
+            Aciertos: <strong>${correctas}</strong> de ${currentQuestions.length}<br>
+            Nota: <strong>${((correctas/currentQuestions.length)*10).toFixed(1)}</strong> / 10
+        `;
+    }
+
+    function resetQuiz(mode) {
+        let nextSet = [];
+        const oldState = {...userState};
+        const oldQuestions = [...currentQuestions];
+
+        oldQuestions.forEach((q, i) => {
+            const isFailed = oldState[i].answered && !oldState[i].correct;
+            const isMarked = oldState[i].marked;
+            if (mode === 'failed' && isFailed) nextSet.push(q);
+            else if (mode === 'marked' && isMarked) nextSet.push(q);
+            else if (mode === 'failed-marked' && (isFailed || isMarked)) nextSet.push(q);
+        });
+
+        if (nextSet.length === 0) {
+            alert("No hay preguntas en esta categoría.");
+            return;
+        }
+
+        currentQuestions = nextSet;
+        initQuizState();
+        renderSidebar();
+        document.getElementById('results-screen').style.display = 'none';
+        showQuestion(0);
+    }
+</script>
+
+</body>
+</html>

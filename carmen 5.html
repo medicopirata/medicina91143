@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 5 (Tórax)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 5</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 5: Tórax (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Reiniciar Todo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. Respecto a las costillas es CIERTO que:", options: [
+            { text: "La cabeza de la 1ª costilla se articula solo con la vértebra T1.", isCorrect: true, rationale: "Correcto. Las costillas 1ª, 11ª y 12ª se articulan con una única vértebra." },
+            { text: "Todas las costillas se articulan con el esternón.", isCorrect: false, rationale: "Falso. Las flotantes (11 y 12) no se unen al esternón." },
+            { text: "El surco costal se sitúa en el borde superior de la costilla.", isCorrect: false, rationale: "Se sitúa en el borde inferior." },
+            { text: "Las costillas falsas son de la 1 a la 7.", isCorrect: false, rationale: "Esas son las costillas verdaderas." }
+        ]},
+        { id: 2, q: "2. Una costilla típica:", options: [
+            { text: "Se articula con dos cuerpos vertebrales adyacentes.", isCorrect: true, rationale: "Correcto. Se articula con la vértebra numérica correspondiente y la superior." },
+            { text: "Carece de cuello.", isCorrect: false, rationale: "Las típicas tienen cabeza, cuello y tubérculo." },
+            { text: "Es la primera costilla.", isCorrect: false, rationale: "La primera es atípica (corta, ancha y plana)." },
+            { text: "No presenta ángulo costal.", isCorrect: false, rationale: "Sí presenta un cambio de dirección marcado." }
+        ]},
+        { id: 3, q: "3. El ángulo de Louis (manubrio-esternal) se sitúa a nivel de:", options: [
+            { text: "El disco intervertebral T4-T5.", isCorrect: true, rationale: "Correcto. Es una referencia clínica clave para localizar el segundo espacio intercostal." },
+            { text: "La vértebra T2.", isCorrect: false, rationale: "Es demasiado alto." },
+            { text: "La vértebra T7.", isCorrect: false, rationale: "Es demasiado bajo." },
+            { text: "La vértebra C7.", isCorrect: false, rationale: "Es nivel cervical." }
+        ]},
+        { id: 4, q: "4. Las costillas flotantes son:", options: [
+            { text: "La 11ª y 12ª.", isCorrect: true, rationale: "Correcto. Terminan en la musculatura abdominal posterior sin unión cartilaginosa anterior." },
+            { text: "De la 8ª a la 10ª.", isCorrect: false, rationale: "Esas son costillas falsas (se unen al cartílago de la 7ª)." },
+            { text: "De la 1ª a la 7ª.", isCorrect: false, rationale: "Son costillas verdaderas." },
+            { text: "Solo la 12ª.", isCorrect: false, rationale: "Falta la 11ª." }
+        ]},
+        { id: 5, q: "5. Respecto al esternón:", options: [
+            { text: "El cuerpo es la parte más voluminosa.", isCorrect: true, rationale: "Correcto." },
+            { text: "La apófisis xifoides siempre está osificada en el niño.", isCorrect: false, rationale: "Es cartilaginosa y se osifica con la edad." },
+            { text: "El manubrio se articula con todas las costillas verdaderas.", isCorrect: false, rationale: "Solo con la 1ª y parte de la 2ª." },
+            { text: "Carece de médula ósea roja.", isCorrect: false, rationale: "Es un lugar frecuente de punción esternal por su riqueza en médula ósea." }
+        ]},
+        { id: 6, q: "6. La apertura torácica superior está limitada por:", options: [
+            { text: "Vértebra T1, 1ª costilla y borde superior del manubrio esternal.", isCorrect: true, rationale: "Correcto. Es el marco anatómico de la entrada al tórax." },
+            { text: "Vértebra C7 y clavículas.", isCorrect: false, rationale: "Falso." },
+            { text: "Vértebra T12 y reborde costal.", isCorrect: false, rationale: "Eso es la apertura inferior." },
+            { text: "Manubrio esternal y escápulas.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 7, q: "7. Durante la inspiración:", options: [
+            { text: "El diámetro transversal y anteroposterior del tórax aumenta.", isCorrect: true, rationale: "Correcto. Por el movimiento en 'asa de cubo' y 'palanca de bomba'." },
+            { text: "Las costillas descienden.", isCorrect: false, rationale: "Las costillas se elevan." },
+            { text: "El diafragma asciende.", isCorrect: false, rationale: "El diafragma desciende (se contrae)." },
+            { text: "La presión intratorácica aumenta.", isCorrect: false, rationale: "La presión disminuye para que entre el aire." }
+        ]},
+        { id: 8, q: "8. El tubérculo de Lisfranc se encuentra en:", options: [
+            { text: "La 1ª costilla.", isCorrect: true, rationale: "Correcto. Es el punto de inserción del músculo escaleno anterior." },
+            { text: "El manubrio del esternón.", isCorrect: false, rationale: "No." },
+            { text: "La 2ª costilla.", isCorrect: false, rationale: "No." },
+            { text: "La clavícula.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 9, q: "9. Son costillas verdaderas:", options: [
+            { text: "Las 7 primeras.", isCorrect: true, rationale: "Correcto. Se unen directamente al esternón mediante su propio cartílago." },
+            { text: "Las 5 primeras.", isCorrect: false, rationale: "Faltan la 6 y 7." },
+            { text: "Todas las que tienen cartílago.", isCorrect: false, rationale: "Las falsas también tienen cartílago." },
+            { text: "De la 1 a la 10.", isCorrect: false, rationale: "8, 9 y 10 son falsas." }
+        ]},
+        { id: 10, q: "10. La articulación xifoesternal se encuentra a nivel de:", options: [
+            { text: "T9", isCorrect: true, rationale: "Correcto. Es la referencia vertebral habitual para la unión del cuerpo con la xifoides." },
+            { text: "T4", isCorrect: false, rationale: "Nivel del ángulo de Louis." },
+            { text: "T12", isCorrect: false, rationale: "Nivel del hiato aórtico." },
+            { text: "L2", isCorrect: false, rationale: "Nivel de los pilares del diafragma." }
+        ]},
+        { id: 11, q: "11. El principal músculo inspirador es:", options: [
+            { text: "Diafragma", isCorrect: true, rationale: "Correcto. Responsable del 75% del volumen de aire inspirado." },
+            { text: "Intercostales externos", isCorrect: false, rationale: "Son accesorios/colaboradores." },
+            { text: "Erectores de la columna", isCorrect: false, rationale: "No son respiratorios primarios." },
+            { text: "Recto del abdomen", isCorrect: false, rationale: "Es espirador." }
+        ]},
+        { id: 12, q: "12. ¿Qué nervio inerva al diafragma?", options: [
+            { text: "Nervio frénico", isCorrect: true, rationale: "Correcto. Se origina en las raíces C3, C4 y C5." },
+            { text: "Nervios intercostales", isCorrect: false, rationale: "Inervan la pleura periférica pero no el músculo diafragma principal." },
+            { text: "Nervio vago", isCorrect: false, rationale: "Es parasimpático para vísceras." },
+            { text: "Nervio espinal", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 13, q: "13. El movimiento de las costillas superiores (2-6) aumenta principalmente:", options: [
+            { text: "El diámetro anteroposterior.", isCorrect: true, rationale: "Correcto. Movimiento de 'palanca de bomba'." },
+            { text: "El diámetro transversal.", isCorrect: false, rationale: "Esto lo hacen las costillas inferiores (asa de cubo)." },
+            { text: "El diámetro vertical.", isCorrect: false, rationale: "Esto lo hace el diafragma." },
+            { text: "No cambian los diámetros.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 14, q: "14. La escotadura yugular se encuentra en:", options: [
+            { text: "El borde superior del manubrio esternal.", isCorrect: true, rationale: "Correcto. También llamada escotadura supraesternal." },
+            { text: "El cuerpo del esternón.", isCorrect: false, rationale: "No." },
+            { text: "La base del cráneo.", isCorrect: false, rationale: "Existe un agujero yugular, pero no es el esternón." },
+            { text: "El extremo medial de la clavícula.", isCorrect: false, rationale: "Se articula allí, pero la escotadura es del esternón." }
+        ]},
+        { id: 15, q: "15. ¿Cuál de las siguientes costillas tiene una sola carilla articular en su cabeza?", options: [
+            { text: "1ª costilla", isCorrect: true, rationale: "Correcto. Solo se articula con T1." },
+            { text: "5ª costilla", isCorrect: false, rationale: "Tiene dos carillas (T4 y T5)." },
+            { text: "7ª costilla", isCorrect: false, rationale: "Tiene dos carillas (T6 y T7)." },
+            { text: "Todas tienen dos carillas.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 16, q: "16. El cartílago costal de la segunda costilla se articula con:", options: [
+            { text: "El ángulo del esternón (unión manubrio-cuerpo).", isCorrect: true, rationale: "Correcto. Es el punto de referencia para contar espacios intercostales." },
+            { text: "Solo el manubrio.", isCorrect: false, rationale: "Se reparte entre manubrio y cuerpo." },
+            { text: "Solo el cuerpo.", isCorrect: false, rationale: "No." },
+            { text: "La clavícula.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 17, q: "17. Los músculos intercostales externos:", options: [
+            { text: "Elevan las costillas durante la inspiración.", isCorrect: true, rationale: "Correcto." },
+            { text: "Descienden las costillas.", isCorrect: false, rationale: "Eso lo hacen los internos." },
+            { text: "Son los más profundos del espacio intercostal.", isCorrect: false, rationale: "Son los más superficiales." },
+            { text: "No participan en la respiración.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 18, q: "18. El paquete vasculo-nervioso intercostal discurre por:", options: [
+            { text: "El surco costal (borde inferior).", isCorrect: true, rationale: "Correcto. Orden: Vena, Arteria, Nervio (VAN) de arriba a abajo." },
+            { text: "El borde superior de la costilla.", isCorrect: false, rationale: "Por ahí discurre un ramo colateral menor." },
+            { text: "La cara externa de la costilla.", isCorrect: false, rationale: "No." },
+            { text: "A través del cartílago costal.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 19, q: "19. El músculo transverso del tórax:", options: [
+            { text: "Se encuentra en la cara interna de la pared anterior del tórax.", isCorrect: true, rationale: "Correcto. Se origina en el esternón y va a los cartílagos costales." },
+            { text: "Es un músculo superficial de la espalda.", isCorrect: false, rationale: "No." },
+            { text: "Eleva las costillas.", isCorrect: false, rationale: "Ayuda a descenderlas (espiración)." },
+            { text: "Está inervado por el nervio frénico.", isCorrect: false, rationale: "Inervado por nervios intercostales." }
+        ]},
+        { id: 20, q: "20. La apertura torácica inferior está cerrada por:", options: [
+            { text: "El diafragma.", isCorrect: true, rationale: "Correcto. Separa la cavidad torácica de la abdominal." },
+            { text: "La membrana suprapleural.", isCorrect: false, rationale: "Esta cierra la superior." },
+            { text: "Los músculos intercostales.", isCorrect: false, rationale: "Cierran los espacios entre costillas." },
+            { text: "El músculo transverso del abdomen.", isCorrect: false, rationale: "Es parte de la pared abdominal." }
+        ]},
+        { id: 21, q: "21. ¿Qué estructura atraviesa el diafragma a nivel de T8?", options: [
+            { text: "La vena cava inferior.", isCorrect: true, rationale: "Correcto. Pasa por el foramen de la vena cava en el centro tendinoso." },
+            { text: "El esófago.", isCorrect: false, rationale: "Pasa a nivel de T10." },
+            { text: "La aorta.", isCorrect: false, rationale: "Pasa a nivel de T12." },
+            { text: "El conducto torácico.", isCorrect: false, rationale: "Pasa a nivel de T12." }
+        ]},
+        { id: 22, q: "22. El hiato esofágico del diafragma suele estar formado por:", options: [
+            { text: "El pilar derecho.", isCorrect: true, rationale: "Correcto. Las fibras del pilar derecho rodean el esófago formando un esfínter funcional." },
+            { text: "El centro tendinoso.", isCorrect: false, rationale: "Por ahí pasa la cava." },
+            { text: "El ligamento arqueado medio.", isCorrect: false, rationale: "Por ahí pasa la aorta." },
+            { text: "El pilar izquierdo solamente.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 23, q: "23. Los ligamentos arqueados mediales del diafragma pasan sobre:", options: [
+            { text: "El músculo psoas mayor.", isCorrect: true, rationale: "Correcto." },
+            { text: "El músculo cuadrado lumbar.", isCorrect: false, rationale: "Sobre este pasa el ligamento arqueado lateral." },
+            { text: "La arteria aorta.", isCorrect: false, rationale: "Sobre esta pasa el ligamento arqueado medio (unión de pilares)." },
+            { text: "Los riñones.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 24, q: "24. Es una característica de la 2ª costilla:", options: [
+            { text: "Presenta la tuberosidad del músculo serrato anterior.", isCorrect: true, rationale: "Correcto. Es una marca distintiva en su cara externa." },
+            { text: "No tiene ángulo costal.", isCorrect: false, rationale: "Sí tiene." },
+            { text: "Es horizontal como la primera.", isCorrect: false, rationale: "Es mucho menos horizontal que la 1ª." },
+            { text: "Se articula solo con T2.", isCorrect: false, rationale: "Se articula con T1 y T2." }
+        ]},
+        { id: 25, q: "25. El esternón se desarrolla a partir de:", options: [
+            { text: "Barras esternales de mesodermo que se fusionan.", isCorrect: true, rationale: "Correcto. Se fusionan en la línea media en dirección craneocaudal." },
+            { text: "Somitas cervicales.", isCorrect: false, rationale: "No." },
+            { text: "La notocorda.", isCorrect: false, rationale: "No." },
+            { text: "El ectodermo.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 26, q: "26. La cifosis torácica fisiológica es:", options: [
+            { text: "Una curvatura primaria.", isCorrect: true, rationale: "Correcto. Presente desde el desarrollo fetal." },
+            { text: "Una curvatura secundaria.", isCorrect: false, rationale: "Esa es la lordosis." },
+            { text: "Siempre patológica.", isCorrect: false, rationale: "Falso, es normal hasta ciertos grados." },
+            { text: "Cóncava posteriormente.", isCorrect: false, rationale: "Es convexa posteriormente (cóncava anteriormente)." }
+        ]},
+        { id: 27, q: "27. ¿Cuál es el orden de los músculos intercostales de fuera a dentro?", options: [
+            { text: "Externo, interno e íntimo.", isCorrect: true, rationale: "Correcto. Los vasos y nervios van entre el interno y el íntimo." },
+            { text: "Íntimo, interno y externo.", isCorrect: false, rationale: "Es el orden inverso." },
+            { text: "Externo, íntimo e interno.", isCorrect: false, rationale: "Orden incorrecto." },
+            { text: "Solo hay dos capas.", isCorrect: false, rationale: "Falso, hay tres." }
+        ]},
+        { id: 28, q: "28. Las articulaciones condrocostales son:", options: [
+            { text: "Sincondrosis (cartilaginosas primarias).", isCorrect: true, rationale: "Correcto. No permiten movimiento entre costilla y cartílago." },
+            { text: "Sinoviales planas.", isCorrect: false, rationale: "Falso." },
+            { text: "Enartrosis.", isCorrect: false, rationale: "Falso." },
+            { text: "Sínfisis.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 29, q: "29. El músculo serrato posterior superior:", options: [
+            { text: "Eleva las costillas (inspirador).", isCorrect: true, rationale: "Correcto. Se sitúa profundo a los romboides." },
+            { text: "Desciende las costillas.", isCorrect: false, rationale: "Eso lo hace el posterior inferior." },
+            { text: "Es un músculo autóctono del dorso.", isCorrect: false, rationale: "Es un músculo emigrado (extrínseco)." },
+            { text: "Está inervado por ramos posteriores.", isCorrect: false, rationale: "Inervado por ramos anteriores (nervios intercostales)." }
+        ]},
+        { id: 30, q: "30. La inervación sensitiva de la pleura diafragmática central depende de:", options: [
+            { text: "Nervio frénico.", isCorrect: true, rationale: "Correcto. Por eso el dolor de pleura central se refiere al hombro (C4)." },
+            { text: "Nervios intercostales.", isCorrect: false, rationale: "Estos inervan la pleura periférica." },
+            { text: "Nervio vago.", isCorrect: false, rationale: "No." },
+            { text: "Nervio vago e intercostales.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 31, q: "31. ¿Qué estructura no atraviesa el diafragma?", options: [
+            { text: "Tráquea", isCorrect: true, rationale: "Correcto. La tráquea se bifurca en el mediastino superior/medio, muy por encima del diafragma." },
+            { text: "Vago izquierdo.", isCorrect: false, rationale: "Atraviesa por el hiato esofágico." },
+            { text: "Conducto torácico.", isCorrect: false, rationale: "Atraviesa por el hiato aórtico." },
+            { text: "Nervios esplácnicos.", isCorrect: false, rationale: "Atraviesan los pilares." }
+        ]},
+        { id: 32, q: "32. El centro tendinoso del diafragma tiene forma de:", options: [
+            { text: "Trébol de tres hojas.", isCorrect: true, rationale: "Correcto. Con una hoja anterior, una derecha y una izquierda." },
+            { text: "Cúpula perfecta.", isCorrect: false, rationale: "Esa es la forma del músculo en conjunto, no solo del tendón." },
+            { text: "Círculo.", isCorrect: false, rationale: "No." },
+            { text: "Cuadrado.", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 33, q: "33. La porción muscular del diafragma se divide en:", options: [
+            { text: "Esternal, costal y lumbar.", isCorrect: true, rationale: "Correcto. Según su origen óseo." },
+            { text: "Anterior y posterior.", isCorrect: false, rationale: "No es la división anatómica estándar." },
+            { text: "Derecha e izquierda solamente.", isCorrect: false, rationale: "Falso." },
+            { text: "Superior e inferior.", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 34, q: "34. Las costillas 11ª y 12ª se caracterizan por:", options: [
+            { text: "Carecer de cuello y de tubérculo.", isCorrect: true, rationale: "Correcto. Son costillas muy simplificadas." },
+            { text: "Ser las más largas del tórax.", isCorrect: false, rationale: "Son las más cortas junto con la 1ª." },
+            { text: "Articularse con el esternón.", isCorrect: false, rationale: "Son flotantes." },
+            { text: "Tener cartílagos costales muy largos.", isCorrect: false, rationale: "Tienen cartílagos rudimentarios." }
+        ]},
+        { id: 35, q: "35. El hiato aórtico se encuentra a nivel de:", options: [
+            { text: "T12", isCorrect: true, rationale: "Correcto. Es el hiato más posterior y bajo del diafragma." },
+            { text: "T10", isCorrect: false, rationale: "Nivel del hiato esofágico." },
+            { text: "T8", isCorrect: false, rationale: "Nivel del foramen de la vena cava." },
+            { text: "L1", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 36, q: "36. La hematosis ocurre en:", options: [
+            { text: "Los alvéolos pulmonares.", isCorrect: true, rationale: "Correcto. Es el intercambio gaseoso entre aire y sangre." },
+            { text: "Los bronquios principales.", isCorrect: false, rationale: "Son vías de conducción." },
+            { text: "La cavidad pleural.", isCorrect: false, rationale: "Es un espacio virtual de baja presión." },
+            { text: "El mediastino.", isCorrect: false, rationale: "Es el espacio entre los pulmones." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            currentPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

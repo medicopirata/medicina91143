@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Medicina de Precisión y Ómicas</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Pantallas */
+        #start-screen, #end-screen {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        /* Layout del Quiz */
+        #quiz-container {
+            display: none;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        /* Sidebar (Índice) */
+        #sidebar {
+            position: sticky;
+            top: 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .index-btn {
+            padding: 8px 4px;
+            text-align: center;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; border-color: var(--success); color: #166534; }
+        .index-btn.incorrect { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+        .index-btn.marked::after {
+            content: '★';
+            position: absolute;
+            top: -5px;
+            right: -2px;
+            color: var(--warning);
+            font-size: 1.2em;
+        }
+
+        /* Botones generales */
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin: 5px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+        .btn-finish {
+            width: 100%;
+            background-color: var(--danger);
+        }
+        .btn-finish:hover { background-color: #b91c1c; }
+
+        /* Lista de preguntas */
+        #questions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 0;
+            padding-right: 15px;
+        }
+
+        .mark-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #fffbeb;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #fde68a;
+            font-size: 0.9em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 10px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-label:hover:not(.disabled) { background: #f1f5f9; }
+        .option-label input { margin-top: 5px; margin-right: 10px; cursor: pointer; }
+        .option-label.disabled { cursor: default; opacity: 0.8; }
+        .option-label.correct-anim { border-color: var(--success); background: #dcfce7; }
+        .option-label.incorrect-anim { border-color: var(--danger); background: #fee2e2; }
+
+        /* Explicación */
+        .feedback {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            animation: fadeIn 0.4s ease;
+        }
+        .feedback.correct { background: #dcfce7; border-left: 4px solid var(--success); }
+        .feedback.incorrect { background: #fee2e2; border-left: 4px solid var(--danger); }
+        
+        .feedback-title { font-weight: bold; margin-bottom: 5px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #quiz-container { grid-template-columns: 1fr; }
+            #sidebar { position: static; max-height: none; margin-bottom: 20px; }
+            .index-grid { grid-template-columns: repeat(5, 1fr); }
+            .question-header { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h2>Quiz: Medicina de Precisión y Ciencias Ómicas</h2>
+        <p>40 preguntas disponibles. ¿Cómo deseas realizar el cuestionario?</p>
+        <button onclick="startQuiz('original')">Orden Preestablecido</button>
+        <button onclick="startQuiz('random')">Orden Aleatorio</button>
+    </div>
+
+    <div id="quiz-container">
+        <div id="sidebar">
+            <h3>Índice de Preguntas</h3>
+            <div id="index-grid" class="index-grid"></div>
+            <button class="btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="questions-container"></div>
+    </div>
+
+    <div id="end-screen">
+        <h2>Resultados del Cuestionario</h2>
+        <h1 id="score-display" style="font-size: 3em; margin: 10px 0; color: var(--primary);"></h1>
+        <p id="stats-display"></p>
+        
+        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="resetApp('all')">Repetir Completo (Todas las 40)</button>
+            <button id="btn-repeat-failed" onclick="resetApp('failed')">Repetir SOLO Falladas/No respondidas</button>
+            <button id="btn-repeat-marked" onclick="resetApp('marked')">Repetir SOLO Marcadas</button>
+            <button id="btn-repeat-failed-marked" onclick="resetApp('failed_marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// BASE DE DATOS LITERAL DE LAS 40 PREGUNTAS
+const database = [
+{
+    id: 1,
+    q: 'Según la definición dada en clase, ¿cuál es el objetivo fundamental de la "Medicina de Precisión" o "Medicina Personalizada"?',
+    opts: [
+        { t: "Tratar a todos los pacientes con la misma dosis de fármaco para abaratar costes del sistema sanitario.", c: false },
+        { t: "Adaptar el tratamiento y la prevención de forma específica para cada individuo (o grupos moleculares), considerando su genética, ambiente y estilo de vida, disminuyendo así los efectos secundarios.", c: true },
+        { t: "Crear una única \"pastilla universal\" que cure las enfermedades metabólicas.", c: false },
+        { t: "Utilizar la cirugía mínimamente invasiva en todos los casos oncológicos.", c: false }
+    ],
+    exp: "La profesora recalcó que la medicina de precisión busca adaptar el tratamiento a la singularidad de cada paciente o grupo de pacientes, minimizando efectos adversos y aumentando la eficacia."
+},
+{
+    id: 2,
+    q: 'A diferencia de la medicina de precisión, la medicina tradicional o clásica se caracteriza fundamentalmente por:',
+    opts: [
+        { t: "Dirigir sus fármacos hacia una sola molécula diana, aplicando el mismo tratamiento por igual a todos los pacientes con la misma enfermedad (ej. diabetes).", c: true },
+        { t: "Analizar el genoma completo antes de prescribir un paracetamol.", c: false },
+        { t: "Carecer de efectos secundarios.", c: false },
+        { t: "Basarse exclusivamente en la terapia génica.", c: false }
+    ],
+    exp: "En el audio detalla que la medicina clásica crea un fármaco (ej. anticuerpo monoclonal frente a HER2 o fármaco para la diabetes) y se lo da a todo el mundo por igual, asumiendo que todos responderán bien, lo cual no siempre ocurre."
+},
+{
+    id: 3,
+    q: 'En el ámbito del diagnóstico clínico moderno, ¿qué es exactamente un "Biomarcador"?',
+    opts: [
+        { t: "Un isótopo radiactivo usado para PET.", c: false },
+        { t: "Una célula sintética creada por IA.", c: false },
+        { t: "Una molécula (o conjunto de ellas) cuyos niveles de expresión alterados respecto a las condiciones normales nos indican la presencia de una enfermedad o la respuesta a un tratamiento.", c: true },
+        { t: "Una bacteria de la microbiota intestinal.", c: false }
+    ],
+    exp: "Pregunta directa de la profesora a la clase. Es cualquier molécula cuya variación nos interesa porque se asocia al desarrollo de una patología."
+},
+{
+    id: 4,
+    q: 'Hoy en día, la Medicina de Precisión nos indica que es un error buscar un único biomarcador para diagnosticar enfermedades complejas. ¿Qué enfoque se persigue en la actualidad?',
+    opts: [
+        { t: "Buscar una única proteína que cure todo.", c: false },
+        { t: "Identificar \"paneles\" compuestos por múltiples biomarcadores simultáneos utilizando herramientas de Inteligencia Artificial para integrar toda la información.", c: true },
+        { t: "Abandonar el análisis de sangre y usar solo radiografías.", c: false },
+        { t: "Medir únicamente el nivel de glucosa en ayunas.", c: false }
+    ],
+    exp: "La profesora insistió en que enfermedades como la diabetes no se deben a una sola molécula, sino que hay que mirar \"paneles\" de moléculas a la vez mediante herramientas multi-ómicas."
+},
+{
+    id: 5,
+    q: 'El sufijo "-ómica" (del inglés -omics), procedente del griego, se añade a palabras como Genómica o Proteómica para indicar:',
+    opts: [
+        { t: "Que la técnica se realiza mediante ordenador.", c: false },
+        { t: "Que es un estudio exclusivo de tejidos tumorales.", c: false },
+        { t: "El estudio de la \"totalidad\" o el \"conjunto\" global de algo (ej. conjunto de genes o proteínas).", c: true },
+        { t: "La capacidad de fraccionar moléculas individuales.", c: false }
+    ],
+    exp: "Explicado explícitamente en la diapositiva y el audio: Ómica viene del griego y significa el estudio del conjunto o masa de algo."
+},
+{
+    id: 6,
+    q: '¿Qué es la "Biología de Sistemas" ("Systems Biology")?',
+    opts: [
+        { t: "El estudio exclusivo de la digestión humana.", c: false },
+        { t: "La integración de la información biológica procedente de todas las herramientas ómicas (genoma, transcriptoma, proteoma, etc.) para comprender el funcionamiento global de la célula o el organismo, en vez de estudiar cada pieza por separado.", c: true },
+        { t: "La clasificación zoológica de los seres vivos.", c: false },
+        { t: "El cultivo in vitro de células madre vegetales.", c: false }
+    ],
+    exp: "En el audio destaca que la célula no se puede entender viendo solo un gen o una proteína, sino integrando el \"puzle\" entero de todas las partes."
+},
+{
+    id: 7,
+    q: 'Un componente que forma parte integral de nuestra "imagen molecular" e influye drásticamente en patologías (incluso en trastornos mentales como el autismo o Alzheimer) son los microorganismos de nuestro sistema digestivo. El estudio del conjunto de estos microorganismos se denomina:',
+    opts: [
+        { t: "Farmacogenómica.", c: false },
+        { t: "Microbioma (o Microbiota).", c: true },
+        { t: "Metabolómica.", c: false },
+        { t: "Trascriptómica.", c: false }
+    ],
+    exp: "La profesora hizo un inciso muy claro sobre la importancia de la microbiota y cómo incluso se usan \"trasplantes fecales\" en clínica para tratar patologías insospechadas."
+},
+{
+    id: 8,
+    q: 'En referencia al Proyecto Genoma Humano, ¿en qué año se completó y publicó la secuencia absolutamente completa ("filling the gaps") del genoma humano gracias a tecnologías de secuenciación de nueva generación (NGS)?',
+    opts: [
+        { t: "En 1990.", c: false },
+        { t: "En 2001 (por Celera y Nature).", c: false },
+        { t: "En 2022.", c: true },
+        { t: "Aún no se ha completado.", c: false }
+    ],
+    exp: "Aunque el primer borrador se publicó en 2001, la secuencia completa y definitiva no se publicó hasta el año 2022."
+},
+{
+    id: 9,
+    q: 'Nuestro ADN contiene aproximadamente 3.000 millones de nucleótidos. Sin embargo, ¿qué porcentaje aproximado de toda esa inmensa longitud corresponde a genes que codifican para la síntesis de proteínas?',
+    opts: [
+        { t: "Cerca del 99%.", c: false },
+        { t: "Alrededor del 50%.", c: false },
+        { t: "Un 25%.", c: false },
+        { t: "Apenas el 1% (menos de 20.000 genes).", c: true }
+    ],
+    exp: "Dato remarcado por la profesora: es sorprendente cómo tanta materia biológica se destina en un 99% a partes \"no codificantes\" y solo un minúsculo 1% es la receta para proteínas reales."
+},
+{
+    id: 10,
+    q: 'Si el 99% de nuestro ADN NO codifica para proteínas, ¿qué función tienen estas secuencias "no codificantes" según las diapositivas del tema?',
+    opts: [
+        { t: "Son simplemente espacio vacío sin función alguna.", c: false },
+        { t: "Funcionan como componentes reguladores (centralitas) de otros genes, pseudogenes y una gran cantidad de secuencias altamente repetitivas.", c: true },
+        { t: "Son las encargadas de digerir la glucosa en el núcleo.", c: false },
+        { t: "Son genes de virus inactivos que causan cáncer de colon.", c: false }
+    ],
+    exp: "Las diapositivas especifican que la mayoría del genoma no codificante tiene labores de regulación, pseudogenes o son secuencias de ADN repetitivo."
+},
+{
+    id: 11,
+    q: '¿Cuál de las siguientes disciplinas ómicas se encarga del estudio del conjunto de los ARN mensajeros y transcritos generados en una célula bajo circunstancias específicas?',
+    opts: [
+        { t: "Genómica.", c: false },
+        { t: "Transcriptómica.", c: true },
+        { t: "Metabolómica.", c: false },
+        { t: "Epigenómica.", c: false }
+    ],
+    exp: "La transcriptómica analiza la transcripción, es decir, el ARN producido a partir del ADN."
+},
+{
+    id: 12,
+    q: 'Durante la clase se debatió sobre qué ocurre para que la secuencia de un solo gen en el ADN pueda dar lugar a diferentes moléculas de ARN mensajero (y por tanto a proteínas distintas). Este mecanismo celular fisiológico se llama:',
+    opts: [
+        { t: "Mutación puntual del promotor.", c: false },
+        { t: "Traducción invertida.", c: false },
+        { t: "Splicing alternativo (Corte y empalme alternativo).", c: true },
+        { t: "Proteólisis de caspasas.", c: false }
+    ],
+    exp: "Una alumna intervino y la profesora lo confirmó: los exones pueden unirse en distintos órdenes (splicing alternativo) originando variantes de una misma proteína."
+},
+{
+    id: 13,
+    q: '¡CHIVATAZO DE NOBEL! En el año 2024, el Premio Nobel de Fisiología/Medicina fue otorgado a Victor Ambros y Gary Ruvkun por un descubrimiento clave en la regulación del ARN que ha expandido la transcriptómica. ¿Qué descubrieron?',
+    opts: [
+        { t: "La reacción en cadena de la polimerasa (PCR).", c: false },
+        { t: "Los microARN (miRNA), pequeñas moléculas de ARN no codificante responsables de la regulación de la expresión de los genes después de la transcripción.", c: true },
+        { t: "El sistema CRISPR-Cas9 de edición genética.", c: false },
+        { t: "La estructura de la doble hélice de ADN.", c: false }
+    ],
+    exp: "Explicitado en el PDF y el audio. Los miRNA han revolucionado la transcriptómica por su capacidad de regular (silenciar) post-transcripcionalmente a los ARN mensajeros."
+},
+{
+    id: 14,
+    q: 'Dentro de la transcriptómica existen diversas herramientas de análisis de laboratorio. Según las diapositivas, ¿cuáles son las técnicas principales para analizar los transcritos de ARN?',
+    opts: [
+        { t: "Espectrometría de masas y MALDI-TOF.", c: false },
+        { t: "Microarrays, RT-PCR (Retrotranscripción y PCR) y RNA-Seq (Secuenciación de ARN).", c: true },
+        { t: "Rayos X y Resonancia Magnética Nuclear.", c: false },
+        { t: "Centrifugación en gradiente de densidad exclusivamente.", c: false }
+    ],
+    exp: "Diapositiva de \"Herramientas de análisis\". Se usan los microarrays, la RT-PCR (para pasar de ARN a cDNA y amplificar) y la secuenciación masiva (RNA Seq)."
+},
+{
+    id: 15,
+    q: 'La Proteómica se considera más compleja que la genómica. Una de las razones principales es que la simple lectura de la secuencia de ADN del genoma NO puede predecir:',
+    opts: [
+        { t: "El número total de cromosomas de la célula.", c: false },
+        { t: "Las modificaciones post-traduccionales (como la glicosilación, fosforilación o ubiquitinación) que sufrirá la proteína ni su concentración final real en la célula.", c: true },
+        { t: "Si el organismo es procariota o eucariota.", c: false },
+        { t: "Las bases nitrogenadas del propio gen.", c: false }
+    ],
+    exp: "Diapositiva \"VS\". El ADN no nos informa de la dinámica real: no predice si el ARN se traducirá, ni las modificaciones postraduccionales que alteran la función final de la proteína (proteoma)."
+},
+{
+    id: 16,
+    q: '¿Cuál es la herramienta tecnológica o equipamiento central, considerado el "caballo de batalla", que permite el análisis proteómico masivo identificando inequívocamente a las proteínas y péptidos por su masa?',
+    opts: [
+        { t: "El Microscopio Electrónico de Barrido.", c: false },
+        { t: "El Citómetro de Flujo.", c: false },
+        { t: "El Espectrómetro de Masas (Espectrometría de Masas).", c: true },
+        { t: "La PCR a tiempo real.", c: false }
+    ],
+    exp: "Toda la proteómica actual se basa en la Espectrometría de Masas (MALDI, LC-MS/MS), que fragmenta e identifica las moléculas por su relación masa/carga (m/z)."
+},
+{
+    id: 17,
+    q: 'En la técnica de espectrometría MALDI-TOF (Matrix-Assisted Laser Desorption/Ionization), ¿para qué sirve exactamente la adición de una "matriz" química a la muestra del paciente sobre la placa?',
+    opts: [
+        { t: "Para teñir de azul las proteínas cancerígenas.", c: false },
+        { t: "Para disolver el hueso y extraer el ADN.", c: false },
+        { t: "Para absorber la energía del láser, transferirla al analito (proteína) favoreciendo su ionización y protegiendo a la muestra del impacto destructivo directo del láser.", c: true },
+        { t: "Para inhibir a las proteasas de la célula.", c: false }
+    ],
+    exp: "En el texto y diapositivas, la matriz se cristaliza con la muestra y actúa como un amortiguador que absorbe la radiación del láser y ayuda a \"hacer volar\" (ionizar) las proteínas sin carbonizarlas."
+},
+{
+    id: 18,
+    q: 'La profesora puso un ejemplo clínico real de proteómica en microbiología (el MALDI-Biotyper) que veréis en el hospital. ¿Para qué se utiliza este equipo en la rutina clínica?',
+    opts: [
+        { t: "Para curar la diabetes tipo 1 destruyendo anticuerpos.", c: false },
+        { t: "Para identificar de forma ultra-rápida cepas de bacterias o microorganismos (ej. E. coli) comparando su \"perfil proteico\" o huella dactilar con bases de datos preestablecidas.", c: true },
+        { t: "Para medir el oxígeno en sangre arterial.", c: false },
+        { t: "Para inyectar ARN mensajero contra el COVID.", c: false }
+    ],
+    exp: "Audio. Mencionó que ahorra las horas/días de espera del cultivo clásico. Pones la bacteria en la placa, disparas el láser, y el perfil proteico te dice instantáneamente qué patógeno es."
+},
+{
+    id: 19,
+    q: 'Otra técnica proteómica que genera mapas de distribución espacial de biomarcadores directamente sobre cortes de un tejido patológico (por ejemplo, identificando qué zonas exactas de un tumor de mama tienen una proteína mutada) es:',
+    opts: [
+        { t: "El sistema CRISPR.", c: false },
+        { t: "La Western-Blotting.", c: false },
+        { t: "MALDI-Imaging (Perfil proteico sobre tejido).", c: true },
+        { t: "La Tomografía por Emisión de Positrones (PET).", c: false }
+    ],
+    exp: "Diapositiva de MALDI-Imaging. Consiste en disparar el láser coordenada a coordenada sobre un corte de tejido para ver dónde se concentra cada proteína, creando un \"mapa de colores\" del tumor."
+},
+{
+    id: 20,
+    q: 'En un análisis proteómico típico por la técnica "LC-MS/MS" (Cromatografía Líquida acoplada a Espectrometría de Masas en Tándem), ¿cuál es el paso fisiológico previo a meter la muestra en el espectrómetro?',
+    opts: [
+        { t: "Insuflar oxígeno en la muestra de plasma.", c: false },
+        { t: "La separación física de la mezcla compleja de proteínas/péptidos mediante una columna de cromatografía líquida.", c: true },
+        { t: "Congelar la muestra con nitrógeno líquido a -196ºC.", c: false },
+        { t: "Irradiarla con Rayos X de alta frecuencia.", c: false }
+    ],
+    exp: "LC significa Liquid Chromatography (Cromatografía líquida). Primero se separan las proteínas por la columna, y según van saliendo, se inyectan en el espectrómetro de masas."
+},
+{
+    id: 21,
+    q: '¿Qué estudia la disciplina denominada METABOLÓMICA?',
+    opts: [
+        { t: "Estudia únicamente las calorías consumidas al día.", c: false },
+        { t: "Estudia el genoma de la microbiota intestinal.", c: false },
+        { t: "Estudia el conjunto de metabolitos, que son los reactivos y productos de las reacciones bioquímicas que ocurren en un sistema vivo (ej. glucosa, aminoácidos, lípidos).", c: true },
+        { t: "Estudia exclusivamente el ciclo de Krebs en tejidos muertos.", c: false }
+    ],
+    exp: "Diapositivas. Se encarga de las pequeñas moléculas (metabolitos) que forman la red metabólica, siendo la rama ómica \"más compleja\" y representativa del fenotipo final."
+},
+{
+    id: 22,
+    q: 'Una ventaja clínica enorme de la Metabolómica respecto a otras ciencias ómicas en la medicina de precisión es que:',
+    opts: [
+        { t: "Puede realizarse sin necesidad de extraer ninguna muestra del paciente.", c: false },
+        { t: "Es sensible al desarrollo temprano de la enfermedad, permitiendo identificar alteraciones metabólicas en sangre u orina incluso ANTES de que el paciente manifieste los primeros síntomas clínicos.", c: true },
+        { t: "Reemplaza al 100% a la resonancia magnética en fracturas óseas.", c: false },
+        { t: "Solo funciona si el paciente está en ayuno de 48 horas.", c: false }
+    ],
+    exp: "Diapositiva 18. Al medir reactivos bioquímicos, las variaciones aparecen inmediatamente cuando el metabolismo falla, permitiendo diagnósticos pre-sintomáticos (preventivos)."
+},
+{
+    id: 23,
+    q: 'A la luz de la Medicina de Precisión, la "Farmacogenómica" es una rama clave que se encarga de:',
+    opts: [
+        { t: "Fabricar fármacos genéricos más baratos para el tercer mundo.", c: false },
+        { t: "Estudiar la influencia genética de un individuo sobre la respuesta, eficacia y efectos secundarios que tendrá frente a un fármaco específico.", c: true },
+        { t: "Diseñar antibióticos para plantas.", c: false },
+        { t: "Administrar placebo a pacientes psiquiátricos.", c: false }
+    ],
+    exp: "Diapositiva 6. Identifica qué variantes genéticas tiene el paciente para saber si un fármaco (ej. un antidepresivo o quimioterápico) le funcionará bien, no le hará efecto, o será tóxico para él."
+},
+{
+    id: 24,
+    q: '¡OTRO CHIVATAZO DE NOBEL! En el año 2024, el Premio Nobel de QUÍMICA se concedió a Jumper, Hassabis y Baker por un avance revolucionario que une las ciencias ómicas con la Inteligencia Artificial. ¿Cuál fue el logro premiado?',
+    opts: [
+        { t: "El descubrimiento de la telomerasa.", c: false },
+        { t: "El desarrollo de la vacuna de ARNm para el COVID-19.", c: false },
+        { t: "El desarrollo de la herramienta de IA llamada \"AlphaFold\", capaz de predecir la estructura tridimensional de las proteínas con una precisión asombrosa a partir de su secuencia de aminoácidos.", c: true },
+        { t: "La invención de la espectrometría de masas.", c: false }
+    ],
+    exp: "Documentado en las diapositivas de actualidad científica de la clase. AlphaFold (de Google DeepMind) ha resuelto el milenario problema del plegamiento proteico usando \"Deep Learning\"."
+},
+{
+    id: 25,
+    q: 'La profesora comentó que el análisis de todas estas ciencias "ómicas" genera cantidades gigantescas e inmanejables de datos. ¿Qué tecnología actual resulta imprescindible para poder integrar toda esta información multi-ómica y plantear la estratificación de pacientes?',
+    opts: [
+        { t: "La centrifugación diferencial clásica.", c: false },
+        { t: "Las herramientas de Inteligencia Artificial, Machine Learning y Minería de Datos (Data Mining).", c: true },
+        { t: "Los test de antígenos rápidos.", c: false },
+        { t: "El microscopio de luz polarizada.", c: false }
+    ],
+    exp: "En la era de los grandes datos (Big Data), solo los algoritmos de IA y Machine Learning pueden procesar y cruzar millones de variables moleculares con datos clínicos para encontrar patrones."
+},
+{
+    id: 26,
+    q: 'La profesora relató una investigación propia en su laboratorio sobre el suero de pacientes infectados por COVID-19. ¿Cuál era el objetivo proteómico de este estudio con los pacientes ASINTOMÁTICOS?',
+    opts: [
+        { t: "Crear una nueva vacuna de ARN.", c: false },
+        { t: "Comprobar si el virus había alterado los niveles de glucosa en sangre.", c: false },
+        { t: "Identificar proteínas alteradas (biomarcadores de disfunción endotelial) en el suero de asintomáticos, demostrando que aunque no tuvieran síntomas clínicos graves, el virus sí estaba provocando daños a nivel molecular y celular.", c: true },
+        { t: "Contar el número exacto de anticuerpos en la saliva.", c: false }
+    ],
+    exp: "Audio. La profesora contó cómo mediante análisis proteómico descubrieron que los asintomáticos no estaban \"ilesos\"; molecularmente sí presentaban alteraciones en sus células vasculares."
+},
+{
+    id: 27,
+    q: 'En otro de los estudios relatados, el grupo de investigación analizaba enfermedades neuropsiquiátricas (como trastorno bipolar o consumo de cannabis). Como no se puede biopsiar el cerebro vivo de un paciente, ¿qué modelo celular innovador extraen de la nariz de los pacientes para realizar sus análisis proteómicos y transcriptómicos?',
+    opts: [
+        { t: "Cartílago del tabique nasal.", c: false },
+        { t: "Mucosidad pura para buscar bacterias.", c: false },
+        { t: "Células madre de la médula ósea.", c: false },
+        { t: "Células precursoras del neuroepitelio olfatorio (biopsia nasal), que sirven como un modelo indirecto y accesible para estudiar alteraciones a nivel neuronal.", c: true }
+    ],
+    exp: "Anécdota clínica vital del audio. Usan células del epitelio olfatorio (\"arriba de la nariz\") porque tienen precursores neuronales genéticamente idénticos a las células del cerebro del paciente."
+},
+{
+    id: 28,
+    q: 'Cuando un equipo de proteómica aplica la técnica 2D-DIGE (Electroforesis Bidimensional con Diferencia en Gel) a un tumor de mama comparado con tejido sano, ¿qué es lo que evalúa físicamente en esos geles?',
+    opts: [
+        { t: "El nivel de ácido láctico producido.", c: false },
+        { t: "Las diferencias en la expresión y cantidad relativa de las proteínas (\"manchas\" de color), separándolas primero por su punto isoeléctrico (pH) y luego por su peso molecular.", c: true },
+        { t: "La secuencia de letras ATCG del tumor.", c: false },
+        { t: "Únicamente la cantidad de agua del tejido.", c: false }
+    ],
+    exp: "Diapositiva 14/18. El análisis de geles (Labelled DIGE) separa las proteínas en dos dimensiones (pH y tamaño) y superpone imágenes fluorescentes para ver qué proteína sube o baja."
+},
+{
+    id: 29,
+    q: 'En una diapositiva sobre Medicina de Precisión en Psiquiatría se indica el uso combinado de Farmacogenética y Farmacocinética. ¿Cuál es el objetivo práctico de aplicar esto en un paciente con depresión?',
+    opts: [
+        { t: "Evitar que el paciente vaya a terapia psicológica.", c: false },
+        { t: "Prescribir el antidepresivo exacto y en la dosis correcta que el hígado del paciente sea capaz de metabolizar óptimamente según sus genes, evitando fracasos terapéuticos o toxicidad.", c: true },
+        { t: "Eliminar quirúrgicamente el área del cerebro afectada.", c: false },
+        { t: "Administrar choques eléctricos controlados por IA.", c: false }
+    ],
+    exp: "Muchos pacientes psiquiátricos tienen polimorfismos en el citocromo hepático. Analizando sus genes (ómica) sabemos si metabolizan rápido o lento el antidepresivo, eligiendo el correcto."
+},
+{
+    id: 30,
+    q: 'Una alumna preguntó en clase sobre la Terapia Génica (ej. reparación de mutaciones por CRISPR/Cas o terapias de células CAR-T para leucemia). La profesora afirmó que:',
+    opts: [
+        { t: "Es algo prohibido mundialmente y de ciencia ficción pura.", c: false },
+        { t: "Ya se están realizando tratamientos y ensayos clínicos reales (incluso en hospitales españoles como el Virgen del Rocío), siendo una aplicación directa y curativa que deriva del avance en la comprensión ómica.", c: true },
+        { t: "Solo sirve para curar enfermedades infecciosas víricas, no genéticas.", c: false },
+        { t: "Se usan únicamente antibióticos de amplio espectro.", c: false }
+    ],
+    exp: "Audio. La profesora confirmó que, a pesar de la regulación, técnicas como CAR-T y otras terapias celulares/génicas ya son una realidad en hospitales para tratar casos oncológicos o genéticos sin alternativa."
+},
+{
+    id: 31,
+    q: 'La "Talasemia" fue mencionada en clase como ejemplo de:',
+    opts: [
+        { t: "Una enfermedad vírica que destruye el bazo.", c: false },
+        { t: "Una enfermedad metabólica producida por exceso de hidratos de carbono.", c: false },
+        { t: "Una enfermedad monogénica puntual, donde una alteración genética en un solo gen (y en un aminoácido concreto) causa la patología, contrastando con enfermedades poligénicas como la diabetes.", c: true },
+        { t: "Un cáncer hematológico maligno que no tiene cura.", c: false }
+    ],
+    exp: "La profesora usó la talasemia/anemia falciforme como ejemplo de enfermedad \"sencilla\" monogénica, a diferencia de la mayoría de las enfermedades comunes que son complejas (poligénicas)."
+},
+{
+    id: 32,
+    q: 'El ARN no codificante (Non-coding RNA) compone más del 80% del transcriptoma humano. ¿Qué dos grandes subtipos se mostraron en los esquemas visuales de transcriptómica?',
+    opts: [
+        { t: "Únicamente ARN ribosómico y de transferencia.", c: false },
+        { t: "ARN virales pequeños y ARN fúngicos largos.", c: false },
+        { t: "ARN pequeños (como los miRNA, siRNA o piRNA) de menos de 200 nucleótidos, y ARN largos no codificantes (lncRNA o circRNA) mayores de 200 nucleótidos.", c: true },
+        { t: "ARN con caperuza metilada y ARN sin caperuza.", c: false }
+    ],
+    exp: "Diapositiva 11. Se dividen fundamentalmente por su tamaño en Small ncRNAs (<200nt, como los miRNA ganadores del Nobel) y Long ncRNAs (>200nt)."
+},
+{
+    id: 33,
+    q: 'La Espectrometría de Masas Ionización por Electrospray (ESI) suele utilizarse acoplada a otra técnica (formando el equipo LC-MS/MS). ¿Cómo funciona este método ESI en la introducción de la muestra?',
+    opts: [
+        { t: "Un láser volatiliza la muestra sólida.", c: false },
+        { t: "La disolución de la muestra atraviesa un capilar cargado con un alto voltaje (+HV), formando un cono (cono de Taylor) que expulsa finas gotitas ionizadas de líquido que entran al analizador en fase gaseosa.", c: true },
+        { t: "Se evapora la proteína en una plancha térmica a 400ºC.", c: false },
+        { t: "Se bombardea la muestra con electrones pesados de uranio.", c: false }
+    ],
+    exp: "Diapositiva 16. Muestra el fundamento de la ionización ESI, donde el líquido pasa por la aguja polarizada, generando un spray (gotas ionizadas) que se evaporan liberando la proteína cargada."
+},
+{
+    id: 34,
+    q: 'En la era de las ciencias ómicas, si queremos aislar todas las proteínas de una biopsia de un paciente de forma simultánea, ¿qué problema principal presenta el Proteoma humano en comparación con el Genoma humano?',
+    opts: [
+        { t: "Que las proteínas humanas son radiactivas y degradan los geles.", c: false },
+        { t: "Que, a diferencia del genoma, no existe una técnica de \"amplificación\" (como la PCR para el ADN) que permita multiplicar o copiar masivamente las proteínas escasas para detectarlas, dificultando mucho el análisis si hay poca cantidad.", c: true },
+        { t: "Que las proteínas humanas son todas idénticas en tamaño.", c: false },
+        { t: "Que las proteínas no se pueden ionizar en un espectrómetro.", c: false }
+    ],
+    exp: "Concepto base de la proteómica clínica (y gran limitación técnica): el ADN o ARN se puede amplificar trillones de veces con una simple PCR. Si en tu muestra hay una sola molécula de proteína, no puedes copiarla; tienes que tener equipos hipersensibles para detectarla."
+},
+{
+    id: 35,
+    q: 'A la luz de la Medicina de Precisión en Oncología (Cáncer), ¿qué significa el esquema donde tres pacientes con tres tipos distintos de cáncer (ej. mama, pulmón y colon) reciben exactamente el mismo fármaco?',
+    opts: [
+        { t: "Que el hospital se ha quedado sin opciones terapéuticas.", c: false },
+        { t: "Que es un fármaco quimioterápico general que destruye todas las células del cuerpo por igual.", c: false },
+        { t: "Que la Medicina de Precisión no clasifica el tumor solo por el órgano donde aparece, sino por la MUTACIÓN molecular subyacente. Al compartir la misma alteración genética (ej. la mutación HER2 o BRAF), se pueden tratar con la misma terapia dirigida.", c: true },
+        { t: "Que los tres cánceres son benignos.", c: false }
+    ],
+    exp: "Diapositiva \"Understanding Precision Medicine\". La revolución es que un cáncer no se define ya por su localización anatómica, sino por su biología. Un tumor de pulmón y uno de mama pueden compartir \"firma genética\" y usar el mismo fármaco."
+},
+{
+    id: 36,
+    q: 'Un gen es a Genómica lo que un metabolito es a Metabolómica. ¿Qué tipo de moléculas incluye fundamentalmente el "Metaboloma" humano?',
+    opts: [
+        { t: "Cromosomas y plásmidos.", c: false },
+        { t: "ARN mensajeros recién sintetizados.", c: false },
+        { t: "Glúcidos, lípidos, aminoácidos y nucleótidos, es decir, el conjunto de sustratos, intermediarios y productos del metabolismo celular.", c: true },
+        { t: "Factores de transcripción nucleares.", c: false }
+    ],
+    exp: "El metaboloma incluye a todas esas moléculas de bajo peso molecular que participan en las reacciones bioquímicas (rutas metabólicas como la glucólisis o síntesis de lípidos)."
+},
+{
+    id: 37,
+    q: 'Uno de los mayores retos de la proteómica clínica es el enorme rango dinámico de concentración de las proteínas en la sangre humana (suero/plasma). ¿A qué se refiere este problema?',
+    opts: [
+        { t: "A que las proteínas nadan muy rápido en el tubo de ensayo.", c: false },
+        { t: "A que proteínas muy abundantes (como la Albúmina, que es el 50-60% del plasma) ocultan o enmascaran a los biomarcadores proteicos de enfermedades, que se encuentran en cantidades ínfimas (trazas o picogramos).", c: true },
+        { t: "A que el pH de la sangre destruye los enlaces disulfuro instantáneamente.", c: false },
+        { t: "A que la sangre se coagula dentro del espectrómetro de masas.", c: false }
+    ],
+    exp: "Concepto general bioquímico. El suero es la muestra por excelencia, pero la albúmina es tan masiva que hay que \"eliminarla\" (depletarla) antes del análisis para poder ver las proteínas indicadoras de cáncer o infarto que viajan en concentraciones diminutas."
+},
+{
+    id: 38,
+    q: 'La profesora mostró que, gracias a las herramientas bioinformáticas de IA, se pueden crear "Redes de Interacción Proteína-Proteína" (como el programa STRING). ¿Para qué sirve generar estas redes de puntos y líneas en un análisis proteómico de una enfermedad?',
+    opts: [
+        { t: "Para ilustrar artísticamente la presentación del médico.", c: false },
+        { t: "Para visualizar qué proteínas de nuestro panel están funcionalmente conectadas entre sí dentro de la célula, descubriendo \"nodos críticos\" o rutas metabólicas completas que están fallando en esa patología, en lugar de ver proteínas aisladas.", c: true },
+        { t: "Para calcular el peso exacto en Daltons de cada proteína.", c: false },
+        { t: "Para inocularlas en los animales de experimentación.", c: false }
+    ],
+    exp: "Diapositiva 16. La bioinformática une las proteínas en redes según sus relaciones conocidas. Si 10 proteínas alteradas resultan estar físicamente conectadas en la ruta de coagulación, el programa de IA resalta que el fallo sistémico está ahí."
+},
+{
+    id: 39,
+    q: 'Cuando el genoma humano se descubrió entre 2001 y 2022, se confirmó que compartimos el 99% de nuestro código genético. Las diferencias que nos hacen únicos y dictan nuestra respuesta a enfermedades y fármacos residen en ese 1%. ¿Cómo se denominan estas pequeñas variantes de un solo nucleótido en el genoma poblacional?',
+    opts: [
+        { t: "Trasposones.", c: false },
+        { t: "SNP (Polimorfismos de un Solo Nucleótido - Single Nucleotide Polymorphisms).", c: true },
+        { t: "Intrones no codificantes completos.", c: false },
+        { t: "Telómeros satélites.", c: false }
+    ],
+    exp: "Esas minúsculas diferencias individuales de una sola letra en el ADN son los SNP, la base de los estudios de asociación del genoma completo (GWAS) para la medicina personalizada."
+},
+{
+    id: 40,
+    q: 'Para concluir, si una paciente con cáncer de mama presenta un perfil transcriptómico que incluye un aumento exponencial ("sobreexpresión") del ARN mensajero del receptor ErbB2/HER2, pero a nivel genómico NO tiene mutada la secuencia intrínseca de ese gen, la medicina de precisión utilizaría:',
+    opts: [
+        { t: "Antibióticos para frenar la infección bacteriana de ErbB2.", c: false },
+        { t: "Una terapia génica con el gen p53 para reparar el ADN de ese cromosoma de inmediato.", c: false },
+        { t: "Una terapia de fármacos \"diana\" o terapia biológica dirigida (ej. el anticuerpo Herceptin/Trastuzumab) diseñada específicamente para bloquear esa proteína o receptor ErbB2 sobreexpresado en su fenotipo tumoral.", c: true },
+        { t: "Cirugía cerebral preventiva, dado que ese receptor solo actúa en el sistema nervioso.", c: false }
+    ],
+    exp: "Integra los conceptos de clase. Un tumor amplificado o sobreexpresado (transcriptómica/proteómica) se trata con la medicina personalizada adecuada a su firma molecular específica, usando en este caso el anticuerpo que frena dicho receptor sin necesidad de alterar el genoma."
+}
+];
+
+// ESTADOS GLOBALES
+let activeQuestions = [];
+let markedQuestions = new Set();
+let userAnswers = {}; 
+
+function shuffleArray(array) {
+    let newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function startQuiz(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'grid';
+
+    activeQuestions = [...database];
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    
+    renderQuiz();
+}
+
+function resetApp(mode) {
+    document.getElementById('end-screen').style.display = 'none';
+    
+    let newPool = [];
+    if (mode === 'all') {
+        newPool = [...database];
+    } else if (mode === 'failed') {
+        newPool = database.filter(q => {
+            return !userAnswers[q.id] || !userAnswers[q.id].correct;
+        });
+    } else if (mode === 'marked') {
+        newPool = database.filter(q => markedQuestions.has(q.id));
+    } else if (mode === 'failed_marked') {
+        newPool = database.filter(q => {
+            const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+            const marked = markedQuestions.has(q.id);
+            return failed || marked;
+        });
+    }
+
+    activeQuestions = newPool;
+    
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('start-screen').innerHTML = `
+        <h2>Se han seleccionado ${activeQuestions.length} preguntas.</h2>
+        <p>¿Cómo deseas ordenarlas para este intento?</p>
+        <button onclick="startSpecificPool('original')">Orden Original</button>
+        <button onclick="startSpecificPool('random')">Orden Aleatorio</button>
+    `;
+    document.getElementById('start-screen').style.display = 'block';
+}
+
+function startSpecificPool(orderType) {
+    document.getElementById('start-screen').style.display = 'none';
+    if (orderType === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+    userAnswers = {}; 
+    document.getElementById('quiz-container').style.display = 'grid';
+    renderQuiz();
+}
+
+function renderQuiz() {
+    const sidebarGrid = document.getElementById('index-grid');
+    const questionsContainer = document.getElementById('questions-container');
+    
+    sidebarGrid.innerHTML = '';
+    questionsContainer.innerHTML = '';
+
+    activeQuestions.forEach((q, displayIndex) => {
+        const num = displayIndex + 1;
+        
+        const btn = document.createElement('a');
+        btn.href = `#q-${q.id}`;
+        btn.className = 'index-btn';
+        btn.id = `btn-index-${q.id}`;
+        btn.innerText = num;
+        if(markedQuestions.has(q.id)) btn.classList.add('marked');
+        sidebarGrid.appendChild(btn);
+
+        const shuffledOpts = shuffleArray(q.opts);
+
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.id}`;
+
+        let optionsHTML = shuffledOpts.map((opt, i) => `
+            <div class="option-item">
+                <label class="option-label" id="label-${q.id}-${i}">
+                    <input type="radio" name="q-${q.id}" value="${opt.c}" onchange="checkAnswer(${q.id}, ${opt.c}, ${i}, this)">
+                    <span>${opt.t}</span>
+                </label>
+            </div>
+        `).join('');
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${num}. ${q.q}</h3>
+                <label class="mark-container">
+                    <input type="checkbox" ${markedQuestions.has(q.id) ? 'checked' : ''} onchange="toggleMark(${q.id}, this)">
+                    Marcar/Flag
+                </label>
+            </div>
+            <div class="options-list">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.id}">
+                <div class="feedback-title" id="feedback-title-${q.id}"></div>
+                <div><strong>Explicación:</strong> ${q.exp}</div>
+            </div>
+        `;
+
+        questionsContainer.appendChild(card);
+    });
+}
+
+function toggleMark(id, checkbox) {
+    const btn = document.getElementById(`btn-index-${id}`);
+    if (checkbox.checked) {
+        markedQuestions.add(id);
+        if(btn) btn.classList.add('marked');
+    } else {
+        markedQuestions.delete(id);
+        if(btn) btn.classList.remove('marked');
+    }
+}
+
+function checkAnswer(questionId, isCorrect, optIndex, radioElement) {
+    if (userAnswers[questionId]) return;
+
+    userAnswers[questionId] = { answered: true, correct: isCorrect };
+
+    const radios = document.querySelectorAll(`input[name="q-${questionId}"]`);
+    radios.forEach(r => {
+        r.disabled = true;
+        r.parentElement.classList.add('disabled');
+        if(r.value === 'true') {
+            r.parentElement.style.border = "2px solid var(--success)";
+        }
+    });
+
+    const selectedLabel = document.getElementById(`label-${questionId}-${optIndex}`);
+    const feedbackDiv = document.getElementById(`feedback-${questionId}`);
+    const feedbackTitle = document.getElementById(`feedback-title-${questionId}`);
+    const indexBtn = document.getElementById(`btn-index-${questionId}`);
+
+    feedbackDiv.style.display = 'block';
+
+    if (isCorrect) {
+        selectedLabel.classList.add('correct-anim');
+        feedbackDiv.classList.add('correct');
+        feedbackTitle.innerText = "¡Correcto!";
+        feedbackTitle.style.color = "var(--success)";
+        if(indexBtn) indexBtn.classList.add('correct');
+    } else {
+        selectedLabel.classList.add('incorrect-anim');
+        feedbackDiv.classList.add('incorrect');
+        feedbackTitle.innerText = "Incorrecto";
+        feedbackTitle.style.color = "var(--danger)";
+        if(indexBtn) indexBtn.classList.add('incorrect');
+    }
+}
+
+function finishQuiz() {
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'block';
+
+    let correctCount = 0;
+    let answeredCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (userAnswers[q.id]) {
+            answeredCount++;
+            if (userAnswers[q.id].correct) correctCount++;
+        }
+    });
+
+    const unattempted = activeQuestions.length - answeredCount;
+    const scoreDisplay = document.getElementById('score-display');
+    const statsDisplay = document.getElementById('stats-display');
+
+    scoreDisplay.innerText = `${correctCount} / ${activeQuestions.length}`;
+    statsDisplay.innerHTML = `
+        <strong>Aciertos:</strong> ${correctCount}<br>
+        <strong>Fallos:</strong> ${answeredCount - correctCount}<br>
+        <strong>No respondidas:</strong> ${unattempted}<br>
+        <strong>Marcadas para revisión:</strong> ${markedQuestions.size}
+    `;
+
+    const btnFailed = document.getElementById('btn-repeat-failed');
+    const btnMarked = document.getElementById('btn-repeat-marked');
+    const btnFailedMarked = document.getElementById('btn-repeat-failed-marked');
+
+    const totalFailedOrUnanswered = activeQuestions.length - correctCount;
+    
+    btnFailed.disabled = totalFailedOrUnanswered === 0;
+    btnMarked.disabled = markedQuestions.size === 0;
+    
+    let combinedCount = 0;
+    database.forEach(q => {
+        const failed = !userAnswers[q.id] || !userAnswers[q.id].correct;
+        const marked = markedQuestions.has(q.id);
+        if(failed || marked) combinedCount++;
+    });
+    btnFailedMarked.disabled = combinedCount === 0;
+}
+</script>
+
+</body>
+</html>

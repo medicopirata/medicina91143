@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Histología: Hueso y Articulaciones</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #d35400;
+            --correct: #27ae60;
+            --wrong: #c0392b;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Pantalla de Inicio --- */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-start {
+            background: var(--accent);
+            border: none;
+            padding: 15px 30px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover { transform: scale(1.05); }
+
+        /* --- Navegación Izquierda --- */
+        #sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        #index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .index-btn {
+            background: #eee;
+            border: 1px solid #ccc;
+            padding: 10px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .index-btn.active { border: 2px solid var(--primary); }
+        .index-btn.answered-correct { background: var(--correct); color: white; }
+        .index-btn.answered-wrong { background: var(--wrong); color: white; }
+        .index-btn.is-marked { border: 2px solid var(--marked); box-shadow: 0 0 5px var(--marked); }
+
+        /* --- Contenedor de Preguntas --- */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .mark-tab {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            cursor: pointer;
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { border-color: var(--accent); }
+        .option-btn.disabled { cursor: default; }
+        .option-btn.correct { background: #d4edda; border-color: var(--correct); color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: var(--wrong); color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid #03a9f4;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        /* --- Footer --- */
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-finish {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1 id="overlay-title">Hueso y Articulaciones</h1>
+        <p>Configura tu cuestionario:</p>
+        <div id="start-buttons">
+            <button class="btn-start" onclick="initQuiz(false)">Orden Preestablecido</button>
+            <button class="btn-start" onclick="initQuiz(true)">Orden Aleatorio</button>
+        </div>
+        <div id="result-options" style="display:none;">
+            <p id="final-score"></p>
+            <button class="btn-start" onclick="location.reload()">Reiniciar Todo</button>
+            <button class="btn-start" onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button class="btn-start" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-start" onclick="restartQuiz('both')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3 style="margin-top:0">Índice</h3>
+        <div id="index-grid"></div>
+    </div>
+
+    <main id="main-content">
+        <div id="quiz-container"></div>
+    </main>
+
+    <div id="controls">
+        <button class="btn-finish" onclick="finishSession()">Finalizar y Corregir</button>
+    </div>
+
+    <script>
+        const originalQuestions = [
+            { id: 1, q: "1. Según recalca la profesora al explicar el origen de las células óseas, ¿de qué linaje proceden los OSTEOCLASTOS?", opts: ["a) De la diferenciación terminal de los osteoblastos maduros.", "b) De las células madre mesenquimales pluripotenciales.", "c) Del sistema mononuclear fagocítico (linaje monocito-macrófago de la médula ósea).", "d) Del periostio fibroso externo."], ans: "c) Del sistema mononuclear fagocítico (linaje monocito-macrófago de la médula ósea).", exp: "Es una trampa en la que la profesora insiste: a diferencia de los osteoblastos (origen mesenquimal), los osteoclastos proceden del sistema inmune/sanguíneo (monocitos)." },
+            { id: 2, q: "2. ¿Cómo se denomina a los osteoblastos que, tras su periodo de actividad (1-10 semanas), no entran en apoptosis ni se convierten en osteocitos, sino que se quedan aplanados y \"latentes\" en el borde del hueso?", opts: ["a) Células osteoprogenitoras.", "b) Células limitantes (lining cells).", "c) Osteoclastos en reposo.", "d) Condroblastos inmaduros."], ans: "b) Células limitantes (lining cells).", exp: "Las diapositivas indican que la vida media del osteoblasto es de 1-10 semanas, tras lo cual pueden sufrir apoptosis, ser osteocitos o quedar como células limitantes." },
+            { id: 3, q: "3. Los osteocitos son las células más abundantes del hueso (10 veces más que el osteoblasto). Además del mantenimiento de la matriz, la profesora destaca su función como \"mecanosensor\". ¿Qué estructuras utilizan para este fin?", opts: ["a) El ribete en cepillo de su membrana apical.", "b) Los procesos citoplasmáticos (osteocitarios) que viajan por los conductos calcóforos y se conectan mediante uniones gap (nexos).", "c) Las integrinas $\\alpha_v \\beta_3$ de la zona de sellado.", "d) Las fibras de Sharpey."], ans: "b) Los procesos citoplasmáticos (osteocitarios) que viajan por los conductos calcóforos y se conectan mediante uniones gap (nexos).", exp: "La profesora explica que forman un sincitio interconectado a través de los conductos calcóforos para detectar variaciones de tensión/carga mecánica." },
+            { id: 4, q: "4. ¿Qué enzima de superficie (ectoenzima) es considerada el marcador clásico de la actividad de los OSTEOBLASTOS, indispensable para la mineralización, y desaparece cuando este se convierte en osteocito?", opts: ["a) Catepsina K.", "b) Anhidrasa carbónica II.", "c) Fosfatasa alcalina.", "d) Metaloproteinasa 9."], ans: "c) Fosfatasa alcalina.", exp: "La fosfatasa alcalina es producida por el osteoblasto para hidrolizar ésteres y mineralizar la sustancia osteoide." },
+            { id: 5, q: "5. En la zona de sellado del osteoclasto (la \"ventosa\" o \"chupón\" que aísla la Laguna de Howship), ¿qué componentes moleculares son esenciales para mantener la estanqueidad contra la matriz ósea?", opts: ["a) Filamentos de actina, integrina $\\alpha_v \\beta_3$ y osteopontina.", "b) Fibras de colágeno tipo II y condronectina.", "c) Uniones estrechas y desmosomas.", "d) Ocludinas y claudinas."], ans: "a) Filamentos de actina, integrina $\\alpha_v \\beta_3$ y osteopontina.", exp: "El esquema del osteoclasto detalla que la \"sealing zone\" está formada por acumulación de actina, integrinas $\\alpha_v \\beta_3$ y osteopontina." },
+            { id: 6, q: "6. Para solubilizar el mineral óseo (hidroxiapatita), el osteoclasto necesita crear un microambiente muy ácido (pH 4.5) en la Laguna de Howship. ¿Qué enzima intracelular genera los protones ($H^+$) a partir de $CO_2$ y $H_2O$?", opts: ["a) Fosfatasa ácida.", "b) Anhidrasa carbónica II.", "c) Osteocalcina.", "d) Catepsina K."], ans: "b) Anhidrasa carbónica II.", exp: "La Anhidrasa Carbónica II intracelular genera los protones que luego son liberados por una bomba ATPasa dependiente a la laguna." },
+            { id: 7, q: "7. Una vez disuelto el mineral, el osteoclasto debe degradar la matriz orgánica (colágeno). ¿Qué enzimas libera a la Laguna de Howship para este fin?", opts: ["a) Fosfatasa alcalina y osteonectina.", "b) Catepsina K (lisosomal) y Metaloproteinasa 9 (no lisosomal).", "c) Hialuronidasa y lubricina.", "d) VEGF y M-CSF."], ans: "b) Catepsina K (lisosomal) y Metaloproteinasa 9 (no lisosomal).", exp: "El diagrama del osteoclasto muestra explícitamente la liberación de enzimas lisosomales (Catepsina K) y no lisosomales (Metaloproteinasa 9)." },
+            { id: 8, q: "8. La hormona paratiroidea (PTH) NO actúa directamente sobre el osteoclasto. Según la clase, ¿sobre qué célula actúa la PTH para inducir la expresión de M-CSF y RANKL, activando así a los osteoclastos?", opts: ["a) El osteocito.", "b) El monocito.", "c) El osteoblasto.", "d) La célula de revestimiento sinovial."], ans: "c) El osteoblasto.", exp: "El osteoblasto posee el receptor de PTH; al activarse, segrega M-CSF y expone RANKL, atrayendo y convenciendo al monocito para volverse osteoclasto." },
+            { id: 9, q: "9. ¿Qué molécula actúa como un inhibidor natural (\"señuelo\"), siendo segregada por los osteoblastos para bloquear la unión de RANKL a su receptor RANK, frenando así la destrucción del hueso?", opts: ["a) Osteocalcina.", "b) Osteoprotegerina (OPG).", "c) Sialoproteína ósea.", "d) Factor de transcripción Runx2."], ans: "b) Osteoprotegerina (OPG).", exp: "La Osteoprotegerina (OPG) es el freno que sella la vía RANKL, regulando fisiológicamente a la población de osteoclastos funcionales." },
+            { id: 10, q: "10. Al microscopio, la profesora describe a los OSTEOBLASTOS activos formadores de matriz como células que se disponen:", opts: ["a) Como células gigantes multinucleadas con citoplasma acidófilo.", "b) De forma cúbica, alineadas en empalizada en la superficie (\"como cogidas de la mano\"), formando una monocapa.", "c) Aisladas dentro de lagunas muy profundas.", "d) Formando grupos isogénicos coronarios."], ans: "b) De forma cúbica, alineadas en empalizada en la superficie (\"como cogidas de la mano\"), formando una monocapa.", exp: "En la descripción microscópica de la trabécula, señala a los osteoblastos como células cúbicas que van unidas formando la matriz osteoide superficial." },
+            { id: 11, q: "11. El componente orgánico del hueso (35% del total) está formado mayoritariamente (>90%) por una proteína que otorga resistencia a la tracción. ¿Cuál es?", opts: ["a) Colágeno tipo I.", "b) Colágeno tipo II.", "c) Colágeno tipo III.", "d) Colágeno tipo X."], ans: "a) Colágeno tipo I.", exp: "El colágeno tipo I compone más del 95% de las proteínas colágenas del hueso (a diferencia del cartílago, que es tipo II)." },
+            { id: 12, q: "12. La matriz ósea recién sintetizada por los osteoblastos, que AÚN NO se ha mineralizado con calcio (visible en rojo con tinción de von Kossa), recibe el nombre de:", opts: ["a) Hueso plexiforme.", "b) Sustancia Osteoide (o simplemente osteoide).", "c) Cartílago hipertrófico.", "d) Hidroxiapatita."], ans: "b) Sustancia Osteoide (o simplemente osteoide).", exp: "El osteoide es la matriz orgánica extracelular recién sintetizada que posteriormente se calcificará." },
+            { id: 13, q: "13. ¿Qué proteína no colágena de la matriz, dependiente de la Vitamina D3, es esencial para la mineralización debido a su alta afinidad por la hidroxiapatita?", opts: ["a) Osteopontina.", "b) Osteonectina.", "c) Osteocalcina.", "d) Trombospondina."], ans: "c) Osteocalcina.", exp: "La osteocalcina está regulada por la VitD3 y es un marcador bioquímico clave del número y actividad de los osteoblastos." },
+            { id: 14, q: "14. El componente inorgánico del hueso (65%) cristaliza formando pequeñas estructuras entre las fibras de colágeno, proporcionando la extrema dureza. Se trata de:", opts: ["a) Cristales de ácido úrico.", "b) Cristales de hidroxiapatita ($Ca_{10}(PO_4)_6(OH)_2$).", "c) Carbonato cálcico puro.", "d) Sulfato de condroitina."], ans: "b) Cristales de hidroxiapatita ($Ca_{10}(PO_4)_6(OH)_2$).", exp: "Es la forma específica en la que cristalizan el calcio y el fosfato en la matriz ósea." },
+            { id: 15, q: "15. En una preparación histológica de hueso MADURO (laminar) observada bajo LUZ POLARIZADA, ¿qué patrón óptico se observa y a qué se debe?", opts: ["a) Una masa negra opaca, debida a la falta de colágeno.", "b) Alternancia de láminas claras (brillantes) y oscuras, debido a que las fibras de colágeno cambian su ángulo de orientación en cada lámina contigua.", "c) Un patrón desordenado (plexiforme) brillante en su totalidad.", "d) Bandas rojas y azules alternas por la presencia de vasos sanguíneos."], ans: "b) Alternancia de láminas claras (brillantes) y oscuras, debido a que las fibras de colágeno cambian su ángulo de orientación en cada lámina contigua.", exp: "El hueso laminar maduro cambia la disposición del colágeno en ángulo agudo entre láminas, lo que polariza la luz produciendo láminas birrefringentes alternas." },
+            { id: 16, q: "16. La unidad anatómica y funcional del tejido óseo COMPACTO es la OSTEONA (Sistema de Havers). ¿Qué encontramos siempre en su centro geométrico?", opts: ["a) Un osteoclasto gigante.", "b) Un nido de médula ósea roja.", "c) El conducto de Havers, que aloja vasos sanguíneos.", "d) La línea de cemento de von Ebner."], ans: "c) El conducto de Havers, que aloja vasos sanguíneos.", exp: "Las laminillas de la osteona se disponen de forma concéntrica alrededor del vaso sanguíneo central de Havers." },
+            { id: 17, q: "17. En la metáfora empleada en clase, ¿cómo llama la profesora a los espacios angulosos que quedan \"rellenando los huecos\" entre las osteonas cilíndricas, y de qué están formados?", opts: ["a) Conductos de Volkmann; formados por venas.", "b) Laminillas intersticiales; son restos de osteonas antiguas parcialmente reabsorbidas durante el remodelado continuo.", "c) Laminillas circunferenciales externas; formadas por periostio.", "d) Lagunas de Howship; formadas por osteoclastos."], ans: "b) Laminillas intersticiales; son restos de osteonas antiguas parcialmente reabsorbidas durante el remodelado continuo.", exp: "Las laminillas intersticiales rellenan el espacio entre osteonas recientes y no son más que los remanentes de osteonas previas." },
+            { id: 18, q: "18. ¿Cómo se denominan los conductos que perforan transversal/oblicuamente el hueso para comunicar los diferentes conductos de Havers entre sí y con el periostio/endostio?", opts: ["a) Conductos calcóforos (canalículos).", "b) Conductos de Volkmann.", "c) Conductos de Howship.", "d) Canales de Sharpey."], ans: "b) Conductos de Volkmann.", exp: "Los canales de Volkmann aseguran la interconexión vascular transversal en el hueso compacto." },
+            { id: 19, q: "19. Durante el proceso continuo de remodelación del hueso compacto, la \"taladradora\" avanza formando un Cono de Corte seguido de un Cono de Cierre. ¿Qué células se sitúan en la punta abriendo camino (Cono de Corte)?", opts: ["a) Los osteoblastos.", "b) Los osteocitos.", "c) Los osteoclastos.", "d) Las células limitantes."], ans: "c) Los osteoclastos.", exp: "Los osteoclastos perforan y digieren el hueso antiguo en el frente de avance (Cono de Corte), y por detrás los osteoblastos rellenan el túnel formándose el Cono de Cierre." },
+            { id: 20, q: "20. ¿Qué nombre reciben las gruesas fibras de colágeno que parten de la capa externa del PERIOSTIO y penetran profundamente en las laminillas óseas externas para anclar el hueso a ligamentos y tendones?", opts: ["a) Fibras de Sharpey.", "b) Fibras de Purkinje.", "c) Fibras de reticulina.", "d) Fibras elásticas."], ans: "a) Fibras de Sharpey.", exp: "Las fibras de Sharpey (colágeno III y I) son fundamentales para el anclaje mecánico del periostio." },
+            { id: 21, q: "21. La osificación ENDOCONDRAL es el proceso por el cual los huesos largos crecen a partir de un molde previo. ¿Qué tipo de tejido forma este molde originario?", opts: ["a) Tejido óseo embrionario plexiforme.", "b) Cartílago elástico.", "c) Cartílago hialino.", "d) Tejido conjuntivo mucoso."], ans: "c) Cartílago hialino.", exp: "El desarrollo de huesos largos como el fémur requiere un molde preexistente de cartílago hialino." },
+            { id: 22, q: "22. DOGMA DE LA PROFESORA: Durante la osificación endocondral, en la zona de avance, ¿qué ocurre exactamente con el cartílago?", opts: ["a) Los condrocitos mutan genéticamente y se transforman en osteocitos.", "b) El cartílago NUNCA se transforma en hueso; los condrocitos hipertróficos mueren (apoptosis), dejan sus lagunas vacías y los vasos traen osteoblastos que forman hueso nuevo sobre los restos calcificados.", "c) La matriz cartilaginosa se endurece sin que las células mueran.", "d) El cartílago es fagocitado exclusivamente por el periostio."], ans: "b) El cartílago NUNCA se transforma en hueso; los condrocitos hipertróficos mueren (apoptosis), dejan sus lagunas vacías y los vasos traen osteoblastos que forman hueso nuevo sobre los restos calcificados.", exp: "La profesora remarca varias veces: \"El cartílago no se convierte en hueso. El cartílago lo que hace es ganar sitio y liberar el espacio para que pueda ser colonizado...\"." },
+            { id: 23, q: "23. En la placa epifisaria (cartílago de crecimiento), antes de morir, los condrocitos aumentan enormemente su tamaño y volumen. ¿Cómo se denomina histológicamente a esta zona?", opts: ["a) Zona de cartílago de reserva.", "b) Zona de condrocitos seriados (en columnas).", "c) Zona de condrocitos hipertróficos.", "d) Zona de osificación primaria."], ans: "c) Zona de condrocitos hipertróficos.", exp: "La hipertrofia celular es el paso previo a la calcificación de la matriz y la posterior muerte apoptótica de los condrocitos." },
+            { id: 24, q: "24. Para que se forme el hueso definitivo, el cartílago hipertrófico moribundo debe promover la llegada de los vasos sanguíneos. ¿Qué molécula crucial secretan para inducir esta invasión vascular (angiogénesis)?", opts: ["a) VEGF (Factor de Crecimiento Endotelial Vascular).", "b) Cbfa1 (Runx2).", "c) PTH-rP.", "d) Colagenasa tipo II."], ans: "a) VEGF (Factor de Crecimiento Endotelial Vascular).", exp: "El esquema molecular de la placa de crecimiento muestra al VEGF como el mediador directo de la invasión vascular desde la metáfisis." },
+            { id: 25, q: "25. ¿Qué factor de transcripción es el regulador \"maestro\" indispensable para la diferenciación de células mesenquimales hacia el linaje de OSTEOBLASTOS?", opts: ["a) Sox9.", "b) Cbfa1 (también conocido como Runx2).", "c) Ihh.", "d) c-Maf."], ans: "b) Cbfa1 (también conocido como Runx2).", exp: "Cbfa1/Runx2 marca la diferenciación osteoblástica, mientras que la familia Sox (Sox5,6,9) rige la diferenciación condrogénica." },
+            { id: 26, q: "26. La formación de los huesos planos del cráneo (como la calota) no utiliza un molde de cartílago, sino que el hueso se forma directamente a partir de la condensación del mesénquima. Este proceso se denomina:", opts: ["a) Osificación membranosa.", "b) Osificación endocondral.", "c) Crecimiento intersticial haversiano.", "d) Remodelado aposicional."], ans: "a) Osificación membranosa.", exp: "La osificación membranosa es directa (sin cartílago) y forma el hueso esponjoso embrionario de los huesos planos." },
+            { id: 27, q: "27. TRAMPA HISTOLÓGICA: La membrana sinovial recubre internamente la cápsula de las articulaciones diartrodiales. Su capa más superficial (\"íntima sinovial\") parece un epitelio, PERO se diferencia estructuralmente de un verdadero epitelio de revestimiento en que:", opts: ["a) Produce queratina masivamente.", "b) Carece absolutamente de lámina basal.", "c) Posee abundantes cilios para mover el líquido.", "d) Es totalmente avascular."], ans: "b) Carece absolutamente de lámina basal.", exp: "Las diapositivas y el temario hacen hincapié en que los sinoviocitos descansan sobre tejido conjuntivo vascular, pero \"There is no basal lamina\"." },
+            { id: 28, q: "28. En la íntima de la membrana sinovial conviven dos tipos celulares (Sinoviocitos A y B). ¿Cuál es la función específica de los Sinoviocitos tipo B, que morfológicamente se asemejan a los fibroblastos?", opts: ["a) Actuar como macrófagos para fagocitar detritos articulares.", "b) Producir el líquido sinovial (ácido hialurónico, mucina y lubricina).", "c) Destruir el cartílago articular mediante metaloproteinasas.", "d) Convertirse en osteoclastos."], ans: "b) Producir el líquido sinovial (ácido hialurónico, mucina y lubricina).", exp: "Los sinoviocitos B son las células secretoras responsables del componente viscoelástico y lubricante del líquido articular." },
+            { id: 29, q: "29. A diferencia del resto de los cartílagos del organismo, el CARTÍLAGO ARTICULAR (hialino) tiene una peculiaridad anatómica vital para evitar ser destrozado por la fricción. ¿Cuál es?", opts: ["a) Carece totalmente de Pericondrio.", "b) Está recubierto directamente por la membrana sinovial.", "c) Tiene vasos sanguíneos propios que llegan hasta la superficie.", "d) Posee colágeno tipo I en lugar de tipo II."], ans: "a) Carece totalmente de Pericondrio.", exp: "El cartílago articular (\"It lacks perichondrium\") debe nutrirse exclusivamente por difusión desde el líquido sinovial." },
+            { id: 30, q: "30. En condiciones normales, las células del cartílago articular de un adulto sano (a diferencia de las del cartílago de crecimiento):", opts: ["a) Se hipertrofian y calcifican anualmente.", "b) Se dividen constantemente a gran velocidad.", "c) Raramente se dividen y no sufren diferenciación hipertrófica, manteniendo la superficie articular toda la vida.", "d) Producen líquido sinovial."], ans: "c) Raramente se dividen y no sufren diferenciación hipertrófica, manteniendo la superficie articular toda la vida.", exp: "La última diapositiva indica que los condrocitos articulares \"raramente se dividen\" y \"en condiciones normales no sufren diferenciación hipertrófica\"" }
+        ];
+
+        let questions = [];
+        let marked = new Set();
+        let answers = {}; // {id: bool}
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initQuiz(randomize) {
+            questions = randomize ? shuffle([...originalQuestions]) : [...originalQuestions];
+            document.getElementById('overlay').style.display = 'none';
+            renderSidebar();
+            renderQuestions();
+        }
+
+        function renderSidebar() {
+            const grid = document.getElementById('index-grid');
+            grid.innerHTML = '';
+            questions.forEach((q, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'index-btn';
+                btn.id = `idx-${q.id}`;
+                btn.innerText = i + 1;
+                btn.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = '';
+            questions.forEach((q, i) => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${q.id}`;
+                
+                // Shuffle options for each load
+                const shuffledOpts = shuffle([...q.opts]);
+
+                card.innerHTML = `
+                    <label class="mark-tab">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this.checked)"> Marcar
+                    </label>
+                    <p><strong>Pregunta ${i + 1}</strong></p>
+                    <p>${q.q}</p>
+                    <div id="opts-${q.id}">
+                        ${shuffledOpts.map(opt => `
+                            <button class="option-btn" onclick="checkAnswer(${q.id}, '${opt.replace(/'/g, "\\'")}', '${q.ans.replace(/'/g, "\\'")}')">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${q.id}">${q.exp}</div>
+                `;
+                container.appendChild(card);
+            });
+            if (window.MathJax) MathJax.typeset();
+        }
+
+        function checkAnswer(id, selected, correct) {
+            const exp = document.getElementById(`exp-${id}`);
+            const optsDiv = document.getElementById(`opts-${id}`);
+            const idxBtn = document.getElementById(`idx-${id}`);
+            
+            if (answers[id] !== undefined) return;
+
+            const isCorrect = selected === correct;
+            answers[id] = isCorrect;
+            
+            exp.style.display = 'block';
+            idxBtn.classList.add(isCorrect ? 'answered-correct' : 'answered-wrong');
+
+            Array.from(optsDiv.children).forEach(btn => {
+                btn.classList.add('disabled');
+                if (btn.innerText.trim() === correct) btn.classList.add('correct');
+                else if (btn.innerText.trim() === selected) btn.classList.add('wrong');
+            });
+        }
+
+        function toggleMark(id, isMarked) {
+            const idxBtn = document.getElementById(`idx-${id}`);
+            if (isMarked) {
+                marked.add(id);
+                idxBtn.classList.add('is-marked');
+            } else {
+                marked.delete(id);
+                idxBtn.classList.remove('is-marked');
+            }
+        }
+
+        function finishSession() {
+            const total = Object.keys(answers).length;
+            const correct = Object.values(answers).filter(v => v).length;
+            
+            document.getElementById('overlay-title').innerText = "Resumen de Sesión";
+            document.getElementById('final-score').innerText = `Aciertos: ${correct} / ${total} respondidas`;
+            document.getElementById('start-buttons').style.display = 'none';
+            document.getElementById('result-options').style.display = 'block';
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        function restartQuiz(mode) {
+            let filterIds = [];
+            if (mode === 'failed') {
+                filterIds = Object.keys(answers).filter(id => !answers[id]).map(Number);
+            } else if (mode === 'marked') {
+                filterIds = Array.from(marked);
+            } else if (mode === 'both') {
+                const failed = Object.keys(answers).filter(id => !answers[id]).map(Number);
+                filterIds = Array.from(new Set([...failed, ...Array.from(marked)]));
+            }
+
+            if (filterIds.length === 0) {
+                alert("No hay preguntas en esa categoría.");
+                return;
+            }
+
+            questions = originalQuestions.filter(q => filterIds.includes(q.id));
+            answers = {};
+            marked = new Set();
+            document.getElementById('overlay').style.display = 'none';
+            renderSidebar();
+            renderQuestions();
+        }
+    </script>
+</body>
+</html>

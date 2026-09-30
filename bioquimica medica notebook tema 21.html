@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Histología y Bioquímica de la Visión</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            color: white;
+            z-index: 100;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 0.9em;
+            transition: 0.3s;
+        }
+
+        .index-item:hover { background: var(--secondary); }
+        .index-item.answered { border-left: 4px solid var(--success); }
+        .index-item.marked { background: var(--warning) !important; color: black; }
+
+        /* Contenido Principal */
+        #main-content {
+            margin-left: 80px;
+            flex-grow: 1;
+            padding: 20px;
+            max-width: 900px;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            scroll-margin-top: 120px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: var(--primary);
+        }
+
+        .mark-btn {
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .mark-btn.active {
+            background: var(--warning);
+            color: black;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            border: 2px solid #edf2f7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option:hover { background: #f8fafc; border-color: var(--secondary); }
+        .option.correct { background: #d4edda !important; border-color: var(--success) !important; }
+        .option.incorrect { background: #f8d7da !important; border-color: var(--error) !important; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 5px solid var(--secondary);
+            display: none;
+            font-size: 0.95em;
+        }
+
+        /* Modal Inicial y Final */
+        .modal {
+            position: fixed;
+            top:0; left:0; width: 100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        button.main-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button.main-btn:hover { background: #2980b9; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-modal" class="modal">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>¿Cómo deseas realizar las preguntas?</p>
+            <button class="main-btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="main-btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="main-content">
+        <header>
+            <h1>Visión: Histología y Bioquímica</h1>
+            <div id="progress-bar" style="font-size: 0.9em; color: #666;">
+                Responde las preguntas para ver tu progreso.
+            </div>
+            <button onclick="showResults()" style="margin-top:10px; cursor:pointer">Finalizar Cuestionario</button>
+        </header>
+
+        <div id="quiz-container"></div>
+
+        <div id="results-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Resultados</h2>
+                <div id="score-text" style="font-size: 1.5em; margin-bottom: 20px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="main-btn" onclick="restart('all')">Repetir todo el cuestionario</button>
+                    <button class="main-btn" id="btn-failed" onclick="restart('failed')">Repetir solo falladas</button>
+                    <button class="main-btn" id="btn-marked" onclick="restart('marked')">Repetir solo marcadas</button>
+                    <button class="main-btn" id="btn-both" onclick="restart('both')">Repetir falladas + marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawQuestions = [
+            { id: 1, q: "Según la histología de la retina explicada en clase, ¿qué estructura forman los axones de las células ganglionares?", options: ["El epitelio pigmentado.", "El nervio óptico.", "La mácula.", "El segmento interno de los fotorreceptores."], correct: 1, exp: "La profesora detalla las capas de la retina invertida: fotorreceptores, células bipolares, células ganglionares, y menciona explícitamente que los axones de las células ganglionares son los que forman el nervio óptico." },
+            { id: 2, q: "Respecto a los fotorreceptores, señale la afirmación CORRECTA:", options: ["Hay 3 millones de bastones encargados de la visión en blanco y negro.", "Los conos poseen discos cerrados en su segmento externo.", "Los bastones son responsables de la visión en blanco y negro con luz tenue y hay unos 100 millones.", "La yodopsina es la proteína principal de los bastones."], correct: 2, exp: "Hay 100 millones de bastones para la luz tenue (blanco/negro) y 3 millones de conos para luz intensa (color). Los conos tienen invaginaciones continuas (abiertas), mientras que los bastones tienen discos cerrados. La yodopsina es de los conos." },
+            { id: 3, q: "¿En qué parte del fotorreceptor se produce la síntesis de proteínas y la energía necesaria para el proceso visual?", options: ["Segmento externo.", "Cilio conector.", "Segmento interno.", "Terminal sináptico."], correct: 2, exp: "El segmento interno es rico en mitocondrias y ribosomas, y es allí donde se produce la energía y se sintetizan las proteínas que pasarán al segmento externo." },
+            { id: 4, q: "La rodopsina está formada por una parte proteica (opsina) y un grupo prostético. ¿Cómo se unen ambos componentes?", options: ["Mediante puentes de hidrógeno a un residuo de serina.", "Mediante enlace covalente (base de Schiff protonada) entre el retinal y un grupo amino de la lisina.", "Mediante un enlace disulfuro.", "Mediante unión iónica con el calcio."], correct: 1, exp: "La unión es covalente mediante una base de Schiff protonada entre el retinal y el residuo Lys296 de la opsina." },
+            { id: 5, q: "¿Qué molécula procedente de la dieta actúa como precursor para originar 2 moléculas de retinal en el intestino?", options: ["Ácido retinoico.", "Todo-trans-retinal.", "β-caroteno.", "Prealbúmina."], correct: 2, exp: "La diapositiva marca con un asterisco y la profesora lo menciona en clase: una molécula de β-caroteno se hidroliza para dar 2 moléculas de retinal." },
+            { id: 6, q: "En el enterocito, la vitamina A ingerida sufre transformaciones antes de viajar al hígado. ¿En qué estado es empaquetada en los quilomicrones?", options: ["Como 11-cis-retinal libre.", "Como todo-trans-retinal esterificado con un ácido graso (generalmente palmitato).", "Unida a la proteína RBP.", "Unida a la Prealbúmina."], correct: 1, exp: "En el intestino hay oxidación a todo-trans-retinal y esterificación con un ácido graso (palmitato) antes de incorporarse a los quilomicrones." },
+            { id: 7, q: "Una vez que los quilomicrones llegan al hígado y se produce la hidrólisis del palmitato, ¿cómo sale el todo-trans-retinal a la sangre?", options: ["Unido exclusivamente a quilomicrones residuales.", "Libre y disuelto en plasma.", "Unido a la proteína RBP y, posteriormente, a la prealbúmina.", "Convertido en 11-cis-retinal por una isomerasa hepática."], correct: 2, exp: "En el hígado se separa el palmitato. El todo-trans-retinal se une a la proteína de unión de retinal (RBP) y al salir a sangre se asocia a la prealbúmina." },
+            { id: 8, q: "Al llegar al epitelio pigmentado de la retina, el complejo Todo-trans-retinal-RBP-Prealbúmina interacciona con receptores de membrana. ¿Qué molécula penetra finalmente en el interior de la célula del epitelio pigmentado?", options: ["La Prealbúmina.", "El Todo-trans-retinal libre.", "El 11-cis-retinal.", "La proteína RBP."], correct: 1, exp: "Los receptores sólo captan el todo-trans-retinal. La prealbúmina vuelve a sangre y la RBP pierde afinidad y se degrada (se elimina vía renal)." },
+            { id: 9, q: "Una vez dentro del epitelio pigmentado, ¿qué encima es indispensable para que el derivado de la vitamina A pueda unirse a la opsina?", options: ["Rodopsina quinasa.", "Guanilato ciclasa.", "Isomerasa.", "Fosfodiesterasa."], correct: 2, exp: "La isomerasa convierte el todo-trans-retinal en 11-cis-retinal, que es la única forma que puede unirse a la opsina para formar rodopsina." },
+            { id: 10, q: "[¡PREGUNTA CON ESTRELLITA ROJA DE LA PROFESORA!] ¿Cuál es el primer evento físico-químico que ocurre cuando un fotón incide sobre la rodopsina?", options: ["Se abren los canales de sodio.", "La subunidad alfa de la transducina pierde su GDP.", "El grupo prostético 11-cis-retinal cambia su conformación a todo-trans-retinal.", "La arrestina se une a la opsina."], correct: 2, exp: "La profesora avisó 'estrellita rojo, pregunta'. Lo primero que ocurre por la absorción del fotón es la isomerización lumínica del 11-cis-retinal a todo-trans-retinal." },
+            { id: 11, q: "¿Cuál es la rodopsina activa?", options: ["Batorrodopsina.", "Lumirrodopsina.", "Metarrodopsina I.", "Metarrodopsina II."], correct: 3, exp: "La profesora fue enfática: 'Lo he preguntado muchas veces en los exámenes. ¿Cuál es la rodopsina activa? La Metarrodopsina II'." },
+            { id: 12, q: "¿A qué proteína se une la Metarrodopsina II (R*) en el disco del bastón?", options: ["Arrestina.", "Transducina (proteína G).", "Fosfodiesterasa 6.", "Guanilato ciclasa."], correct: 1, exp: "La R* expone sitios de unión con alta afinidad para la Transducina (proteína G trimérica Tα,β,γ)." },
+            { id: 13, q: "Tras el acoplamiento de la rodopsina activa (R*) con la transducina, ¿qué evento bioquímico ocurre en la transducina?", options: ["La subunidad β se fosforila.", "La subunidad α libera GDP y capta GTP.", "La subunidad γ se une al AMPc.", "El complejo trimérico αβγ entero migra al núcleo."], correct: 1, exp: "Como cualquier proteína G, al activarse, su subunidad α suelta el GDP, se une al GTP y se separa de las subunidades βγ." },
+            { id: 14, q: "¿A qué enzima activa la subunidad Tα-GTP de la transducina en la cascada de fototransducción?", options: ["Adenilato ciclasa.", "GMPc Fosfodiesterasa 6 (PDE6).", "Rodopsina quinasa.", "Isomerasa."], correct: 1, exp: "La subunidad alfa unida a GTP activa a la GMPc Fosfodiesterasa 6, enzima característica de la retina." },
+            { id: 15, q: "¿Cómo logra la Tα-GTP activar concretamente a la Fosfodiesterasa 6 (PDE6)?", options: ["Fosforilando sus subunidades α y β.", "Separando o retirando sus subunidades inhibitorias γ.", "Aportándole el sustrato GTP.", "Destruyendo a la arrestina."], correct: 1, exp: "La PDE6 tiene 2 subunidades catalíticas (α,β) y 2 inhibitorias (γ). La transducina activa separa las subunidades γ, dejando libres las catalíticas para que actúen." },
+            { id: 16, q: "¿Cuál es el sustrato de la Fosfodiesterasa 6 en el segmento externo del fotorreceptor?", options: ["ATP.", "AMPc.", "GTP.", "GMPc."], correct: 3, exp: "La PDE6 hidroliza el GMPc (Guanosín monofosfato cíclico), convirtiéndolo en 5'-GMP inactivo, lo que provoca una caída drástica de su concentración." },
+            { id: 17, q: "En una situación de total oscuridad, ¿qué ocurre con los canales de Na+ del segmento externo del fotorreceptor?", options: ["Están cerrados por la acción de la PDE6.", "Están mantenidos abiertos gracias a la alta concentración de GMPc.", "Están bloqueados por el calcio.", "Permiten la salida pasiva de potasio."], correct: 1, exp: "En la oscuridad hay una producción constante de GMPc que mantiene los canales de Na+ abiertos, permitiendo un flujo de entrada (corriente oscura)." },
+            { id: 18, q: "Cuando hay luz y desciende la concentración de GMPc intracelular, el resultado directo sobre la membrana plasmática del fotorreceptor es:", options: ["Apertura masiva de canales de Na+ induciendo despolarización.", "Cierre de los canales de Na+ induciendo hiperpolarización.", "Paro de la bomba de Na+/K+ ATPasa.", "Apertura de canales de cloruro."], correct: 1, exp: "La luz baja el GMPc, lo que cierra los canales de Na+. Al no poder entrar cargas positivas (pero seguir funcionando la bomba de salida), el interior se vuelve más negativo (hiperpolarización)." },
+            { id: 19, q: "Según remarcó la profesora en clase, ¿qué le ocurre a la bomba de Na+/K+ ATPasa del segmento interno durante el impacto de luz?", options: ["Se acelera drásticamente.", "Invierte su sentido.", "Se inactiva por la caída de GMPc.", "No se ve alterada y continúa funcionando."], correct: 3, exp: "Cita literal de la diapo y de la profe: 'La bomba de Na+/K+ no se ve alterada, simplemente el sodio no pasa al interior'." },
+            { id: 20, q: "¿Qué neurotransmisor libera el fotorreceptor en estado de OSCURIDAD (membrana despolarizada)?", options: ["Glutamato.", "Acetilcolina.", "GABA.", "Dopamina."], correct: 2, exp: "En oscuridad, el canal abierto y la membrana despolarizada permiten la liberación constante del neurotransmisor inhibitorio GABA." },
+            { id: 21, q: "[¡ESTRELLITA ROJA DE LA PROFE!] Cuando la luz incide sobre la retina y la membrana del fotorreceptor se hiperpolariza, ¿qué molécula se libera hacia la célula bipolar?", options: ["Glutamato (excitatorio).", "GABA (inhibitorio).", "Adrenalina.", "Serotonina."], correct: 0, exp: "Pregunta muy marcada en clase ('En rojo, estrellita, lo pregunto'). La hiperpolarización mediada por luz provoca la liberación de vesículas de glutamato excitatorio." },
+            { id: 22, q: "Sobre el impulso nervioso en la cascada visual, la profesora aclaró que:", options: ["El fotorreceptor genera un potencial de acción al recibir el fotón.", "La luz bloquea la liberación de vesículas por completo.", "En el fotorreceptor NO hay potencial de acción, solo hiperpolarización; el potencial se da en la célula bipolar.", "El nervio óptico hiperpolariza el cerebro."], correct: 2, exp: "En el audio insiste: 'No estoy hablando de que en el fotorreceptor se produzca un potencial de acción, simplemente hay hiperpolarización. El potencial de acción se produce en las células bipolares'." },
+            { id: 23, q: "El primer paso para la inactivación de la cascada de fototransducción es detener la hidrólisis de GMPc. ¿Qué mecanismo apaga a la fosfodiesterasa (PDE6)?", options: ["La fosforilación directa de la PDE6 por la rodopsina quinasa.", "La actividad GTPásica intrínseca de la subunidad Tα, que hidroliza GTP a GDP.", "La unión de la arrestina a la PDE6.", "El agotamiento absoluto del GMPc citosólico."], correct: 1, exp: "Como toda proteína G, la subunidad α hidroliza el GTP a GDP. Al quedar Tα-GDP, recupera su afinidad por las subunidades βγ, abandonando a la PDE6, que vuelve a inhibirse." },
+            { id: 24, q: "Una vez inactivada la cascada, es necesario abrir de nuevo los canales de sodio para volver al estado de oscuridad. ¿Qué enzima se encarga de reponer los niveles de GMPc?", options: ["Adenilato ciclasa.", "Rodopsina quinasa.", "Guanilato ciclasa.", "Fosfodiesterasa 6."], correct: 2, exp: "La Guanilato ciclasa convierte el GTP en GMPc, reponiendo su concentración y reabriendo los canales dependientes del mismo." },
+            { id: 25, q: "Para desactivar a la rodopsina excitada (Metarrodopsina II), el primer paso es su fosforilación. ¿Qué enzima realiza esta tarea?", options: ["Fosfodiesterasa.", "Arrestina.", "Proteína Quinasa A (PKA).", "Rodopsina quinasa."], correct: 3, exp: "La Rodopsina quinasa fosforila los residuos expuestos del extremo C-terminal en cuanto la rodopsina pasa a su estado activo R*." },
+            { id: 26, q: "¿En qué aminoácidos específicos del extremo carboxilo-terminal (C-terminal) actúa la rodopsina quinasa?", options: ["Tirosina y Cisteína.", "Lisina y Arginina.", "Serina y Treonina.", "Triptófano y Prolina."], correct: 2, exp: "La quinasa fosforila residuos de Serina (Ser) y Treonina (Trn) que quedan expuestos al formarse la Metarrodopsina II." },
+            { id: 27, q: "Tras la fosforilación de la Metarrodopsina II, ¿qué proteína se une a estos residuos fosforilados bloqueando por completo la interacción con la transducina?", options: ["Todo-trans-retinal.", "Arrestina (Antígeno S).", "RBP.", "Prealbúmina."], correct: 1, exp: "La proteína Arrestina (también llamada 48k o Antígeno S) reconoce la zona fosforilada y se une, bloqueando la señal hacia la transducina." },
+            { id: 28, q: "Además de bloquear a la transducina, ¿qué otra función física realiza la unión de la Arrestina a la rodopsina fosforilada?", options: ["Destruye la opsina en proteasomas.", "Provoca la separación física de la opsina y del todo-trans-retinal.", "Isomeriza el retinal allí mismo dentro del fotorreceptor.", "Secreta glutamato."], correct: 1, exp: "La unión de arrestina debilita la unión covalente y permite que el todo-trans-retinal se libere y se separe de la parte proteica (opsina)." },
+            { id: 29, q: "Tras la separación mediada por arrestina, el Todo-trans-retinal libre en el fotorreceptor:", options: ["Pasa al epitelio pigmentado donde se isomeriza de nuevo a 11-cis-retinal por una isomerasa.", "Es destruido y eliminado a través del humor vítreo.", "Se vuelve a unir inmediatamente a la opsina sin modificar su estructura.", "Se convierte en β-caroteno."], correct: 0, exp: "El todo-trans-retinal degradado viaja al epitelio pigmentado, donde una isomerasa lo convierte en 11-cis-retinal para poder volver al fotorreceptor y regenerar rodopsina." },
+            { id: 30, q: "Si el 11-cis-retinal viene del intercambio inmediato con el epitelio pigmentado, procede de:", options: ["La degradación de la rodopsina fotoexcitada.", "La escisión de un colesterol.", "La síntesis de Novo en el nervio óptico.", "La yodopsina de los conos vecinos."], correct: 0, exp: "Se especifica claramente el doble origen del grupo prostético: la dieta (acumulado en hígado) o el reciclaje/degradación de la propia rodopsina tras el ciclo visual." },
+            { id: 31, q: "La Rodopsina constituye el grueso proteico de los discos del bastón. ¿Qué porcentaje de las proteínas totales del segmento externo representa aproximadamente?", options: ["25%.", "50%.", "80%.", "95%."], correct: 3, exp: "Según la diapositiva del Tema 21, la rodopsina supone el 95% de las proteínas del segmento externo (y el 80% de la proteína total del fotorreceptor)." },
+            { id: 32, q: "¿Qué subunidades forman el heterotrímero de la Transducina en estado inactivo?", options: ["α,β,γ unidas a GDP.", "α,β,γ unidas a GTP.", "α (GTP) separada de βγ.", "Dos subunidades catalíticas y dos inhibitorias."], correct: 0, exp: "En reposo, la proteína G transducina está formada por sus tres subunidades (α,β,γ) con una molécula de GDP anclada a la subunidad α." },
+            { id: 33, q: "Sobre las longitudes de onda a las que absorben los fotorreceptores:", options: ["Los bastones absorben su pico máximo a 564 nm (luz roja).", "El pico de absorción de los bastones se sitúa en torno a los 498 nm.", "Todos los conos absorben exactamente a 437 nm.", "Los conos verdes absorben luz ultravioleta (300 nm)."], correct: 1, exp: "El gráfico y la explicación indican: Bastones 498 nm; conos azules 437 nm; conos verdes 533 nm; conos rojos 564 nm." },
+            { id: 34, q: "¿Qué ocurre con la proteína RBP (Retinol Binding Protein) después de dejar el todo-trans-retinal en el receptor de la célula del epitelio pigmentado?", options: ["Atraviesa la membrana hacia el citosol celular.", "Viaja de regreso al hígado intacta para recoger más vitamina A.", "Pierde su afinidad por el receptor al cortarse su Arg terminal y es eliminada vía renal.", "Se fusiona con la opsina para formar rodopsina."], correct: 2, exp: "La diapositiva indica que la RBP es inactivada al unirse al receptor por eliminación de la Arg terminal (carboxipeptidasa) y sufre eliminación vía renal." },
+            { id: 35, q: "De las siguientes opciones, señale la ruta ordenada correcta de la vitamina A de la dieta hasta el ojo:", options: ["Enterocito → Hígado → Sangre (RBP+Prealbúmina) → Epitelio Pigmentado → Fotorreceptor.", "Hígado → Enterocito → Nervio óptico → Fotorreceptor.", "Sangre (Quilomicrones) → Córnea → Epitelio Pigmentado.", "Estómago → Bilis → Cristalino → Retina."], correct: 0, exp: "Es el flujo exacto explicado en clase: digestión en enterocito (quilomicrones) → almacén en hígado → transporte sanguíneo (RBP/Prealbúmina) → Epitelio Pigmentado → Bastón." },
+            { id: 36, q: "Durante la 'corriente oscura' del fotorreceptor, si aplicamos un fármaco que inhiba de manera artificial la bomba de Na+/K+ ATPasa del segmento interno, ¿qué efecto secundario se esperaría?", options: ["El Na+ se acumularía infinitamente dentro del fotorreceptor, deteniendo la circulación iónica.", "Se liberaría glutamato inmediatamente.", "El 11-cis-retinal se isomerizaría sin luz.", "Aumentaría el GMPc."], correct: 0, exp: "De los esquemas bioquímicos: el Na+ entra por los canales dependientes de GMPc y debe salir constantemente por la bomba ATPasa del segmento interno para mantener el ciclo. Si la inhibes, colapsas el gradiente electroquímico." },
+            { id: 37, q: "¿A nivel estructural, la enzima Fosfodiesterasa 6 (PDE6) se compone de?", options: ["7 hélices transmembrana.", "2 subunidades catalíticas (α,β) y 2 subunidades inhibitorias (γ).", "3 subunidades (α,β,γ).", "Una cadena polipeptídica con un residuo de lisina."], correct: 1, exp: "A diferencia de otras fosfodiesterasas de 3 subunidades, la PDE6 retiniana posee cuatro: 2 catalíticas y 2 inhibitorias, como recalca la profesora." },
+            { id: 38, q: "La 'ceguera transitoria' por deslumbramiento que sufrimos al encender la luz se debe al tiempo necesario para:", options: ["Destruir los bastones e hipertrofiar los conos.", "Cerrar la pupila mecánicamente.", "Cambiar de un neurotransmisor inhibitorio (GABA) a uno excitatorio (Glutamato) en la sinapsis del fotorreceptor.", "Deshidratar la córnea."], correct: 2, exp: "La profe explica textualmente que el tiempo que tardamos en enfocar al despertar se debe a los microsegundos necesarios para hacer la alternancia neuroquímica de GABA a Glutamato." },
+            { id: 39, q: "Sobre la prealbúmina sanguínea, es falso que:", options: ["Acompaña al complejo Todo-trans-retinal-RBP en sangre.", "Llega hasta las células oculares del epitelio pigmentado.", "Entra en el citoplasma del epitelio pigmentado junto al retinal.", "Vuelve a la sangre libre para ser utilizada de nuevo tras dejar el retinal."], correct: 2, exp: "La prealbúmina NO entra a la célula epiteliana. Como remarcó la profesora: 'la prealbúmina vuelve a la sangre porque puede ser utilizada de nuevo', solo el retinal entra." },
+            { id: 40, q: "¿En qué orden de tiempo ocurre específicamente la desactivación de la rodopsina descrita en clase?", options: ["Horas.", "Minutos.", "Segundos.", "Nanosegundos."], correct: 3, exp: "La profesora señala que el acoplamiento R con rodopsina quinasa y arrestina ocurre sumamente rápido, 'en nanosegundos o menos' tras el inicio de la estimulación." }
+        ];
+
+        let questions = [];
+        let marked = new Set();
+        let answers = {}; // { index: { correct: bool, selected: int } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('setup-modal').classList.add('hidden');
+            questions = isRandom ? shuffle([...rawQuestions]) : [...rawQuestions];
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            questions.forEach((qData, index) => {
+                // Generar ID único basado en el objeto original para persistencia de fallos/marcas
+                const qId = qData.id;
+
+                // Crear Item de Índice
+                const idxItem = document.createElement('div');
+                idxItem.className = `index-item ${marked.has(qId) ? 'marked' : ''}`;
+                idxItem.id = `idx-${index}`;
+                idxItem.innerText = index + 1;
+                idxItem.onclick = () => document.getElementById(`q-${index}`).scrollIntoView({behavior: 'smooth'});
+                sidebar.appendChild(idxItem);
+
+                // Crear Card de Pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${index}`;
+
+                // Mezclar opciones pero rastrear la correcta
+                let opts = qData.options.map((t, i) => ({ text: t, originalIdx: i }));
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <span class="question-text">${index + 1}. ${qData.q}</span>
+                        <button class="mark-btn ${marked.has(qId) ? 'active' : ''}" onclick="toggleMark(${qId}, ${index})">
+                            ${marked.has(qId) ? 'Marcada' : 'Marcar'}
+                        </button>
+                    </div>
+                    <div class="options-container">
+                        ${opts.map(o => `
+                            <div class="option" onclick="checkAnswer(this, ${index}, ${o.originalIdx}, ${qData.correct})">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${index}">
+                        <strong>Explicación:</strong> ${qData.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleMark(qId, index) {
+            if (marked.has(qId)) marked.delete(qId);
+            else marked.add(qId);
+            
+            // Actualizar UI
+            renderQuizStatus(index);
+        }
+
+        function renderQuizStatus(index) {
+            const qId = questions[index].id;
+            const idxItem = document.getElementById(`idx-${index}`);
+            const markBtn = document.querySelector(`#q-${index} .mark-btn`);
+            
+            if (marked.has(qId)) {
+                idxItem.classList.add('marked');
+                markBtn.classList.add('active');
+                markBtn.innerText = 'Marcada';
+            } else {
+                idxItem.classList.remove('marked');
+                markBtn.classList.remove('active');
+                markBtn.innerText = 'Marcar';
+            }
+        }
+
+        function checkAnswer(el, qIndex, selectedIdx, correctIdx) {
+            const container = el.parentElement;
+            const options = container.querySelectorAll('.option');
+            const isCorrect = selectedIdx === correctIdx;
+
+            // Guardar resultado
+            answers[qIndex] = { correct: isCorrect, qId: questions[qIndex].id };
+
+            // Marcar UI
+            options.forEach((opt, i) => {
+                opt.classList.add('disabled');
+                // Buscamos cuál de los elementos mostrados corresponde al correcto original
+                // Esto es un poco truco porque el HTML ya tiene el onclick con los índices
+            });
+
+            if (isCorrect) {
+                el.classList.add('correct');
+            } else {
+                el.classList.add('incorrect');
+                // Mostrar la correcta
+                const allOpts = Array.from(options);
+                // Como pasamos el correctIdx al onclick, podemos identificarlo
+            }
+            
+            // Revelar explicación
+            document.getElementById(`exp-${qIndex}`).style.display = 'block';
+            document.getElementById(`idx-${qIndex}`).classList.add('answered');
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.keys(answers).length;
+            document.getElementById('progress-bar').innerText = `Progreso: ${answeredCount} de ${questions.length} respondidas.`;
+        }
+
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const scoreText = document.getElementById('score-text');
+            const answeredKeys = Object.keys(answers);
+            const score = answeredKeys.filter(k => answers[k].correct).length;
+
+            scoreText.innerText = `Has acertado ${score} de ${questions.length}`;
+
+            // Controlar visibilidad de botones de repetición
+            const hasFailed = answeredKeys.some(k => !answers[k].correct);
+            const hasMarked = marked.size > 0;
+
+            document.getElementById('btn-failed').className = hasFailed ? 'main-btn' : 'hidden';
+            document.getElementById('btn-marked').className = hasMarked ? 'main-btn' : 'hidden';
+            document.getElementById('btn-both').className = (hasFailed || hasMarked) ? 'main-btn' : 'hidden';
+
+            modal.classList.remove('hidden');
+        }
+
+        function restart(mode) {
+            let nextQuestions = [];
+            
+            if (mode === 'all') {
+                nextQuestions = [...rawQuestions];
+            } else if (mode === 'failed') {
+                const failedIds = Object.values(answers).filter(a => !a.correct).map(a => a.qId);
+                nextQuestions = rawQuestions.filter(q => failedIds.includes(q.id));
+            } else if (mode === 'marked') {
+                nextQuestions = rawQuestions.filter(q => marked.has(q.id));
+            } else if (mode === 'both') {
+                const failedIds = Object.values(answers).filter(a => !a.correct).map(a => a.qId);
+                nextQuestions = rawQuestions.filter(q => failedIds.includes(q.id) || marked.has(q.id));
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            // Resetear estado
+            questions = nextQuestions;
+            answers = {};
+            document.getElementById('results-modal').classList.add('hidden');
+            renderQuiz();
+            window.scrollTo(0,0);
+            updateProgress();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 1</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; }
+
+        /* Contenedor principal */
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; }
+
+        .options-container { display: flex; flex-direction: column; gap: 12px; }
+
+        .option-btn {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0f8ff; }
+
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #eef2f3;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .mark-btn.active { background: gold; border-color: orange; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-action:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%;">Finalizar y Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1 id="quiz-title">Tema 1: Columna Vertebral (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Resultados</h2>
+        <p id="score-text"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        {
+            id: 1,
+            q: "1. El número de vértebras móviles es:",
+            options: [
+                { text: "24", isCorrect: true, rationale: "La columna móvil consta de 7 cervicales, 12 torácicas y 5 lumbares." },
+                { text: "12", isCorrect: false, rationale: "Este es solo el número de vértebras torácicas." },
+                { text: "33", isCorrect: false, rationale: "33 es el número total incluyendo las fusionadas (sacro y cóccix)." },
+                { text: "30", isCorrect: false, rationale: "Número incorrecto en la organización vertebral estándar." }
+            ]
+        },
+        {
+            id: 2,
+            q: "2. De los siguientes enunciados es cierto que:",
+            options: [
+                { text: "Cifosis y lordosis son curvas compensatorias", isCorrect: true, rationale: "Se desarrollan para compensar la bipedestación y la carga." },
+                { text: "En bipedestación el sacro no participa en el soporte del peso del cuerpo", isCorrect: false, rationale: "El sacro es fundamental en la transmisión de cargas hacia la pelvis." },
+                { text: "El sacro del varón es más cóncavo que en la mujer", isCorrect: false, rationale: "El sacro femenino suele ser más ancho, corto y menos curvo para facilitar el parto." },
+                { text: "La sacralización es la incorporación de una vértebra lumbar o coccígea al sacro", isCorrect: false, rationale: "La sacralización se refiere específicamente a la unión de L5 al sacro." }
+            ]
+        },
+        {
+            id: 3,
+            q: "3. Respecto a las curvas de la columna vertebral es cierto que:",
+            options: [
+                { text: "La cifosis torácica es una curva secundaria", isCorrect: false, rationale: "La cifosis torácica es primaria (presente en el feto)." },
+                { text: "La curvatura sacra es una curvatura de compensación", isCorrect: false, rationale: "La curva sacra es primaria." },
+                { text: "La lordosis es una curva convexa anteriormente", isCorrect: true, rationale: "Las lordosis (cervical y lumbar) presentan su convexidad hacia adelante." },
+                { text: "Todas las curvas raquídeas se forman en el período fetal", isCorrect: false, rationale: "Las curvas secundarias (lordosis) aparecen tras el nacimiento." }
+            ]
+        },
+        {
+            id: 4,
+            q: "4. La columna vertebral",
+            options: [
+                { text: "Contiene 33 vértebras móviles", isCorrect: false, rationale: "Solo 24 son móviles." },
+                { text: "En un individuo sano hay 3 curvaturas raquídeas", isCorrect: false, rationale: "Normalmente hay 4 (cervical, torácica, lumbar y sacra)." },
+                { text: "La lordosis es una curvatura de concavidad anterior", isCorrect: false, rationale: "Es de convexidad anterior." },
+                { text: "La curvatura pélvica se denomina cifosis sacra", isCorrect: true, rationale: "Es el nombre técnico de la curva primaria sacra." },
+                { text: "El recién nacido tiene dos curvaturas primarias", isCorrect: false, rationale: "El recién nacido tiene una única gran cifosis de la que derivan las primarias." }
+            ]
+        },
+        {
+            id: 5,
+            q: "5. La lordosis lumbar",
+            options: [
+                { text: "Se adquiere a lo largo del desarrollo embrionario del individuo", isCorrect: false, rationale: "Es secundaria, aparece al empezar a caminar." },
+                { text: "Es siempre patológico", isCorrect: false, rationale: "Es una curva fisiológica normal." },
+                { text: "Es una curva de concavidad anterior", isCorrect: false, rationale: "Es una curva de convexidad anterior." },
+                { text: "Es una curvatura secundaria que se adquiere cuando el individuo comienza a andar", isCorrect: true, rationale: "Surge para mantener el equilibrio en bipedestación." },
+                { text: "Ninguna es cierta", isCorrect: false, rationale: "La opción D es correcta." }
+            ]
+        },
+        {
+            id: 6,
+            q: "6. Las desviaciones de la columna en el plano frontal:",
+            options: [
+                { text: "Se denominan cifosis", isCorrect: false, rationale: "Las cifosis ocurren en el plano sagital." },
+                { text: "Se denominan escoliosis", isCorrect: false, rationale: "Es incompleta, falta valorar el carácter patológico." },
+                { text: "Son curvas patológicas", isCorrect: false, rationale: "Es incompleta." },
+                { text: "A y C son ciertas", isCorrect: false, rationale: "La cifosis no es frontal." },
+                { text: "B y C son ciertas", isCorrect: true, rationale: "La escoliosis es una desviación patológica en el plano frontal." }
+            ]
+        },
+        {
+            id: 7,
+            q: "7. Las curvas primarias del raquis",
+            options: [
+                { text: "a) Se forman cuando el niño comienza a caminar", isCorrect: false, rationale: "Esas son las secundarias." },
+                { text: "b) Se forman durante la vida intrauterina", isCorrect: true, rationale: "Las primarias (torácica y sacra) están presentes antes del nacimiento." },
+                { text: "c) Son siempre curvas compensatorias", isCorrect: false, rationale: "Las compensatorias son las secundarias." },
+                { text: "d) Incluye a la curvatura cervical", isCorrect: false, rationale: "La cervical es secundaria." }
+            ]
+        },
+        {
+            id: 8,
+            q: "8. En número de vértebras móviles es:",
+            options: [
+                { text: "24", isCorrect: true, rationale: "Cuerpo vertebral móvil estándar: 7+12+5." },
+                { text: "corresponde con el número de vértebras torácicas, es decir, 12", isCorrect: false, rationale: "Faltan las cervicales y lumbares." },
+                { text: "33-34", isCorrect: false, rationale: "Número total, no solo móviles." },
+                { text: "7 cervicales", isCorrect: false, rationale: "Solo incluye un segmento." },
+                { text: "las vértebras no se consideran elementos móviles", isCorrect: false, rationale: "Existen precisamente 24 vértebras presacras móviles." }
+            ]
+        },
+        {
+            id: 9,
+            q: "76. De los nervios raquídeos no es cierto que:",
+            options: [
+                { text: "a) Hay 8 nervios cervicales", isCorrect: false, rationale: "Esto es cierto." },
+                { text: "b) El primer nervio cervical emerge del conducto raquídeo entre el atlas y el axis", isCorrect: true, rationale: "Falso: emerge entre el occipital y el atlas (C1)." },
+                { text: "c) Hay 31 pares de nervios", isCorrect: false, rationale: "Esto es cierto." },
+                { text: "d) Se originan de la médula mediante dos raíces nerviosas", isCorrect: false, rationale: "Esto es cierto." }
+            ]
+        },
+        {
+            id: 10,
+            q: "86. Dentro del conducto raquídeo se encuentra/n:",
+            options: [
+                { text: "a) A la rama anterior de los nervios raquídeos", isCorrect: false, rationale: "Las ramas emergen fuera del foramen." },
+                { text: "b) A la raíz sensitiva de los nervios raquídeos", isCorrect: true, rationale: "Las raíces se encuentran dentro del conducto/foramen antes de unirse." },
+                { text: "c) La vena basivertebral y arteria vertebral", isCorrect: false, rationale: "La arteria vertebral va por los forámenes transversos cervicales." },
+                { text: "d) El plexo venoso externo", isCorrect: false, rationale: "Se encuentra fuera de las vértebras." }
+            ]
+        },
+        {
+            id: 11,
+            q: "87. Son articulaciones sinoviales:",
+            options: [
+                { text: "a) Las uncovertebrales", isCorrect: true, rationale: "En la región cervical, las articulaciones de Luschka son de tipo sinovial." },
+                { text: "b) Las costocondrales", isCorrect: false, rationale: "Son articulaciones cartilaginosas." },
+                { text: "c) La que se establece entre L5 y S1", isCorrect: false, rationale: "Es una sínfisis (disco intervertebral)." },
+                { text: "d) Las que se establecen entre los cuerpos vertebrales", isCorrect: false, rationale: "Son sínfisis (anfartrosis)." }
+            ]
+        },
+        {
+            id: 12,
+            q: "91. Es cierto que:",
+            options: [
+                { text: "a) A las superficies articulares de las articulaciones cigapofisarias cambian su orientación a lo largo de la columna", isCorrect: true, rationale: "La orientación cambia de coronal a sagital para permitir distintos movimientos." },
+                { text: "b) El disco intervertebral recupera la hidratación durante el día", isCorrect: false, rationale: "Se deshidrata durante el día por la carga y se hidrata en reposo." },
+                { text: "c) Los discos intervertebrales son estructuras ricamente vascularizadas", isCorrect: false, rationale: "Son prácticamente avasculares en el adulto." },
+                { text: "d) Las articulaciones cigapofisarias carecen de inervación", isCorrect: false, rationale: "Tienen una rica inervación propioceptiva y nociceptiva." }
+            ]
+        }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            // Navegación
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            // Card
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐ Marcada' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) btn.disabled = true;
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+
+        userAnswers[qId] = { correct: option.isCorrect };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            // Resaltar la correcta
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => {
+                if (b.innerText === correctText) b.classList.add('correct');
+            });
+        }
+        
+        updateNavStatus();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            btn.innerText = 'Marcar';
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            btn.innerText = '⭐ Marcada';
+        }
+        updateNavStatus();
+    }
+
+    function updateNavStatus() {
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Has acertado ${correctCount} de ${currentPool.length} preguntas.`;
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function restartQuiz(mode) {
+        let newPool = [];
+        if (mode === 'all') {
+            newPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            newPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            newPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            newPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (newPool.length === 0) {
+            alert("No hay preguntas en esta categoría.");
+            return;
+        }
+
+        currentPool = newPool;
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    // Inicio
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

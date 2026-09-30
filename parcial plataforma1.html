@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Aparato Urinario - Carmen Prada</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --sidebar-w: 70px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral recogido */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 32px;
+            height: 32px;
+            background: #34495e;
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        /* Pestaña Reiniciar Izquierda */
+        .restart-tab {
+            width: 100%;
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+            transition: 0.3s;
+        }
+        .restart-tab:hover { background: var(--accent); color: white; }
+
+        /* Contenido principal */
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option:hover:not(.disabled) { background: #f0f7ff; border-color: var(--accent); }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+            font-size: 0.9em;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Aparato Urinario - Carmen Prada</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados del Intento</h2>
+        <p id="score-text" style="font-size: 1.2em;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const questionsData = [
+        {
+            id: 1,
+            q: "Como se denomina el estrechamiento fisiológico en la porción inicial de los uréteres",
+            options: [
+                { text: "Unión pieloureteral", isCorrect: true, r: "La unión pieloureteral es el primer estrechamiento fisiológico donde la pelvis renal se continúa con el uréter." },
+                { text: "Trigono vesical", isCorrect: false, r: "El trígono es una estructura interna de la vejiga, no un estrechamiento del uréter." },
+                { text: "Unión calicoureteral", isCorrect: false, r: "No existe tal unión anatómica como estrechamiento inicial." },
+                { text: "Esfinter pélvico del uréter", isCorrect: false, r: "El uréter no posee un esfínter pélvico en su inicio." }
+            ]
+        },
+        {
+            id: 2,
+            q: "Cuál de las siguientes afirmaciones sobre la vena renal izquierda no se corresponde",
+            options: [
+                { text: "Se sitúa retroaórtica", isCorrect: true, r: "La vena renal izquierda es normalmente preaórtica, pasando por la pinza aortomesentérica." },
+                { text: "Sobre esta se acabalga la arteria mesenterica superior", isCorrect: false, r: "Esto es correcto, forma parte de la pinza aortomesentérica." },
+                { text: "Sobre esta drena la vena testicular izquierda", isCorrect: false, r: "Esto es correcto, a diferencia de la derecha que drena en la cava." },
+                { text: "Es el elemento más anterior del pedículo renal", isCorrect: false, r: "Es correcto, la disposición habitual es Vena-Arteria-Pelvis (VAP)." }
+            ]
+        },
+        {
+            id: 3,
+            q: "Cuál de las siguientes estructuras se tapizan en el pliegue umbilical medio",
+            options: [
+                { text: "Uraco", isCorrect: true, r: "El pliegue umbilical medio contiene el ligamento umbilical medio, resto del uraco fetal." },
+                { text: "Arteria Iliaca externa", isCorrect: false, r: "No forma pliegues umbilicales." },
+                { text: "Venas epigastricas inferiores", isCorrect: false, r: "Estas se encuentran en el pliegue umbilical lateral." },
+                { text: "Art Epigástricas externa", isCorrect: false, r: "Las arterias umbilicales obliteradas forman el pliegue medial, no el medio." }
+            ]
+        },
+        {
+            id: 4,
+            q: "Cuál de las siguientes no es rama de la arteria iliaca interna",
+            options: [
+                { text: "Epigástrica inferior", isCorrect: true, r: "La arteria epigástrica inferior es rama de la arteria ilíaca externa." },
+                { text: "Pudenda interna", isCorrect: false, r: "Es una rama parietal extrapélvica de la ilíaca interna." },
+                { text: "Rectal media", isCorrect: false, r: "Es una rama visceral de la ilíaca interna." },
+                { text: "Uterina", isCorrect: false, r: "Es una rama visceral de la ilíaca interna en la mujer." }
+            ]
+        },
+        {
+            id: 5,
+            q: "Cuál de los siguientes no es un origen de vasos suprarrenales",
+            options: [
+                { text: "Arterias subcostales", isCorrect: true, r: "Las glándulas suprarrenales reciben irrigación de las frénicas, la aorta y las renales, pero no de las subcostales." },
+                { text: "Arterias renales", isCorrect: false, r: "De aquí nacen las arterias suprarrenales inferiores." },
+                { text: "Aorta abdominal", isCorrect: false, r: "De aquí nacen directamente las arterias suprarrenales medias." },
+                { text: "Arterias frénicas inferiores", isCorrect: false, r: "De aquí nacen las arterias suprarrenales superiores." }
+            ]
+        },
+        {
+            id: 6,
+            q: "El reflujo de la orina es impedido por... excepto una respuesta",
+            options: [
+                { text: "Los vasos iliacos", isCorrect: true, r: "El cruce con los vasos ilíacos es un punto de estrechamiento, pero no un mecanismo antirreflejo funcional." },
+                { text: "Las fibras musculares lisas circulares del ureter", isCorrect: false, r: "La peristalsis ayuda al flujo anterógrado." },
+                { text: "Unión pieloureteral", isCorrect: false, r: "Aunque es un estrechamiento, el contexto sugiere buscar el elemento menos relacionado con la válvula vesical." },
+                { text: "Porción intraparietal en la vejiga", isCorrect: false, r: "Es el mecanismo principal (válvula fisiológica) al comprimirse por el detrusor." }
+            ]
+        },
+        {
+            id: 7,
+            q: "El trigono vesical deriva de",
+            options: [
+                { text: "Mesodermo", isCorrect: true, r: "A diferencia del resto de la vejiga (endodermo), el trígono tiene origen mesodérmico (conductos de Wolff)." },
+                { text: "Endodermo", isCorrect: false, r: "El endodermo origina el epitelio de la mayor parte de la vejiga, pero no el trígono." },
+                { text: "Ectodermo", isCorrect: false, r: "El sistema urinario no deriva del ectodermo." },
+                { text: "Cresta neural", isCorrect: false, r: "No participa en la formación del epitelio o musculatura vesical." }
+            ]
+        },
+        {
+            id: 8,
+            q: "En su trayecto abdominal, los uréteres no presentan una de las siguiente relaciones",
+            options: [
+                { text: "Se relacionan con los nervios iliohipogástricos", isCorrect: true, r: "Los uréteres descienden mediales a estos nervios, situándose sobre el psoas, pero no es una relación directa constante como las otras." },
+                { text: "Es retroperitoneal", isCorrect: false, r: "Es una afirmación correcta, el uréter siempre está tras el peritoneo." },
+                { text: "Descienden junto a las arterias gonadales", isCorrect: false, r: "Correcto, las arterias gonadales los cruzan anteriormente." },
+                { text: "Se adhieren a la fascia del musculo psoas", isCorrect: false, r: "Correcto, es su plano de sustentación posterior." }
+            ]
+        },
+        {
+            id: 9,
+            q: "La cápsula renal: señale la opción incorrecta",
+            options: [
+                { text: "Separa la grasa de Gerota o pararrenal del espacio perirrenal", isCorrect: true, r: "La fascia renal (Gerota) es la que separa la grasa perirrenal de la pararrenal, no la cápsula fibrosa propia del riñón." },
+                { text: "Presenta una doble lámina", isCorrect: false, r: "Se refiere a la fascia renal que tiene hoja anterior y posterior." },
+                { text: "Sella el espacio perirrenal", isCorrect: false, r: "Es una función compartida con la fascia renal para contener el órgano." },
+                { text: "Mantiene una dependencia estructural con la fascia del psoas", isCorrect: false, r: "Correcto, a través de los diversos planos de tejido conectivo retroperitoneal." }
+            ]
+        },
+        {
+            id: 10,
+            q: "La orina que destila de las papilas se vierte primeramente en",
+            options: [
+                { text: "Cálices menores", isCorrect: true, r: "Las papilas renales drenan directamente en los cálices menores, que rodean cada papila." },
+                { text: "Túbulos colectores", isCorrect: false, r: "Los túbulos están dentro de la pirámide; la orina sale de ellos por la papila." },
+                { text: "Pelvis", isCorrect: false, r: "La pelvis es la unión de los cálices mayores." },
+                { text: "Uréteres", isCorrect: false, r: "El uréter es posterior a la pelvis renal." }
+            ]
+        },
+        {
+            id: 11,
+            q: "Las arterias arciformes se sitúan",
+            options: [
+                { text: "Porción yuxtaglomerular en la base de la pirámide de Malpighi", isCorrect: true, r: "Las arciformes o arqueadas recorren la base de las pirámides, en el límite corticomedular." },
+                { text: "En las columnas de Bertin", isCorrect: false, r: "Aquí se sitúan las arterias interlobulares." },
+                { text: "Dicotomizadas en el seno renal", isCorrect: false, r: "En el seno están las arterias segmentarias." },
+                { text: "Divididas en las caras anterior y posterior de la pelvis", isCorrect: false, r: "No es la ubicación de las arciformes." }
+            ]
+        },
+        {
+            id: 12,
+            q: "Normalmente, tres cálices mayores se reúnen organizando",
+            options: [
+                { text: "La pelvis", isCorrect: true, r: "La unión de los cálices mayores (superior, medio e inferior) forma la pelvis renal." },
+                { text: "Los cálices menores", isCorrect: false, r: "Los menores forman los mayores, no al revés." },
+                { text: "La vejiga urinaria", isCorrect: false, r: "La vejiga está en la pelvis menor, lejos del riñón." },
+                { text: "Los Uréteres", isCorrect: false, r: "El uréter nace de la pelvis renal." }
+            ]
+        },
+        {
+            id: 13,
+            q: "Qué elemento no se encuentra en el espacio retroperitoneal",
+            options: [
+                { text: "Arterias yeyunales", isCorrect: true, r: "Las arterias yeyunales viajan dentro del mesenterio, que es una estructura intraperitoneal." },
+                { text: "Uréteres", isCorrect: false, r: "Son órganos clásicamente retroperitoneales." },
+                { text: "Venas testiculares u ováricas", isCorrect: false, r: "Tienen un trayecto retroperitoneal ascendente." },
+                { text: "Grasa pararrenal", isCorrect: false, r: "Se sitúa en el espacio retroperitoneal, fuera de la fascia renal." }
+            ]
+        },
+        {
+            id: 14,
+            q: "Sobre la porción intrínseca del uréter, una de las propiedades es falsa:",
+            options: [
+                { text: "Las fibras musculares lisas del músculo detrusor crean lazadas sobre esta porción", isCorrect: true, r: "Es falso; el uréter penetra oblicuamente y es la propia presión del detrusor la que lo colapsa, no 'lazadas' musculares específicas." },
+                { text: "Los forámenes de salida se encuentran en los vértices del trígono vesical", isCorrect: false, r: "Es cierto, son los meatos ureterales." },
+                { text: "Las fibras circulares del uréter crean un mecanismo esfinteriano antes de penetrar", isCorrect: false, r: "Es una descripción funcional aceptada del segmento prevesical." },
+                { text: "Su orificio de salida es oval", isCorrect: false, r: "Anatómicamente los meatos suelen tener forma de hendidura u ovalada." }
+            ]
+        },
+        {
+            id: 15,
+            q: "Sobre las arterias renales, señale la opción incorrecta",
+            options: [
+                { text: "La arteria renal derecha es más larga y se sitúa anterior a la vena cava inferior", isCorrect: true, r: "Falso. La arteria renal derecha es más larga pero se sitúa POSTERIOR (retrocava) a la vena cava inferior." },
+                { text: "A diferencia de la izquierda, la arteria renal derecha es retrocava", isCorrect: false, r: "Es una afirmación correcta." },
+                { text: "Se sitúan anteriores a la pelvis renal", isCorrect: false, r: "Correcto, siguiendo el orden Vena-Arteria-Pelvis." },
+                { text: "Perivascularmente, les acompañan los plexos renales vegetativos", isCorrect: false, r: "Correcto, los nervios viajan con las arterias." }
+            ]
+        }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...questionsData];
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            feedback.id = `fb-${q.id}`;
+
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${option.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = questionsData.find(q => q.id === qId).options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Puntuación: ${correctas} / ${total}`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...questionsData];
+        else if (mode === 'failed') next = questionsData.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = questionsData.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = questionsData.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    initQuiz(questionsData);
+</script>
+
+</body>
+</html>

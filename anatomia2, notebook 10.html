@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Anatomía - Faringe, Laringe y Topografía</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. Morfológicamente, la faringe se define como un órgano impar y simétrico con forma de cilindro. ¿Cuál es su característica anatómica definitoria? a) Está completamente cerrado por cartílagos. b) Es un cilindro incompleto al que le falta la pared anterior, comunicándose con las fosas nasales, boca y laringe. c) Posee un esfínter óseo en su entrada. d) Termina a nivel de la vértebra T12. Opción correcta: b Explicación: Prada insiste en que es un "canal abierto" por delante que sirve de vía común para el aire y el alimento.
+2. En la exploración clínica, al tocar la pared posterior de la orofaringe se desencadena el reflejo nauseoso. ¿Qué nervio recoge la sensibilidad (vía aferente) de este reflejo? a) Trigémino (V). b) Facial (VII). c) Glosofaríngeo (IX). d) Vago (X). Opción correcta: c Explicación: El IX par craneal es el "chivato" sensitivo de la orofaringe.
+3. En ese mismo reflejo nauseoso, la respuesta motora brusca que contrae la musculatura faríngea (vía eferente) está mediada por el nervio: a) Hipogloso (XII). b) Glosofaríngeo (IX). c) Vago (X). d) Accesorio (XI). Opción correcta: c Explicación: El X par (Vago) asume la inervación motora de casi todos los constrictores faríngeos.
+4. ¿Cómo se cierra la laringe mediante la epiglotis durante la deglución para evitar atragantamientos? a) Un músculo potente tira de ella hacia abajo. b) Al ascender la laringe por la musculatura suprahioidea, el ligamento hioepiglótico pierde tensión y la epiglotis cae PASIVAMENTE hacia atrás como una tapa. c) Se infla bloqueando el paso de aire. d) La tráquea sube y la envuelve. Opción correcta: b Explicación: Concepto biomecánico clave. Es un cierre mecánico y pasivo facilitado por la elevación del bloque laríngeo.
+5. En la laringofaringe, a ambos lados del relieve central de la laringe, existen unos canales por donde resbalan los líquidos para no entrar en la vía aérea. Se llaman: a) Valléculas glosoepiglóticas. b) Coanas. c) Recesos piriformes. d) Senos maxilares. Opción correcta: c Explicación: Actúan como "toboganes" laterales que dirigen los fluidos directamente al esófago.
+6. El espacio relleno de tejido conectivo laxo situado entre la fascia bucofaríngea y la lámina prevertebral se denomina: a) Espacio pretraqueal. b) Espacio retrofaríngeo. c) Vaina carotídea. d) Triángulo de Sédillot. Opción correcta: b Explicación: Es un plano "exangüe" y una autopista para la diseminación de infecciones hacia el mediastino.
+7. Las fibras inferiores del músculo constrictor inferior de la faringe tienen una función vital: a) Elevan el paladar blando. b) Actúan como un esfínter funcional abrazando el inicio del esófago para evitar la entrada de aire y el reflujo. c) Abren las cuerdas vocales. d) Deprimen el hueso hioides. Opción correcta: b Explicación: Mantiene cerrado el tubo digestivo hasta que llega la onda peristáltica.
+8. El esqueleto laríngeo se apoya sobre un único cartílago que forma un anillo completo (con forma de sello). ¿Cuál es? a) Tiroides. b) Cricoides. c) Epiglotis. d) Aritenoides. Opción correcta: b Explicación: Su arco anterior y lámina posterior alta lo hacen la base incompresible de la vía aérea.
+9. La prominencia laríngea ("Nuez de Adán") está formada por el ángulo diedro del cartílago tiroides. ¿Cómo varía este ángulo? a) Es más cerrado/agudo en hombres (90º), alargando las cuerdas vocales y agravando la voz. b) Es idéntico en ambos sexos. c) Apunta hacia atrás. d) Solo existe durante la infancia. Opción correcta: a Explicación: Explica el dimorfismo sexual de la laringe por influencia hormonal.
+10. Los cartílagos aritenoides tienen una apófisis anterointerna donde se ancla el ligamento vocal. Se denomina: a) Apófisis muscular. b) Tubérculo de Lisfranc. c) Apófisis vocal. d) Apófisis unciforme. Opción correcta: c Explicación: Apunta hacia delante (hacia el tiroides), sosteniendo la cuerda vocal verdadera.
+11. ¿Qué ocurre biomecánicamente en la articulación cricotiroidea cuando el cartílago tiroides bascula hacia adelante? a) Se abren las vías respiratorias. b) Se tensan los ligamentos vocales (como las cuerdas de una guitarra), agudizando el sonido. c) Se relajan las cuerdas vocales. d) Se cierra la glotis. Opción correcta: b Explicación: El músculo cricotiroideo inclina el cartílago y estira la cuerda vocal.
+12. El engrosamiento del borde libre superior del Cono Elástico constituye anatómicamente: a) El ligamento vestibular (cuerda falsa). b) El ligamento vocal (cuerda verdadera). c) El ligamento cricotiroideo medio. d) La membrana cuadrangular. Opción correcta: b Explicación: Esta "lengüeta" vibra con el aire para producir la voz.
+13. El espacio intermedio de la cavidad laríngea, comprendido exactamente entre los pliegues vestibulares (arriba) y los pliegues vocales (abajo), se llama: a) Ventrículo laríngeo. b) Vestíbulo laríngeo. c) Hendidura glótica. d) Espacio infraglótico. Opción correcta: a Explicación: Prada advierte que en este "bolsillo" lateral pueden esconderse tumores laríngeos incipientes.
+14. El espacio anatómico estricto que queda abierto entre los dos pliegues o cuerdas vocales verdaderas se llama: a) Aditus laryngis. b) Glotis (hendidura glótica). c) Vallécula. d) Coana. Opción correcta: b Explicación: Es el espacio funcional modulado para respirar y hablar.
+15. En un atragantamiento masivo, el abordaje de urgencia para abrir la vía aérea infraglótica (Cricotirotomía) se realiza perforando: a) El cartílago tiroides. b) La membrana tirohioidea. c) El ligamento cricotiroideo medio. d) El cartílago cricoides. Opción correcta: c Explicación: Es el punto blando y accesible superficialmente justo debajo de la nuez de Adán.
+16. Es el ÚNICO músculo intrínseco de la laringe capaz de ABDUCIR (separar) las cuerdas vocales, siendo vital para respirar: a) Tiroaritenoideo. b) Cricoaritenoideo lateral. c) Cricoaritenoideo posterior. d) Aritenoideo transverso. Opción correcta: c Explicación: Tira de la apófisis muscular hacia atrás y rota la apófisis vocal hacia afuera.
+17. "La gran excepción motora". Todos los músculos intrínsecos de la laringe están inervados por el nervio laríngeo recurrente EXCEPTO: a) El músculo vocal. b) El músculo cricotiroideo. c) El músculo cricoaritenoideo posterior. d) El músculo aritenoideo oblicuo. Opción correcta: b Explicación: Trampa clásica. El cricotiroideo está inervado por el nervio laríngeo EXTERNO (rama del l. superior).
+18. La inervación sensitiva de la mucosa supraglótica (el vestíbulo, que detona la tos) corresponde a: a) Nervio laríngeo recurrente. b) Nervio laríngeo interno (rama del superior). c) Nervio hipogloso. d) Nervio vago a nivel torácico. Opción correcta: b Explicación: Perfora la membrana tirohioidea para dar la sensibilidad superior.
+19. El nervio laríngeo recurrente IZQUIERDO desciende al tórax y "recurre" (sube) apoyándose por debajo de: a) La arteria subclavia derecha. b) El cayado aórtico. c) El tronco braquiocefálico. d) La vena cava superior. Opción correcta: b Explicación: Baja más que el derecho y hace su bucle bajo el arco aórtico.
+20. Al ascender por el cuello, ambos nervios laríngeos recurrentes se protegen discurriendo por: a) El interior de la vena yugular. b) El espesor del músculo esternocleidomastoideo. c) El ángulo o limbo traqueoesofágico. d) La vaina carotídea lateral. Opción correcta: c Explicación: Los nervios buscan este "rincón seguro" entre tráquea y esófago para subir.
+21. Si en una tiroidectomía se lesiona accidentalmente de forma unilateral el nervio laríngeo recurrente, el paciente sufrirá: a) Paro cardíaco. b) Parálisis diafragmática. c) Voz bitonal (metálica) por parálisis unilateral de una cuerda vocal. d) Sordera. Opción correcta: c Explicación: La asimetría en la vibración de la cuerda sana frente a la paralizada da ese tono característico.
+22. La glándula tiroides posee una cápsula de tejido conectivo propia. Quirúrgicamente, esta cápsula permite: a) Que no sangre absolutamente nada al cortarla. b) Un plano de separación (clivaje) avascular para aislarla de las estructuras vecinas sin hemorragias masivas. c) Unirla firmemente a la carótida. d) Generar hormonas tiroideas. Opción correcta: b Explicación: Los planos fasciales son claves en cirugía para disecar sin romper vasos mayores.
+23. El istmo tiroideo (la unión central de los lóbulos) es una referencia quirúrgica que cruza la tráquea a nivel de: a) El cartílago cricoides. b) Los anillos traqueales 2º, 3º (y a veces 4º). c) El esternón. d) El hueso hioides. Opción correcta: b Explicación: Se debe tener muy en cuenta para no seccionarlo en traqueotomías.
+24. En la línea media puede aparecer un Lóbulo Piramidal (de Lalouette) ascendiendo desde el istmo. ¿Cuál es su origen? a) Un tumor maligno siempre. b) Es un remanente embriológico del conducto tirogloso (descenso desde la base de la lengua). c) Es la fusión de las paratiroides. d) Es parte del timo no descendido. Opción correcta: b Explicación: Señala el camino que hizo la tiroides desde el foramen caecum de la lengua.
+25. Si el conducto tirogloso no se cierra completamente durante la embriogénesis, en la clínica puede presentarse como: a) Un aneurisma carotídeo. b) Un quiste o fístula tiroglosa en la línea media del cuello. c) Una hipertrofia del escaleno. d) Un bocio exoftálmico. Opción correcta: b Explicación: Puede secretar moco o infectarse, presentándose como un bulto medial.
+26. En una gammagrafía con yodo, si capta la línea media superior al tiroides, sospechamos de: a) Metástasis ósea. b) Restos de tejido glandular tiroideo funcionante en el trayecto del conducto tirogloso. c) Paratiroides supernumerarias. d) Tumor carotídeo. Opción correcta: b Explicación: Prada explica que estos restos "secuestran" el yodo radiactivo iluminando la imagen.
+27. Las glándulas paratiroides (generalmente 4) son un peligro en la cirugía tiroidea porque: a) Envuelven al nervio vago. b) Son intracraneales. c) Su posición es variable y se ubican en la cara posterior, por DENTRO de la propia cápsula de la glándula tiroides. d) Sangran excesivamente. Opción correcta: c Explicación: Al estar embutidas en la cápsula, si el cirujano no las busca y respeta, extirpa el tiroides con las paratiroides puestas (causando hipocalcemia).
+28. La Arteria Tiroidea Superior, que irriga el polo superior de la glándula, es la primera rama colateral que nace directamente de: a) La arteria subclavia. b) La arteria carótida común. c) La arteria carótida externa. d) El tronco tirocervical. Opción correcta: c Explicación: Nace justo por encima de la bifurcación carotídea.
+29. La Arteria Tiroidea Inferior (rama del tronco tirocervical) se cruza en su trayecto con una estructura nerviosa vital que hay que proteger al ligarla: a) El nervio vago. b) El nervio frénico. c) El nervio laríngeo recurrente. d) El nervio hipogloso. Opción correcta: c Explicación: Relación de máxima importancia en cirugía de cuello.
+30. La inconstante Arteria Tiroidea IMA (Media), que asciende pegada a la línea media traqueal, suele nacer directamente de: a) La carótida interna. b) El tronco braquiocefálico o el cayado aórtico. c) La arteria vertebral. d) La mamaria interna. Opción correcta: b Explicación: Es un vaso medial extra que puede sangrar al abordar la tráquea por delante.
+31. El rico plexo venoso tiroideo drena en tres sistemas. Mientras que las venas tiroideas superiores y medias van a la yugular interna, las venas tiroideas INFERIORES drenan directamente en: a) La yugular externa. b) El seno coronario. c) El tronco o vena braquiocefálica. d) La vena cava inferior. Opción correcta: c Explicación: Bajan buscando los grandes vasos torácicos superiores.
+32. La parte posterior (dorsal) de los anillos traqueales está abierta. ¿Qué tejido la cierra funcionalmente? a) El ligamento longitudinal. b) El músculo traqueal (músculo liso). c) El cartílago cricoides continuo. d) Fascia prevertebral pura. Opción correcta: b Explicación: Permite reducir el calibre de la tráquea y evita la fricción rígida con el esófago.
+33. La unión firme entre la tráquea y el esófago para que deslicen conjuntamente se logra mediante: a) El músculo traqueoesofágico (tejido laxo con fibras lisas). b) El músculo constrictor inferior. c) El ligamento nucal. d) Cartílago hialino. Opción correcta: a Explicación: Asegura que ambas estructuras se muevan en bloque al tragar.
+34. La bifurcación traqueal (Carina) es una zona de extrema sensibilidad nerviosa que detona: a) El reflejo nauseoso. b) El cierre de la epiglotis. c) El reflejo violento de la tos. d) La secreción gástrica. Opción correcta: c Explicación: Es la última línea de defensa expulsiva de la vía aérea inferior.
+35. La tráquea no desciende recta al tórax; sufre una desviación hacia la DERECHA provocada mecánicamente por el empuje de: a) El hígado. b) El cayado aórtico (que pasa por su lado izquierdo). c) El pulmón derecho. d) La aurícula derecha. Opción correcta: b Explicación: El enorme volumen de la aorta desplaza el eje visceral hacia la derecha.
+36. La Vaina Carotídea envuelve tres elementos vitales. ¿Cuál es la disposición de su contenido? a) Vena lateral, Arteria medial y Nervio Vago (X) profundo/posterior entre ambas. b) Arteria lateral, Vena medial y Vago anterior. c) Vena anterior, Nervio posterior, Arteria ausente. d) Tráquea, esófago y nervio recurrente. Opción correcta: a Explicación: Topografía sagrada del cuello en todos sus cortes.
+37. Concepto clínico: Si se corta la vena yugular interna en un trauma, se produce una embolia gaseosa mortal por succión de aire porque: a) La vena no tiene válvulas. b) El tendón intermedio del músculo Omohioideo está pegado a la vaina carotídea, manteniéndola ABIERTA impidiendo que la vena colapse. c) La carótida pulsa e introduce aire. d) Se paraliza el diafragma. Opción correcta: b Explicación: La tensión fascial del omohioideo mantiene el tubo venoso abierto "como una pajita".
+38. La bifurcación de la carótida común en externa e interna ocurre habitualmente a nivel de: a) T1-T2. b) C4-C5 (borde superior del cartílago tiroides). c) C7-T1. d) La base del cráneo. Opción correcta: b Explicación: Nivel topográfico de la encrucijada cervical de pulsos y senos.
+39. El Seno Carotídeo es una dilatación de la pared arterial al inicio de la carótida interna. ¿Cuál es su función? a) Captar yodo. b) Baroreceptor (mide la tensión/presión arterial). c) Quimiorreceptor. d) Oxigenar la sangre. Opción correcta: b Explicación: Prada detalla que la pared distendida mide la presión mecánica del flujo sanguíneo.
+40. ¿Qué nervio recoge la información sensitiva de presión del Seno Carotídeo según Prada? a) Glosofaríngeo (IX). b) Vago (X). c) Accesorio (XI). d) Hipogloso (XII). Opción correcta: b Explicación: Según la puntualización estricta del profesor en el audio (minuto), "la inervación del seno... lo hace el vago".
+41. El Globus Carotídeo (Glomus o corpúsculo) está situado en el mismo área pero es un Quimiorreceptor (mide O2/CO2). Según la corrección en clase, ¿qué nervio lo inerva? a) Vago (X). b) Glosofaríngeo (IX). c) Frénico. d) Trigémino. Opción correcta: b Explicación: Audio: "del globus carotídeo lo inerva el glosofaríngeo".
+42. ¿Qué arteria asegura la vascularización de la cabeza que NO va al cerebro (cara, mandíbula, etc.) y aporta sangre al tiroides? a) Carótida interna. b) Carótida externa. c) Arteria vertebral. d) Subclavia. Opción correcta: b Explicación: Aporta la tiroidea superior, facial, lingual, maxilar, etc.
+43. La Carótida Interna tiene una característica vascular fundamental descrita por el profesor: a) Da 15 ramas en el cuello. b) NO da ninguna rama en el cuello; sube directa al cráneo (haciendo un sifón) para aportar el 50% del riego del encéfalo. c) Irriga la faringe y laringe exclusivamente. d) Termina en el hueso hioides. Opción correcta: b Explicación: Es un tubo de paso rápido directo al polígono de Willis cerebral.
+44. La vascularización arterial propia del cuello (músculos, vértebras y parte del tiroides) depende de un gran vaso que NO es la carótida. ¿Cuál es? a) El tronco braquiocefálico venoso. b) La arteria Subclavia (en su porción pretubercular). c) La arteria Aorta torácica descendente. d) La arteria Pulmonar. Opción correcta: b Explicación: Emite troncos fundamentales antes de pasar la primera costilla.
+45. ¿Cuáles son las ramas del Tronco Tirocervical (rama de la Subclavia)? a) Tiroidea superior y Lingual. b) Tiroidea inferior, cervical profunda, supraescapular y transversa del cuello (o cervical transversa/escapular posterior). c) Vertebral y mamaria interna. d) Intercostal suprema. Opción correcta: b Explicación: Da un componente visceral (tiroidea inf.) y componentes musculares posteriores/laterales.
+46. La primera y segunda arterias intercostales posteriores nacen de la intercostal suprema. ¿De qué rama de la subclavia procede esta? a) Tronco Costocervical. b) Tronco Tirocervical. c) Arteria Mamaria Interna (Torácica Interna). d) Arteria Vertebral. Opción correcta: a Explicación: Como su nombre indica, da la rama "costal" (intercostal) y "cervical" (cervical posterior).
+47. Topografía pulmonar clave: Al ascender desde el tórax, la arteria Subclavia, la Carótida Común y el tronco Braquiocefálico dejan una impronta (marca anatómica) constante sobre: a) El corazón. b) La cara medial y el vértice (ápex) de los pulmones. c) El hígado. d) El cartílago tiroides. Opción correcta: b Explicación: Los grandes vasos "abrazan" y marcan la cúpula pleural y pulmonar.
+48. El Síndrome de la Salida Torácica (o desfiladero de los escalenos) puede estar causado por una "costilla cervical" en C7. Produce dolor y pérdida de pulso en el brazo por compresión de: a) La Vena Subclavia exclusivamente. b) El Plexo Braquial y la Arteria Subclavia. c) El nervio Vago. d) La Tráquea. Opción correcta: b Explicación: Atrapa las estructuras nerviosas y la arteria entre la costilla anómala y el escaleno anterior.
+49. ¿Por qué la Vena Subclavia RARA VEZ se comprime en el síndrome del desfiladero de los escalenos? a) Porque no existe. b) Porque pasa POR DELANTE del escaleno anterior, quedando fuera de la pinza muscular con la primera costilla. c) Porque está osificada. d) Porque pasa por detrás del escaleno posterior. Opción correcta: b Explicación: Va aislada y más superficial que la arteria y el plexo.
+50. La Vena Yugular Interna sale del cráneo por el foramen rasgado posterior. Clínicamente, su abordaje para vía central es ideal en un triángulo formado por la clavícula y los dos vientres del esternocleidomastoideo. ¿Cómo se llama? a) Triángulo de Scarpa. b) Triángulo de Petit. c) Triángulo de Sédillot (fosa supraclavicular menor). d) Triángulo suboccipital. Opción correcta: c Explicación: Es la referencia topográfica dorada para las vías centrales venosas.
+51. La Vena Yugular EXTERNA se diferencia topográficamente de la interna porque: a) Sube hacia el cráneo. b) Pasa POR FUERA (superficialmente) del músculo esternocleidomastoideo, recubierta solo por el platisma y la piel. c) Va dentro de la vaina carotídea. d) Drena el tiroides directamente. Opción correcta: b Explicación: Es la vena del cuello que se nos marca visiblemente al hacer esfuerzos o gritar.
+52. La "ingurgitación yugular" (yugular externa muy marcada y llena en reposo o decúbito) es un signo clínico que indica: a) Salud perfecta. b) Dificultad en el retorno venoso, típicamente por fracaso o incompetencia cardíaca derecha. c) Hipotensión severa. d) Rotura del esternocleidomastoideo. Opción correcta: b Explicación: La sangre se acumula "hacia atrás" porque el corazón no bombea eficazmente.
+53. A nivel de la base del cuello, la yugular interna y la vena subclavia se unen formando el: a) Tronco celíaco. b) Ángulo yugulosubclavio (que origina el Tronco Venoso Braquiocefálico). c) Seno coronario. d) Cayado de la ácigos. Opción correcta: b Explicación: Es la encrucijada venosa clave de cada lado del cuello.
+54. El Tronco Venoso Braquiocefálico IZQUIERDO tiene una característica anatómica que lo diferencia del derecho: a) Es mucho más corto. b) Debe cruzar oblicuamente toda la línea media por detrás del manubrio esternal (y por delante de la tráquea) para unirse al derecho y formar la Cava Superior. c) Desciende directo al ventrículo izquierdo. d) No recibe sangre yugular. Opción correcta: b Explicación: Como la Cava Superior está a la derecha, la sangre izquierda tiene que cruzar el tórax.
+55. Asimetría linfática: El conducto torácico recoge la linfa de casi todo el cuerpo y la vierte en el ángulo yugulosubclavio izquierdo. ¿Qué cuadrante del cuerpo NO drena en el conducto torácico? a) La pierna izquierda. b) La mitad superior derecha (brazo derecho, hemitórax derecho y hemicara/cuello derechos), que drena por la Gran Vena Linfática derecha. c) El abdomen inferior. d) Ambos pulmones completos. Opción correcta: b Explicación: Importante asimetría clínica para localizar ganglios centinela (Virchow a la izquierda).
+56. El Plexo Cervical (ramos ventrales C1-C4) inerva la musculatura prevertebral, pero también da ramos sensitivos superficiales (ej. occipital mayor, transverso del cuello, supraclavicular). Si anestesiamos este plexo, el paciente perderá sensibilidad en: a) La punta de los dedos de la mano. b) La piel del triángulo anterior y lateral del cuello, pabellón auricular y zona supraclavicular. c) El tórax inferior. d) La cara anterior de la pierna. Opción correcta: b Explicación: Mapea la anestesia cutánea (hipoestesia) exclusiva de la región cervical superficial.
+57. El Nervio Frénico (C3-C5), nervio motor del diafragma, tiene una relación topográfica superficial vital en el cuello: a) Desciende por el espesor del músculo trapecio. b) Desciende cruzando diagonalmente apoyado sobre la CARA ANTERIOR del músculo Escaleno Anterior. c) Pasa por dentro del conducto tirogloso. d) Viaja adosado a la vena yugular externa. Opción correcta: b Explicación: Es fácilmente lesionable por su posición superficial sobre el músculo prevertebral.
+58. Tras su paso por el cuello, el frénico entra al mediastino y se adosa a la cara medial de los pulmones. ¿Qué patología pulmonar grave puede afectar al frénico y paralizar el diafragma? a) Un asma bronquial leve. b) Un tumor pulmonar o fibrosis en la cara medial que lo atrape o destruya por vecindad. c) Una hernia inguinal. d) Un bocio tiroideo aislado. Opción correcta: b Explicación: Relación topográfica directa que justifica complicaciones respiratorias secundarias a cáncer de pulmón.
+59. La Cadena Simpática Cervical está formada por tres ganglios (Superior, Medio e Inferior). ¿Dónde se localizan topográficamente? a) Dentro del canal medular. b) En la línea media, delante de la tráquea. c) Apoyados sobre la musculatura prevertebral (largos de la cabeza y cuello), mediales a los escalenos y profundos en el cuello. d) Dentro de la vena yugular. Opción correcta: c Explicación: Zona profunda retrovisceral lateral.
+60. El Ganglio Simpático Cervical Inferior suele fusionarse con el primer ganglio torácico (T1) formando una gran masa estrellada llamada: a) Ganglio de Gasser. b) Ganglio Estrellado o Cérvicotorácico. c) Ganglio celíaco. d) Ganglio de Virchow. Opción correcta: b Explicación: Ubicado cerca de la pleura apical y la primera costilla.
+61. El Asa Subclavia (de Vieussens) es un asa nerviosa simpática que pasa por debajo de la arteria subclavia. Su función principal es: a) Mover los dedos de la mano. b) Dar inervación simpática vasomotora (control del calibre vascular) a la arteria subclavia y a todas sus ramas (ej. arteria vertebral, mamaria). c) Inervar la faringe. d) Recoger el dolor de la piel. Opción correcta: b Explicación: Las arterias periféricas necesitan componente simpático para regular su flujo sanguíneo.
+62. El Síndrome de Claude Bernard-Horner se produce por la afectación de la cadena simpática cervical (ej. ganglio superior o estrellado). Se caracteriza por la triada oftálmica de: a) Exoftalmos, bocio y taquicardia. b) Ceguera total, sordera y afonía. c) Ptosis (caída del párpado), Miosis (pupila contraída) y Anhidrosis (falta de sudor en esa hemicara). d) Pupila dilatada y llanto. Opción correcta: c Explicación: El simpático mantiene el ojo abierto y la pupila dilatada; si falla, el ojo "se cierra".
+63. ¿Cómo llega el componente simpático del ganglio cervical superior hasta el interior del ojo y el cerebro? a) A través de la sangre venosa. b) Acompañando y trepando por la adventicia (pared) de la Arteria Carótida Interna en su trayecto hacia la base del cráneo (sifón carotídeo). c) Por el nervio óptico directo. d) Saltando por el hueso frontal. Opción correcta: b Explicación: Los nervios vegetativos "tímidos" usan los grandes vasos como andamios para viajar al encéfalo.
+64. Dolor referido del infarto: Existen ganglios simpáticos cardíacos originados a nivel CERVICAL. Clínicamente esto explica por qué un infarto de miocardio no solo duele en el tórax, sino que el dolor irradia típicamente hacia: a) La ingle y la pierna. b) El hipocondrio derecho. c) El cuello, la mandíbula inferior, hombro y cara medial del brazo izquierdo. d) Los ojos. Opción correcta: c Explicación: "Doctrina Prada": El corazón arrastra embriológicamente inervación simpática cervical al bajar al tórax, y el cerebro lee el dolor de isquemia en las metámeras cervicales cutáneas correspondientes.
+65. El "Perrito de Lachapelle" en Rx oblicua lumbar. Si el perrito tiene el "cuello" roto (fracturado), radiológicamente estamos ante: a) Espondilolistesis. b) Espondilolisis (rotura del istmo o pars interarticularis). c) Hernia extruida. d) Escoliosis. Opción correcta: b Explicación: Lisis = rotura ósea. Es el paso previo a la listesis (desplazamiento).
+66. La articulación Sacroilíaca funciona como una "tenaza" pasiva. Al cargar el peso del cuerpo: a) Se luxa y gira 360 grados. b) Los ligamentos posteriores se tensan y cierran las palas ilíacas, que abrazan y bloquean a presión al sacro, aportando máxima estabilidad. c) Genera líquido articular abundante. d) Abre la sínfisis púbica. Opción correcta: b Explicación: Mecanismo autobloqueante de la bipedestación.
+67. El disco intervertebral soporta fuerzas masivas. Las fibras de colágeno del anillo fibroso se disponen en láminas cruzadas en "X" fundamentalmente para resistir de forma óptima fuerzas de: a) Compresión pura. b) Flexión cervical. c) Torsión o rotación axial. d) Hiperextensión. Opción correcta: c Explicación: El entramado cruzado evita el desgarro discal al girar el tronco.
+68. En el desarrollo embrionario (Ley de Resegmentación), el cuerpo vertebral se forma al fusionarse medio esclerotoma de arriba y medio de abajo. La gran ventaja anatómica de esto es que: a) El hueso se hace hueco. b) El nervio espinal queda situado justo a la altura del espacio intervertebral (agujero de conjunción), pudiendo salir sin tener que perforar el hueso sólido. c) La médula desaparece. d) Se crea el líquido cefalorraquídeo. Opción correcta: b Explicación: Evolución brillante para salvar el nervio de ser aplastado por hueso continuo.
+69. El Plexo Venoso Vertebral de Batson es AVALVULAR (sin válvulas). Ante aumentos de presión intraabdominal (Valsalva), ¿qué consecuencia oncológica funesta permite esto? a) El curado del cáncer pélvico. b) Que el flujo se invierta y las metástasis de próstata/pelvis colonicen la columna vertebral directamente, saltándose el filtro pulmonar. c) Varices de esófago exclusivas. d) Hemorroides curativas. Opción correcta: b Explicación: El flujo retrógrado lleva células tumorales de la pelvis directa al hueso lumbar o cerebro.
+70. El dolor del cólico nefrítico (piedra en el uréter) irradia a la ingle y genitales. ¿Qué relación anatómica espacial pura lo explica? a) El uréter está inervado por el nervio vago. b) El uréter desciende apoyado directamente sobre la cara anterior del músculo Psoas Mayor, irritando mecánicamente por cercanía a los nervios del plexo lumbar (ej. genitofemoral) que viajan adosados al mismo músculo. c) El riñón cae a la pelvis. d) Es pura imaginación del paciente. Opción correcta: b Explicación: La irritación cruza de una estructura (visceral) a otra vecina (nervio somático) por contacto directo fascial.
+71. Si el Psoas Mayor se encuentra hipertónico/acortado en una persona de pie, la tracción que ejerce sobre los cuerpos vertebrales generará compensatoriamente: a) Hiperlordosis lumbar pronunciada. b) Cifosis. c) Rectificación del cuello. d) Aumento de talla. Opción correcta: a Explicación: Tira de la columna hacia adelante. Se calma al tumbarse flexionando las rodillas.
+72. El hiato diafragmático por donde cruza la Vena Cava Inferior (T8) se encuentra en el centro tendinoso. Esta posición "trampa" sirve para: a) Que el músculo estrangule la vena al respirar. b) Que al inspirar y tensarse el diafragma, el orificio se ABRA y facilite la succión de retorno venoso hacia el corazón. c) Que pase el esófago también. d) Aislar el tórax del abdomen. Opción correcta: b Explicación: El orificio fibroso no colapsa, sino que se dilata con la mecánica ventilatoria.
+73. Las hernias inguinales INDIRECTAS son aquellas cuyo contenido (intestino): a) Rompe directamente la pared del Triángulo de Hesselbach, medial a los vasos epigástricos. b) Entra por el anillo inguinal profundo (LATERAL a los vasos epigástricos inferiores) y sigue todo el trayecto del cordón espermático. c) Sale por el ombligo. d) Pasa por debajo del ligamento de Poupart. Opción correcta: b Explicación: Hacen el camino "largo y original" de lateral a medial buscando el escroto.
+74. Las hernias inguinales DIRECTAS se diagnostican topográficamente cuando el defecto asoma: a) Lateral a los vasos epigástricos inferiores. b) Rompiendo hacia delante el Triángulo de Hesselbach, es decir, MEDIAL a los vasos epigástricos inferiores. c) Por la vena femoral. d) En la línea alba. Opción correcta: b Explicación: Rompen la pared posterior (fascia transversalis) sin hacer el circuito largo.
+75. En pacientes con cirrosis hepática (el filtro del hígado se tapona), la hipertensión del sistema Porta deriva sangre hacia el sistema Cava (anastomosis porto-cava). En el esófago inferior, esto se manifiesta como: a) Parálisis de las cuerdas vocales. b) Varices esofágicas submucosas severas, con riesgo de hemorragia digestiva masiva y muerte. c) Reflujo gástrico indoloro. d) Cáncer de estómago. Opción correcta: b Explicación: Las venas esofágicas se dilatan como globos buscando enviar sangre a la cava superior.
+76. ¿Por qué es mala idea quirúrgica hacer una incisión extensa justo sobre la línea alba aponeurótica del abdomen en lugar de incisiones musculares paramedianas? a) Porque corta el ombligo. b) Porque al ser un tejido conectivo sin apenas vasos sanguíneos (avascular), cicatriza de forma muy pobre y predispone a enormes hernias incisionales (eventraciones). c) Porque sangra de forma incontrolable. d) Porque afecta al bazo. Opción correcta: b Explicación: El músculo bien vascularizado sana mejor que el tendón blanco avascular.
+77. El "Signo del Psoas" en la clínica abdominal consiste en pedir al paciente que flexione la cadera contra resistencia. Si le provoca un fuerte dolor en fosa ilíaca derecha, es un signo clásico de: a) Rotura de cadera. b) Apendicitis aguda (el músculo tenso golpea o fricciona el apéndice inflamado vecino). c) Hernia de hiato. d) Embarazo ectópico izquierdo. Opción correcta: b Explicación: Relación de proximidad extrema entre la ciego/apéndice y la fascia iliopsoas derecha.
+78. La arteria vertebral entra al cráneo haciendo un "sifón". En su trayecto más alto se apoya en un surco específico antes de perforar la membrana occipitoatloidea. Es en: a) La cara superior del arco POSTERIOR del Atlas (C1). b) El cuerpo de C2. c) La apófisis espinosa de C7. d) La base del cráneo directamente. Opción correcta: a Explicación: Detalle anatómico topográfico "premium" de la nuca profunda.
+79. El dermatoma horizontal (franja sensitiva cutánea) que pasa exactamente a la altura del OMBLIGO corresponde al nivel espinal: a) T4. b) T7. c) T10. d) L1. Opción correcta: c Explicación: Referencia topográfica cutánea invariable.
+80. Por último, ¿cómo se clasifica funcionalmente la articulación Atlanto-Axoidea Media (diente de C2 contra el arco anterior de C1) que nos permite "decir NO"? a) Condílea. b) Trocoide (pivote). c) Artrodia. d) Sínfisis fibrosa. Opción correcta: b Explicación: El cilindro pivota rotando dentro del anillo.
+</textarea>
+
+<script>
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {},
+        marked: new Set()
+    };
+
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        // Limpiamos los títulos de bloque que llevan emojis y retornos
+        text = text.replace(/.*BLOQUE.*?\n/gi, '').replace(/\r\n/g, '\n');
+        
+        let blocks = text.split(/(?=Opción correcta:)/i);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Atrapar la letra de la opción correcta y la explicación, ignorando mayúsculas/minúsculas
+            let ansMatch = block.match(/^Opción correcta:\s*([a-dA-D])\.?\s*(?:Explicación:\s*)?(.*?)(?=\n\d+\.\s|$)/is);
+            let correctLetter = ansMatch ? ansMatch[1].toUpperCase() : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            // El resto es el inicio de la siguiente pregunta
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            // Separar la pregunta y sus 4 opciones
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+[aA]\)\s+(.*?)\s+[bB]\)\s+(.*?)\s+[cC]\)\s+(.*?)\s+[dD]\)\s+(.*)/is);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1;
+            
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return;
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

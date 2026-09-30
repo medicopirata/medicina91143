@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Bioquímica Sept 2023 - Corregido</title>
+    <style>
+        :root {
+            --primary: #8e44ad;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f39c12;
+            --bg: #f4f6f7;
+            --card-bg: #ffffff;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background-color: var(--bg); height: 100vh; display: flex; overflow: hidden; color: #333; }
+
+        /* SIDEBAR */
+        #sidebar { width: 300px; background: var(--secondary); color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 100; }
+        .sb-header { padding: 20px; background: rgba(0,0,0,0.2); text-align: center; border-bottom: 1px solid #34495e; }
+        .sb-info { padding: 10px; text-align: center; font-size: 0.9rem; color: #bdc3c7; }
+        
+        #nav-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; align-content: start; }
+        .nav-btn { aspect-ratio: 1; border: none; background: rgba(255,255,255,0.1); color: #bdc3c7; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; position: relative; }
+        .nav-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+        .nav-btn.active { background: white; color: var(--secondary); transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px var(--primary); }
+        .nav-btn.correct { background: var(--success); color: white; }
+        .nav-btn.wrong { background: var(--error); color: white; }
+        .nav-btn.marked::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: var(--warning); border-radius: 50%; border: 1px solid white; }
+
+        /* MAIN */
+        #main { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .top-bar { height: 60px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .timer { font-family: monospace; font-size: 1.2rem; background: #eee; padding: 5px 10px; border-radius: 5px; color: var(--primary); font-weight: bold; }
+
+        #quiz-area { flex: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .q-container { max-width: 800px; margin: 0 auto 100px auto; }
+
+        .q-card { background: var(--card-bg); padding: 30px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid transparent; transition: 0.3s; }
+        .q-card.current { border-left-color: var(--primary); transform: translateX(5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        
+        .q-meta { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; color: #7f8c8d; font-weight: bold; text-transform: uppercase; }
+        .q-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 20px; line-height: 1.5; }
+
+        .opt-btn { display: block; width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 2px solid #f0f0f0; background: #f9f9f9; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1rem; color: #444; }
+        .opt-btn:hover:not(:disabled) { border-color: var(--primary); background: #fdf8ff; }
+        .opt-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .opt-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .opt-btn:disabled { cursor: default; opacity: 0.7; }
+
+        .feedback { margin-top: 15px; padding: 15px; background: #e8f8f5; border-left: 4px solid var(--success); border-radius: 4px; display: none; animation: slideIn 0.3s; }
+        .tools { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; }
+        .mark-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #7f8c8d; cursor: pointer; }
+        .mark-label input { transform: scale(1.2); accent-color: var(--warning); }
+
+        /* MODALS */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 500px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition: transform 0.1s; }
+        .btn:hover { transform: scale(1.02); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        
+        .retry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn-retry { font-size: 0.9rem; padding: 12px; color: white; }
+        .r-fail { background: var(--error); }
+        .r-mark { background: var(--warning); }
+        .r-mix { background: #8e44ad; grid-column: span 2; }
+        .r-all { background: var(--secondary); grid-column: span 2; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="modal">
+        <div class="modal-box">
+            <h1 style="color:var(--secondary); margin-bottom:5px;">Bioquímica Médica</h1>
+            <h2 style="color:var(--primary); margin-top:0;">Septiembre 2023</h2>
+            <p>90 Preguntas</p>
+            
+            <div style="text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
+                <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">
+                    🔒 <strong>Nota:</strong> Las opciones de respuesta se mezclarán automáticamente en cada intento.
+                </p>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem; margin-bottom:10px;">
+                    <input type="checkbox" id="shuffle-questions" checked> 
+                    <strong>¿Mezclar orden de las preguntas?</strong>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem;">
+                    <input type="checkbox" id="timer-check"> 
+                    Activar Temporizador
+                </label>
+            </div>
+
+            <button class="btn btn-primary" onclick="initQuiz()">COMENZAR TEST</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="modal" style="display:none;">
+        <div class="modal-box">
+            <h2>Resultados</h2>
+            <div style="font-size:3.5rem; font-weight:800; color:var(--primary);" id="score">0%</div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:20px 0;">
+                <div style="background:#eafaf1; padding:10px; border-radius:5px; color:var(--success)">✅ <b id="r-ok">0</b></div>
+                <div style="background:#fdedec; padding:10px; border-radius:5px; color:var(--error)">❌ <b id="r-ko">0</b></div>
+                <div style="background:#fef9e7; padding:10px; border-radius:5px; color:var(--warning)">🚩 <b id="r-mk">0</b></div>
+            </div>
+
+            <div class="retry-grid">
+                <button class="btn btn-retry r-fail" onclick="retry('failed')">Solo Falladas</button>
+                <button class="btn btn-retry r-mark" onclick="retry('marked')">Solo Marcadas</button>
+                <button class="btn btn-retry r-mix" onclick="retry('failed_marked')">Falladas + Marcadas</button>
+                <button class="btn btn-retry r-all" onclick="retry('all')">Reiniciar Todo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sb-header">
+            <h3>Navegación</h3>
+        </div>
+        <div class="sb-info">
+            <span id="prog-text">0 / 90</span>
+        </div>
+        <div id="nav-grid"></div>
+        <div style="padding:20px;">
+            <button class="btn btn-secondary" onclick="finish()">Finalizar</button>
+        </div>
+    </div>
+
+    <div id="main">
+        <div class="top-bar">
+            <strong>Examen Sept 2023</strong>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+        <div id="quiz-area">
+            <div class="q-container" id="questions-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        // BASE DE DATOS CORREGIDA Y LIMPIA (90 Preguntas)
+        const fullDB = [
+            { id: 1, q: "1. Respecto al efecto térmico de los alimentos a qué tiempo se obtiene el máximo valor.", o: ["10 minutos", "30 minutos", "11 horas", "5 horas", "120 minutos"], c: 1 },
+            { id: 2, q: "2. Qué papel se la atribuye actualmente a los macronutrientes y que está relacionado con su contribución a la homeostasis de los tejidos.", o: ["Participación neural", "Papel como función energética fundamental", "Solo se tiene en cuenta la participación de los micro nutrientes", "Énfasis en la señales procedentes del intestino", "Importancia en su participación meramente metabólica"], c: 3 },
+            { id: 3, q: "3. A qué concepto corresponde la definición proporción de la proteína absorbida que es retenida y por tanto utilizada en el organismo.", o: ["Valor reutilizable de la proteína", "Valor de absorción de la proteína", "Coeficiente de utilización neta de la proteína", "Coeficiente de digestibilidad", "Valor biológico de la proteína"], c: 4 },
+            { id: 4, q: "4. De los siguientes vitaminas cual de ellas es un derivado del isopreno", o: ["Piridoxina", "Vitamina D", "Riboflavina", "Vitamina C", "Vitamina E"], c: 4 },
+            { id: 5, q: "5. Tras ingesta de vitamina C, indique cuál es el principal sistema transportador empleado en la absorción de la forma oxidada de esta vitamina.", o: ["La absorción es dependiente del transportador SVCT1", "Requiere transportador GLUT4 presente en la cara luminal del enterocito", "Necesita de una bomba Na+/K+ATPasa", "Difusión simple", "Difusión facilitada a través de transportadores GLUT3"], c: 0 },
+            { id: 6, q: "6. Indique que estructura se corresponde con la forma más activa de la vitamina E", o: ["Delta tocotrienol", "Alfatocoferol", "Beta tocoferol", "Gamma tocoferol", "Alfatocotrienol"], c: 1 },
+            { id: 7, q: "7. Qué parámetro bioquímico consideraría como marcador de elección para valorar el estado nutricional de un paciente.", o: ["Creatinina", "Estudio de los niveles en sangre de vitaminas", "Glucemia", "Colesterolemia", "Balance nitrogenado"], c: 4 },
+            { id: 8, q: "8. Señale cuál de las siguientes proteínas plasmáticas es un buen marcador pronóstico al largo plazo de desnutrición.", o: ["Proteína ligada al retinol", "Transferrina", "Ferritina", "Prealbúmina", "Albúmina"], c: 4 },
+            { id: 9, q: "9. Cuando se estudia envejecimiento a qué se le denomina edad biológica", o: ["A la edad media de supervivencia familiar", "A la expectativa de vida máxima de la especie humana", "A la capacidad funcional del individuo", "Al tiempo transcurrido desde el nacimiento", "A la vida media de la especie humana"], c: 2 },
+            { id: 10, q: "10. Respecto a la alfa-amilasa y su acción en la digestión de almidón, indicar la respuesta incorrecta:", o: ["No está ligada a la membrana del enterocito", "Se produce en glándulas salivares y páncreas", "Los productos de hidrólisis del almidón son maltosa, maltotriosa y alfa dextrina", "La amilasa hidroliza los enlaces alfa (1-4)", "Hidroliza los enlaces alfa (1-6)"], c: 4 },
+            { id: 11, q: "11. Qué enzima hidroliza los enlaces alfa (1-6) en la digestión del almidón", o: ["Alfa amilasa", "Alfa glucosidasa", "Lactasa", "Isomaltasa", "Sacarasa"], c: 3 },
+            { id: 12, q: "12. Cuál es el transportador que permite el paso de la fructosa desde la luz intestinal al interior del enterocito", o: ["SGLT2", "GLUT2", "SGLT1", "GLUT5", "GLUT4"], c: 3 },
+            { id: 13, q: "13. Señalar la respuesta incorrecta en relación con la digestión de triglicéridos", o: ["Son emulsionados por las sales biliares", "Los triglicéridos pasan de la luz intestinal al enterocito como ácidos grasos y glicerol, donde se vuelven a sintetizar", "Los triglicéridos de origen exógeno pasan a sistema circulatorio transportados por la lipoproteína VLDL", "Se forman micelas constituidas por sales biliares, triglicéridos y lipasa pancreática", "En las micelas se produce la hidrólisis de triglicéridos"], c: 2 },
+            { id: 14, q: "14. Respuesta correcta en relación con la enzima lipoproteína-lipasa (LPL)", o: ["Se inactiva por la insulina", "Va asociada a micelas", "Se localiza en el endotelio de los capilares", "Reconoce la apoproteína B100", "Se localiza en la membrana de los enterocitos"], c: 2 },
+            { id: 15, q: "15. El receptor APO B/E reconoce", o: ["La apoproteína A", "La apoproteína D", "La apoproteína B100 de la lipoproteína LDL intactas", "La proteína B48 de los quilomicrones", "La proteína B50"], c: 2 },
+            { id: 16, q: "16. En relación con la fase pancreática de la digestión de proteínas, cuál es la respuesta correcta", o: ["Los oligopéptido activan células endocrinas liberando CCK", "Los zimógenos pancreáticos se activan en el páncreas", "El jugo pancreático tiene pH ácido", "Los oligopéptido activan a la enteropeptidasa", "La enteropeptidasa activa la liberación de CCK"], c: 0 },
+            { id: 17, q: "17. Señalar la respuesta cierta respecto a la gamma glutamiltranspeptidasa (GGT)", o: ["Los principales aminoácidos aceptores son ácidos", "Cataliza la transferencia de gammaglutamilo del glutatión a un aminoácido neutro", "Cataliza la transferencia de la glicina del glutatión a un aminoácido", "Es una enzima citosólica", "Cataliza la transferencia de la cisteína del glutatión a un aminoácido"], c: 1 },
+            { id: 18, q: "18. Los transportadores que permiten la absorción de aminoácidos por los enterocitos son dependientes de:", o: ["Cu2+", "Cl-", "Na+", "H+", "K+"], c: 2 },
+            { id: 19, q: "19. Entre las siguientes respuestas indique la opción verdadera respecto a la adipocito del tejido adiposo marrón.", o: ["Posee una proteína desacoplante mitocondrial", "Realiza una importante activación de la lipogénesis", "Los adipocitos de la grasa parda son de mayor tamaño que los del tejido adiposo blanco", "Tiene bajo contenido mitocondrial", "Es un importante almacén de energía"], c: 0 },
+            { id: 20, q: "20. Respecto a la leptina señale cuál de las siguientes afirmaciones es cierta", o: ["Hiperinsulinemia disminuye producción leptina", "Aumento grasa reduce resistencia leptina", "Leptina reduce sensibilidad insulina", "No existe dependencia grasa/leptina", "La leptina aumenta la lipólisis del tejido adiposo"], c: 4 },
+            { id: 21, q: "21. Entre las siguientes organoquinas indique la adipoquina que no es de tipo proinflamatorio", o: ["Adiponectina", "Visfatina", "IL-6", "Leptina", "Resistina"], c: 0 },
+            { id: 22, q: "22. En relación con el sistema inmunitario, indique la respuesta correcta", o: ["El sistema del complemento forma parte de la respuesta inmunitaria innata", "Los linfocitos B son responsables de respuesta celular", "Células NK producen anticuerpos", "Respuesta humoral desarrollada por linfocitos T", "Integrinas son moléculas efectoras"], c: 0 },
+            { id: 23, q: "23. Entre las siguientes opciones indique la respuesta verdadera respecto a los anticuerpos", o: ["La IgG puede atravesar la barrera placentaria", "Regiones CDR solo en cadenas ligeras", "IgM mayoritaria en respuesta secundaria", "Cadenas ligeras solo dominios variables", "Oligosacáridos se unen a cadenas ligeras"], c: 0 },
+            { id: 24, q: "24. Entre las siguientes opciones referidas al sistema inmunitario, indique la respuesta correcta", o: ["Motivos ITAM en CD79 permiten transducción a través del BCR", "CD3 participa en señalización BCR", "ITAM presentes en región extracelular TCR", "ITAM constituidos por tirosina y lisina", "El BCR está formado por IgG"], c: 0 },
+            { id: 25, q: "25. Una de las siguientes hormonas hipofisarias tiene una estructura monocatenaria", o: ["GnRH", "LH", "TSH", "ACTH", "FSH"], c: 3 },
+            { id: 26, q: "26. Mecanismo de señalización intracelular de la hormona somatostatina.", o: ["Disminuye el AMPc Intracelular", "Regulado por calcio-calmodulina", "Aumenta el AMPc intracelular", "No afecta AMPc", "Receptor intracelular"], c: 0 },
+            { id: 27, q: "27. Cuál es la principal señal que inhibe la liberación de prolactina", o: ["Dopamina", "Luz", "Tiroliberina", "Oxitocina", "Succión"], c: 0 },
+            { id: 28, q: "28. Cuál es la vía de señalización de la hormona hipotalámica correspondiente al eje suprarrenal (CRH)", o: ["Aumenta la liberación de calcio intracelular", "Actúa vía receptor acoplado a proteína G (Gs)", "Receptor tirosin kinasa", "Segundo mensajero inositol-3-fosfato", "Receptores nucleares"], c: 1 },
+            { id: 29, q: "29. A nivel de que enzima está el paso limitante en el proceso de esteroidogénesis", o: ["21 alfa-hidroxilasa", "20,22 desmolasa (Colesterol desmolasa)", "17 Beta-hidroxilasa", "17, 20 desmolasa", "17 Alfa hidroxilasa"], c: 1 },
+            { id: 30, q: "30. Cuál es el déficit enzimático más frecuente de hiperplasia suprarrenal congénita", o: ["20, 22 desmolasa", "11Beta-hidroxilasa", "21 alfa-hidroxilasa", "3 beta-hidroxiesteroide deshidrogenasa", "17Alfa-hidroxilasa"], c: 2 },
+            { id: 31, q: "31. Enzima que cataliza la incorporación de yodo a los residuos de tirosina de la tiroglobulina", o: ["3,5’ iodasa", "3,5 Hidroxitirosil oxidasa", "Peroxidasa tiroidea (TPO)", "Hidroxiperoxidasa", "Descarboxilasa tiroidea"], c: 2 },
+            { id: 32, q: "32. La entrada de las hormonas tiroideas a la célula diana se realiza mediante un mecanismo de", o: ["Difusión simple", "Simporte Na+ K+", "Antiporte Na+Cl-", "Bomba Na+/K+ATPasa", "Difusión facilitada (Transportadores)"], c: 4 },
+            { id: 33, q: "33. Señale la respuesta correcta en relación a la forma activa de las hormonas tiroideas", o: ["3,5,5’ triiodotironina", "3,3’,5’ triiodotironina", "3,5,3’,5’ tetraiodotironina", "3,5,3’ triiodotironina (T3)", "3,5 diiodotironina"], c: 3 },
+            { id: 34, q: "34. Qué efectos tiene la insulina sobre el metabolismo en los principios inmediatos.", o: ["Favorece la glucogenogénesis", "Favorece la proteolisis", "Favorece la glucogenolisis", "Favorece la lipogénesis", "Favorece la gluconeogénesis"], c: 0 },
+            { id: 35, q: "35. Cuál es el segundo mensajero en la vía de señalización de glucagón", o: ["AMPc", "Calmodulina", "AKT", "Inositol-3-fosfato", "Calcio"], c: 0 },
+            { id: 36, q: "36. Método principal para la determinación de hormonas gastrointestinales", o: ["Fluorimetria", "Electroforesis", "Radioinmunoanálisis (RIA)", "Espectrofotometría", "Densitometría"], c: 2 },
+            { id: 37, q: "37. Indique la respuesta correcta en relación a la proteína G y la señalización celular", o: ["Unidad beta actúa sobre adenilato", "Formada por cuatro subunidades", "Subunidad alfa unida a GDP activa adenilato", "Subunidad alfa unida a GTP activa a la adenilato ciclasa", "Unidad alfa unida a ATP activa"], c: 3 },
+            { id: 38, q: "38. Señale la respuesta correcta en relación con la proteína APC", o: ["Activa la degradación de la beta-catenina en el citoplasma", "Activa la síntesis de beta-catenina", "Es inhibida por la beta-catenina", "Estimula degradación en núcleo", "Estimula división celular"], c: 0 },
+            { id: 39, q: "39. Señalar la respuesta incorrecta en relación con los exosomas producidos por células tumorales", o: ["Pueden unirse a linfocitos T", "Transportan ácidos nucleicos, proteínas y lípidos", "Pueden inducir apoptosis de linfocitos T", "Activan la proliferación de los linfocitos T", "Activan vías de señalización"], c: 3 },
+            { id: 40, q: "40. Señale la respuesta correcta en relación con el proceso de fotoexcitación", o: ["Incrementa síntesis GTP", "Rodopsina activa baja afinidad transducina", "Se activa la enzima fosfodiesterasa", "Transducina inhibe fosfodiesterasa", "Se abren canales sodio"], c: 2 },
+            { id: 41, q: "41. Cuál es la respuesta correcta respecto a la fotoexcitación", o: ["Na+ entra por bomba", "Aumenta GMPc", "Despolarización membrana", "Se produce la hiperpolarización de la membrana", "Se libera GABA"], c: 3 },
+            { id: 42, q: "42. Respecto al 11-cis-retinal de la rodopsina, cuál es la respuesta incorrecta", o: ["Isomerización en epitelio pigmentado", "Deriva de vitamina A", "Procede de dieta y degradación", "Se isomeriza a todo-trans-retinal por fotones", "Deriva de la vitamina B"], c: 4 },
+            { id: 43, q: "43. Enzima síntesis aminas biógenas con coenzima tetrahidrobiopterina (THB)", o: ["Triptófano hidroxilasa", "Dopamina beta-hidroxilasa", "Histidina descarboxilasa", "Feniletanoalamina-N-metiltransferasa", "5-hidroxitriptofano descarboxilasa"], c: 0 },
+            { id: 44, q: "44. En síntesis catecolaminas enzima paso Tirosina a L-DOPA", o: ["Tirosina hidroxilasa", "L-dopa sintetasa", "Tirosina descarboxilasa", "Tirosina N-metil transferasa", "L-dopa descarboxilasa"], c: 0 },
+            { id: 45, q: "45. Señale la respuesta incorrecta respecto a la serotonina", o: ["Se sintetiza a partir de triptófano", "Se almacenan en vesículas por VMAT", "Participa MAO", "Ácido N-metilmidazolacetico es producto degradación", "Se recapta por SERT"], c: 3 },
+            { id: 46, q: "46. Enzima que NO participa en degradación de aminas biógenas", o: ["Histamina-N-metiltransferasa", "Diamino oxidasa", "Monoamina oxidasa", "Catecol-amino-metiltransferasa (COMT)", "Acetilcolinesterasa (AchE)"], c: 4 },
+            { id: 47, q: "47. Enzima degradación acetilcolina", o: ["Degradasa", "Descarboxilasa", "Carboxilasa", "Transferasa", "Acetilcolinesterasa"], c: 4 },
+            { id: 48, q: "48. Precursor de glutamato para síntesis de GABA en neuronas", o: ["Alfa-cetoglutarato", "Prolina", "Ornitina", "Oxalacetato", "Aspartato"], c: 0 },
+            { id: 49, q: "49. Proteínas metabolismo hierro correcta", o: ["Hemopexina une hemo si satura haptoglobina", "Haptoglobina fija hemo si satura hemopexina", "Son alfaglobulinas", "Transferrina reserva ferroso", "Ferritina transportador férrico"], c: 0 },
+            { id: 50, q: "50. Proteína plasmática relacionada con enfermedad de Wilson", o: ["Haptoglobina", "Ceruloplasmina", "Transferrina", "Ferritina", "Prealbúmina"], c: 1 },
+            { id: 51, q: "51. Indicar la respuesta correcta en relación con la haptoglobina", o: ["Es alfa-1", "Es beta", "Cadenas alfa unen cadenas alfa Hb", "Cadenas beta unen cadenas alfa Hb", "Cadenas beta unen cadenas beta Hb"], c: 0 },
+            { id: 52, q: "52. Producto de la enzima ácido delta-aminolevulínico deshidratasa", o: ["Coproporfirinogeno", "Porfobilinogeno", "Protoporfirinogeno IX", "Uroporfirinogeno", "Protoporfirina IX"], c: 1 },
+            { id: 53, q: "53. Reacción carboxilación oxidativa de cadenas laterales (propiónico a vinilo)", o: ["Uro I a Uro III", "Uro III a Copro III", "Hidroxi a Uro I", "Coproporfirinogeno III a Protoporfirinogeno IX", "Proto IX a Proto IX"], c: 3 },
+            { id: 54, q: "54. Señale la respuesta correcta sobre el catabolismo del grupo hemo", o: ["Hemooxigenasa requiere NADPH", "Biliverdina reductasa genera hidrosoluble", "Bilirrubina solo de Hb", "Diglucuronido es indirecta", "Biliverdina reductasa produce CO"], c: 0 },
+            { id: 55, q: "55. Indique la afirmación correcta en relación con el valor P50", o: ["Todos saturados", "Igual a pO2 a 50", "pO2 a la que la mitad de sitios están saturados", "Indicativo de número sitios", "Todos saturados Hb no Mb"], c: 2 },
+            { id: 56, q: "56. Respecto a la hemoglobina y afinidad. Opción correcta", o: ["CO2 estabiliza R", "Bohr es bajada pH dificulta liberación", "2,3-BPG aumenta afinidad", "Aumento temperatura aumenta afinidad", "La disminución del pH provoca que la hemoglobina pierda afinidad (Bohr)"], c: 4 },
+            { id: 57, q: "57. Curva saturación hemoglobina", o: ["Recta positiva", "Curva sigmoidea", "Elíptica", "Recta negativa", "Hiperbólica"], c: 1 },
+            { id: 58, q: "58. Indique la respuesta incorrecta respecto al papel de las plaquetas", o: ["Gránulos densos contienen serotonina", "Gránulos densos contienen von Willebrand", "Gránulos alfa contienen von Willebrand", "GP Ib-IX necesaria adhesión", "Gránulos alfa contienen fibrinógeno"], c: 1 },
+            { id: 59, q: "59. Indique cuál de los siguientes factores de la coagulación es dependiente de la vitamina K", o: ["Factor V", "Factor IV", "Factor I", "Factor VIII", "Factor IX"], c: 4 },
+            { id: 60, q: "60. Qué factor activa la transformación del fibrinógeno en fibrina", o: ["Factor I", "Trombina (IIa)", "Factor XII", "Factor VIII", "Tromboplastina"], c: 1 },
+            { id: 61, q: "61. Señale la respuesta incorrecta sobre el radical superóxido (O2)", o: ["Se produce en las mitocondrias de todas las células aeróbicas", "Se forma por autooxidación enzimática del complejo IV", "Es el precursor de otras especies reactivas del oxígeno y del nitrógeno", "Es un radical libre, ya que tiene un electrón desapareado", "Su formación es un proceso vectorial hacia la matriz y hacia el espacio intermembrana"], c: 1 },
+            { id: 62, q: "62. Indique la respuesta incorrecta sobre los antioxidantes", o: ["La SOD tipo 1 (Cu/Zn-SOD) se encuentra en las mitocondrias", "La glutatión reductasa usa NADPH", "Un antioxidante protege a otras de la oxidación", "La vitamina C recupera antioxidantes", "Los enzimáticos son SOD, CAT y GPx"], c: 0 },
+            { id: 63, q: "63. Señale el principal antioxidante exógeno protector frente a la Lipoperoxidacion", o: ["Flavonoides", "Vitamina A", "Carotenoide", "Vitamina E", "Vitamina C"], c: 3 },
+            { id: 64, q: "64. Señala la respuesta incorrecta en relación con el lobulillo hepático", o: ["El sistema porta se localiza en el centro de los lobulillos", "Los espacios Dissé permiten el intercambio", "Los hepatocitos se disponen en hileras", "La sangre transcurre por los sinusoides", "Sistema aferente: vena porta, arteria hepática"], c: 0 },
+            { id: 65, q: "65. Señalar la respuesta incorrecta respecto a la zonación hepática.", o: ["Periportal mayor metabolismo oxidativo", "Perivenosa predomina glutamina", "Periportal mayor oxígeno", "Protección peróxido en periportal", "Los hepatocitos de la zona perivenosa reciben mayor aporte de oxígeno"], c: 4 },
+            { id: 66, q: "66. Con respecto a la zonacion hepática, señala la respuesta correcta", o: ["Se produce por el diferente aporte de oxígeno y nutrientes", "Biotransformación en periportal", "Cetogénesis en periportal", "Captación glucosa periportal", "Oxidación AG perivenosa"], c: 0 },
+            { id: 67, q: "67. La reacción global de un xenobiótico (Xb) liposoluble en el citocromo P450 es", o: ["Xb+NADPH+O2 -> Xb-OH+NADP+H2O", "Xb+O2 -> Xb-OH+H2O", "Xb+OH -> Xb-OH+H2O", "Xb+NADH...", "Xb+ NADPH+OH..."], c: 0 },
+            { id: 68, q: "68. Señala la respuesta incorrecta en relación con la Detoxificacion de fármacos", o: ["P450 aumenta polaridad", "Ibuprofeno liposoluble", "Aspirina Fase 1 y 2", "Acetaminofeno exceso oxida P450 citotóxico", "El acetaminofeno (paracetamol) es un fármaco hidrosoluble"], c: 4 },
+            { id: 69, q: "69. Indique la respuesta incorrecta respecto a la ingesta de alcohol", o: ["Favorece la oxidación del lactato a piruvato", "Aumenta la síntesis de ácidos grasos", "Inhibe la gluconeogénesis", "Estimula SREBP-1", "Favorece el incremento de NADH"], c: 0 },
+            { id: 70, q: "70. respecto a la síntesis de colágeno, indique la respuesta incorrecta", o: ["Hidroxilan lisina y prolina en RER", "O-glucosilaciones hidroxilisina", "Disulfuro isomerasa puentes en propéptidos", "Triple hélice inicia C-terminal", "Eliminación propéptidos en Golgi"], c: 4 },
+            { id: 71, q: "71. Respecto a la síntesis de colágeno indique la respuesta correcta", o: ["Formación fibras en RE", "O-glucosidaciones por galactosil transferasas", "1 de cada 4 es glicina", "Vit C cofactor lisil oxidasa", "Entrecruzamiento prolina"], c: 1 },
+            { id: 72, q: "72. El latirismo inhibe enzima:", o: ["Glucosiltransferasa", "Peptidasa", "Disulfuro isomerasa", "Lisil 5-hidroxilasa", "Lisil oxidasa"], c: 4 },
+            { id: 73, q: "73. La aldosterona actúa en:", o: ["Túbulo colector", "Asa ascendente", "Asa descendente", "Proximal", "Distal"], c: 0 },
+            { id: 74, q: "74. Mayor reabsorción de sodio:", o: ["Distal", "Proximal", "Asa Henle", "Túbulo", "Conector"], c: 1 },
+            { id: 75, q: "75. Pregunta sobre el anión GAP. Respuesta correcta:", o: ["Formula GAP: Na - (Cl + HCO3)", "...", "...", "...", "..."], c: 0 },
+            { id: 76, q: "76. En relación con el metabolismo del calcio, señalar la respuesta incorrecta:", o: ["Calcio circulante 1%", "Ionizado 50%", "Unido a proteínas es del 10%", "Unido albumina 40-45%", "Complejos 10%"], c: 2 },
+            { id: 77, q: "77. En el mantenimiento de las concentraciones de calcio, ¿cuál es la respuesta correcta?", o: ["PTH se libera cuando aumenta calcio", "Calcitonina inhibe resorción ósea", "Calcitonina libera si baja calcio", "PTH inhibe absorción renal", "PTH favorece formación"], c: 1 },
+            { id: 78, q: "78. En relación con la vitamina D procedente de la dieta señale la respuesta correcta", o: ["No hay hidroxilación", "1ª Riñón", "Transporta ceruloplasmina", "2ª Hígado", "La primera hidroxilación tiene lugar en el hígado"], c: 4 },
+            { id: 79, q: "79. Principal combustible células división rápida / eritrocitos", o: ["Aspartato", "Leucina", "Alanina", "Glutamina", "Glutamato"], c: 3 },
+            { id: 80, q: "80. En la fase de renutricion tras el ayuno nocturno. Que vía metabólica esta activa?:", o: ["Glucogenogenesis glicerol", "Glucogenogenesis glutamina", "Glucogenogenesis hepática", "Lipolisis", "La glucogenogenesis a expensas de lactato"], c: 4 },
+            { id: 81, q: "81. Indique cuál de las siguientes moléculas estimula la lipolisis en el embarazo:", o: ["Progesterona", "Lactato", "Lactógeno placentario", "Glucagón", "LDH"], c: 2 },
+            { id: 82, q: "82. Durante la lactancia, ¿cuál es el principal suministro de ácidos grasos para la mama?:", o: ["LDL", "IDL", "VLDL", "HDL", "Colesterol"], c: 2 },
+            { id: 83, q: "83. Respecto al metabolismo celular tumoral, señale la respuesta incorrecta:", o: ["La enzima piruvato deshidrogenasa quinasa fosforila a la PDH, activándola", "PDH quinasa fosforila e inactiva", "Insulina favorece fosfatasa", "AcetilCoA favorece quinasa", "Piruvato frena quinasa"], c: 0 },
+            { id: 84, q: "84. Indique cuál de los siguientes transportadores de glucosa tiene preferentemente aumentada su expresión en la célula neoplásica:", o: ["GLUT-1", "GLUT-5", "GLUT-3", "GLUT-2", "GLUT-4"], c: 0 },
+            { id: 85, q: "85. Señale la respuesta correcta al analizar que ocurre cuando se realiza un ejercicio de moderada intensidad y prolongado en el tiempo:", o: ["El ejercicio favorece la salida de glucosa del musculo", "El musculo utiliza cuerpos cetonicos antes que glucosa", "En la primera media hora se favorece la glucogenólisis muscular", "1ª media hora génesis", "Final lipogénesis"], c: 2 },
+            { id: 86, q: "86. Tras dos horas de ejercicio (Ciclo Randle). ¿Qué enzima se inhibe por citrato?:", o: ["PFK-2", "Glucoquinasa", "F2,6BPasa", "F1,6BPasa", "Fosfofructoquinasa 1 (PFK-1)"], c: 4 },
+            { id: 87, q: "87. Indique cuál de las siguientes respuestas es correcta respecto al ciclo de los purin nucleótidos en el ejercicio físico", o: ["Conc AMP/IMP varían", "Solo si inhibe AMP desaminasa", "Desaminación glutamato", "La producción de NH3 es proporcional a la intensidad del ejercicio", "Desaminación AMP proporcional"], c: 3 },
+            { id: 88, q: "88. Señale la opción correcta entre las siguientes opciones referidas a la PCR", o: ["Melting específica", "En la cuantificación relativa de la PCR cuantitativa, se emplea una curva de estándares de concentración conocida", "Convencional TaqMan", "CI ciclos", "Absoluta genes referencia"], c: 1 },
+            { id: 89, q: "89. Moléculas ADN tras 3 ciclos partiendo de 10:", o: ["30", "90", "120", "80", "60"], c: 3 },
+            { id: 90, q: "90. En relación con la PCR identifique la opción correcta", o: ["La unión de los cebadores o Primers al molde de ADN, se producen la fase de hibridación (Annealing)", "Cebadores estructuras secundarias", "Taq baja procesividad", "Elongación 94", "Convencional amplificación..."], c: 0 }
+        ];
+
+        let currentQuestions = [];
+        let userState = {};
+        let timerInterval;
+        let seconds = 0;
+
+        function initQuiz() {
+            document.getElementById('start-screen').style.display = 'none';
+            const shuffleQ = document.getElementById('shuffle-questions').checked;
+            const useTimer = document.getElementById('timer-check').checked;
+
+            // Clonar base de datos
+            currentQuestions = JSON.parse(JSON.stringify(fullDB));
+
+            if (shuffleQ) {
+                currentQuestions.sort(() => Math.random() - 0.5);
+            }
+
+            userState = {};
+            renderSidebar();
+            renderQuestions();
+
+            if (useTimer) {
+                document.getElementById('timer').style.display = 'block';
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+
+        function renderSidebar() {
+            const grid = document.getElementById('nav-grid');
+            grid.innerHTML = '';
+            
+            currentQuestions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-btn';
+                btn.innerText = index + 1;
+                btn.onclick = () => scrollToQ(index);
+                btn.id = `nav-${index}`;
+                grid.appendChild(btn);
+            });
+            updateProgress();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-wrapper');
+            container.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'q-card';
+                card.id = `card-${index}`;
+
+                card.innerHTML = `
+                    <div class="q-meta">
+                        <span>Pregunta ${index + 1}</span>
+                        <span>#${q.id}</span>
+                    </div>
+                    <div class="q-text">${q.q}</div>
+                `;
+
+                // Mezclar opciones SIEMPRE
+                let options = q.o.map((text, i) => ({ text, originalIndex: i }));
+                options.sort(() => Math.random() - 0.5);
+
+                const optContainer = document.createElement('div');
+                
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'opt-btn';
+                    btn.innerText = opt.text;
+                    btn.onclick = () => handleAnswer(index, opt.originalIndex, btn, options, q.c);
+                    optContainer.appendChild(btn);
+                });
+                card.appendChild(optContainer);
+
+                // Feedback
+                const fb = document.createElement('div');
+                fb.className = 'feedback';
+                fb.id = `fb-${index}`;
+                fb.innerHTML = `<strong>Respuesta Correcta:</strong> ${q.o[q.c]}`;
+                card.appendChild(fb);
+
+                // Tools
+                const tools = document.createElement('div');
+                tools.className = 'tools';
+                tools.innerHTML = `
+                    <label class="mark-label">
+                        <input type="checkbox" onchange="toggleMark(${index}, this.checked)">
+                        Marcar para revisar
+                    </label>
+                `;
+                card.appendChild(tools);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qIndex, selectedOriginalIndex, btnElement, shuffledOptions, correctIndex) {
+            if (userState[qIndex] && userState[qIndex].answered) return;
+
+            const isCorrect = selectedOriginalIndex === correctIndex;
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].answered = true;
+            userState[qIndex].correct = isCorrect;
+
+            if (isCorrect) {
+                btnElement.classList.add('correct');
+            } else {
+                btnElement.classList.add('wrong');
+                // Buscar correcta visualmente
+                const siblings = btnElement.parentElement.children;
+                for (let sib of siblings) {
+                    if (sib.innerText === fullDB.find(x => x.id === currentQuestions[qIndex].id).o[correctIndex]) {
+                        sib.classList.add('correct');
+                    }
+                }
+            }
+
+            const siblings = btnElement.parentElement.children;
+            for (let sib of siblings) sib.disabled = true;
+
+            document.getElementById(`fb-${qIndex}`).style.display = 'block';
+            
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            navBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+            
+            updateProgress();
+        }
+
+        function toggleMark(qIndex, isChecked) {
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].marked = isChecked;
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            if (isChecked) navBtn.classList.add('marked');
+            else navBtn.classList.remove('marked');
+        }
+
+        function scrollToQ(index) {
+            document.getElementById(`card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.querySelectorAll('.q-card').forEach(c => c.classList.remove('current'));
+            document.getElementById(`card-${index}`).classList.add('current');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`nav-${index}`).classList.add('active');
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.values(userState).filter(s => s.answered).length;
+            document.getElementById('prog-text').innerText = `${answeredCount} / ${currentQuestions.length}`;
+        }
+
+        function finish() {
+            clearInterval(timerInterval);
+            let correct = 0, wrong = 0, marked = 0;
+            
+            currentQuestions.forEach((q, i) => {
+                const s = userState[i];
+                if (s) {
+                    if (s.answered) {
+                        if (s.correct) correct++; else wrong++;
+                    }
+                    if (s.marked) marked++;
+                }
+            });
+
+            const score = Math.round((correct / currentQuestions.length) * 100);
+            document.getElementById('score').innerText = score + "%";
+            document.getElementById('r-ok').innerText = correct;
+            document.getElementById('r-ko').innerText = wrong;
+            document.getElementById('r-mk').innerText = marked;
+            document.getElementById('result-screen').style.display = 'flex';
+        }
+
+        function retry(mode) {
+            let nextQuestions = [];
+
+            if (mode === 'all') {
+                nextQuestions = JSON.parse(JSON.stringify(fullDB));
+            } else {
+                nextQuestions = currentQuestions.filter((q, i) => {
+                    const s = userState[i];
+                    if (!s) return false;
+                    if (mode === 'failed') return s.answered && !s.correct;
+                    if (mode === 'marked') return s.marked;
+                    if (mode === 'failed_marked') return (s.answered && !s.correct) || s.marked;
+                    return false;
+                });
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas para esta selección.");
+                return;
+            }
+
+            currentQuestions = nextQuestions;
+            userState = {};
+            seconds = 0;
+            document.getElementById('timer').innerText = "00:00";
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none';
+            
+            renderSidebar();
+            renderQuestions();
+            if (document.getElementById('timer-check').checked) {
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

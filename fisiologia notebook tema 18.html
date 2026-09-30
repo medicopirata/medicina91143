@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Neurotransmisión - Glutamato, GABA y Glicina</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 80px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            overflow-y: auto;
+            border-right: 2px solid #1a252f;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.3s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.correct { background: var(--success); }
+        .index-item.incorrect { background: var(--error); }
+        .index-item.marked { position: relative; }
+        .index-item.marked::after {
+            content: '🚩';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 10px;
+        }
+
+        /* Contenedor principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: transparent;
+        }
+
+        .card-setup {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { color: var(--primary); text-align: center; }
+        
+        /* Pantalla de Inicio */
+        #setup-screen { text-align: center; }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            transition: 0.3s;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-finish { background: #95a5a6; padding: 15px 40px; font-size: 1.1em;}
+
+        /* Preguntas */
+        .question-block { 
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border-left: 6px solid var(--secondary);
+        }
+        
+        .options { margin-top: 20px; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0f8ff; }
+        .option-btn.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option-btn.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .marking-zone {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        /* Pantalla Final */
+        #result-screen { display: none; text-align: center; }
+        .summary-stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { padding: 15px; border-radius: 8px; background: #f8f9fa; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);}
+
+        /* Botón Scroll to Top */
+        #scrollTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 1000;
+        }
+        #scrollTopBtn:hover {
+            background-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar" style="display: none;"></div>
+
+    <div id="main-content">
+        <div class="container">
+            <div id="setup-screen" class="card-setup">
+                <h1>⚡ Neurotransmisión II: Glutamato y GABA</h1>
+                <p>Bienvenido al cuestionario sobre aminoácidos excitadores e inhibidores.</p>
+                <div style="margin: 30px 0;">
+                    <p>Selecciona el modo de orden:</p>
+                    <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+                    <button class="btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" style="display: none;">
+                <div id="question-container"></div>
+                <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;">
+                    <button class="btn btn-finish" onclick="confirmFinish()">Finalizar Cuestionario</button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="card-setup">
+                <h1>Resultados Finales</h1>
+                <div class="summary-stats">
+                    <div class="stat-box"><h2 id="res-total">0</h2><p>Respondidas</p></div>
+                    <div class="stat-box" style="color: var(--success)"><h2 id="res-correct">0</h2><p>Correctas</p></div>
+                    <div class="stat-box" style="color: var(--error)"><h2 id="res-fail">0</h2><p>Falladas</p></div>
+                </div>
+                <h3>¿Qué quieres hacer ahora?</h3>
+                <div id="repeat-options">
+                    <button class="btn" onclick="repeatMode('all')">Repetir Todo</button>
+                    <button class="btn" onclick="repeatMode('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="repeatMode('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="repeatMode('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="scrollTopBtn" onclick="scrollToTop()" title="Subir al inicio">↑</button>
+
+<script>
+const rawData = [
+    { n: 1, q: "Para evitar la toxicidad por exceso de glutamato en el espacio sináptico, el organismo utiliza un mecanismo de reciclaje altamente eficiente en el que participan las células gliales astrocíticas. En este ciclo, la glía:", a: "b", ex: "La glía utiliza la glutamina sintasa para neutralizar el glutamato en glutamina antes de devolvérselo a la neurona. (La opción C ocurre en la neurona).", opts: ["Degrada el glutamato directamente a GABA.", "Capta el glutamato a través de transportadores EAAT y lo convierte en Glutamina (un compuesto no tóxico) mediante la enzima Glutamina Sintasa.", "Convierte la glutamina en glutamato a través de la enzima Glutaminasa.", "Destruye el glutamato con la enzima acetilcolinesterasa."] },
+    { n: 2, q: "A nivel de los receptores ionotrópicos de glutamato, el profesor insistió en que el receptor NMDA es un \"especialista\" que requiere de condiciones estrictas para abrir su canal. ¿Cuál de las siguientes condiciones NO es necesaria para su apertura?", a: "d", ex: "La hiperpolarización hace justamente lo contrario: consolida el bloqueo del poro por el ion Magnesio.", opts: ["Unión de glutamato.", "Despolarización previa de la membrana para expulsar el ion Magnesio (Mg2+).", "Unión de Glicina como co-agonista.", "Una hiperpolarización extrema del potencial de membrana."] },
+    { n: 3, q: "Comparando las cinéticas de los receptores de glutamato, los potenciales postsinápticos generados por los receptores AMPA y Kainato difieren funcionalmente de los generados por los NMDA en que:", a: "b", ex: "Literal de las diapositivas y el audio. AMPA y Kainato responden instantáneamente, mientras que NMDA es más lento y duradero (memoria).", opts: ["Los AMPA generan respuestas muy lentas y duraderas, vinculadas a la plasticidad.", "Los AMPA generan respuestas muy rápidas y de corta duración, esenciales para la transmisión sensorial y motora inmediata.", "Los AMPA son permeables al Magnesio.", "Los AMPA son inhibidores."] },
+    { n: 4, q: "Durante un proceso de isquemia cerebral (infarto), se interrumpe el flujo sanguíneo, lo que provoca una despolarización anómala y la liberación descontrolada de glutamato. Fisiopatológicamente, esta \"excitotoxicidad\" desencadena la muerte neuronal porque:", a: "c", ex: "El calcio es el principal ejecutor de la muerte celular excitotóxica al desatar las enzimas degradativas.", opts: ["El exceso de Cloro rompe el citoesqueleto.", "Se inhibe completamente la actividad mitocondrial.", "Produce una entrada masiva y excesiva de Calcio (Ca2+) intracelular que activa proteasas, fosfolipasas y nucleasas, destruyendo la célula.", "El glutamato se transforma en toxina botulínica."] },
+    { n: 5, q: "En las sinapsis del hipocampo, un estímulo de alta frecuencia sostenido genera el fenómeno de Potenciación a Largo Plazo (LTP), fundamental en el aprendizaje. ¿Cuál es el principal mecanismo celular que \"potencia\" la sinapsis en la fase temprana de la LTP?", a: "c", ex: "Explicado detalladamente en el audio. El calcio activa las quinasas que añaden más receptores AMPA a la membrana, haciendo la sinapsis mucho más eficiente.", opts: ["La destrucción masiva de receptores NMDA.", "La internalización de receptores AMPA mediante fosfatasas.", "La inserción de nuevos receptores AMPA en la membrana postsináptica, mediada por la activación de Quinasas (como CaMKII y PKC) en respuesta a la entrada de calcio.", "El bloqueo del canal de cloro."] },
+    { n: 6, q: "Por el contrario, en el fenómeno de Depresión a Largo Plazo (LTD), los bajos niveles de calcio intracelular desencadenan la activación de:", a: "b", ex: "Los niveles reducidos de calcio tienen mayor afinidad por las fosfatasas, las cuales retiran los AMPA para que el cerebro \"olvide\" conexiones menos relevantes.", opts: ["Proteincinasa C exclusivamente.", "Proteín-fosfatasas, que provocan la internalización (retirada) de los receptores AMPA, debilitando la sinapsis.", "La enzima óxido nítrico sintasa (NOS).", "Canales de sodio voltaje dependientes."] },
+    { n: 7, q: "El Ácido Gamma-Aminobutírico (GABA) es el principal neurotransmisor inhibidor del cerebro. La neurona lo sintetiza directamente a partir de un aminoácido excitador mediante la enzima descarboxilasa del ácido glutámico (GAD). ¿Qué molécula actúa como cofactor esencial en esta reacción?", a: "a", ex: "El GAD requiere del cofactor Fosfato de Piridoxal (Vitamina B6) para catalizar el paso de Glutamato a GABA.", opts: ["Fosfato de piridoxal (derivado de Vitamina B6).", "Vitamina D.", "Hierro.", "Óxido nítrico."] },
+    { n: 8, q: "En farmacología neurológica, fármacos muy empleados como el Diazepam (Benzodiacepinas) y el Pentobarbital (Barbitúricos) actúan sobre el receptor ionotrópico GABAA. ¿Qué diferencia clave existe entre sus mecanismos de modulación de este canal de Cloro?", a: "c", ex: "Punto clave mencionado explícitamente en el audio y la presentación: Benzodiacepinas = Frecuencia; Barbitúricos = Duración.", opts: ["Ambos bloquean la entrada de cloro por igual.", "Las benzodiacepinas aumentan la duración de apertura del canal, mientras que los barbitúricos aumentan su frecuencia.", "Las benzodiacepinas aumentan la FRECUENCIA de apertura del canal, mientras que los barbitúricos aumentan la DURACIÓN de su apertura.", "Los barbitúricos compiten directamente con el sitio de unión del GABA, inhibiéndolo."] },
+    { n: 9, q: "Al igual que el GABA, la Glicina es un potente neurotransmisor inhibitorio. Anatómica y funcionalmente, ¿en qué región del sistema nervioso central es predominante la acción de la glicina, suponiendo el 50% de las sinapsis inhibitorias locales?", a: "c", ex: "El profesor especificó que su distribución es más localizada que la del GABA, siendo vital en el equilibrio inhibitorio de la médula espinal.", opts: ["En la corteza prefrontal.", "En el núcleo accumbens.", "En la médula espinal.", "En los ganglios basales."] },
+    { n: 10, q: "Ciertos niños nacen con una rara mutación genética en los transportadores gliales que impiden la eliminación y recaptación de la glicina de la hendidura sináptica. Esta enfermedad se denomina Hiperglicinemia y provoca clínicamente:", a: "b", ex: "A diferencia de la hiperekplexia (donde falla el receptor), en la hiperglicinemia se acumula la molécula, causando una inhibición global masiva (letargia, coma).", opts: ["Una excitabilidad extrema y convulsiones rígidas.", "Una acumulación tóxica de glicina que sobre-inhibe el sistema, causando letargia profunda, convulsiones y retardo mental severo.", "El aumento de la fuerza muscular a niveles sobrehumanos.", "Una esclerosis múltiple temprana."] },
+    { n: 11, q: "(Pregunta clínica deducida del audio). Si existe una mutación en los genes del receptor de Glicina (canal de Cloro) reduciendo su actividad inhibitoria en la médula espinal, el paciente sufrirá un cuadro denominado \"Hiperekplexia\" (Síndrome del sobresalto), el cual se caracteriza por:", a: "b", ex: "Al no funcionar el \"freno\" de la glicina en la médula, los estímulos táctiles o auditivos producen un sobresalto exagerado e hipertono muscular.", opts: ["Letargia profunda y sueño incontrolable.", "Movimientos bruscos exagerados (sobresalto), espasmos y engarrotamiento muscular debido a la falta de la inhibición fisiológica normal.", "Ceguera cortical.", "Una parálisis flácida total."] },
+    { n: 12, q: "En la comunicación mediada por GABA, existe un receptor específico que NO es un canal iónico (ionotrópico), sino que funciona como un receptor metabotrópico acoplado a proteína G, induciendo hiperpolarización al abrir canales de K+ y cerrar los de Ca2+. Este receptor es:", a: "c", ex: "Los receptores GABAA y GABAC son canales de cloro. El GABAB es el metabotrópico.", opts: ["GABAA", "GABAC", "GABAB", "NMDA"] },
+    { n: 13, q: "En el contexto de la plasticidad sináptica (LTP), el Calcio que entra a través del receptor NMDA activa además a la enzima óxido nítrico sintasa (NOS). ¿Qué papel juega el Óxido Nítrico (NO) generado en este proceso?", a: "c", ex: "El NO viaja hacia atrás (desde la post- a la presinapsis) para garantizar que la vía quede potenciada, indicándole al terminal que libere más neurotransmisor en el futuro.", opts: ["Destruye inmediatamente la vesícula presináptica.", "Se une al receptor AMPA desactivándolo.", "Actúa como un \"mensajero retrógrado\" difundiendo de vuelta hacia el terminal presináptico para favorecer una mayor liberación de glutamato.", "Inhibe la fosfolipasa C en la glía."] },
+    { n: 14, q: "A diferencia de las aminas biógenas que son eliminadas enzimáticamente de la hendidura, la finalización de la señal en las sinapsis tanto glutamatérgicas como GABAérgicas requiere de:", a: "b", ex: "Ambos aminoácidos se reciclan a través de potentes transportadores de recaptura para no dañar el sistema ni perder precursores metabólicos.", opts: ["Su rápida difusión hacia los ventrículos cerebrales.", "La recaptación mediante proteínas transportadoras dependientes de iones (ej. GAT dependiente de Na+ para GABA y EAAT para glutamato) en los propios terminales nerviosos o en las células gliales adyacentes.", "La endocitosis de la membrana postsináptica entera.", "La destrucción por la enzima MAO (monoaminooxidasa)."] },
+    { n: 15, q: "(Caso integrado). Un investigador aplica etanol a un cultivo de neuronas y observa un potente efecto inhibidor, sedante y amnésico en la red. El profesor mencionó que el etanol produce este efecto primariamente mediante:", a: "c", ex: "Al igual que los ansiolíticos y anestésicos, el alcohol potencia la corriente de Cloro mediada por el receptor GABA, provocando la depresión funcional del cerebro típica de la embriaguez.", opts: ["La destrucción masiva de los receptores NMDA.", "El bloqueo completo e irreversible de la bomba Na+/K+.", "El aumento directo de la actividad de los receptores GABAA (modulando su cinética), favoreciendo una inhibición global del sistema nervioso.", "La inhibición de la liberación de acetilcolina."] }
+];
+
+let questions = [];
+let userAnswers = {}; 
+
+function startQuiz(isRandom) {
+    questions = [...rawData].map(q => {
+        const correctText = q.opts[q.a.charCodeAt(0) - 97];
+        const shuffledOpts = [...q.opts].sort(() => Math.random() - 0.5);
+        const newCorrectLetter = String.fromCharCode(97 + shuffledOpts.indexOf(correctText));
+        return { ...q, opts: shuffledOpts, a: newCorrectLetter };
+    });
+
+    if (isRandom) questions.sort(() => Math.random() - 0.5);
+
+    renderQuiz();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'flex';
+}
+
+function renderQuiz() {
+    const container = document.getElementById('question-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+
+    questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = `question-block qb-${i}`;
+        div.innerHTML = `
+            <h2>Pregunta ${i + 1}</h2>
+            <p>${q.q}</p>
+            <div class="options">
+                ${q.opts.map((opt, idx) => `
+                    <button class="option-btn" onclick="checkAnswer(${i}, '${String.fromCharCode(97 + idx)}', this)">
+                        ${String.fromCharCode(97 + idx)}) ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="explanation" id="ex-${i}">${q.ex}</div>
+            <div class="marking-zone">
+                <input type="checkbox" id="mark-${i}" onchange="toggleMark(${i})">
+                <label for="mark-${i}">Marcar pregunta para revisión 🚩</label>
+            </div>
+        `;
+        container.appendChild(div);
+
+        const item = document.createElement('div');
+        item.className = `index-item ii-${i}`;
+        item.innerText = i + 1;
+        item.onclick = () => {
+            document.querySelector(`.qb-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        sidebar.appendChild(item);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+function checkAnswer(qIdx, letter, btn) {
+    if (userAnswers[qIdx]) return; 
+
+    const isCorrect = letter === questions[qIdx].a;
+    userAnswers[qIdx] = { selected: letter, correct: isCorrect, marked: document.getElementById(`mark-${qIdx}`).checked };
+
+    const buttons = document.querySelectorAll(`.qb-${qIdx} .option-btn`);
+    buttons.forEach(b => {
+        b.disabled = true;
+        const bLetter = b.innerText.split(')')[0].trim();
+        if (bLetter === questions[qIdx].a) b.classList.add('correct');
+        else if (bLetter === letter) b.classList.add('incorrect');
+    });
+
+    const sideItem = document.querySelector(`.ii-${qIdx}`);
+    sideItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    document.getElementById(`ex-${qIdx}`).style.display = 'block';
+}
+
+function toggleMark(index) {
+    const sideItem = document.querySelector(`.ii-${index}`);
+    if (document.getElementById(`mark-${index}`).checked) {
+        sideItem.classList.add('marked');
+    } else {
+        sideItem.classList.remove('marked');
+    }
+}
+
+function confirmFinish() {
+    if (confirm("¿Estás seguro de que quieres finalizar el cuestionario?")) {
+        showResults();
+    }
+}
+
+function showResults() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main-content').scrollTop = 0;
+
+    let correct = 0, failed = 0;
+    Object.values(userAnswers).forEach(v => {
+        if (v.correct) correct++;
+        else failed++;
+    });
+
+    document.getElementById('res-total').innerText = Object.keys(userAnswers).length;
+    document.getElementById('res-correct').innerText = correct;
+    document.getElementById('res-fail').innerText = failed;
+}
+
+function repeatMode(mode) {
+    let subSet = [];
+    if (mode === 'all') {
+        subSet = [...rawData];
+    } else if (mode === 'failed') {
+        subSet = questions.filter((_, i) => userAnswers[i] && !userAnswers[i].correct);
+    } else if (mode === 'marked') {
+        subSet = questions.filter((_, i) => document.getElementById(`mark-${i}`).checked);
+    } else if (mode === 'mixed') {
+        subSet = questions.filter((_, i) => 
+            (userAnswers[i] && !userAnswers[i].correct) || document.getElementById(`mark-${i}`).checked
+        );
+    }
+
+    if (subSet.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return;
+    }
+
+    userAnswers = {};
+    questions = subSet;
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('quiz-screen').style.display = 'block';
+    renderQuiz();
+}
+
+/* Lógica del botón Scroll to Top */
+const mainContent = document.getElementById('main-content');
+const scrollTopBtn = document.getElementById('scrollTopBtn');
+
+mainContent.addEventListener('scroll', () => {
+    if (mainContent.scrollTop > 300) {
+        scrollTopBtn.style.display = 'block';
+    } else {
+        scrollTopBtn.style.display = 'none';
+    }
+});
+
+function scrollToTop() {
+    mainContent.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+</script>
+</body>
+</html>

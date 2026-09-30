@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Quiz: Fisiología Humana Integral</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #2980b9;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f39c12;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ebf0f1;
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice Lateral Compacto */
+        #sidebar {
+            width: 120px;
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            padding: 15px 5px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            align-content: start;
+            z-index: 1000;
+        }
+
+        .index-dot {
+            height: 35px;
+            background: rgba(255,255,255,0.1);
+            color: #bdc3c7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .index-dot:hover { background: var(--secondary); color: white; }
+        .index-dot.answered { background: var(--success); color: white; }
+        .index-dot.marked { background: var(--warning) !important; color: var(--primary); }
+
+        /* Contenido */
+        #main-wrapper {
+            margin-left: 120px;
+            flex-grow: 1;
+            padding: 40px;
+            max-width: 1100px;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 40px;
+            position: sticky;
+            top: 20px;
+            z-index: 900;
+        }
+
+        .question-card {
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            scroll-margin-top: 160px;
+            border-left: 8px solid #d1d8e0;
+            transition: 0.3s;
+        }
+
+        .question-card.active-q { border-left-color: var(--secondary); }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+
+        .q-text { font-size: 1.15em; font-weight: 600; color: var(--primary); line-height: 1.5; }
+
+        .mark-btn {
+            background: #f1f2f6;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+
+        .mark-btn.active { background: var(--warning); color: black; font-weight: bold; }
+
+        .options-list { display: grid; gap: 12px; }
+
+        .option {
+            padding: 15px 20px;
+            border: 2px solid #f1f2f6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: white;
+        }
+
+        .option:hover { border-color: var(--secondary); background: #f9fbff; }
+        .option.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--secondary);
+            border-radius: 0 8px 8px 0;
+            display: none;
+            font-size: 0.95em;
+            color: #01579b;
+        }
+
+        /* Modales */
+        .modal {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .action-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal">
+        <div class="modal-content">
+            <h1>Master Test Fisiología</h1>
+            <p>200 preguntas unificadas de todos los bloques temáticos.</p>
+            <button class="action-btn" onclick="startQuiz(false)">Orden Lógico</button>
+            <button class="action-btn" onclick="startQuiz(true)">Mezclar Todo</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="main-wrapper">
+        <header>
+            <h2 id="quiz-title" style="margin:0">Cuestionario Unificado</h2>
+            <div id="progress" style="margin: 10px 0; color: var(--secondary); font-weight: bold;"></div>
+            <button class="action-btn" style="padding: 8px 15px; font-size: 0.8em;" onclick="showFinalResults()">Finalizar y Corregir</button>
+        </header>
+
+        <div id="questions-container"></div>
+
+        <div id="finish-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Resultados Finales</h2>
+                <div id="score-text" style="font-size: 2.5em; margin: 20px 0; color: var(--primary);"></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="action-btn" onclick="restart('all')">Repetir Todo</button>
+                    <button class="action-btn" id="btn-failed" onclick="restart('failed')">Solo Falladas</button>
+                    <button class="action-btn" id="btn-marked" onclick="restart('marked')">Solo Marcadas</button>
+                    <button class="action-btn" id="btn-both" onclick="restart('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const allQuestions = [
+            // --- BLOQUE 1: CONCEPTO 1 A 7 (14 preguntas) ---
+            { id: 1, q: "Si introducimos un glóbulo rojo en una solución de urea de 300 mOsM, ¿qué ocurrirá fisiológicamente con el volumen de la célula?", options: ["La célula se encogerá porque la solución es hipertónica.", "El volumen celular no cambiará porque la solución es isosmolar e isotónica.", "La urea difundirá hacia el interior de la célula arrastrando agua consigo, por lo que la célula se hinchará (la solución es hipotónica).", "La urea bloqueará los canales de acuaporinas impidiendo el paso de agua."], correct: 2, exp: "Aunque sea isosmolar (300 mOsM), la urea es un soluto penetrante. Al entrar a la célula a favor de gradiente, arrastra agua por ósmosis, hinchando la célula. Por eso es hipotónica." },
+            { id: 2, q: "A diferencia de la osmolaridad, el concepto fisiológico de 'tonicidad' de una solución hace referencia exclusivamente a:", options: ["El número total de partículas disueltas por litro de solución.", "La capacidad de la solución para modificar el volumen celular, lo cual depende de la permeabilidad de la membrana a los solutos.", "La carga eléctrica neta del compartimento extracelular.", "La concentración de proteínas plasmáticas."], correct: 1, exp: "La tonicidad describe cómo afecta una solución al volumen de una célula, dependiendo de si los solutos pueden o no atravesar la membrana." },
+            { id: 3, q: "Si mediante una manipulación experimental logramos que la membrana de una neurona sea EXCLUSIVAMENTE permeable al ión Potasio ($K^+$), ¿cuál será su potencial de membrana?", options: ["0 mV, debido a la neutralidad eléctrica.", "Coincidirá exactamente con el potencial de equilibrio para el Sodio (+65 mV).", "Coincidirá exactamente con el potencial de equilibrio para el Potasio (-85 mV).", "Se producirá una despolarización hasta alcanzar el umbral."], correct: 2, exp: "Si la membrana es permeable a un solo ión, el potencial de membrana se iguala matemáticamente al potencial de equilibrio (Nernst) de ese ión." },
+            { id: 4, q: "El profesor advirtió sobre la importancia de pequeños cambios en la concentración extracelular de un ión que afectan al potencial en reposo y causan arritmias letales. ¿A qué ión se refería?", options: ["Al Sodio ($Na^+$).", "Al Calcio ($Ca^{2+}$).", "Al Cloro ($Cl^-$).", "Al Potasio ($K^+$)."], correct: 3, exp: "La membrana en reposo es muy permeable al potasio. Variaciones en la calemia (hipo/hipercalemia) alteran drásticamente el potencial de reposo cardíaco." },
+            { id: 5, q: "¿Qué efecto tiene sobre la integración sináptica que una neurona posea una Constante de Tiempo ($\\tau$) muy LENTA (ej. 100 ms)?", options: ["Impide la generación de un potencial de acción.", "Aumenta la probabilidad de que se produzca una Sumación Temporal de dos potenciales consecutivos.", "Convierte los potenciales inhibidores en excitadores.", "Disminuye la capacitancia de la membrana."], correct: 1, exp: "Si $\\tau$ es larga, el voltaje cae muy lentamente. Esto permite que un segundo estímulo se 'monte' sobre el primero antes de que este se disipe." },
+            { id: 6, q: "Si la Constante de Longitud o Espacio ($\\lambda$) de una dendrita aumenta debido a una mayor resistencia de membrana ($R_m$), el resultado será:", options: ["Una atenuación mucho más rápida de la señal.", "Una mayor atenuación espacial que impedirá la sumación.", "Una menor atenuación espacial de los potenciales locales, facilitando la Sumación Espacial.", "La inactivación absoluta de los canales de fuga."], correct: 2, exp: "A mayor $\\lambda$, la señal viaja más lejos sin perder fuerza, permitiendo que estímulos de distintas ramas lleguen al cono axónico y se sumen." },
+            { id: 7, q: "En un experimento de fijación de voltaje (Voltage-Clamp), al añadir Tetrodotoxina (TTX), ¿qué componente del potencial de acción desaparece?", options: ["La corriente transitoria rápida de entrada, mediada por los canales de Sodio.", "La corriente persistente tardía de salida, mediada por el Potasio.", "La corriente de fuga de Cloro.", "El potencial de reposo de la célula."], correct: 0, exp: "La TTX bloquea específicamente los canales de sodio voltaje-dependientes, eliminando la fase de despolarización." },
+            { id: 8, q: "¿Qué estado conformacional de los canales iónicos es el responsable del Periodo Refractario ABSOLUTO?", options: ["Los canales de potasio bloqueados por calcio.", "Los canales de sodio voltaje-dependientes en estado INACTIVADO.", "Los canales de sodio en estado CERRADO pero activables.", "La bomba $Na^+/K^+$ consumiendo ATP."], correct: 1, exp: "La compuerta de inactivación del canal de Na+ está cerrada; es mecánicamente imposible abrirlo de nuevo hasta que la membrana repolarice." },
+            { id: 9, q: "¿Qué proteína de la membrana vesicular actúa como el 'sensor de calcio' que desencadena la exocitosis?", options: ["Sintaxina.", "SNAP-25.", "Sinaptotagmina.", "Dinamina."], correct: 2, exp: "La sinaptotagmina detecta el Calcio y orquesta la fusión de la vesícula mediada por el complejo SNARE." },
+            { id: 10, q: "El tétanos produce una parálisis ESPÁSTICA porque:", options: ["Actúa sobre la unión neuromuscular activando los receptores nicotínicos.", "Bloquea la liberación de neurotransmisores inhibidores (Glicina/GABA) en el SNC.", "Destruye la enzima acetilcolinesterasa.", "Induce una endocitosis masiva de los receptores musculares."], correct: 1, exp: "Al viajar al SNC e impedir la inhibición, las motoneuronas se sobreexcitan de forma incontrolada." },
+            { id: 11, q: "Al aplicar noradrenalina a un músculo liso, este se contrae. Si aplicamos 'Fentolamina' antes, no hay contracción. Esto es porque:", options: ["Es un agonista competitivo.", "Es un inhibidor enzimático.", "Es un antagonista adrenérgico que bloquea el receptor sin transmitir señal.", "Es una proteína quinasa."], correct: 2, exp: "Un antagonista ocupa el receptor (afinidad) pero no lo activa (falta de eficacia), bloqueando al ligando natural." },
+            { id: 12, q: "En la Diabetes tipo II, la célula realiza un proceso de 'Down-regulation', que consiste en:", options: ["Secretar glucagón.", "Transformar receptores en intracelulares.", "Endocitar y destruir sus propios receptores de membrana para disminuir su sensibilidad.", "Cambiar la especificidad del receptor."], correct: 2, exp: "Ante niveles excesivos de hormona, la célula retira sus receptores para protegerse de la sobreestimulación (genera resistencia)." },
+            { id: 13, q: "Bioquímicamente, ¿qué evento causa el 'Rigor Mortis' tras el fallecimiento?", options: ["Destrucción de la Titina.", "Incapacidad de hidrolizar la Acetilcolina.", "Agotamiento del ATP, lo que impide que la miosina se separe de la actina.", "Liberación del fosfato inorgánico."], correct: 2, exp: "La unión de un nuevo ATP es necesaria para que la cabeza de miosina suelte la actina. Sin ATP, se quedan pegadas." },
+            { id: 14, q: "El músculo del corredor de maratón es más estrecho y rojizo porque:", options: ["Predominan las Fibras Rápidas Glucolíticas (Tipo IIb).", "Carece de mioglobina.", "Predominan las Fibras Lentas Oxidativas (Tipo I), con más mitocondrias y capilares.", "Usa solo Fosfato de Creatina."], correct: 2, exp: "Las fibras tipo I son delgadas (menor volumen), resistentes y rojas por su alta vascularización y mioglobina para usar oxígeno." },
+
+            // --- BLOQUE 2: CONCEPTO 8 A 14 (14 preguntas) ---
+            { id: 15, q: "(Exp. Hamburger) Si se amputa una extremidad en desarrollo, las motoneuronas correspondientes desaparecen porque:", options: ["Migraron hacia el encéfalo.", "La falta de diana impidió recibir neurotrofinas, induciendo apoptosis.", "Se transformaron en glía.", "Hubo necrosis hemorrágica."], correct: 1, exp: "La supervivencia neuronal depende de captar factores de crecimiento limitados de la célula diana. Sin diana, mueren." },
+            { id: 16, q: "¿Qué factor potencia la neuroplasticidad y supervivencia neuronal tras el ejercicio físico?", options: ["Ácido láctico.", "Óxido Nítrico microglial.", "Factor Neurotrófico Derivado del Cerebro (BDNF).", "Caspasas."], correct: 2, exp: "El ejercicio estimula la liberación de BDNF, que mejora la salud y plasticidad de las neuronas." },
+            { id: 17, q: "¿Qué proteína clave (GTPasa) inicia la cascada de las MAP-quinasas y su mutación se vincula al cáncer?", options: ["Proteína G alfa estimuladora.", "Proteína Ras.", "Adenilato Ciclasa.", "Fosfolipasa C."], correct: 1, exp: "Ras actúa como un interruptor. Si muta y se queda 'encendida' en forma GTP, produce proliferación celular incontrolada (tumor)." },
+            { id: 18, q: "(Caso Barbacid) La estrategia para que el cáncer de páncreas remitiera fue:", options: ["Inducir hiperglucemia.", "Inhibir simultáneamente RTK, bloquear Ras y degradar STAT3.", "Activar receptores muscarínicos.", "Altas dosis de interleuquina-1."], correct: 1, exp: "Atacar toda la cascada de señalización (membrana, intermediario y núcleo) bloqueó la proliferación tumoral." },
+            { id: 19, q: "¿Cuál es el mecanismo por el cual el Óxido Nítrico (NO) provoca vasodilatación?", options: ["Activa la Guanilato Ciclasa, aumentando el GMP cíclico (cGMP).", "Se une a receptores Gq liberando Calcio.", "Bloquea canales de Sodio.", "Inhibe la Acetilcolinesterasa."], correct: 0, exp: "El NO difunde libremente al citoplasma del músculo liso y activa la Guanilato Ciclasa soluble." },
+            { id: 20, q: "¿Qué enzima bloquean los AINEs (Ibuprofeno/Aspirina) para frenar la inflamación y el dolor?", options: ["Lipooxigenasa.", "Adenilato Ciclasa.", "Ciclooxigenasa (COX).", "Tirosina Hidroxilasa."], correct: 2, exp: "Al inhibir la COX, se corta la síntesis de prostaglandinas, mediadores clave del dolor y la fiebre." },
+            { id: 21, q: "Las moléculas de adhesión que median el 'rodamiento' inicial débil de los leucocitos son:", options: ["Selectinas.", "Integrinas.", "Conexinas.", "Cadherinas."], correct: 0, exp: "Las selectinas frenan al leucocito (unión débil) permitiendo que ruede por el endotelio antes de fijarse con las integrinas." },
+            { id: 22, q: "Las células del corazón funcionan como sincitio eléctrico gracias a:", options: ["Uniones estrechas.", "Cadherinas.", "Uniones comunicantes (Gap junctions) de conexina.", "Inmunoglobulinas."], correct: 2, exp: "Las Gap junctions permiten el paso directo de iones entre citoplasmas, coordinando la contracción." },
+            { id: 23, q: "¿Qué enzima transforma el fibrinógeno en hilos de fibrina?", options: ["Plasmina.", "Factor von Willebrand.", "Trombina.", "Prostaciclina."], correct: 2, exp: "La trombina es la enzima ejecutora final de la cascada de coagulación." },
+            { id: 24, q: "¿Qué factor estabiliza el coágulo creando enlaces covalentes entre fibras de fibrina?", options: ["Calcio.", "Factor Xa.", "Factor XIII.", "tPA."], correct: 2, exp: "El factor XIII actúa como 'pegamento' final para dar resistencia tridimensional al coágulo." },
+            { id: 25, q: "La Potenciación a Largo Plazo (LTP) se consolida cuando el Calcio activa:", options: ["Proteín-fosfatasas.", "Proteín-quinasas (CaMKII/PKC) que insertan receptores AMPA.", "Canales de potasio.", "Acetilcolinesterasa."], correct: 1, exp: "El aumento de receptores AMPA en la membrana fortalece la respuesta sináptica futura." },
+            { id: 26, q: "La Depresión a Largo Plazo (LTD) o 'olvido' ocurre cuando el Calcio bajo activa:", options: ["Fosfatasas que retiran (internalizan) receptores AMPA.", "Bloqueo por Magnesio.", "Destrucción de vesículas de glutamato.", "Toxina botulínica."], correct: 0, exp: "Niveles bajos de calcio activan fosfatasas que quitan los receptores de la superficie." },
+            { id: 27, q: "La baja discriminación táctil de la espalda se explica por:", options: ["Divergencia.", "Convergencia (campos receptivos grandes en una sola neurona secundaria).", "Adaptación rápida.", "Ausencia de canales ionotrópicos."], correct: 1, exp: "Muchos sensores envían señal al mismo punto central, perdiendo el 'detalle' del mapa táctil." },
+            { id: 28, q: "La llegada de LUZ al fotorreceptor (bastón) provoca:", options: ["Despolarización por Calcio.", "Bloqueo de transducina.", "Activación de fosfodiesterasa, baja el GMPc e HIPERPOLARIZACIÓN.", "Liberación de glutamato."], correct: 2, exp: "Es contraintuitivo: la luz cierra canales y 'apaga' eléctricamente a la célula." },
+
+            // --- BLOQUE 3: CONCEPTO 15 A 20 (12 preguntas) ---
+            { id: 29, q: "¿Qué efecto tiene la mielina sobre las propiedades pasivas para aumentar la velocidad?", options: ["Aumenta capacitancia y baja resistencia interna.", "Baja resistencia de membrana.", "Aumenta resistencia de membrana y disminuye capacitancia.", "Bloquea canales de potasio."], correct: 2, exp: "Actúa como aislante: evita fugas ($R_m$) y separa cargas ($C_m$), haciendo que el impulso 'salte'." },
+            { id: 30, q: "En la Esclerosis Múltiple, el bloqueo de la conducción se debe a:", options: ["Pérdida de mielina, aumenta capacitancia y genera fugas masivas.", "Hipertrofia de astrocitos.", "Toxina botulínica.", "Mutación de canales de sodio."], correct: 0, exp: "Sin mielina, la señal se fuga por la membrana desnuda y no llega al siguiente nodo." },
+            { id: 31, q: "El experimento de la Peroxidasa de Rábano (HRP) demostró:", options: ["El viaje al soma.", "El reciclaje local de membrana por endocitosis.", "Que el calcio no es necesario.", "Que la peroxidasa es precursor de ACh."], correct: 1, exp: "Se vio cómo las vesículas captaban la enzima del exterior al formarse de nuevo tras la exocitosis." },
+            { id: 32, q: "¿Qué proteína 'estrangula' el cuello de la vesícula endocítica?", options: ["Sinaptobrevina.", "Clatrina.", "Dinamina.", "Sintaxina."], correct: 2, exp: "La dinamina consume energía para 'cortar' la vesícula de la membrana plasmática." },
+            { id: 33, q: "En el músculo, ¿qué evento desencadena el 'golpe de fuerza'?", options: ["Unión de ATP.", "Hidrólisis de ATP.", "Liberación del Fosfato inorgánico ($P_i$) de la miosina.", "Cierre de la bomba SERCA."], correct: 2, exp: "Al 'escupir' el fosfato, la miosina libera la energía que mueve mecánicamente el filamento de actina." },
+            { id: 34, q: "En el músculo relajado, ¿qué hace el complejo Troponina-Tropomiosina?", options: ["Bomba de calcio.", "La tropomiosina bloquea físicamente los sitios de unión para miosina.", "Conecta línea Z y M.", "Libera ACh."], correct: 1, exp: "La tropomiosina 'estorba' en medio de la actina para evitar la contracción accidental." },
+            { id: 35, q: "La Atropina sube la frecuencia cardíaca porque:", options: ["Es agonista nicotínico.", "Es antagonista muscarínico, bloqueando el freno parasimpático.", "Inhibe la AChE.", "Destruye la proteína Gi."], correct: 1, exp: "Bloquea los receptores M2 del corazón, impidiendo que la acetilcolina lo frene." },
+            { id: 36, q: "La Pilocarpina en el glaucoma actúa como:", options: ["Agonista muscarínico (mimetiza ACh).", "Bloqueante nicotínico.", "Destruye SNARE.", "Inhibidor de dopamina."], correct: 0, exp: "Mimetiza al parasimpático, induciendo miosis y facilitando el drenaje del ojo." },
+            { id: 37, q: "En las piernas del maratoniano predominan:", options: ["Fibras Tipo IIb blancas.", "Fibras Tipo I rojas, oxidativas y resistentes.", "Músculo liso.", "Fibras sin túbulos T."], correct: 1, exp: "Son fibras preparadas para el oxígeno, ricas en mitocondrias y capilares." },
+            { id: 38, q: "¿De dónde obtiene energía el músculo en los primeros 5-7 segundos de sprint?", options: ["Oxidación de grasas.", "Fosfato de Creatina vía Creatín-quinasa.", "Bomba SERCA.", "Fermentación alcohólica."], correct: 1, exp: "Es el reservorio de energía inmediata ('flash') antes de que arranque la glucólisis." },
+            { id: 39, q: "La llegada de LUZ al bastón retiniano provoca:", options: ["Despolarización.", "Síntesis de AMPc.", "Activación de fosfodiesterasa, baja el GMPc e HIPERPOLARIZACIÓN.", "Contracción física."], correct: 2, exp: "La luz detiene la 'corriente oscura' de sodio, volviendo la célula más negativa." },
+            { id: 40, q: "Dejar de sentir el roce de la ropa es un ejemplo de:", options: ["Periodo refractario.", "Convergencia.", "Adaptación rápida (receptores fásicos).", "Inhibición lateral."], correct: 2, exp: "Los receptores fásicos detectan la novedad pero se callan ante el estímulo constante." },
+
+            // --- BLOQUE 4: BLOQUES 1 AL 11 (80 preguntas - Unificadas) ---
+            { id: 41, q: "¿Qué marcador mide el volumen del plasma sanguíneo?", options: ["Inulina.", "Sodio radiactivo.", "Azul de Evans.", "Agua deuterada."], correct: 2, exp: "Se une a la albúmina y no sale del capilar." },
+            { id: 42, q: "Si colocamos una célula en urea 300 mM:", options: ["No pasa nada.", "Se encoge.", "Se hincha porque la urea entra con agua.", "Expulsa urea."], correct: 2, exp: "Urea = soluto penetrante. Genera hinchamiento (hipotónica)." },
+            { id: 43, q: "Ión más abundante en el líquido intracelular:", options: ["Sodio.", "Potasio.", "Calcio.", "Cloro."], correct: 1, exp: "El $K^+$ es el catión intracelular principal." },
+            { id: 44, q: "¿Por qué hay más cationes en plasma que en intersticio?", options: ["Bomba Na/K.", "Proteínas plasmáticas negativas (Gibbs-Donnan).", "Intersticio seco.", "Urea."], correct: 1, exp: "Las proteínas retienen cationes por atracción eléctrica." },
+            { id: 45, q: "¿Qué porcentaje de agua es intracelular?", options: ["8%", "25%", "33%", "67%"], correct: 3, exp: "2/3 del agua corporal total está dentro de las células." },
+            { id: 46, q: "Potencial de membrana si solo es permeable al Potasio:", options: ["0 mV.", "+65 mV.", "-85 mV.", "-70 mV."], correct: 2, exp: "Iguala su potencial de equilibrio." },
+            { id: 47, q: "Hipocalemia es:", options: ["Exceso de calcio.", "Déficit de Potasio.", "Déficit de Calcio.", "Exceso de Sodio."], correct: 1, exp: "Bajo potasio en sangre." },
+            { id: 48, q: "¿Qué otorga la Capacitancia ($C_m$) a la membrana?", options: ["Canales.", "Bicapa lipídica.", "Bombas.", "Citoplasma."], correct: 1, exp: "Actúa como un condensador." },
+            { id: 49, q: "La Constante de Tiempo ($\\tau$) mide el tiempo para alcanzar el:", options: ["100%", "63%", "50%", "10%"], correct: 1, exp: "63% de la respuesta máxima." },
+            { id: 50, q: "Una Constante de Longitud ($\\lambda$) alta favorece:", options: ["Atenuación rápida.", "Refractariedad.", "Sumación espacial.", "Hiperpolarización."], correct: 2, exp: "La señal viaja más lejos sin decaer." },
+            { id: 51, q: "Alta Resistencia de membrana ($R_m$) implica:", options: ["Señal viaja más lejos (aumenta $\\lambda$).", "Señal se pierde.", "Menor velocidad.", "Calcio abierto."], correct: 0, exp: "Menos canales de fuga abiertos." },
+            { id: 52, q: "La bomba $Na^+/K^+$ saca/mete:", options: ["2 Na / 3 K.", "3 Na / 2 K.", "1 Na / 1 K.", "3 Cl / 2 Na."], correct: 1, exp: "Saca 3 de sodio, mete 2 de potasio." },
+            { id: 53, q: "Aumentar permeabilidad al Calcio produce:", options: ["Hiperpolarización.", "Despolarización.", "Repolarización.", "Nada."], correct: 1, exp: "El calcio entra masivamente (está más concentrado fuera)." },
+            { id: 54, q: "El Potencial de Acción es una respuesta:", options: ["Graduada.", "Hiperpolarizante.", "Todo o nada.", "Pasiva."], correct: 2, exp: "Estereotipada y no decae." },
+            { id: 55, q: "En Voltage-Clamp sin Sodio externo:", options: ["Corriente aumenta.", "K desaparece.", "Corriente de entrada se invierte.", "Nada."], correct: 2, exp: "El sodio sale de la célula." },
+            { id: 56, q: "¿Qué bloquea los canales de Sodio voltaje-dependientes?", options: ["Toxina tetánica.", "TEA.", "TTX.", "Ouabaína."], correct: 2, exp: "Tetrodotoxina." },
+            { id: 57, q: "El bucle de retroalimentación positiva del sodio se detiene por:", options: ["Cloro.", "Inactivación del canal de Na.", "Falta ATP.", "Repulsión K."], correct: 1, exp: "La compuerta de inactivación se cierra." },
+            { id: 58, q: "Estado de canales en Periodo Refractario Absoluto:", options: ["Cerrados activables.", "Inactivados.", "Potasio inactivo.", "Membrana post-hiperpolarizada."], correct: 1, exp: "Imposible disparar de nuevo." },
+            { id: 59, q: "Mecanismo para aumentar velocidad en vertebrados:", options: ["Frío.", "Quitar K.", "Mielina (Sube $R_m$, baja $C_m$).", "Más calcio."], correct: 2, exp: "Aislamiento y saltación." },
+            { id: 60, q: "Destrucción de oligodendrocitos causa:", options: ["Miastenia.", "Esclerosis Múltiple.", "Guillain-Barré.", "Tétanos."], correct: 1, exp: "Desmielinización en el SNC." },
+            { id: 61, q: "Sensor de Calcio vesicular:", options: ["Sintaxina.", "Clatrina.", "Sinaptotagmina.", "Dinamina."], correct: 2, exp: "Detecta la entrada de ión calcio." },
+            { id: 62, q: "Compensación de membrana tras exocitosis:", options: ["Proteasas.", "Endocitosis clatrina/dinamina.", "Transporte inverso.", "Microglía."], correct: 1, exp: "Reciclaje de vesículas." },
+            { id: 63, q: "Experimento para ver reciclaje vesicular:", options: ["Loewi.", "Peroxidasa de Rábano (HRP).", "Voltage-Clamp.", "Morris."], correct: 1, exp: "Vesículas teñidas con el marcador externo." },
+            { id: 64, q: "Efecto de la Viuda Negra:", options: ["Bloqueo nicotínico.", "Inhibe AChE.", "Exocitosis masiva descontrolada.", "Destruye SNARE."], correct: 2, exp: "Sobreestimulación por vaciado de ACh." },
+            { id: 65, q: "Tétanos produce parálisis espástica porque:", options: ["Bloquea ACh muscular.", "Impide liberación de inhibidores (Glicina).", "Degrada Calcio.", "Recapta GABA."], correct: 1, exp: "Quita el freno en el SNC." },
+            { id: 66, q: "Enzima que SINTETIZA Acetilcolina:", options: ["AChE.", "Tirosina hidroxilasa.", "ChAT (Colina Acetil-Transferasa).", "MAO."], correct: 2, exp: "Une Acetil-CoA y Colina." },
+            { id: 67, q: "Gas Sarín mata por:", options: ["Inhibe AChE irreversiblemente.", "Falso NT.", "Bloquea colina.", "Rompe mielina."], correct: 0, exp: "Señal de ACh nunca se apaga." },
+            { id: 68, q: "Bradicardia severa se trata con:", options: ["Pilocarpina.", "Curare.", "Atropina.", "Neostigmina."], correct: 2, exp: "Antagonista muscarínico." },
+            { id: 69, q: "Pilocarpina es un:", options: ["Agonista muscarínico.", "Antagonista muscarínico.", "Bloqueador nicotínico.", "Enzima."], correct: 0, exp: "Imita a la acetilcolina." },
+            { id: 70, q: "Miastenia Gravis ataca:", options: ["Vesículas.", "AChE.", "Receptores nicotínicos.", "Canales de calcio."], correct: 2, exp: "Anticuerpos contra la placa motora." },
+            { id: 71, q: "Receptores Muscarínicos Impares (M1, M3, M5):", options: ["Inhiben AMPc.", "Activan PLC / IP3 / Calcio.", "Cloro directo.", "Bomba sodio."], correct: 1, exp: "Son excitadores." },
+            { id: 72, q: "Diferencia de Neuropéptidos:", options: ["Síntesis terminal.", "Sin recaptación, degradados por peptidasas.", "Un solo PA libera.", "Efecto ultrarrápido."], correct: 1, exp: "Se degradan in situ." },
+            { id: 73, q: "Ión principal de un IPSP:", options: ["Calcio.", "Sodio.", "Cloro.", "Magnesio."], correct: 2, exp: "El $Cl^-$ hiperpolariza." },
+            { id: 74, q: "Para estudiar el Potencial de Placa Motora aislado:", options: ["Inyectar ATP.", "Bajar Calcio extracelular.", "Subir Sodio.", "Doble intensidad."], correct: 1, exp: "Se libera poca ACh, sin llegar al umbral." },
+            { id: 75, q: "Si ECl es -70 y Vr es -60, abrir Cloro produce:", options: ["Despolarización.", "Hiperpolarización a -70.", "Nada.", "Inversión."], correct: 1, exp: "El cloro lleva el potencial a su equilibrio." },
+            { id: 76, q: "Baja resolución en la espalda se debe a:", options: ["Divergencia.", "Fásicos.", "Convergencia.", "Falta interneuronas."], correct: 2, exp: "Varios sensores a una sola neurona secundaria." },
+            { id: 77, q: "Inhibición Lateral sirve para:", options: ["Frenar estímulo.", "Aumentar contraste/agudeza.", "Dolor crónico.", "Transducción metabotrópica."], correct: 1, exp: "Limpia el 'ruido' alrededor del punto táctil." },
+            { id: 78, q: "Ritmo automático respiratorio por circuito:", options: ["Serie.", "Oscilante (excitación + inhibición colateral).", "Paralelo.", "Arco reflejo."], correct: 1, exp: "Se apaga a sí mismo periódicamente." },
+            { id: 79, q: "¿Quién necesita mayor afinidad por su receptor?", options: ["NT.", "Hormona.", "Gas.", "Igual."], correct: 1, exp: "Viaja muy diluida por sangre." },
+            { id: 80, q: "Down-regulation de insulina implica:", options: ["Secretar glucagón.", "Mutar proteína G.", "Endocitar y destruir receptores.", "Cerrar canales."], correct: 2, exp: "Retirada de receptores por saturación." },
+
+            // --- BLOQUE 5: RESTO DE CONCEPTOS (Preguntas 81 a 120) ---
+            { id: 81, q: "Proteína vinculada al cáncer en vía RTK:", options: ["Gs.", "Adenilato Ciclasa.", "Ras (GTPasa).", "Calmodulina."], correct: 2, exp: "Ras mutada = proliferación continua." },
+            { id: 82, q: "Diana del Óxido Nítrico en músculo liso:", options: ["Adenilato ciclasa.", "Guanilato Ciclasa soluble (GMPc).", "PLC.", "PKC."], correct: 1, exp: "Provoca vasodilatación." },
+            { id: 83, q: "Enzima que bloquea el Ibuprofeno:", options: ["Lipooxigenasa.", "Ciclooxigenasa (COX).", "Tirosina hidroxilasa.", "NOS."], correct: 1, exp: "Corta la vía de prostaglandinas." },
+            { id: 84, q: "Fase de rodamiento mediada por:", options: ["Selectinas.", "Integrinas.", "Uniones Gap.", "Colágeno."], correct: 0, exp: "Unión débil inicial." },
+            { id: 85, q: "Conexión directa citoplasma cardíaco por:", options: ["Uniones estrechas.", "Cadherinas.", "Uniones GAP (conexinas).", "Selectinas."], correct: 2, exp: "Sincitio eléctrico." },
+            { id: 86, q: "Corpúsculo de Pacini es un receptor:", options: ["Tónico.", "Fásico.", "Dolor.", "Sin adaptación."], correct: 1, exp: "Adaptación rápida." },
+            { id: 87, q: "Nociceptor de dolor crónico es un receptor:", options: ["Fásico.", "Tónico (adaptación lenta/nula).", "Fatigable.", "Inhibidor."], correct: 1, exp: "Sigue disparando ante el daño." },
+            { id: 88, q: "Luz en el bastón retiniano produce:", options: ["Despolarización.", "Síntesis Glutamato.", "Fosfodiesterasa, baja GMPc e HIPERPOLARIZACIÓN.", "Apertura AMPA."], correct: 2, exp: "Cierra canales catiónicos." },
+            { id: 89, q: "Discriminación mayor en dedos porque:", options: ["Convergencia.", "Campos receptivos pequeños y sin convergencia masiva.", "Pacini atrofiado.", "Sumación temporal."], correct: 1, exp: "Mayor resolución 'píxel a píxel'." },
+            { id: 90, q: "Dulce, Amargo y Umami usan receptores:", options: ["Canales Na.", "Metabotrópicos (GPCR).", "Mecanorreceptores.", "Termorreceptores."], correct: 1, exp: "Segundos mensajeros." },
+            { id: 91, q: "Modelo de Eric Kandel:", options: ["Calamar.", "Ratón.", "Aplysia californica.", "Drosophila."], correct: 2, exp: "Babosa marina." },
+            { id: 92, q: "Habituación en Aplysia por:", options: ["Destrucción NMDA.", "Depresión presináptica (menos glutamato).", "Sube Serotonina.", "Internaliza GABA."], correct: 1, exp: "Falta de novedad = menos liberación." },
+            { id: 93, q: "Sensibilización (Serotonina/PKA) bloquea canales de:", options: ["Cloro.", "Potasio (alarga PA).", "Adenilato Ciclasa.", "Calcio."], correct: 1, exp: "Aumenta entrada de calcio." },
+            { id: 94, q: "NMDA necesita Glutamato, Glicina y:", options: ["Despolarización (expulsa Magnesio).", "Hiperpolarización.", "Dopamina.", "Luz."], correct: 0, exp: "El $Mg^{2+}$ es el tapón del canal." },
+            { id: 95, q: "LTP (Alta frecuencia) activa quinasas que:", options: ["Producen láctico.", "Insertan NUEVOS receptores AMPA.", "Internalizan GABA.", "Sintetizan mielina."], correct: 1, exp: "Fortalece la sinapsis." },
+            { id: 96, q: "LTD (Baja frecuencia) activa fosfatasas que:", options: ["Rompen vesículas.", "Internalizan receptores AMPA.", "Sinapsis inhibitoria.", "Activan CREB."], correct: 1, exp: "Debilita la sinapsis (olvido)." },
+            { id: 97, q: "Memoria a Largo Plazo requiere:", options: ["Adrenalina.", "Óxido Nítrico.", "Activación de CREB (síntesis proteínas).", "Destrucción espinas."], correct: 2, exp: "Consolidación estructural." },
+            { id: 98, q: "Diferencia Hiperekplexia vs Hiperglicinemia:", options: ["Iguales.", "Hiperekplexia (falla receptor); Hiperglicinemia (falla transportador).", "Glutamato.", "Luz."], correct: 1, exp: "Falta de inhibición vs Exceso de inhibición." },
+            { id: 99, q: "Única célula del SNC de origen Mesodérmico:", options: ["Ependimaria.", "Schwann.", "Piramidal.", "Microglía."], correct: 3, exp: "Es el macrófago residente." },
+            { id: 100, q: "Eliminación de neuronas excedentes en embrión por:", options: ["Necrosis.", "Apoptosis (muerte programada).", "Células T.", "Músculo."], correct: 1, exp: "Poda neuronal limpia." },
+
+            // --- BLOQUE 6: ÚLTIMAS 20 PREGUNTAS (101 a 120) ---
+            { id: 101, q: "Invaginación del sarcolema para llevar el PA al centro:", options: ["Sarcómero.", "RER.", "Túbulo T.", "Caveola."], correct: 2, exp: "Hendidura en la 'bola de plastilina'." },
+            { id: 102, q: "Sensor de voltaje en Túbulo T:", options: ["Nicotínico.", "Receptor DHP.", "RyR.", "SERCA."], correct: 1, exp: "Abre mecánicamente el canal de calcio del retículo." },
+            { id: 103, q: "'Muelle elástico' del sarcómero:", options: ["Nebulina.", "Titina.", "Actina G.", "Tropomiosina."], correct: 1, exp: "Devuelve al músculo a su reposo." },
+            { id: 104, q: "Función de Tropomiosina en reposo:", options: ["ATP.", "Bloquea sitios de unión fuerte en actina.", "Bomba calcio.", "Acorta banda A."], correct: 1, exp: "Impide el anclaje de miosina." },
+            { id: 105, q: "Estado de Rigor (Rigor Mortis) implica:", options: ["Exceso ATP.", "Miosina y actina unidas a 45º sin ATP.", "Actina despolimerizada.", "Bisagra a 90º."], correct: 1, exp: "Sin ATP no hay separación." },
+            { id: 106, q: "Gatillo del Golpe de Fuerza:", options: ["Unión ATP.", "Hidrólisis ATP.", "Liberación de Fosfato inorgánico ($P_i$).", "Sodio."], correct: 2, exp: "Libera la energía del amartillado." },
+            { id: 107, q: "Energía flash en primeros 10s de sprint:", options: ["Grasas.", "Fosfato de Creatina.", "Fermentación.", "Proteínas."], correct: 1, exp: "Vía de la Creatín-quinasa." },
+            { id: 108, q: "Fibras de maratoniano:", options: ["Tipo IIb.", "Tipo I (Lentas Oxidativas rojas).", "Liso.", "Amielínicas."], correct: 1, exp: "Resistencia aeróbica." },
+            { id: 109, q: "Consumo de ATP en RELAJACIÓN para:", options: ["Cerrar DHP.", "Bomba SERCA (mete calcio al retículo).", "Bloquear Na.", "AChE."], correct: 1, exp: "Limpiar el calcio citosólico." },
+            { id: 110, q: "Al contraerse el sarcómero se acorta:", options: ["Miosina encoge.", "Banda I y Zona H se acortan por deslizamiento.", "Disco Z rompe.", "Actina desaparece."], correct: 1, exp: "La Banda A (miosina) se mantiene constante." },
+            { id: 111, q: "Hematocrito mide:", options: ["Hierro.", "Porcentaje volumen ocupado por eritrocitos.", "Plasma.", "Leucocitos."], correct: 1, exp: "Grado de concentración de sangre." },
+            { id: 112, q: "Padre de hijo OO si madre es AO:", options: ["Hombre AB.", "Hombre BO.", "Ambos.", "Imposible."], correct: 1, exp: "El padre debe aportar el alelo O." },
+            { id: 113, q: "Enfermedad hemolítica Rh si:", options: ["Madre+ Feto-", "Madre- (sensibilizada) Feto+", "Ambos+", "Primer embarazo."], correct: 1, exp: "Anticuerpos cruzan placenta." },
+            { id: 114, q: "Evento inmediato tras ruptura vaso:", options: ["Fibrina.", "Eritrocitos rompen.", "Vasoconstricción refleja.", "Disolución colágeno."], correct: 2, exp: "Espasmo vascular." },
+            { id: 115, q: "Enzima que corta fibrinógeno a fibrina:", options: ["Plasmina.", "Trombina.", "Heparina.", "Aspirina."], correct: 1, exp: "Ejecutor del coágulo." },
+            { id: 116, q: "Factor estabilizador de fibrina:", options: ["VIII.", "XIII.", "tPA.", "Colesterol."], correct: 1, exp: "Crea enlaces fuertes." },
+            { id: 117, q: "Precursor de plaquetas:", options: ["Linfoblasto.", "Eritroblasto.", "Megacariocito.", "Monocito."], correct: 2, exp: "Se fragmenta en plaquetas." },
+            { id: 118, q: "Kcal de 1 gramo de grasa:", options: ["4", "7", "9", "1"], correct: 2, exp: "Las grasas son más energéticas." },
+            { id: 119, q: "Beber agua compulsivamente:", options: ["Xeroftalmia.", "Escorbuto.", "Potomanía.", "Diabetes."], correct: 2, exp: "Riesgo de hiponatremia." },
+            { id: 120, q: "Regla hídrica basal:", options: ["100ml / kcal", "1ml / kcal", "10L fijos.", "500ml / kg"], correct: 1, exp: "2000 kcal = 2 litros." },
+
+            // --- BLOQUE FINAL: 80 PREGUNTAS (121 a 200) ---
+            { id: 121, q: "Diferencia Teleológico vs Mecanicista:", options: ["Mecanicista es por qué.", "Teleológico es por qué (propósito); Mecanicista es cómo (proceso).", "Solo genoma.", "Vegetal."], correct: 1, exp: "Básico de Silverthorn." },
+            { id: 122, q: "Marcador para medir plasma sanguíneo:", options: ["Agua deuterada.", "Inulina.", "Azul de Evans.", "Sodio."], correct: 2, exp: "Se une a albúmina." },
+            { id: 123, q: "¿Qué otorga capacitancia a la membrana?", options: ["Canales fuga.", "Bicapa lipídica.", "Bombas.", "Citosol."], correct: 1, exp: "Actúa como condensador." },
+            { id: 124, q: "Respuesta ΔVm proporcional a corriente inyectada:", options: ["PA.", "Potencial graduado/electrotónico.", "Saltatoria.", "Refractario."], correct: 1, exp: "Propiedad pasiva." },
+            { id: 125, q: "Determina atenuación en amplitud y sumación espacial:", options: ["ENa.", "Constante de tiempo.", "Constante de espacio ($\\lambda$).", "Capacitancia."], correct: 2, exp: "Distancia que recorre la señal." },
+            { id: 126, q: "Potencial si solo es permeable a Sodio:", options: ["-85", "0", "+65", "Hiperpolarización."], correct: 2, exp: "Iguala su Nernst." },
+            { id: 127, q: "¿Por qué hipocalemia afecta más en reposo?", options: ["Sodio no entra.", "En reposo la permeabilidad al Potasio es mucho mayor.", "Bloquea muscarínicos.", "Destruye bicapa."], correct: 1, exp: "$P_K$ es dominante." },
+            { id: 128, q: "¿Por qué Cloro se invierte en Goldman?", options: ["Grande.", "Entra a favor.", "Es un anión (negativo).", "Sin fuga."], correct: 2, exp: "Por la carga negativa." },
+            { id: 129, q: "Bomba Na/K es electrogénica porque:", options: ["Mete 3 saca 2.", "Saca 3 Na mete 2 K (pierde una carga positiva).", "Saca Cl.", "Neutraliza proteínas."], correct: 1, exp: "Genera negatividad neta." },
+            { id: 130, q: "IPSP hiperpolarizante por Cloro si Vr=-65 y ECl=-70:", options: ["EPSP.", "IPSP.", "PA.", "PPM."], correct: 1, exp: "Aleja del umbral." },
+            { id: 131, q: "TTX bloquea:", options: ["K tardío.", "Rigor mortis.", "Na voltaje-dependiente.", "Inversión Na."], correct: 2, exp: "Desaparece despolarización." },
+            { id: 132, q: "Sodio Cero externo en Voltage-Clamp:", options: ["Entrada se invierte.", "K bloquea.", "PA continuo.", "+65 reposo."], correct: 0, exp: "El sodio sale." },
+            { id: 133, q: "Detiene bucle retroalimentación Na:", options: ["Fuga abierta.", "Cierre activación.", "Cierre INACTIVACIÓN.", "Falta ATP."], correct: 2, exp: "Compuerta de inactivación." },
+            { id: 134, q: "Consecuencia de inactivación Na:", options: ["Periodo Refractario Absoluto.", "10.000 Hz.", "Mielina rompe.", "Antidrómica."], correct: 0, exp: "Canales no utilizables." },
+            { id: 135, q: "Mielina modifica:", options: ["Subre $C_m$.", "Sube $R_m$ (aisla), baja $C_m$ (carga rápido).", "Sube fuga.", "Baja temp."], correct: 1, exp: "Base de la saltación." },
+            { id: 136, q: "Desmielinización en EM provoca:", options: ["Antidrómica.", "Baja $C_m$.", "Baja $R_m$ (fugas masivas).", "Hiperactividad K."], correct: 2, exp: "Bloqueo de señal." },
+            { id: 137, q: "Frecuencia máxima si PRA = 2ms:", options: ["100", "500", "1000", "Inf."], correct: 1, exp: "1/0.002 = 500 Hz." },
+            { id: 138, q: "PA es autorregenerativo porque:", options: ["Desece.", "Abre canales Na adyacentes.", "ATP extracelular.", "Salta sinapsis."], correct: 1, exp: "Se crea de nuevo en cada punto." },
+            { id: 139, q: "Canal Na en reposo:", options: ["Act. cerrada / Inact. abierta.", "Ambas cerradas.", "Act. abierta / Inact. cerrada.", "Ambas abiertas."], correct: 0, exp: "Listo para el disparo." },
+            { id: 140, q: "Ouabaína inhibe:", options: ["Na volt.", "Bomba Na/K.", "Curare.", "AChE."], correct: 1, exp: "Acaba con gradientes." },
+            { id: 141, q: "Experimento Otto Loewi probó:", options: ["Elec. pura.", "Transmisión química (Vagusstoff).", "Ca no necesario.", "Nora acelera."], correct: 1, exp: "Corazones de rana." },
+            { id: 142, q: "Dinamina en endocitosis:", options: ["Molde.", "Estrangula el cuello.", "Sensor Ca.", "AChE."], correct: 1, exp: "Corta la vesícula." },
+            { id: 143, q: "HRP en sinapsis probó:", options: ["Na teñido.", "Reciclaje local membrana.", "Ca no necesario.", "Peroxidasa es ACh."], correct: 1, exp: "Vesículas manchadas." },
+            { id: 144, q: "Tétanos es espástica porque:", options: ["Bloquea ACh.", "Inhibe liberación inhibidores (Glicina) en SNC.", "Destruye receptores.", "Titina."], correct: 1, exp: "Quita freno central." },
+            { id: 145, q: "Viuda negra ($\\alpha$-latrotoxina):", options: ["Muscarínicos.", "Exocitosis masiva descontrolada.", "Destruye AChE.", "Inhibe Ca presináptico."], correct: 1, exp: "Sobreestimulación." },
+            { id: 146, q: "Enzima SINTETIZA ACh:", options: ["AChE.", "ChAT (Colina acetiltransferasa).", "MAO.", "Tirosina hid."], correct: 1, exp: "Une precursores." },
+            { id: 147, q: "Atropina revierte bradicardia como:", options: ["Agonista.", "Antagonista muscarínico.", "Inhibidor AChE.", "Serotonina."], correct: 1, exp: "Quita freno vagal." },
+            { id: 148, q: "Benzodiacepinas se unen a:", options: ["NMDA.", "GABA-A (Cloro).", "Nicotínico.", "M3."], correct: 1, exp: "Potencian inhibición." },
+            { id: 149, q: "Catecolaminas limitadas por:", options: ["Triptófano hid.", "GAD.", "Tirosina Hidroxilasa.", "PNMT."], correct: 2, exp: "Paso inicial clave." },
+            { id: 150, q: "Neuropéptidos:", options: ["Síntesis terminal.", "Soma, sin recaptación, degradación peptidasas.", "Gases.", "Ionotrópicos rápidos."], correct: 1, exp: "Moléculas grandes." },
+            { id: 151, q: "Patch-Clamp canal único nicotínico es:", options: ["Triangular.", "Corriente cuadrada amplitud fija.", "Sale Na.", "Bloqueo K."], correct: 1, exp: "Apertura binaria." },
+            { id: 152, q: "Inversión nicotínico es 0 mV porque:", options: ["Solo Na.", "No pasa nada.", "Catiónico Na/K igualados.", "Cloro."], correct: 2, exp: "Flujos opuestos se cancelan." },
+            { id: 153, q: "GABA en neonato es:", options: ["Nada.", "Hiperpolarización.", "IPSP despolarizante (Cloro sale).", "NMDA bloquea."], correct: 2, exp: "ECl por encima de Vr." },
+            { id: 154, q: "Mayor poder de veto inhibitorio en:", options: ["Espina distal.", "Soma o cono axónico.", "Presináptico.", "Colaterales."], correct: 1, exp: "Cerca de la zona gatillo." },
+            { id: 155, q: "Baja sensibilidad espalda por:", options: ["Divergencia.", "Convergencia.", "Inhibición lateral.", "Fásicos."], correct: 1, exp: "Campos receptivos grandes." },
+            { id: 156, q: "Alta resolución dedos por:", options: ["Campos pequeños / Paralelo.", "Sin propioceptores.", "Pacini atrofiado.", "Sumación temporal."], correct: 0, exp: "Poca convergencia." },
+            { id: 157, q: "Mejorar contraste táctil por:", options: ["Reverberante.", "Inhibición Lateral.", "LTP.", "Sumación temporal."], correct: 1, exp: "Apaga vecinas." },
+            { id: 158, q: "Patrón rítmico respiratorio por:", options: ["Divergencia.", "Lineal.", "Circuito Oscilante.", "Reflejo."], correct: 2, exp: "Excitación-inhibición bucle." },
+            { id: 159, q: "Si $\\tau$ corta y estímulos separados 50ms:", options: ["Suman espacial.", "Suman temporal.", "NO se suman temporalmente.", "IPSPS."], correct: 2, exp: "La señal cae muy rápido." },
+            { id: 160, q: "Si $\\tau$ patológicamente LARGA:", options: ["Más excitable (probabilidad sumación temporal).", "Inexcitable.", "No libera glutamato.", "Insensible."], correct: 0, exp: "Mantiene despolarización." },
+            { id: 161, q: "Modelo Eric Kandel:", options: ["Pez.", "Aplysia.", "Ratón.", "Mosca."], correct: 1, exp: "Memoria babosa." },
+            { id: 162, q: "Habituación Aplysia:", options: ["Destruye NMDA.", "Depresión presináptica.", "Serotonina.", "GABA."], correct: 1, exp: "Menos glutamato." },
+            { id: 163, q: "Sensibilización bloquea canales:", options: ["Cloro.", "Potasio.", "Adenilato.", "Calcio."], correct: 1, exp: "Alarga PA." },
+            { id: 164, q: "NMDA necesita Glu, Gli y:", options: ["Despolarización (expulsa Magnesio).", "Hiperpolarización.", "D2.", "Luz."], correct: 0, exp: "Magnesio es el cerrojo." },
+            { id: 165, q: "LTP (Alta frec) activa quinasas que:", options: ["Destruyen núcleo.", "Insertan AMPA.", "Internalizan NMDA.", "Bloquean Glu."], correct: 1, exp: "Fortalece sinapsis." },
+            { id: 166, q: "LTD activa fosfatasas que:", options: ["Internalizan AMPA.", "Rompen vesículas.", "Sinapsis inhibitoria.", "CREB."], correct: 0, exp: "Debilita sinapsis." },
+            { id: 167, q: "Ratón knockout NMDA en Morris:", options: ["Más rápido.", "Incapaz LTP / Déficit memoria espacial.", "Parkinson.", "AMPA muscarínicos."], correct: 1, exp: "Sin NMDA no hay aprendizaje." },
+            { id: 168, q: "Memoria Largo Plazo requiere:", options: ["Inhibición.", "NO.", "CREB (nuevas proteínas/sinapsis).", "Destrucción espinas."], correct: 2, exp: "Cambio estructural." },
+            { id: 169, q: "Asociación EC y EI debe ser:", options: ["24h.", "5 min.", "Inmediata (< 0.5s).", "Auditiva."], correct: 2, exp: "Condicionamiento clásico." },
+            { id: 170, q: "Diferencia Hiperekplexia vs Hiperglicinemia:", options: ["Iguales.", "Hiperekplexia (receptor); Hiperglicinemia (transportador).", "Glutamato.", "Convulsiva."], correct: 1, exp: "Falta vs Exceso inhibidor." },
+            { id: 171, q: "Fototransducción LUZ en bastón:", options: ["Na abre.", "Rodopsina rompe.", "Fosfodiesterasa baja GMPc e HIPERPOLARIZACIÓN.", "Despolarización."], correct: 2, exp: "Contraintuitivo." },
+            { id: 172, q: "Pacini/Olfato son:", options: ["Tónicos.", "Fásicos (Adaptación rápida).", "Propioceptores.", "Barorreceptores."], correct: 1, exp: "Filtran lo constante." },
+            { id: 173, q: "Caso Barbacid páncreas inhibe:", options: ["Nicotínico.", "M3.", "RTK / Ras / STAT3.", "Estrógenos."], correct: 2, exp: "Vía de señalización celular." },
+            { id: 174, q: "Óxido Nítrico actúa sobre:", options: ["GPCR membrana.", "Guanilato Ciclasa soluble.", "NMDA.", "COX."], correct: 1, exp: "Gas difusible." },
+            { id: 175, q: "Aspirina bloquea:", options: ["Guanilato.", "PLC.", "COX.", "NOS."], correct: 2, exp: "Evita prostaglandinas." },
+            { id: 176, q: "Adrenalina es más rápida que Cortisol porque:", options: ["No tiene receptores.", "Es esteroide.", "Adrenalina (Membrana/2º Mensajeros); Cortisol (Genómico/Lento).", "Broncoconstricción."], correct: 2, exp: "Receptores de membrana vs núcleo." },
+            { id: 177, q: "Diabetes Tipo 2 resistencia insulina por:", options: ["LTP.", "Up-regulation.", "Down-regulation (endocita receptores).", "GLUT muta."], correct: 2, exp: "Regulación a la baja." },
+            { id: 178, q: "Inmunidad: Rodamiento débil vs Fijación fuerte:", options: ["Colágeno/Fibrina.", "Selectinas / Integrinas.", "Cadherinas/Conexinas.", "Selectinas/Mielinas."], correct: 1, exp: "Adhesión leucocitaria." },
+            { id: 179, q: "Sincitio cardíaco por:", options: ["Oclusivas.", "Químicas.", " GAP junctions (Conexinas).", "Desmosomas."], correct: 2, exp: "Comunicación iónica." },
+            { id: 180, q: "Fentolamina + Noradrenalina:", options: ["Relaja.", "Nora destruye.", "NO respuesta (antagonismo competitivo).", "Beta activan."], correct: 2, exp: "Bloquea sitio unión." },
+            { id: 181, q: "Hamburger amputó extremidad pollo:", options: ["Migran.", "Apoptosis por falta neurotrofinas.", "Astrocitos.", "Crecen."], correct: 1, exp: "Muerte por falta de diana." },
+            { id: 182, q: "Nichos neurogénicos adultos en:", options: ["Córtex todo.", "Hipocampo / Zona subventricular.", "Schwann.", "Microglía."], correct: 1, exp: "Rompío dogma Cajal." },
+            { id: 183, q: "BDNF potenciado por:", options: ["Cortisol.", "Ejercicio físico.", "Lactato.", "IL-1."], correct: 1, exp: "Factor supervivencia." },
+            { id: 184, q: "Microglía proviene de:", options: ["Ectodermo.", "Mesodermo.", "Endodermo.", "Schwann."], correct: 1, exp: "Excepción capas nerviosas." },
+            { id: 185, q: "Andamio migración radial:", options: ["Rojos.", "Glía Radial.", "Plaquetas.", "Endotelio."], correct: 1, exp: "Raíles migratorios." },
+            { id: 186, q: "Trombina transforma:", options: ["Plasmina.", "Heparina.", "Fibrinógeno en Fibrina.", "Fosfatasa."], correct: 2, exp: "Coagulación final." },
+            { id: 187, q: "Hematocrito 45%:", options: ["Hierro.", "Eritrocitos por volumen.", "Proteínas.", "Anemia."], correct: 1, exp: "Volumen celular." },
+            { id: 188, q: "Hijo O si padre AA y madre BO:", options: ["Sí.", "25%", "NO (siempre A o AB).", "Anti-B."], correct: 2, exp: "A es dominante." },
+            { id: 189, q: "Enfermedad hemolítica Rh:", options: ["M+ F-", "M- (sensi) F+", "Ambos-", "Primer emb."], correct: 1, exp: "Anticuerpos IgG anti-D." },
+            { id: 190, q: "Rechazo trasplante por:", options: ["Trk.", "Na volt.", "CMH (HLA).", "Selectinas."], correct: 2, exp: "Histocompatibilidad." },
+            { id: 191, q: "Tropomiosina en reposo:", options: ["ATP.", "Bloquea sitios unión actina.", "Bomba calcio.", "Muelle."], correct: 1, exp: "Impide anclaje." },
+            { id: 192, q: "Sensor voltaje Túbulo T:", options: ["Nicotínico.", "Muscarínico.", "Receptor DHP.", "SERCA."], correct: 2, exp: "Cambio mecánico." },
+            { id: 193, q: "Gatillo Golpe Fuerza:", options: ["Unión ATP.", "Hidrólisis ATP.", "Libera Ca.", "Libera Fosfato ($P_i$)."], correct: 3, exp: "Lanza la cabeza." },
+            { id: 194, q: "Rigor Mortis por falta de:", options: ["Calcio.", "ATP (no separa miosina/actina).", "Titina.", "PA."], correct: 1, exp: "Atascado a 45º." },
+            { id: 195, q: "Fibras Maratón:", options: ["Liso.", "Tipo IIb blancas.", "Tipo I rojas (Oxidativas).", "Amielínicas."], correct: 2, exp: "Delgadas y resistentes." },
+            { id: 196, q: "Relajación muscular consume ATP para:", options: ["Cerrar DHP.", "Bomba SERCA (calcio al retículo).", "Bloquear Na.", "Colágeno."], correct: 1, exp: "Proceso activo." },
+            { id: 197, q: "Energía flash primeros segundos:", options: ["Beta-ox.", "Fosforilación mit.", "Fosfato de Creatina.", "Láctica."], correct: 2, exp: "Recarga ADP a ATP." },
+            { id: 198, q: "Proteína 'regla' de actina:", options: ["Titina.", "Miosina.", "Nebulina.", "Distrofina."], correct: 2, exp: "Inelástica." },
+            { id: 199, q: "Sarcómero contraído al microscopio:", options: ["Miosina encoge.", "Banda A constante / Banda I y H acortan.", "Disco Z rompe.", "Titina rompe."], correct: 1, exp: "Teoría deslizamiento." },
+            { id: 200, q: "Si bloqueas canales K voltaje-dependientes:", options: ["Sin despolarización.", "PA prolongado (falla repolarización).", "Mielina crece.", "Hiperpolarización infinita."], correct: 1, exp: "No puede bajar el voltaje." }
+        ];
+
+        let questions = [];
+        let answersState = {};
+        let marked = new Set();
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('start-modal').classList.add('hidden');
+            questions = isRandom ? shuffle([...allQuestions]) : [...allQuestions];
+            renderAll();
+        }
+
+        function renderAll() {
+            const container = document.getElementById('questions-container');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            questions.forEach((item, index) => {
+                // Sidebar compact dots
+                const dot = document.createElement('div');
+                dot.className = `index-dot ${marked.has(item.id) ? 'marked' : ''}`;
+                dot.id = `dot-${index}`;
+                dot.innerText = index + 1;
+                dot.onclick = () => document.getElementById(`q-${index}`).scrollIntoView({behavior: 'smooth'});
+                sidebar.appendChild(dot);
+
+                // Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${index}`;
+
+                let opts = item.options.map((t, i) => ({ text: t, originalIdx: i }));
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="q-header">
+                        <span class="q-text">${index + 1}. ${item.q}</span>
+                        <button class="mark-btn ${marked.has(item.id) ? 'active' : ''}" onclick="toggleMark(${item.id}, ${index})">
+                            ${marked.has(item.id) ? '★' : '☆'}
+                        </button>
+                    </div>
+                    <div class="options-list">
+                        ${opts.map(o => `
+                            <div class="option" onclick="handleSelect(this, ${index}, ${o.originalIdx}, ${item.correct})">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="feed-${index}">
+                        <strong>Fisiología:</strong> ${item.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            updateProgress();
+        }
+
+        function toggleMark(id, index) {
+            if (marked.has(id)) marked.delete(id);
+            else marked.add(id);
+            document.getElementById(`dot-${index}`).classList.toggle('marked');
+            const btn = document.querySelector(`#q-${index} .mark-btn`);
+            btn.classList.toggle('active');
+            btn.innerText = marked.has(id) ? '★' : '☆';
+        }
+
+        function handleSelect(el, qIdx, selectedIdx, correctIdx) {
+            if (answersState[qIdx]) return;
+            const isCorrect = selectedIdx === correctIdx;
+            answersState[qIdx] = { correct: isCorrect };
+            
+            el.classList.add(isCorrect ? 'correct' : 'incorrect');
+            document.getElementById(`feed-${qIdx}`).style.display = 'block';
+            document.getElementById(`dot-${qIdx}`).classList.add('answered');
+            
+            const card = document.getElementById(`q-${qIdx}`);
+            card.querySelectorAll('.option').forEach(opt => opt.classList.add('disabled'));
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const done = Object.keys(answersState).length;
+            document.getElementById('progress').innerText = `Respondidas: ${done} / ${questions.length}`;
+        }
+
+        function showFinalResults() {
+            const modal = document.getElementById('finish-modal');
+            const scoreText = document.getElementById('score-text');
+            const correctOnes = Object.values(answersState).filter(a => a.correct).length;
+            scoreText.innerText = `${correctOnes} / ${questions.length}`;
+
+            const hasFailed = Object.values(answersState).some(a => !a.correct);
+            const hasMarked = marked.size > 0;
+            document.getElementById('btn-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+            modal.classList.remove('hidden');
+        }
+
+        function restart(mode) {
+            let nextSet = [];
+            const failedIds = Object.keys(answersState).filter(idx => !answersState[idx].correct).map(idx => questions[idx].id);
+
+            if (mode === 'all') nextSet = [...allQuestions];
+            else if (mode === 'failed') nextSet = allQuestions.filter(q => failedIds.includes(q.id));
+            else if (mode === 'marked') nextSet = allQuestions.filter(q => marked.has(q.id));
+            else if (mode === 'both') nextSet = allQuestions.filter(q => failedIds.includes(q.id) || marked.has(q.id));
+
+            questions = nextSet;
+            answersState = {};
+            document.getElementById('finish-modal').classList.add('hidden');
+            renderAll();
+            window.scrollTo(0,0);
+        }
+    </script>
+</body>
+</html>

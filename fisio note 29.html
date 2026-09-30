@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Fisiología e Inmunología</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 300px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; text-align: center; }
+
+        .grid-indices {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #ffffff33;
+            color: white;
+            padding: 10px 5px;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.answered { border-left: 4px solid var(--success); }
+        .index-btn.marked { border-right: 4px solid #f1c40f; }
+
+        /* Contenido Principal */
+        #main-content {
+            margin-left: 300px;
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .setup-screen, .results-screen {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: none; /* Se muestran dinámicamente */
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .mark-btn {
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .mark-btn.active { background: #f1c40f; color: black; }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) { background: #f9f9f9; border-color: var(--accent); }
+
+        .correct { background-color: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .incorrect { background-color: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button.primary-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-finish { background: var(--error) !important; margin-top: 40px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Navegación</h2>
+    <div class="grid-indices" id="nav-grid"></div>
+    <button class="primary-btn btn-finish" onclick="showResults()">Finalizar y Corregir</button>
+</div>
+
+<div id="main-content">
+    <div id="app">
+        <div id="setup" class="setup-screen">
+            <h1>Cuestionario de Fisiología</h1>
+            <p>Selecciona el modo de inicio:</p>
+            <button class="primary-btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="primary-btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+
+        <div id="quiz-container" style="display:none;"></div>
+
+        <div id="results" class="results-screen" style="display:none;">
+            <h2>Resultados</h2>
+            <p id="score-text"></p>
+            <div class="controls" style="flex-direction: column;">
+                <button class="primary-btn" onclick="restartQuiz('all')">Volver a realizar completo</button>
+                <button class="primary-btn" onclick="restartQuiz('failed')">Repetir solo falladas</button>
+                <button class="primary-btn" onclick="restartQuiz('marked')">Repetir solo marcadas</button>
+                <button class="primary-btn" onclick="restartQuiz('failed-marked')">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const rawQuestions = [
+        { id: 1, q: "En la primera línea de defensa del organismo (barreras físicas y químicas), ¿qué fluido genera uno de los ambientes más inhóspitos del cuerpo con un pH cercano a 2.0, actuando como una barrera mortal para patógenos?", options: ["Las lágrimas y la lisozima.", "El líquido cefalorraquídeo.", "El ácido gástrico.", "El sebo cutáneo."], correct: 2, exp: "Destacado por el profesor. El ácido del estómago (pH ~2.0) destruye la inmensa mayoría de microorganismos ingeridos antes de que puedan invadirnos." },
+        { id: 2, q: "El sistema del complemento puede activarse por tres vías distintas. ¿Cuál de ellas requiere de la presencia previa de anticuerpos (IgG o IgM) unidos al antígeno para desencadenarse?", options: ["La vía de las lectinas.", "La vía clásica.", "La vía alternativa.", "La vía de la opsonización."], correct: 1, exp: "La vía clásica fue la primera en descubrirse y es la única de las tres que depende de la respuesta adaptativa (inmunoglobulinas G o M) para activarse." },
+        { id: 3, q: "Independientemente de la vía por la que se active, el Sistema del Complemento tiene como fin último converger en los factores C5b y subsiguientes para formar el \"MAC\". ¿Cuál es el mecanismo de acción letal de este complejo?", options: ["Inhibe la transcripción del ADN bacteriano.", "Forma poros en la membrana del patógeno, permitiendo la entrada masiva de agua e iones hasta provocar la lisis celular.", "Bloquea los canales de sodio dependientes de voltaje.", "Induce la apoptosis activando caspasas internas."], correct: 1, exp: "El MAC (Complejo de Ataque a Membrana) taladra literalmente la pared celular. El agua entra a raudales por ósmosis y el patógeno revienta (se lisa)." },
+        { id: 4, q: "¿Cuál de las siguientes características diferencia claramente a la Inmunidad Innata de la Inmunidad Adquirida o Adaptativa?", options: ["La inmunidad innata tarda semanas en actuar.", "La inmunidad innata es inespecífica, entra en juego en minutos/horas y sus células son \"a término\" (actúan y mueren).", "La inmunidad innata genera células de memoria de larga vida.", "La inmunidad adquirida desencadena el proceso básico de inflamación local."], correct: 1, exp: "Resumen clásico de clase. Innata = rápida, inespecífica y sin memoria. Adaptativa = lenta (al principio), específica y con memoria." },
+        { id: 5, q: "El proceso por el cual patógenos o bacterias son \"marcados\" (por anticuerpos o proteínas del complemento) para que los fagocitos los reconozcan y los devoren mucho más fácilmente se denomina:", options: ["Diapédesis", "Opsonización", "Expansión clonal", "Anafilaxia"], correct: 1, exp: "La opsonización actúa como un \"condimento\" que hace al patógeno irresistible e identificable para los receptores del macrófago y neutrófilo." },
+        { id: 6, q: "Fisiológicamente, la extravasación de un neutrófilo desde la sangre al tejido infectado (Diapédesis) consta de varias fases. La fase inicial de rodamiento o \"rolling\" se produce gracias a una unión DÉBIL mediada por:", options: ["Selectinas (como la L-selectina).", "Integrinas (como LFA-1 o VLA-4).", "Complejo Mayor de Histocompatibilidad.", "Quemoquinas exclusivas."], correct: 0, exp: "Remarcado en clase. Las selectinas median el anclaje débil (que permite que ruede empujado por el flujo sanguíneo), mientras que las integrinas aseguran el anclaje firme final para salir del vaso." },
+        { id: 7, q: "Al comparar un Neutrófilo con un Macrófago residente, es fisiológicamente CIERTO que:", options: ["El neutrófilo tiene una capacidad fagocítica inmensamente superior al macrófago.", "El macrófago es el leucocito más abundante en la sangre.", "El macrófago puede fagocitar hasta 100 bacterias y actúa como célula \"carroñera\" (scavenger) limpiando restos celulares.", "El neutrófilo presenta antígenos a los linfocitos T mediante el MHC-II."], correct: 2, exp: "Los neutrófilos son muy rápidos pero \"pequeños\" (fagocitan 5-20 bacterias). Los macrófagos son grandes fagocitadores (hasta 100), limpian restos celulares y actúan como presentadores de antígenos." },
+        { id: 8, q: "¡PREGUNTA DE RELACIÓN DEL PROFESOR! En los macrófagos activos, se produce Óxido Nítrico (NO) con fines citotóxicos para destruir patógenos. A diferencia del NO estudiado en el músculo liso vascular, este Óxido Nítrico macrofágico:", options: ["Produce una potente broncoconstricción.", "Se genera por la enzima iNOS en cantidades masivas, de forma descontrolada y NO regulada por el ión Calcio.", "Se almacena en vesículas a largo plazo.", "Solo se libera en estado de reposo absoluto."], correct: 1, exp: "Énfasis clave del audio. En vasos/neuronas el NO está finamente regulado por el calcio. En los macrófagos, la iNOS produce chorros tóxicos de NO incontrolados para matar al invasor." },
+        { id: 9, q: "¿Qué leucocitos, muy escasos en sangre pero residentes en tejidos vitales (como mastocitos en piel y pulmones), contienen gránulos ricos en histamina y heparina y son los principales mediadores de las respuestas alérgicas?", options: ["Linfocitos T citotóxicos", "Eosinófilos", "Monocitos", "Basófilos / Mastocitos"], correct: 3, exp: "La degranulación de los mastocitos libera histamina, causando los signos de la inflamación y las temidas crisis alérgicas." },
+        { id: 10, q: "Un paciente sufre un Choque Anafiláctico severo tras la picadura de una abeja. Fisiológicamente, la liberación sistémica y masiva de histamina le provocará:", options: ["Vasoconstricción extrema e hipertensión aguda.", "Vasodilatación generalizada (caída de tensión), aumento de la permeabilidad vascular y broncoconstricción (asfixia).", "Relajación del músculo liso bronquial.", "Activación masiva de la vía de la lectina."], correct: 1, exp: "Explicado detalladamente por el profesor. La anafilaxia colapsa la circulación al dilatar todos los vasos a la vez y cierra las vías aéreas, requiriendo adrenalina urgente." },
+        { id: 11, q: "¡TRAMPA DEL PROFESOR! Los eosinófilos participan en respuestas contra parásitos y el control de alergias, pero su acción continuada y descontrolada libera la \"Neurotoxina derivada de los Eosinófilos\". ¿Qué efecto letal tiene esta neurotoxina sobre el sistema nervioso?", options: ["Bloquea irreversiblemente los receptores NMDA.", "Inhibibe la Acetilcolinesterasa en la placa motora.", "Ataca y destruye la cubierta de mielina de los axones, disminuyendo o bloqueando la velocidad de conducción del potencial de acción.", "Abre canales de Cloro provocando hiperpolarización masiva."], correct: 2, exp: "El profesor conecta explícitamente el sistema inmune con la neurofisiología. Si el eosinófilo ataca la mielina, arruina la conducción saltatoria aislando el axón." },
+        { id: 12, q: "Desde el punto de vista temporal de la memoria inmunológica, si medimos la concentración de anticuerpos en plasma, la \"Respuesta Primaria\" (ante un patógeno nuevo) se caracteriza por:", options: ["Una explosión masiva de anticuerpos el mismo día de la infección.", "No generar nunca células de memoria.", "Un pico máximo y rápido mediado por Linfocitos T.", "Un incremento lento, donde los anticuerpos no empiezan a aparecer de forma significativa hasta transcurrida aproximadamente una semana."], correct: 3, exp: "En la primera exposición, el cuerpo necesita días para encontrar el clon correcto, expandirlo y empezar a soltar anticuerpos. La respuesta secundaria sí es explosiva al primer día." },
+        { id: 13, q: "El principio biológico fundamental por el que funcionan las vacunas es:", options: ["Destruir las células de memoria para resetear el sistema inmune.", "Generar de forma controlada y atenuada la \"Respuesta Primaria\", dejando establecidas células de memoria (plasmáticas de larga vida) que detonarán una respuesta fulminante ante una infección real futura.", "Inyectar histamina para mantener los vasos permeables permanentemente.", "Aportar dosis altas de antibióticos preventivos."], correct: 1, exp: "Al presentar el antígeno inofensivo, el cuerpo hace la expansión clonal lenta. Si llega el virus real, la respuesta secundaria será tan brutal que no habrá enfermedad." },
+        { id: 14, q: "Las células del sistema inmunitario responsables de generar y secretar activamente anticuerpos libres al torrente sanguíneo se denominan:", options: ["Macrófagos residentes.", "Células T Colaboradoras (Helper).", "Células Plasmáticas (derivadas de los Linfocitos B).", "Células Natural Killer (NK)."], correct: 2, exp: "Tras la activación por el antígeno, el Linfocito B se hipertrofia y se transforma en una \"fábrica\" de anticuerpos, pasándose a llamar célula plasmática." },
+        { id: 15, q: "¿Cuál de las siguientes células es una \"Célula Presentadora de Antígenos\" (APC) clásica, capaz de fagocitar un patógeno y mostrar sus fragmentos mediante el complejo MHC-II para alertar a los linfocitos?", options: ["El Macrófago.", "El Eritrocito maduro.", "El Neutrófilo.", "La neurona somática."], correct: 0, exp: "El macrófago procesa el patógeno y expone sus restos en su MHC-II. Los neutrófilos, aunque fagocitan, actúan y mueren, no se dedican a presentar antígenos." },
+        { id: 16, q: "Si una célula somática normal del organismo (por ejemplo, una célula hepática) es infectada internamente por un virus, esta advertirá al sistema inmune exponiendo antígenos virales en su superficie acoplados a la molécula:", options: ["MHC de clase II, activando Linfocitos T Colaboradores.", "MHC de clase I, para ser destruida directamente por Linfocitos T Citotóxicos.", "Inmunoglobulina M (IgM).", "Complejo MAC del complemento."], correct: 1, exp: "Cuidado con la diferencia. El MHC-I lo tienen todas las células con núcleo del cuerpo. Si se infectan, enseñan el antígeno en el MHC-I y el T Citotóxico las sacrifica para salvar al resto." },
+        { id: 17, q: "Un paciente sufre una profunda hipertrofia e inflamación del Timo. Sabiendo la función de este órgano linfoide primario, el defecto principal radicará en la maduración de:", options: ["Los Linfocitos B.", "Los Eritrocitos.", "Los Linfocitos T.", "Los Mastocitos cutáneos."], correct: 2, exp: "Los precursores linfoides nacen en la médula ósea, pero los que están destinados a ser células T (T de Timo) deben migrar allí para madurar y aprender a no atacar lo propio." },
+        { id: 18, q: "La fiebre (aumento del punto de ajuste de temperatura hipotalámico) tras una infección bacteriana está provocada inicialmente por la secreción de sustancias denominadas:", options: ["Pirógenos endógenos (secretados por fagocitos como los neutrófilos).", "Opsoninas del complemento.", "Histamina depletada en los eosinófilos.", "Selectinas circulantes."], correct: 0, exp: "Neutrófilos y macrófagos, al fagocitar, liberan citoquinas (como la IL-1) que actúan como pirógenos (\"creadores de fuego\") a nivel central provocando fiebre." },
+        { id: 19, q: "Los anticuerpos secretados ejercen múltiples funciones efectoras en la infección. Señale cuál de las siguientes NO es una función directa del anticuerpo:", options: ["Activar la cascada del sistema del complemento.", "Inactivar y aglutinar toxinas bacterianas.", "Opsonizar el patógeno para mejorar la fagocitosis.", "Perforar por sí mismo la membrana bacteriana formando un poro acuoso."], correct: 3, exp: "El anticuerpo no hace el agujero; solo \"marca\" a la bacteria. Es el sistema del complemento (complejo MAC) el que físicamente taladra la membrana." },
+        { id: 20, q: "Fisiológicamente, ¿qué sustancia química o quemoquina NO es generada típicamente durante el proceso de extravasación y ataque celular inicial?", options: ["Citoquinas como Interleucina-1 (IL-1).", "Factor Estimulante de Colonias de Monocitos (M-CSF).", "Eritropoyetina (EPO) renal.", "Proteínas del complemento opsonizantes."], correct: 2, exp: "La EPO se produce en el riñón en respuesta a la hipoxia para fabricar glóbulos rojos, no tiene ninguna función en el ataque fagocítico frente a una bacteria local." },
+        { id: 21, q: "Teniendo en cuenta la herencia del sistema sanguíneo ABO, si una mujer de grupo B (genotipo B0) tiene un hijo de grupo O (genotipo 00), podemos concluir respecto a las pruebas de paternidad que el padre biológico NUNCA podría ser del grupo:", options: ["Grupo A (genotipo A0)", "Grupo AB", "Grupo B (genotipo B0)", "Grupo O"], correct: 1, exp: "Para que el niño sea '00', el padre tiene que aportarle obligatoriamente un alelo '0'. Una persona AB solo puede aportar un alelo 'A' o un 'B', jamás un '0'." },
+        { id: 22, q: "La paciente Marta (A, Rh negativa) recibe por error una bolsa de sangre de un donante A, Rh positivo. Sabiendo que es su primera transfusión, ¿qué ocurrirá inmunológicamente?", options: ["Fallecerá por aglutinación fulminante inmediata.", "No habrá reacción inmediata al carecer de anticuerpos naturales anti-Rh, pero quedará sensibilizada y empezará a producir anticuerpos IgG anti-D (respuesta tardía).", "Sus IgM anti-B atacarán al factor Rh.", "Ocurrirá una reacción anafiláctica mediada por histamina."], correct: 1, exp: "Clásico de clase. Contra el Rh no nacemos con anticuerpos \"naturales\". Necesita días/semanas para fabricarlos." },
+        { id: 23, q: "La peculiaridad clínica estructural de los anticuerpos del sistema ABO (anti-A y anti-B) que explica por qué no causan enfermedad hemolítica en el feto durante el embarazo es:", options: ["Son inmunoglobulinas tipo IgM, tan grandes y pesadas (pentámeros) que no pueden cruzar la barrera placentaria.", "Son inmunoglobulinas G (IgG) que sí cruzan pero son inertes.", "Son destruidas por la eritropoyetina fetal.", "Los fetos carecen de antígenos sanguíneos en absoluto."], correct: 0, exp: "Concepto clave y muy reiterado. Las IgM son macro-moléculas. Las IgG (como los anti-Rh) sí son pequeñitas y cruzan mediante transcitosis." },
+        { id: 24, q: "El Fenotipo Bombay es una condición genética extremadamente rara que engaña a las pruebas de sangre tradicionales haciéndose pasar por grupo 'O'. Su problema radica en:", options: ["Carecer del antígeno D.", "Poseer una mutación en la cadena beta de la hemoglobina (Falciforme).", "Carecer genéticamente de la enzima que sintetiza el Antígeno H, desarrollando letales anticuerpos Anti-H.", "Sintetizar simultáneamente antígenos A y B sin expresar sus genes."], correct: 2, exp: "El antígeno H es el \"pilar\" sobre el que se construyen el A y el B. Si no tienes H, no eres nada, pero atacas a todos (incluso al 'O' normal, que es puro antígeno H)." },
+        { id: 25, q: "Si una analítica de urgencia reporta una proporción anormalmente alta de Metahemoglobina, el suministro de oxígeno del paciente se verá comprometido debido a que:", options: ["La Metahemoglobina suelta el oxígeno demasiado rápido.", "Su átomo central de hierro está oxidado en estado férrico (Fe3+) y es incapaz fisiológicamente de fijar el oxígeno.", "La molécula se encuentra irreversiblemente unida a monóxido de carbono (CO).", "Carece de anillo de porfirina."], correct: 1, exp: "Metahemoglobina = hierro Fe+++ (oxidado). Es un camión de transporte averiado que no puede cargar mercancía." },
+        { id: 26, q: "La Ley del Corazón (Frank-Starling) nos ilustra biomecánicamente que:", options: ["El corazón posee automatismo parasimpático.", "A medida que aumenta el llenado de sangre ventricular en diástole (precarga), se optimiza el estiramiento de las sarcómeras y el músculo responde con una sístole contráctil mucho más vigorosa.", "Si sube la postcarga aórtica, el ventrículo sube intrínsecamente su eyección.", "La fuerza del corazón es independiente del retorno venoso."], correct: 1, exp: "A mayor estiramiento pasivo, mejor solapamiento microscópico entre actina y miosina, generando más puentes y más fuerza expulsiva." },
+        { id: 27, q: "Durante un ejercicio físico de alta intensidad, el metabolismo muscular acidifica el pH (aumento de protones), sube la temperatura y aumenta el CO2. ¿Qué efecto tiene este entorno sobre la curva de la Hemoglobina (Efecto Bohr)?", options: ["Desplaza la curva a la izquierda, aferrándose al oxígeno de forma irreversible.", "Destruye al grupo hemo de manera covalente.", "Desplaza la curva a la DERECHA, disminuyendo drásticamente la afinidad de la hemoglobina y obligándola a descargar cantidades masivas de O2 en el músculo necesitado.", "Convierte la hemoglobina adulta en hemoglobina fetal."], correct: 2, exp: "El tejido asfixiado le \"roba\" el oxígeno a la sangre haciendo la molécula de Hb inestable en estado oxigenado." },
+        { id: 28, q: "En la membrana celular en estado de reposo, ¿qué estructura es la principal responsable del origen y mantenimiento de la negatividad interna constante (~ -70mV)?", options: ["Los canales voltaje-dependientes de Sodio inactivos.", "El co-transporte secundario de glucosa.", "La masiva presencia y apertura constitutiva de los Canales pasivos de Fuga de Potasio (K+).", "La entrada de macromoléculas por endocitosis."], correct: 2, exp: "Al dejar escapar el potasio cargado positivamente, la célula se va quedando negativa por dentro." },
+        { id: 29, q: "En el estudio de neurofisiología básica celular, el transporte responsable de inyectar iones de Sodio y Potasio EN CONTRA de su gradiente natural gastando energía directa es:", options: ["El receptor canal SGLT.", "La bomba Na+/K+ ATPasa (transporte activo primario), expulsando 3 Na+ y metiendo 2 K+.", "La difusión facilitada mediante permeasas saturables.", "Los canales de fuga."], correct: 1, exp: "Gasta ATP para sacar 3 sodios y meter 2 potasios. Es electrogénica (resta 1 carga por ciclo)." },
+        { id: 30, q: "El Glutamato ejerce su función excitatoria principal en el encéfalo. Un receptor crucial en la plasticidad sináptica y memoria (LTP) es el NMDA, el cual tiene una peculiaridad única que consiste en:", options: ["Funcionar con segundos mensajeros lentos tipo IP3.", "Inhibir la célula abriendo poros de cloro.", "Estar taponado por un ión de Magnesio (Mg2+) en reposo, precisando tanto la unión de ligando como una despolarización previa de la membrana para destaponarse y permitir la entrada de Calcio.", "Destruir las vesículas de Ach."], correct: 2, exp: "Es un detector de coincidencias: necesita glutamato y despolarización simultánea para que el magnesio salga del poro." },
+        { id: 31, q: "La toxina bacteriana causante del Tétanos provoca letales espasmos musculares incontrolados y parálisis rígida. Su mecanismo fisiopatológico consiste en:", options: ["Bloquear los receptores muscarínicos colinérgicos.", "Inhibir el bombeo de calcio por las SERCAs musculares.", "Subir por transporte retrógrado axonal y sabotear el complejo SNARE de las interneuronas inhibidoras (que liberan GABA/Glicina) en la médula espinal.", "Mimetizar al neurotransmisor Glutamato en la hendidura."], correct: 2, exp: "Al romper las pinzas (SNARE) que liberan los frenos inhibitorios (GABA), la motoneurona se descontrola y dispara sin cesar." },
+        { id: 32, q: "Físicamente, colocar una célula humana estándar (unos 300 mOsm) en un suero hiperosmótico que además contenga abundante Urea (un soluto que penetra libremente la membrana), provocará a largo plazo:", options: ["Un engrosamiento estático por acumulación de ATP.", "La lisis celular, ya que la Urea entrará deshaciendo la hipertonicidad original y arrastrando tras de sí agua osmótica hacia el interior.", "Una crenación o encogimiento celular continuo e irreversible.", "La salida pasiva de todo el sodio intracelular."], correct: 1, exp: "La urea es un soluto penetrante. No genera gradiente osmótico eficaz duradero, entra en la célula y arrastra agua por ósmosis hasta reventarla." },
+        { id: 33, q: "En el músculo liso visceral, el mecanismo contráctil se diferencia del músculo estriado en que carece de sarcómeras y Túbulos T y además no utiliza la Troponina C. Su sensor biológico intracelular capaz de detectar el calcio y activar la contracción se denomina:", options: ["Calsecuestrina", "Actina G", "Calmodulina (que activará a la Quinasa de Miosina MLCK)", "Cadherina V"], correct: 2, exp: "El Calcio se une a la Calmodulina, activando la MLCK que fosforila la miosina para permitir la contracción." },
+        { id: 34, q: "Cuando el endotelio vascular está intacto y sano, previene patologías trombóticas mediante la secreción y expresión de moléculas reguladoras que inhiben la coagulación secundaria. Una de estas es:", options: ["La Tromboplastina tisular.", "El Colágeno subendotelial.", "La Trombomodulina (que atrapa trombina para activar la proteína C anticoagulante).", "El Tromboxano A2 plaquetario."], correct: 2, exp: "La Trombomodulina secuestra la trombina y la convierte en un activador de la Proteína C, que es anticoagulante." },
+        { id: 35, q: "A diferencia de un reflejo polisináptico, el Reflejo Miotático o de estiramiento patelar (el \"golpecito\" del médico en la rodilla) es:", options: ["Un arco motor inhibidor retardado.", "Monosináptico (la fibra sensitiva aferente sinapta directamente de forma excitatoria sobre la motoneurona espinal alfa del mismo músculo).", "Gestionado integralmente por la corteza motora frontal.", "Desencadenado por los mecanorreceptores de la piel."], correct: 1, exp: "Es monosináptico: una sola sinapsis entre la neurona sensitiva y la motora en la médula espinal." },
+        { id: 36, q: "A nivel del tracto digestivo, las ondas rítmicas de voltaje producidas por las células de Cajal (ondas lentas) provocan contracción intestinal ÚNICAMENTE cuando:", options: ["Se encuentran en la fase más negativa de repolarización.", "Disminuye drásticamente el tono colinérgico vagal.", "Su despolarización sube lo suficiente para rozar el umbral y disparar verdaderos Potenciales de Acción en el músculo liso (\"espigas\").", "Interviene la gastrina sobre el músculo estriado."], correct: 2, exp: "Las ondas lentas son marcapasos; necesitan llegar al umbral para generar espigas de potencial de acción y contracción mecánica." },
+        { id: 37, q: "Un paciente sufre una obstrucción total del Colédoco, impidiendo el paso de la bilis (ácidos biliares y micelas) hacia el duodeno. Clínicamente, el fallo fisiológico digestivo se traducirá en:", options: ["Imposibilidad de absorber la glucosa hidro-soluble.", "Pérdida masiva incontrolable de proteínas completas.", "Úlcera gástrica fulminante por exceso de pepsina.", "Esteatorrea (heces flotantes y ricas en lípidos), por incapacidad para emulsionar y absorber las grasas dietéticas."], correct: 3, exp: "Sin sales biliares no hay emulsión de grasas, por lo que la lipasa no puede actuar y las grasas se eliminan por las heces." },
+        { id: 38, q: "La hormona ADH (Vasopresina o antidiurética) modula dinámicamente la concentración final de la orina en el riñón actuando en una sección fisiológica muy precisa de la nefrona:", options: ["El corpúsculo de Bowman.", "El Túbulo Contorneado Proximal.", "La rama gruesa ascendente del Asa de Henle.", "El Túbulo Contorneado Distal final y los Túbulos Colectores (insertando canales Acuaporina-2)."], correct: 3, exp: "La ADH inserta acuaporinas en el túbulo colector para reabsorber agua en caso de necesidad." },
+        { id: 39, q: "Un individuo con hipoxia prolongada, al ser analizado a nivel de factores de transcripción, experimentará la estabilización del HIF-1 (Factor Inducible por Hipoxia), el cual se translocará al núcleo para potenciar masivamente la síntesis de:", options: ["Glicina cerebral.", "Eritropoyetina (EPO) en las células intersticiales renales.", "Cortisol suprarrenal.", "Factor intrínseco gástrico."], correct: 1, exp: "El HIF-1 detecta la falta de O2 y activa el gen de la EPO para fabricar más glóbulos rojos." },
+        { id: 40, q: "De forma puramente académica, si una neurona central integra al mismo tiempo tres EPSP despolarizantes en su dendrita apical y tres IPSP hiperpolarizantes (del mismo voltaje) en su soma, el cono axónico decidirá:", options: ["Generar un potencial de acción de máxima amplitud de inmediato.", "No alcanzar el umbral de disparo, ya que la integración algebraica de las corrientes sumará un saldo final nulo o subumbral.", "Ejecutar conducción antidrómica hacia atrás.", "Cerrar pasivamente todos los canales de fuga iónica de membrana."], correct: 1, exp: "Suma algebraica: +3 y -3 se anulan, impidiendo que el potencial de membrana alcance el umbral de disparo." }
+    ];
+
+    let currentQuestions = [];
+    let userAnswers = {}; // { indexInCurrent: { selected, marked } }
+
+    function startQuiz(randomize) {
+        document.getElementById('setup').style.display = 'none';
+        document.getElementById('quiz-container').style.display = 'block';
+        
+        currentQuestions = [...rawQuestions];
+        if(randomize) currentQuestions.sort(() => Math.random() - 0.5);
+
+        renderQuiz();
+        renderNav();
+    }
+
+    function renderNav() {
+        const grid = document.getElementById('nav-grid');
+        grid.innerHTML = '';
+        currentQuestions.forEach((q, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'index-btn';
+            btn.id = `nav-${i}`;
+            btn.innerText = i + 1;
+            btn.onclick = () => scrollToQuestion(i);
+            grid.appendChild(btn);
+        });
+    }
+
+    function renderQuiz() {
+        const container = document.getElementById('quiz-container');
+        container.innerHTML = '';
+        
+        currentQuestions.forEach((q, i) => {
+            // Mezclar opciones para esta carga
+            let opts = q.options.map((text, idx) => ({ text, originalIdx: idx }));
+            opts.sort(() => Math.random() - 0.5);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${i}`;
+            card.style.display = 'block'; // Mostramos todas en la misma página
+
+            card.innerHTML = `
+                <div class="question-header">
+                    <strong>Pregunta ${i + 1}</strong>
+                    <button class="mark-btn" onclick="toggleMark(${i})">🔖 Marcar</button>
+                </div>
+                <p>${q.q}</p>
+                <div id="opts-${i}">
+                    ${opts.map(o => `
+                        <button class="option-btn" onclick="checkAnswer(${i}, ${o.originalIdx}, this)">
+                            ${o.text}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="explanation" id="exp-${i}">
+                    <strong>Respuesta correcta: ${String.fromCharCode(65 + q.correct)}</strong><br>
+                    ${q.exp}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function checkAnswer(qIdx, selectedIdx, btn) {
+        if (userAnswers[qIdx] && userAnswers[qIdx].answered) return;
+
+        const correctIdx = currentQuestions[qIdx].correct;
+        userAnswers[qIdx] = { ...userAnswers[qIdx], selected: selectedIdx, answered: true, isCorrect: selectedIdx === correctIdx };
+
+        // UI feedback
+        const parent = document.getElementById(`opts-${qIdx}`);
+        const buttons = parent.querySelectorAll('.option-btn');
+        
+        buttons.forEach(b => b.disabled = true);
+        
+        if (selectedIdx === correctIdx) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            // Marcar la correcta
+            buttons.forEach(b => {
+                // Buscamos el botón que tiene el texto de la correcta
+                if(b.innerText.trim() === currentQuestions[qIdx].options[correctIdx]) b.classList.add('correct');
+            });
+        }
+
+        document.getElementById(`exp-${qIdx}`).style.display = 'block';
+        document.getElementById(`nav-${qIdx}`).classList.add('answered');
+    }
+
+    function toggleMark(i) {
+        if(!userAnswers[i]) userAnswers[i] = {};
+        userAnswers[i].marked = !userAnswers[i].marked;
+        
+        const btn = document.querySelector(`#q-card-${i} .mark-btn`);
+        const navBtn = document.getElementById(`nav-${i}`);
+        
+        if(userAnswers[i].marked) {
+            btn.classList.add('active');
+            navBtn.classList.add('marked');
+        } else {
+            btn.classList.remove('active');
+            navBtn.classList.remove('marked');
+        }
+    }
+
+    function scrollToQuestion(i) {
+        document.getElementById(`q-card-${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function showResults() {
+        const total = currentQuestions.length;
+        let corrects = 0;
+        Object.values(userAnswers).forEach(a => { if(a.isCorrect) corrects++; });
+
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('score-text').innerText = `Has acertado ${corrects} de ${total} preguntas.`;
+    }
+
+    function restartQuiz(mode) {
+        let nextSet = [];
+        
+        if(mode === 'all') {
+            nextSet = [...rawQuestions];
+        } else {
+            currentQuestions.forEach((q, i) => {
+                const state = userAnswers[i] || {};
+                const isFailed = state.answered && !state.isCorrect;
+                const isMarked = state.marked;
+
+                if(mode === 'failed' && isFailed) nextSet.push(q);
+                if(mode === 'marked' && isMarked) nextSet.push(q);
+                if(mode === 'failed-marked' && (isFailed || isMarked)) nextSet.push(q);
+            });
+        }
+
+        if(nextSet.length === 0) {
+            alert("No hay preguntas que coincidan con ese criterio.");
+            return;
+        }
+
+        // Reset Total
+        currentQuestions = nextSet;
+        userAnswers = {};
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('setup').style.display = 'block'; // Volver a preguntar orden
+    }
+</script>
+
+</body>
+</html>

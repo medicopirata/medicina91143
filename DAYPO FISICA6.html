@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Completo Biofísica (95 Preguntas)</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .question-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        /* --- NUEVO: Estilos para el Checkbox --- */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #2c3e50;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .mark-container input {
+            margin-right: 8px;
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+
+        .question-header {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .question-text {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #dcdcdc;
+            background: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 1em;
+            position: relative;
+        }
+        .option-btn:hover:not(:disabled) {
+            background-color: #f0f8ff;
+            border-color: #3498db;
+        }
+        .option-btn:disabled {
+            cursor: default;
+            opacity: 0.9;
+        }
+        .correct {
+            background-color: #d4edda !important;
+            border-color: #28a745 !important;
+            color: #155724;
+        }
+        .incorrect {
+            background-color: #f8d7da !important;
+            border-color: #dc3545 !important;
+            color: #721c24;
+        }
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-left: 5px solid #3498db;
+            display: none;
+        }
+        .explanation.visible {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* --- NUEVO: Estilos para el área de controles finales --- */
+        #controls-area {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .action-btn {
+            background: #2c3e50; color: white; border: none;
+            padding: 12px 24px; font-size: 1em; border-radius: 6px;
+            cursor: pointer; margin: 5px;
+            transition: background 0.3s;
+        }
+        .action-btn:hover { background: #34495e; }
+        
+        .restart-options {
+            display: none; /* Oculto al principio */
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .restart-options button {
+            background: #3498db;
+        }
+        .restart-options button:hover { background: #2980b9; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Examen de Biofísica (95 Preguntas)</h1>
+    
+    <div id="quiz-container"></div>
+
+    <div id="controls-area">
+        <button id="finish-btn" class="action-btn" onclick="showEndOptions()">🏁 Finalizar revisión</button>
+        
+        <div id="restart-menu" class="restart-options">
+            <h3>¿Cómo deseas continuar?</h3>
+            <p id="stats-summary"></p>
+            <button class="action-btn" onclick="restartQuiz('all')">🔄 Rehacer el cuestionario entero</button>
+            <button class="action-btn" onclick="restartQuiz('marked')">🔖 Hacer solo las preguntas marcadas</button>
+            <button class="action-btn" onclick="restartQuiz('failed')">❌ Hacer solo las preguntas falladas</button>
+            <button class="action-btn" onclick="restartQuiz('failed_marked')">⚠️ Hacer falladas y marcadas</button>
+        </div>
+    </div>
+
+<script>
+    // ✅ Normaliza: quita "A. " / "B. " etc. para comparar
+    function normalizeText(s) {
+        return String(s).replace(/^\s*[A-D]\.\s*/i, "").trim();
+    }
+
+    // ✅ LISTA DE PREGUNTAS
+    const quizData = [
+  { q: "Según la distribución de los iones de Na+ a ambos lados de la membrana celular:",
+    opts: [ "A. Tienen tendencia a entrar debido al potencial de equilibrio.", "B. Tienen tendencia a salir debido al potencial de membrana.", "C. Tienen tendencia a salir debido al potencial de equilibrio.", "D. a y b." ],
+    a: "Tienen tendencia a entrar debido al potencial de equilibrio."
+  },
+  { q: "Según la distribución de los iones de k+ a ambos lados de la membrana celular:",
+    opts: [ "A. Tienen tendencia a entrar debido al potencial de equilibrio.", "B. Tienen tendencia a salir debido al potencial de membrana.", "C. Tienen tendencia a salir debido al potencial de equilibrio.", "D. a y b." ],
+    a: "Tienen tendencia a salir debido al potencial de equilibrio."
+  },
+  { q: "La mayor velocidad de conducción que presentan las fibras mielínicas es debida:",
+    opts: [ "A. A la mayor longitud de estas fibras.", "B. A la existencia de un menor número de cargas susceptibles de ser transportadas.", "C. A la existencia de un mayor número de cargas susceptibles de ser transportadas.", "D. A una disminución de la resistencia intracelular." ],
+    a: "A la existencia de un menor número de cargas susceptibles de ser transportadas."
+  },
+  { q: "En la cúspide del potencial de acción, el potencial de membrana vale +30mV, el potencial de equilibrio del sodio es de -60mV y el del potasio +97mV por lo que:",
+    opts: [ "A. El sodio se encuentra en equilibrio.", "B. El sodio tiende a entrar.", "C. El potasio tiende a entrar.", "D. El potasio está en equilibrio." ],
+    a: "El sodio tiende a entrar."
+  },
+  { q: "En los nervios mielínicos:",
+    opts: [ "A. Se consigue un avance más rápido del impulso nervioso.", "B. La carga susceptible de ser transportada para provocar el desplazamiento del impulso es mayor que si el nervio estuviese desnudo.", "C. Hay una transmisión continua del impulso a lo largo de las fibras nerviosas.", "D. Las tres anteriores." ],
+    a: "Se consigue un avance más rápido del impulso nervioso."
+  },
+  { q: "La transmisión de la información de unos órganos a otros es un fenómeno de tipo:",
+    opts: [ "A. Eléctrico.", "B. Termodinámico.", "C. Eléctrico (Repetido en opción).", "D. Ondulatorio." ],
+    a: "Eléctrico."
+  },
+  { q: "La transmisión del impulso nervioso tiene su base en la existencia de:",
+    opts: [ "A. Diferencia de concentraciones de iones a ambos lados de la membrana celular.", "B. Diferentes temperaturas a ambos lados de la membrana celular.", "C. Electrodos colocados sobre el organismo.", "D. Radionúclidos de vida media corta." ],
+    a: "Diferencia de concentraciones de iones a ambos lados de la membrana celular."
+  },
+  { q: "Si la variación de energía potencial que experimenta un ion al salir de la célula es positivo:",
+    opts: [ "A. El ion tiene tendencia a salir si el ion es positivo.", "B. El ion tiene tendencia a entrar si el ion es positivo.", "C. El ion tiene tendencia a salir si el ion es negativo.", "D. a y c." ],
+    a: "D. a y c."
+  },
+  { q: "Si la variación de la energía potencial que experimenta un ion al salir de la célula es negativa:",
+    opts: [ "A. El ion tiene tendencia a salir si el ion es positivo.", "B. El ion tiene tendencia a entrar si el ion es positivo.", "C. el ion tiene tendencia a salir si el ion es negativo.", "D. a y c." ],
+    a: "B. El ion tiene tendencia a entrar si el ion es positivo."
+  },
+  { q: "En el estado de reposo existe una diferencia de potencial de unos 90mV entre el fluido intracelular y extracelular, estando:",
+    opts: [ "A. El exterior cargado negativamente respecto al interior.", "B. El interior cargado negativamente respecto al exterior.", "C. El interior cargado positivamente respecto al exterior.", "D. a y c." ],
+    a: "El interior cargado negativamente respecto al exterior."
+  },
+  { q: "Según la distribución de los iones sodio a ambos lados de la membrana celular:",
+    opts: [ "A. Presentan fuerte tendencia a entrar debido a la concentracón.", "B. Presentan fuerte tendencia a salir debido al potencial.", "C. Presentan fuerte tendencia a entrar debido al potencial.", "D. a y c." ],
+    a: "a y c."
+  },
+  { q: "Mediante el transporte activo:",
+    opts: [ "A. Se extrae K+ del interior y se introduce Na+.", "B. Se extrae Na+ y se introduce K+.", "C. Se extrae Cl- y se introduce K+.", "D. Se detecta la actividad eléctrica del cerebro." ],
+    a: "Se extrae Na+ y se introduce K+."
+  },
+  { q: "El potencial de acción consiste en:",
+    opts: [ "A. La diferencia de potencial entre el líquido intracelular y extracelular cuando la célula esta en reposo.", "B. La tensión del tubo de rayos X, la cual controla el operador.", "C. El registro de la actividad eléctrica del corazón.", "D. Los cambios del potencial de membrana como consecuencia de un estímulo." ],
+    a: "Los cambios del potencial de membrana como consecuencia de un estímulo."
+  },
+  { q: "En las células excitables, cuando llega un estímulo:",
+    opts: [ "A. Aumenta la impermeabilidad de la membrana.", "B. El potencial de membrana permanece inalterable.", "C. Se producen variaciones en la permeabilidad de la membrana.", "D. Se contraen selectivamente las fibras musculares inervadas." ],
+    a: "Se producen variaciones en la permeabilidad de la membrana."
+  },
+  { q: "El mantenimiento de la diferencia de concentraciones entre el fluido extracelular y el intracelular es debido a:",
+    opts: [ "A. Difusión por diferencia de concentración.", "B. Difusión por gradiente eléctrico.", "C. Bombeo activo de sodio.", "D. Las tres anteriores." ],
+    a: "Las tres anteriores."
+  },
+  { q: "La tendencia de los iones a entrar o salir de la célula viene dada por:",
+    opts: [ "A. El potencial de membrana.", "B. El potencial de equilibrio del ion.", "C. El momento magnético del ion.", "D. a y b." ],
+    a: "a y b."
+  },
+  { q: "La variación de la tensión que tiene lugar cuando se sobrepasan el potencial umbral se denominan:",
+    opts: [ "A. Potencial de equilibrio.", "B. Potencial de membrana.", "C. Impulso.", "D. Potencial de acción." ],
+    a: "Potencial de acción."
+  },
+  { q: "En el periodo refractario absoluto, se produce el impulso de acción con valor umbral:",
+    opts: [ "A. Superior al normal.", "B. Igual al normal.", "C. Inferior al normal.", "D. No se puede iniciar el impulso de acción." ],
+    a: "No se puede iniciar el impulso de acción."
+  },
+  { q: "En el periodo refractario relativo, se produce el impulso de acción con valor umbral:",
+    opts: [ "A. Superior al normal.", "B. Inferior al normal.", "C. Igual al normal.", "D. No se puede iniciar el impulso de acción." ],
+    a: "Superior al normal."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ion negativo a través de una membrana es positivo se verifica que:",
+    opts: [ "A. El ion tendrá tendencia a salir de la misma.", "B. El sistema estará en equilibrio.", "C. El ion tendrá tendencia a entrar en la misma.", "D. El incremento de energía potencial no puede ser positivo." ],
+    a: "A. El ion tendrá tendencia a salir de la misma."
+  },
+  { q: "El potencial generador desencadena impulsos potenciales de acción que son los que se propagan y transmiten la información que está:",
+    opts: [ "A. Modulada en amplitud.", "B. Los potenciales de acción no transmiten información.", "C. No existe modulación.", "D. Modulada en frecuencia." ],
+    a: "Modulada en frecuencia."
+  },
+  { q: "La facilidad con la que se propaga el impulso nervioso depende de:",
+    opts: [ "A. La facilidad con que se mueven las cargas.", "B. La cantidad de cargas que hay que transportar.", "C. La modulación de impulsos.", "D. a y b." ],
+    a: "a y b."
+  },
+  { q: "Si un receptor tónico detecta un estímulo y este adquiere un valor estacionario, el potencial generador:",
+    opts: [ "A. Desaparece aunque el estímulo permanezca.", "B. No existe.", "C. También se hace estacionario.", "D. Se hace deslizante." ],
+    a: "También se hace estacionario."
+  },
+  { q: "Si un receptor fásico detecta un estímulo y este adquiere un valor estacionario, el potencial generador:",
+    opts: [ "A. Desaparece aunque el estímulo permanezca.", "B. No existe.", "C. También se hace estacionario.", "D. Se hace deslizante." ],
+    a: "Desaparece aunque el estímulo permanezca."
+  },
+  { q: "A partir de un valor umbral del potencial de membrana, la permeabilidad de la membrana para el sodio:",
+    opts: [ "A. Se hace constante.", "B. Depende del propio potencial.", "C. Es independiente del propio potencial.", "D. Disminuye." ],
+    a: "Depende del propio potencial."
+  },
+  { q: "Cuando se aplica un estímulo a un receptor el potencial de membrana modifica su valor. La diferencia entre el potencial actual y el estacionario se denomina potencial:",
+    opts: [ "A. De acción.", "B. De equilibrio.", "C. Generador.", "D. Transitorio." ],
+    a: "Generador."
+  },
+  { q: "El potencial generador se diferencia del potencial de acción en que:",
+    opts: [ "A. No se propaga a lo largo de la fibra nerviosa.", "B. No transmite información.", "C. Su amplitud y la forma en la que crece depende del estímulo aplicado.", "D. Las tres anteriores." ],
+    a: "Las tres anteriores."
+  },
+  { q: "La velocidad con la que se propaga un impulso nervioso depende de:",
+    opts: [ "A. La facilidad con que se mueven las cargas.", "B. La cantidad de cargas que hay que transportar.", "C. La modulación de impulsos.", "D. a y b." ],
+    a: "a y b."
+  },
+  { q: "Un aumento del diámetro del axón se traduce en el impulso nervioso en:",
+    opts: [ "A. Disminución de la velocidad.", "B. Aumento de la velocidad.", "C. El diámetro es independiente de la velocidad.", "D. Depende del número de células de Schwann." ],
+    a: "Aumento de la velocidad."
+  },
+  { q: "La frecuencia de repetición de los pulsos depende del valor de:",
+    opts: [ "A. Potencial de acción.", "B. Potencial de membrana.", "C. Potencial de equilibrio.", "D. Potencial generador." ],
+    a: "Potencial generador."
+  },
+  { q: "A la variación de la tensión que tiene lugar cuando se ha sobrepasado el valor umbral se denomina:",
+    opts: [ "A. Potencial de equilibrio.", "B. Impulso.", "C. Potencial de acción.", "D. Potencial de membrana." ],
+    a: "Potencial de acción."
+  },
+  { q: "Cuando la célula no recibe estímulo, las intensidades de corriente debidas a los iones sodio y potasio son:",
+    opts: [ "A. Mayores para el potasio.", "B. Mayores para el sodio.", "C. Iguales.", "D. Menores para el potasio." ],
+    a: "Iguales."
+  },
+  { q: "Según la distribución de los iones Cloro a ambos lados de la membrana:",
+    opts: [ "A. Presentan tendencia a entrar debido al potencial de equilibrio.", "B. Presentan tendencia a salir debido al potencial de membrana.", "C. Presentan tendencia a entrar debido al potencial de membrana.", "D. a y b." ],
+    a: "a y b."
+  },
+  { q: "¿Cuándo se inicia la sístole ventricular?.",
+    opts: [ "A. Al final de la onda P.", "B. Al inicio de la onda P.", "C. Al final de la onda T.", "D. Al final de la onda R." ],
+    a: "Al final de la onda R."
+  },
+  { q: "La contracción ventricular tiene lugar:",
+    opts: [ "A. En la onda P.", "B. Desde el inicio de QRS hasta el final de la onda T.", "C. Desde el inicio de la onda P hasta el final de QRS.", "D. En las ondas P y T." ],
+    a: "Desde el inicio de QRS hasta el final de la onda T."
+  },
+  { q: "La electromiografía es el proceso de registrar la actividad eléctrica del:",
+    opts: [ "A. Miocardio.", "B. Corazón.", "C. Cerebro.", "D. Músculo." ],
+    a: "Músculo."
+  },
+  { q: "En la electrocardiografía, el potencial eléctrico que medimos en la superficie corporal es:",
+    opts: [ "A. Los pequeños dipolos del corazón.", "B. Los momentos bipolares del corazón.", "C. La proyección del vector dipolo eléctrico en una dirección determinada.", "D. Las corrientes de fuga." ],
+    a: "La proyección del vector dipolo eléctrico en una dirección determinada."
+  },
+  { q: "El complejo QRS en un electrocardiograma se asocial con:",
+    opts: [ "A. El inicio de la contracción auricular.", "B. El final de la contracción ventricular.", "C. El inicio de la contracción ventricular.", "D. El final de la contracción auricular." ],
+    a: "El inicio de la contracción ventricular."
+  },
+  { q: "La onda P se asocia con:",
+    opts: [ "A. El inicio de la contracción auricular.", "B. El final de la contracción ventricular.", "C. El inicio de la contracción ventricular.", "D. El final de la contracción auricular." ],
+    a: "El inicio de la contracción auricular."
+  },
+  { q: "La onda P se asocial con:",
+    opts: [ "A. Despolarización auricular.", "B. Repolarización auricular.", "C. Despolarización ventricular.", "D. Contracción ventricular." ],
+    a: "Despolarización auricular."
+  },
+  { q: "El ritmo cerebral de atención se caracteriza por la existencia de ondas:",
+    opts: [ "A. Alfa.", "B. Beta.", "C. Theta.", "D. Delta." ],
+    a: "Beta."
+  },
+  { q: "Un electrocardiógrafo es fundamentalmente un:",
+    opts: [ "A. Galvanómetro.", "B. Ohmetro.", "C. Gaussiemetro.", "D. Célula fotoeléctrica." ],
+    a: "Galvanómetro."
+  },
+  { q: "En qué localización no se coloca un electrodo para a toma de datos en el examen electrocardiográfico:",
+    opts: [ "A. En el brazo derecho.", "B. En el brazo izquierdo.", "C. En el tobillo derecho.", "D. En el tobillo izquierdo." ],
+    a: "En el tobillo derecho."
+  },
+  { q: "En la derivación III del electrocardiograma se representa la diferencia de potencial de los electrodos situados en:",
+    opts: [ "A. Brazo derecho y brazo izquierdo.", "B. Brazo derecho y pierna izquierda.", "C. Brazo izquierdo y pierna izquierda.", "D. Brazo izquierdo y pierna derecha." ],
+    a: "Brazo izquierdo y pierna izquierda."
+  },
+  { q: "La velocidad estándar de inscripción del electrocardiograma es de:",
+    opts: [ "A. 5mm/s.", "B. 10mm/s.", "C. 25mm/s.", "D. 50mm/s." ],
+    a: "25mm/s."
+  },
+  { q: "En el electrocardiograma, la onda primaria positiva significa:",
+    opts: [ "A. La difusión del estímulo eléctrico desde el nódulo del seno auricular hasta la total excitación auricular.", "B. Una fase de reposo eléctrico.", "C. La difusión del estímulo eléctrico a toda la musculatura ventricular.", "D. La desexcitación de los ventrículos." ],
+    a: "La difusión del estímulo eléctrico desde el nódulo del seno auricular hasta la total excitación auricular."
+  },
+  { q: "El ritmo cerebral alfa, típico de la relajación, se caracteriza por la aparición en especial en la región parietal y occipital de ondas de frecuencia de:",
+    opts: [ "A. 8, 12 Hz.", "B. 14, 30 Hz.", "C. 4, 7 Hz.", "D. Menos de 3,5 Hz." ],
+    a: "8, 12 Hz."
+  },
+  { q: "La intensidad de las ondas del electroencefalograma se miden en:",
+    opts: [ "A. Voltios.", "B. Microvoltios.", "C. Milivoltios.", "D. Nanovoltios." ],
+    a: "Microvoltios."
+  },
+  { q: "Para la obtención del electromiograma se utilizan preferentemente electrodos de:",
+    opts: [ "A. Superficies únicas.", "B. Superficies dobles.", "C. Aguja simple.", "D. Aguja coaxial." ],
+    a: "Aguja coaxial."
+  },
+  { q: "Cuando se excita un músculo aparece entre otros fenómenos un aumento de la frecuencia de descarga de las unidades motoras que denominamos:",
+    opts: [ "A. Reclutación espacial.", "B. Reclutación temporal.", "C. Refuerzo periférico.", "D. Amplitud de la unidad motora." ],
+    a: "Reclutación temporal."
+  },
+  { q: "La frecuencia de las ondas del electromiograma:",
+    opts: [ "A. Está en la gama de los infrasonidos.", "B. Está en la gama de los sonidos audibles.", "C. Está en la gama de los ultrasonidos.", "D. Está en la gama de los hipersonidos." ],
+    a: "Está en la gama de los sonidos audibles."
+  },
+  { q: "el objetivo principal del campo magnético estático B0de una instalación de RM es:",
+    opts: [ "A. producir una variación del campo magnético a lo largodel eje principal del paciente.", "B. que los spines de los núcleos de hidrogeno del pacientese orienten en relación al campo.", "C. generar un pulso de excitación.", "D. detectar una señal de excitación." ],
+    a: "que los spines de los núcleos de hidrogeno del pacientese orienten en relación al campo."
+  },
+  { q: "el objetivo principal del pulso de RF de una instalaciónde RM es:",
+    opts: [ "A. producir una variación del campo magnético a lo largodel eje principal del paciente.", "B. que los spines de los núcleos de hidrogeno del pacientese orienten en relación al campo.", "C. generar un pulso de excitación.", "D. detectar una señal de excitación." ],
+    a: "generar un pulso de excitación."
+  },
+  { q: "el pulso de RF en una instalación de RM:",
+    opts: [ "A. hace que disminuya la magnetización longitudinal.", "B. hace que se establezca una nueva magnetizacióntransversal.", "C. hace que los núcleos realicen un movimiento deprecesion.", "D. a y b." ],
+    a: "a y b."
+  },
+  { q: "el objetivo de la bobina receptora de una instalación deRM es:",
+    opts: [ "A. producir una variación del campo magnético a lo largodel eje principal del paciente.", "B. que los spines de los núcleos de hidrogeno del pacientese orienten en relación con el campo.", "C. generar un pulso de excitación.", "D. detectar una señal de relajación." ],
+    a: "detectar una señal de relajación."
+  },
+  { q: "la constante giromagnetica:",
+    opts: [ "A. depende del cociente entre carga y masa.", "B. depende del cociente entre masa y carga.", "C. es proporcional a la frecuencia de Larmor.", "D. a y c." ],
+    a: "a y c."
+  },
+  { q: "para que se puedan realizar estudios con RM losnucleidos deben de tener:",
+    opts: [ "A. numero par de protones.", "B. numero impar de electrones.", "C. numero impar de nucleones.", "D. numero par de nucleones." ],
+    a: "numero impar de nucleones."
+  },
+  { q: "con cual de estos nucleidos no se podrán realizarestudios de RM:",
+    opts: [ "A. 1 H.", "B. 16 O.", "C. 31 P.", "D. 23 Na." ],
+    a: "16 O."
+  },
+  { q: "para que los núcleos presenten fenómenos deresonancia magnética:",
+    opts: [ "A. el vector momento angular J será mayor que 0.", "B. el vector J será 0.", "C. el vector J será distinto a 0.", "D. a y c." ],
+    a: "a y c."
+  },
+  { q: "cuando un núcleo es colocado bajo la acción de uncampo magnético, el vector J:",
+    opts: [ "A. adopta determinadas orientaciones.", "B. adoptar orientaciones arbitrarias.", "C. realiza movimiento de precesion.", "D. a y c." ],
+    a: "a y c."
+  },
+  { q: "entre los tiempos de relajación spin led y spin-spin T1 yT2 se verifica que:",
+    opts: [ "A. T1 mayor que T2.", "B. T1=T2.", "C. T1 menor que T2.", "D. T1 menor que T2." ],
+    a: "T1 mayor que T2."
+  },
+  { q: "la mayor o menor facilidad que encuentran los núcleosen ceder su energía al medio es:",
+    opts: [ "A. relación longitudinal.", "B. relajación transversal.", "C. relajación sagital.", "D. relajación spin-spin." ],
+    a: "relación longitudinal."
+  },
+  { q: "la frecuencia de resonancia de los protones en uncampo magnético (frecuencia de Larmor) depende de:",
+    opts: [ "A. la molécula en la que se encuentren.", "B. la cantidad de protones de las moléculas vecinas.", "C. la intensidad del campo magnético.", "D. las cargas eléctricas de las moléculas adyacentes." ],
+    a: "la intensidad del campo magnético."
+  },
+  { q: "llamamos tiempo eco (TE) a:",
+    opts: [ "A. al tiempo de duración del pulso de RF.", "B. al intervalo entre la aplicación de dos pulsos de RF.", "C. a la diferencia entre T1 y T2 para cada tejido.", "D. al tiempo que tras la aplicación del pulso se capta laseñal emitida por los protones." ],
+    a: "al tiempo que tras la aplicación del pulso se capta laseñal emitida por los protones."
+  },
+  { q: "el tiempo de relajación longitudinal T1 se define como eltiempo necesario para que el momento magnéticorespecto al eje z alcance:",
+    opts: [ "A. el 100% inicial.", "B. el 63.", "C. el 50.", "D. el 27." ],
+    a: "el 63."
+  },
+  { q: "el tiempo de relajación transversal T2 se define como eltiempo necesario para que el momento magnéticorespecto al eje y alcance:",
+    opts: [ "A. el 100 inicial.", "B. el 63.", "C. el 50.", "D. el 37." ],
+    a: "el 37."
+  },
+  { q: "T2 depende fundamentalmente de:",
+    opts: [ "A. la perdida de coherencia que los protones poseíandurante la aplicación del pulso de radiofrecuencia.", "B. la disminución de la frecuencia de los protones al cesarel pulso de RF.", "C. la coherencia progresiva adquirida por los protones alcesar el pulso de RF.", "D. el aumento progresivo de la frecuencia al cesar el pulsode RF." ],
+    a: "la perdida de coherencia que los protones poseíandurante la aplicación del pulso de radiofrecuencia."
+  },
+  { q: "la bobina de una RM tiene por misión:",
+    opts: [ "A. emitir el pulso de RF.", "B. captar las señales de radiofrecuencia emitidas por lazona explorada.", "C. a y b simultáneamente.", "D. a y b sucesivamente." ],
+    a: "a y b sucesivamente."
+  },
+  { q: "es contraindicación para realizar una RM:",
+    opts: [ "A. portar marcapasos.", "B. tener alergia al yodo.", "C. ser menor de 18 años.", "D. haber sufrido numerosas exploraciones radiológicas." ],
+    a: "portar marcapasos."
+  },
+  { q: "el contraste fundamental utilizado en RM es:",
+    opts: [ "A. sulfato de bario.", "B. gadolinio DTPA.", "C. Oxido de hierro.", "D. Compuestos yodados." ],
+    a: "gadolinio DTPA."
+  },
+  { q: "los vasos suelen aparecer:",
+    opts: [ "A. fuertemente contrastados.", "B. con ausencia de señal.", "C. contrastados o con ausencia de señal según la zona.", "D. no aparecen por tener una densidad similar a las partesblandas." ],
+    a: "C. contrastados o con ausencia de señal según la zona."
+  },
+  { q: "la grasa aparece como:",
+    opts: [ "A. blanca en T1 y T2.", "B. blanca en T1 y gris en T2.", "C. gris en T1 y blanca en T2.", "D. negra en T1 y blanda en T2." ],
+    a: "B. blanca en T1 y gris en T2."
+  },
+  { q: "los huesos y calcificaciones como:",
+    opts: [ "A. blanco en T1 y T2.", "B. negro en T1 negro en T2.", "C. blanco en T1 y negro en T2.", "D. blanco en T1 y gris en T2." ],
+    a: "B. negro en T1 negro en T2."
+  },
+  { q: "el agua y los líquidos orgánicos aparecen:",
+    opts: [ "A. blanco en T1 y negro en T2.", "B. negro gris oscuro en T1, blanco en T2.", "C. gris en T1 y T2.", "D. blanco en T1 y gris en T2." ],
+    a: "negro gris oscuro en T1, blanco en T2."
+  },
+  { q: "no es una ventaja de la RM:",
+    opts: [ "A. la posibilidad del estudio en diversos planos.", "B. la no irradiación de rayos X.", "C. la buena representación de las partes blandas sobretodo del SNC y locomotor.", "D. la economía de sus instalaciones." ],
+    a: "la economía de sus instalaciones."
+  },
+  { q: "Según la distribución de los iones cloro a ambos lados de la membrana celular, estospresentan:",
+    opts: [ "A. Tendencia a entrar debido al potencial de equilibrio.", "B. Tendencia salir debido al potencial de membrana.", "C. La tendencia dependerá del equilibrio.", "D. La a y b." ],
+    a: "La a y b."
+  },
+  { q: "El complejo QRS en un electrocardiograma, se asocia con:",
+    opts: [ "A. El final de la contracción ventricular.", "B. Repolarización auricular y despolarización ventricular.", "C. El inicio de la contracción auricular.", "D. El final de la contracción auricular." ],
+    a: "Repolarización auricular y despolarización ventricular."
+  },
+  { q: "En la fase de sueño REM:",
+    opts: [ "A. Hay un predominio de las ondas α.", "B. Hay un predominio de las ondas theta (0).", "C. Hay un predominio de las ondas delta.", "D. Hay un predominio de las ondas β." ],
+    a: "Hay un predominio de las ondas β."
+  },
+  { q: "Según la distribución de los iones potasio a ambos lados de la membrana celular:",
+    opts: [ "A. Tienen tendencia a entrar debido al potencial de equilibrio.", "B. Tienen tendencia a salir debido al potencial de membrana.", "C. Tienen tendencia a salir debido al potencial de equilibrio.", "D. La a y la b." ],
+    a: "Tienen tendencia a salir debido al potencial de equilibrio."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ión negativo a través de la membrana es positivo, se verificará:",
+    opts: [ "A. El incremento de energía potencial no puede ser positivo.", "B. El ión tendrá tendencia a salir de la misma.", "C. El ión tendrá tendencia a entrar en la misma.", "D. El sistema estará en equilibrio." ],
+    a: "B. El ión tendrá tendencia a salir de la misma."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ión positivo a través de la membrana es positivo, se verificará:",
+    opts: [ "A. El sistema estará en equilibrio.", "B. El ión tendrá tendencia a entrar en la misma.", "C. El ión tendrá tendencia a salir de la misma.", "D. El incremento de energía potencial no puede ser positivo." ],
+    a: "C. El ión tendrá tendencia a salir de la misma."
+  },
+  { q: "La constante giromagnética:",
+    opts: [ "A. Depende del cociente entre la carga y la masa.", "B. Depende del cociente entre la masa y la carga.", "C. Es inversamente proporcional a la frecuencia de Larmor.", "D. a y c." ],
+    a: "A. Depende del cociente entre la carga y la masa."
+  },
+  { q: "La frecuencia de repetición de los pulsos depende de:",
+    opts: [ "A. Potencial de acción.", "B. Potencial de equilibrio.", "C. Potencial de membrana.", "D. Ninguna de las tres." ],
+    a: "Ninguna de las tres."
+  },
+  { q: "El potencial generador se diferencia del potencial de acción, en que:",
+    opts: [ "A. No se propaga a lo largo de la fibra nerviosa.", "B. Se trasmite información.", "C. Su amplitud y la forma en que crece es independiente del estímulo aplicado.", "D. Las tres anteriores." ],
+    a: "No se propaga a lo largo de la fibra nerviosa."
+  },
+  { q: "La onda T en un electrocardiograma, se asocia con:",
+    opts: [ "A. El final de la contracción ventricular.", "B. La a y d.", "C. El inicio de la contracción auricular.", "D. Repolarización ventricular." ],
+    a: "La a y d."
+  },
+  { q: "La frecuencia de Larmor depende de:",
+    opts: [ "A. La intensidad del campo magnético externo.", "B. Es contante.", "C. La constante giromagnética.", "D. a y c." ],
+    a: "a y c."
+  },
+  { q: "El pulso de RF en una instalación de RM:",
+    opts: [ "A. Hace que la magnetización transversal sea cero.", "B. Hace que disminuya la magnetización longitudinal.", "C. Hace que los núcleos realicen un movimiento de precesión.", "D. a y b." ],
+    a: "B. Hace que disminuya la magnetización longitudinal."
+  },
+  { q: "Una disminución del diámetro del axón se traduce en el impulso nervioso en:",
+    opts: [ "A. Dependerá del número de células de Schwann.", "B. Un aumento de la velocidad.", "C. El diámetro es independiente de la velocidad.", "D. Ninguna de las tres." ],
+    a: "Ninguna de las tres."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ión negativoa través de la membrana es negativo, se verificará:",
+    opts: [ "A. El ión tendrá tendencia a salir de la misma.", "B. El incremento de energía potencial no puede ser negativo.", "C. El ión tendrá tendencia a entrar en la misma.", "D. El sistema estará en equilibrio." ],
+    a: "C. El ión tendrá tendencia a entrar en la misma."
+  },
+  { q: "La tendencia a entrar o salir de los iones en la célula, viene dada por:",
+    opts: [ "A. el potencial de equilibrio.", "B. El potencial de acción.", "C. El potencial de membrana.", "D. La a y c." ],
+    a: "La a y c."
+  },
+  { q: "La frecuencia de repetición de los pulsos, depende del valor del:",
+    opts: [ "A. Potencial de acción.", "B. Potencial de equilibrio.", "C. Potencial de membrana.", "D. Ninguna de las tres." ],
+    a: "Ninguna de las tres."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ion negativo a través de la membrana es negativo, se verificará.",
+    opts: [ "A. El ion tendrá tendencia a entrar en la misma.", "B. El ion tendrá tendencia a salir de la misma.", "C. El incremento de energía potencial no puede ser positivo.", "D. El sistema estará en equilibrio." ],
+    a: "A. El ion tendrá tendencia a entrar en la misma."
+  },
+  { q: "Si el incremento de energía potencial que tiene lugar cuando sale un mol de ion negativo a través de la membrana es positivo, se verificará:",
+    opts: [ "A. El ion tendrá tendencia a entrar en la misma.", "B. El incremento de energía potencial no puede ser positivo.", "C. El sistema estará en equilibrio.", "D. El ion tendrá tendencia a salir de la misma." ],
+    a: "D. El ion tendrá tendencia a salir de la misma."
+  },
+  { q: "Para que los núcleos no presenten fenómenos de Resonancia Magnética:",
+    opts: [ "A. El vector momento magnético será distinto de cero.", "B. El vector momento angular será distinto de cero.", "C. El vector momento magnético será igual a cero.", "D. La a y b." ],
+    a: "El vector momento magnético será igual a cero."
+  }
+];
+
+    // --- ASIGNAR IDs ÚNICOS (IMPORTANTE PARA EL FILTRADO) ---
+    // Como tu array original no tiene 'id', se lo asignamos dinámicamente
+    // basándonos en el índice original.
+    quizData.forEach((item, index) => {
+        item.id = index;
+    });
+
+    // --- GESTIÓN DE ESTADO ---
+    let markedQuestions = new Set();
+    let failedQuestions = new Set();
+
+    // Fisher-Yates Shuffle
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    const container = document.getElementById('quiz-container');
+
+    // Función principal para renderizar el quiz
+    function renderQuiz(questionsToLoad = quizData) {
+        container.innerHTML = "";
+
+        // Ocultar menú de reinicio y mostrar botón de finalizar
+        document.getElementById("restart-menu").style.display = "none";
+        document.getElementById("finish-btn").style.display = "inline-block";
+
+        if(questionsToLoad.length === 0) {
+            container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay preguntas para mostrar en esta selección.</p>";
+            return;
+        }
+
+        questionsToLoad.forEach((item, displayIndex) => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+
+            // --- SECCIÓN: Checkbox de Marcar para revisar ---
+            const markContainer = document.createElement("div");
+            markContainer.className = "mark-container";
+            
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `mark-${item.id}`;
+            // Si ya estaba marcada en la sesión global, mantener el check
+            if(markedQuestions.has(item.id)) checkbox.checked = true;
+
+            checkbox.onchange = (e) => {
+                if(e.target.checked) {
+                    markedQuestions.add(item.id);
+                } else {
+                    markedQuestions.delete(item.id);
+                }
+            };
+
+            const label = document.createElement("label");
+            label.htmlFor = `mark-${item.id}`;
+            label.innerText = "Marcar para revisar";
+
+            markContainer.appendChild(checkbox);
+            markContainer.appendChild(label);
+            card.appendChild(markContainer);
+            // ------------------------------------------------
+
+            const header = document.createElement('div');
+            header.className = 'question-header';
+            // Nota: item.id + 1 muestra el número original de la pregunta
+            header.textContent = `Pregunta ${item.id + 1}`; 
+            card.appendChild(header);
+
+            const questionTitle = document.createElement('div');
+            questionTitle.className = 'question-text';
+            questionTitle.textContent = item.q;
+            card.appendChild(questionTitle);
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+
+            // Preparamos opciones con detección correcta
+            let optionsObj = item.opts.map(opt => ({
+                text: opt,
+                isCorrect: normalizeText(opt) === normalizeText(item.a)
+            }));
+
+            // Barajamos solo respuestas
+            optionsObj = shuffleArray(optionsObj);
+
+            // Explicación
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'explanation';
+            explanationDiv.innerHTML = `<strong>Respuesta Correcta:</strong> ${item.a}`;
+
+            optionsObj.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt.text;
+
+                btn.onclick = () => {
+                    const allBtns = optionsDiv.querySelectorAll('.option-btn');
+                    allBtns.forEach(b => b.disabled = true);
+
+                    if (opt.isCorrect) {
+                        btn.classList.add('correct');
+                        // Opcional: Si acierta, la quitamos de falladas si estaba
+                        // failedQuestions.delete(item.id);
+                    } else {
+                        btn.classList.add('incorrect');
+                        // --- REGISTRAR FALLO ---
+                        failedQuestions.add(item.id);
+                        
+                        // marcar la correcta visualmente
+                        allBtns.forEach(b => {
+                            if (normalizeText(b.textContent) === normalizeText(item.a)) {
+                                b.classList.add('correct');
+                            }
+                        });
+                    }
+
+                    explanationDiv.classList.add('visible');
+                };
+
+                optionsDiv.appendChild(btn);
+            });
+
+            card.appendChild(optionsDiv);
+            card.appendChild(explanationDiv);
+            container.appendChild(card);
+        });
+    }
+
+    // --- FUNCIONES DE CONTROL FINAL ---
+
+    function showEndOptions() {
+        document.getElementById("finish-btn").style.display = "none";
+        document.getElementById("restart-menu").style.display = "flex";
+        
+        // Scroll al final
+        document.getElementById("controls-area").scrollIntoView({behavior: "smooth"});
+        
+        // Mostrar estadísticas
+        document.getElementById("stats-summary").innerHTML = `
+            Preguntas marcadas: <strong>${markedQuestions.size}</strong><br>
+            Preguntas falladas en esta sesión: <strong>${failedQuestions.size}</strong>
+        `;
+    }
+
+    function restartQuiz(mode) {
+        let subset = [];
+        
+        // Filtramos usando el 'id' que asignamos al inicio
+        if (mode === 'all') {
+            subset = quizData;
+            // failedQuestions.clear(); // Opcional: limpiar fallos al reiniciar todo
+        } else if (mode === 'marked') {
+            subset = quizData.filter(q => markedQuestions.has(q.id));
+        } else if (mode === 'failed') {
+            subset = quizData.filter(q => failedQuestions.has(q.id));
+        } else if (mode === 'failed_marked') {
+            subset = quizData.filter(q => failedQuestions.has(q.id) || markedQuestions.has(q.id));
+        }
+
+        // Limpiamos los fallos de la sesión anterior para empezar a contar de nuevo en la nueva ronda
+        if(mode !== 'all') {
+            failedQuestions.clear(); 
+        } else {
+            failedQuestions.clear();
+            markedQuestions.clear(); // Reset completo
+        }
+
+        renderQuiz(subset);
+        
+        // Scroll arriba
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Iniciar
+    renderQuiz();
+</script>
+
+</body>
+</html>

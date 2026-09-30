@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Histología - 74 Imágenes</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #2980b9;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --bg: #fdfefe;
+        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; height: 100vh; background-color: var(--bg); color: #333; }
+        
+        /* SIDEBAR */
+        #sidebar { width: 300px; background: var(--primary); color: white; display: flex; flex-direction: column; padding: 15px; border-right: 4px solid #1a252f; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        #nav-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; overflow-y: auto; padding-right: 5px; align-content: start; flex-grow: 1; }
+        .nav-btn { aspect-ratio: 1; border: none; background: rgba(255,255,255,0.1); color: #bdc3c7; cursor: pointer; font-size: 10px; font-weight: bold; border-radius: 3px; transition: all 0.2s; }
+        .nav-btn:hover { background: var(--secondary); color: white; transform: scale(1.1); z-index: 2; }
+        .nav-btn.active { background: var(--secondary); border: 2px solid white; color: white; }
+        .nav-btn.correct { background: var(--success); color: white; }
+        .nav-btn.incorrect { background: var(--danger); color: white; }
+        
+        /* MAIN */
+        #main { flex-grow: 1; padding: 30px; overflow-y: auto; position: relative; }
+        .screen { display: none; max-width: 900px; margin: 0 auto; }
+        .screen.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        
+        /* CARDS & IMAGES */
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); text-align: center; border: 1px solid #eee; }
+        .question-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; text-align: left; }
+        
+        .img-wrapper { text-align: center; margin: 20px 0; background: #000; border-radius: 8px; overflow: hidden; padding: 5px; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+        .q-img { max-width: 100%; max-height: 500px; display: block; margin: 0 auto; }
+        .img-error { color: #e74c3c; padding: 20px; border: 2px dashed #e74c3c; display: none; background: #fadbd8; width: 100%; }
+        
+        /* OPTIONS */
+        .options-grid { display: grid; gap: 10px; }
+        .option { padding: 15px 20px; border: 2px solid #ecf0f1; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative; background: #fff; }
+        .option:hover:not(.disabled) { background: #f4f6f7; border-color: #bdc3c7; }
+        .option.correct { background: #d5f5e3; border-color: var(--success); color: #196f3d; font-weight: bold; }
+        .option.incorrect { background: #fadbd8; border-color: var(--danger); color: #922b21; opacity: 0.8; }
+        .option.disabled { pointer-events: none; }
+
+        /* BUTTONS */
+        .btn { padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; text-transform: uppercase; transition: transform 0.1s; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-blue { background: var(--secondary); color: white; }
+        .btn-red { background: var(--danger); color: white; }
+        .btn-green { background: var(--success); color: white; }
+
+        /* HEADER */
+        .question-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 2px solid #f5f5f5; padding-bottom: 10px; }
+        .question-title { font-size: 1.2em; font-weight: 700; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3 style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">Navegación</h3>
+    <div id="nav-grid"></div>
+</div>
+
+<div id="main">
+    <div id="start-screen" class="screen active">
+        <div class="card">
+            <h1 style="color:var(--primary)">Quiz Histología e Imágenes</h1>
+            <p style="font-size: 1.2em; color: #7f8c8d;">74 Preguntas | Orden Aleatorio</p>
+            <p style="margin: 20px 0; color: #e67e22; font-size: 0.9em;">* Asegúrate de tener las imágenes (1.png a 74.png) en la misma carpeta.</p>
+            <button class="btn btn-green" onclick="startQuiz()">Comenzar Test</button>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="screen">
+        <div id="question-area"></div>
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn btn-red" onclick="finishQuiz()">Finalizar Revisión</button>
+        </div>
+    </div>
+
+    <div id="results-screen" class="screen">
+        <div class="card">
+            <h2 style="color:var(--primary)">Resultados</h2>
+            <div id="score-display" style="font-size: 4em; font-weight: bold; color: var(--secondary); margin: 20px 0;"></div>
+            <p id="stats-display" style="font-size: 1.2em; color: #7f8c8d;"></p>
+            <hr style="margin: 30px 0; opacity: 0.2">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <button class="btn btn-red" onclick="resetQuiz('failed')">Repetir Fallos</button>
+                <button class="btn btn-blue" onclick="location.reload()">Reiniciar Todo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // BASE DE DATOS (74 Preguntas)
+    // El 'id' corresponde al nombre del archivo de imagen (ej: id: 1 -> 1.png)
+    const rawQuestions = [
+        { id: 1, text: "Seleccione una:", options: ["Se localiza en el disco intervertebral.", "Forma el cartilago articular.", "No presenta pericondrio.", "Se localiza en la epiglotis."], correct: 3 },
+        { id: 2, text: "Seleccione una:", options: ["Cartílago fibroso.", "Cartílago articular.", "Cartílago hialino.", "Cartílago elástico."], correct: 0 },
+        { id: 3, text: "Seleccione una:", options: ["Un osteoclasto encargado de la reabsorción ósea.", "Un osteoclasto precursor de osteocitos.", "Un osteoclasto encargado de producir matriz ósea.", "Un osteoclasto encargado del mantenimiento de la matriz ósea."], correct: 0 },
+        { id: 4, text: "El grupo de células que aparece en la imagen corresponde a un grupo isogénico de osteocitos:", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 5, text: "La imagen corresponde a una zona donde se desarrolla un proceso de osificación endocondral.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 6, text: "Seleccione una:", options: ["Centro de osificación membranoso.", "Centro de osificación endocondral.", "Tejido óseo esponjoso y médula ósea.", "Tejido óseo compacto y médula ósea."], correct: 2 },
+        { id: 7, text: "Seleccione una:", options: ["Se observan osteonas en cuyo centro se localiza un canal de Volkman.", "Se observan trabéculas óseas que delimitan médula ósea.", "Se observan osteonas en cuyo centro se localiza un canal de Havers.", "Se observan osteonas y condrocitos con sus prolongaciones."], correct: 2 },
+        { id: 8, text: "Seleccione una:", options: ["Cartílago elástico.", "Cartílago hialino.", "Cartílago fibroso.", "Cartílago de crecimiento."], correct: 1 },
+        { id: 9, text: "La imagen corresponde a un proceso de osificación membranosa.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 10, text: "En la imagen se observa cartílago de crecimiento de tipo fibrosos.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 11, text: "Seleccione una:", options: ["Cartílago fibroso con la característica matriz acidófila.", "Cartílago de crecimiento.", "Cartílago hialino con la característica matriz basófila.", "Cartílago hialino con la característica matriz acidófila."], correct: 2 },
+        { id: 12, text: "Seleccione una:", options: ["Grupos isogénicos entre abundantes fibras elásticas.", "Grupos isogénicos en un cartílago elástica.", "Grupos isogénicos en cartílago de conjunción.", "Grupos isogénicos en un cartílago fibroso."], correct: 2 },
+        { id: 13, text: "El cartílago que aparece en la imagen presenta abundantes fibras elásticas en su matriz.", options: ["Verdadero.", "Flaso."], correct: 0 },
+        { id: 14, text: "La zona enmarcada corresponde a la capa de pericondrio fuente de condroblastos.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 15, text: "Que afirmación es falsa con respecto a la imagen:", options: ["Se observa una matriz cartilaginosa basófila.", "Se observan condroblastos en la zona interna del cartilago.", "Este tipo de cartílago presenta pericondrio excepto el cartílago articular.", "Se observan grupos isogénicos coronarios de condrocitos."], correct: 1 },
+        { id: 16, text: "Seleccione una:", options: ["Se trata de tejido cartilaginoso visto a M.E.", "Se trata de cartílago elástico teñido con orceína.", "Se trata de cartílago hialino teñido con tricrómico.", "Se trata de cartílago fibroso teñido con sales de plata."], correct: 1 },
+        { id: 17, text: "El cartílago que aparece en la imagen se localiza en la metáfisis de los huesos largos durante el crecimiento.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 18, text: "Seleccione una:", options: ["Se trata de un cartílago localizado en la matéfisis.", "Se trata de cartílago fibrosos.", "Corresponde a cartílago hialino.", "Corresponde a cartílago elástico."], correct: 3 },
+        { id: 19, text: "Selecciona una:", options: ["En los cartílagos costales.", "En el disco intervertebral.", "Recubriendo superficie articulares óseas.", "En el pabellón auditivo."], correct: 3 },
+        { id: 20, text: "Seleccione uno:", options: ["No presenta pericondrio.", "Forma el cartílago articular.", "Se localiza en los aritenoides.", "Contiene abundantes fibras elásticas."], correct: 0 },
+        { id: 21, text: "La célula incluida en el círculo se corresponde con:", options: ["Célula plasmática.", "Fibrablasto.", "Macrófago.", "Mastocito."], correct: 2 },
+        { id: 22, text: "La célula señalada se corresponde con una emigrada al tejido conjuntivo.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 23, text: "La célula incluida en el círculo se corresponde con.", options: ["Macrófago.", "Fibroblasto.", "Célula plasmática.", "Mastocito."], correct: 3 },
+        { id: 24, text: "Las células señaladas se corresponden con células emigradas al tejido conjuntivo.", options: ["verdadero.", "falso."], correct: 1 },
+        { id: 25, text: "Las células señaladas con flechas se corresponden con:", options: ["Macrófago.", "Células plasmáticas.", "Fibroblastos.", "Mastocitos."], correct: 2 },
+        { id: 26, text: "La imagen nos muestra las estriaciones típicas de las fibras elásticas al microscopio de transmisión.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 27, text: "Las células señaladas con flechas se corresponden con:", options: ["Fibroblastos.", "Células plasmáticas.", "Macrófagos.", "Mastocitos."], correct: 1 },
+        { id: 28, text: "Señale la respuesta correcta:", options: ["Fibras elásticas teñidas con tricrómico.", "Fibras elásticas teñidas con orceina.", "Fibras de reticulina teñidas con H-E.", "Fibras de colágena teñidas con tricrómico."], correct: 0 },
+        { id: 29, text: "Señala la respuesta correcta.", options: ["Fibras elásticas teñidas con Gomori.", "Fibras de reticulina teñidas con Gomori.", "Fibras elásticas teñidas con orceína.", "Fibras de colágena teñidas con Gomori."], correct: 1 },
+        { id: 30, text: "Señala la respuesta correcta.", options: ["Fibras de colágena teñida con Van Gienson para fibras elásticas (Verhoelf).", "Fibras elásticas teñidas con Van Gienson para fibras elásticas (Verhoeff).", "Fibras de reticulina teñidas con Van Gienson para fibras elásticas (Verhoeff).", "Fibras elásticas teñidas con orceina."], correct: 1 },
+        { id: 31, text: "La preparación tiene realizada una tinción de tricrómico de Masson que nos pone de relieve las fibras elásticas del tejido conjuntivo.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 32, text: "Señala la respuesta correcta:", options: ["Macrófago.", "Fibroblasto.", "Célula plasmática.", "Mastocito."], correct: 1 },
+        { id: 33, text: "Indique la célula predominante en este campo microscópico. Seleccione una:", options: ["Mastocito.", "Macrófago.", "Fibroblasto.", "Célula plasmática."], correct: 2 },
+        { id: 34, text: "La célula que se observa en el centro de la imagen es.", options: ["Un macrófago.", "Un eosinófilo.", "Un plasmocito.", "Un mastocito."], correct: 2 },
+        { id: 35, text: "La célula que ocupa el centro de la imagen es.", options: ["Una célula plasmática.", "Un macrófago.", "Un fibroblasto.", "Un adipocito."], correct: 1 },
+        { id: 36, text: "Seleccione una:", options: ["Conjuntivo denso no orientado.", "Conjuntivo mucoso.", "Conjuntivo denso orientado.", "Conjuntivo elástico."], correct: 1 },
+        { id: 37, text: "Seleccione una:", options: ["Tejido conjuntivo denso orientado.", "Tejido conjuntivo denso no orientado.", "Tejido elástico.", "Tejido reticular."], correct: 0 },
+        { id: 38, text: "Seleccione una:", options: ["Tejido reticular.", "Tejido conjuntivo laxo.", "Tejido conjuntivo elástico.", "Tejido conjuntivo denso."], correct: 1 },
+        { id: 39, text: "Seleccione una:", options: ["Grasa multiforme.", "Tejido adiposo unilocular.", "Tejido adiposo multilocular.", "Grasa blanca."], correct: 2 },
+        { id: 40, text: "En la imagen se observa un tejido conjuntivo denso.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 41, text: "Seleccione una:", options: ["Teijdo conjuntico mucoso.", "Tejido conjuntivo laxo.", "Tejido conjuntivo denso.", "Tejido conjuntivo orientado."], correct: 0 },
+        { id: 42, text: "La imagen nos muestra adipocitos uniloculares.", options: ["verdadero.", "falso."], correct: 1 },
+        { id: 43, text: "Seleccione una.", options: ["Tejido conjuntivo denso orientado.", "Tejido conjuntivo mucoso.", "Tejido conjuntivo laxo.", "Tejido conjuntivo denso."], correct: 0 },
+        { id: 44, text: "Selecciona una:", options: ["Tejido conjuntivo denso orientado teñido con tricrómico de Van Gieson.", "Tejido conjuntivo mucoso teñido con tricrómico de Masson.", "Tejido conjuntivo laxo teñido con tricrómico de Van Gieson.", "Tejido conjuntivo laxo teñido con tricrómico de Masson."], correct: 3 },
+        { id: 45, text: "La imagen nos muestra un tejido conjuntivo rico en fibras colágenas.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 46, text: "Selecciona una:", options: ["Tejido conjuntivo mucoso.", "Tejido conjuntivo denso orientado.", "Tejido conjuntivo denso.", "Tejido conjuntivo laxo."], correct: 2 },
+        { id: 47, text: "La imagen nos muestra un tejido conjuntivo laxo teñido con tricrómico de Masson. Seleccione una:", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 48, text: "Señale la respuesta correcta:", options: ["Tejido conjuntivo laxo.", "Tejido conjuntivo denso.", "Tejido conjuntivo mucoso.", "Tejido conjuntivo denso orientado."], correct: 0 },
+        { id: 49, text: "La imagen nos muestra adipocitos uniloculares.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 50, text: "La imagen nos muestra un tejido conjuntivo denso.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 51, text: "Seleccione una:", options: ["Tejido conjuntivo mucoso.", "Tejido conjuntivo orientado.", "Tejido conjuntivo denso.", "Tejido conjuntivo laxo."], correct: 3 },
+        { id: 52, text: "La imagen nos muestra tejido conjuntivo mucoso.", options: ["Veradero.", "Falso."], correct: 1 },
+        { id: 53, text: "Seleccione una:", options: ["Tejido conjuntivo mucoso teñido con tricrómico de Masson.", "Tejido conjuntivo denso orientado teñido con tricrómico de Masson.", "Tejido conjuntivo denso teñido con tricrómico de Masson.", "Tejido conjuntivo laxo teñido con tricrómico de Van Gieson."], correct: 1 },
+        { id: 54, text: "La imagen nos muestra un tejido conjuntivo rico en fibras colágenas.", options: ["Verdadero.", "Falso."], correct: 0 },
+        { id: 55, text: "Seleccione una:", options: ["Tejido conjuntivo laxo.", "Tejido conjuntivo denso.", "Tejido conjuntivo adiposo unilocular.", "Tejido conjuntivo adiposo multilocular."], correct: 2 },
+        { id: 56, text: "Señale la respuesta correcta:", options: ["Tejido conjuntivo mucoso.", "Tejido conjuntivo laxo.", "Tejido conjuntivo denso orientado.", "Tejido conjuntivo denso."], correct: 1 },
+        { id: 57, text: "La imagen nos muestra un tejido conjuntivo elástico teñido con tricrómico de Masson.", options: ["Verdadero.", "Falso."], correct: 1 },
+        { id: 58, text: "Indique la respuesta.", options: ["Tejido conjuntivo laxo.", "Tejido conjuntivo mucoso.", "Tejido nervioso.", "Tejido conjuntivo denso."], correct: 0 },
+        { id: 59, text: "Diga la estructura delimitada por flechas:", options: ["Periostio.", "Zona fibrosa periostio.", "Pericondrio.", "Pericondrio zona condrógena."], correct: 2 },
+        { id: 60, text: "La imagen corresponde a un cartílago de conjunción o epifisario, indique la señalada:", options: ["Zona de cartílago hipertrófico.", "Zona de cartílago en reposo.", "Zona de cartílago seriado.", "Zona de cartílago calcificado."], correct: 2 },
+        { id: 61, text: "Señale la respuesta correcta:", options: ["Corte transversal de fibras nerviosas mielínicas.", "Oligodendrocitos.", "Células emigrantes del tejido conujntivo.", "Fascículo de fibras musculares lisas cortadas transversalmente."], correct: 0 },
+        { id: 62, text: "La flecha nos indica:", options: ["Disco intercalar, musculo cardiaco.", "Disco intercalar, musculo esqueletico.", "Artefacto histológico musculo esquelético.", "Ninguna de las respuestas corresponde."], correct: 2 },
+        { id: 63, text: "Indique tipo de tinción y estructura histológica:", options: ["Tricrómico de Masson. fibras elásticas.", "Tricrómico de Masson. cartilago elastico.", "Orceina, cartilago elastico.", "Orceina fibras de colágena."], correct: 2 },
+        { id: 64, text: "La imagen se corresponde con un síndrome de Ehrles-Darlos, que estructura histológica se encuentra afectada en esta enfermedad:", options: ["Los miofibroblasto.", "Las fibras elásticas.", "Las fibras de colágena.", "La sustancia fundamental del tejido conjuntivo."], correct: 2 },
+        { id: 65, text: "La flecha nos señala:", options: ["Célula muscular lisa.", "Célula mioepitelial.", "Célula mioepiteloide.", "Célula fibroblástica."], correct: 3 },
+        { id: 66, text: "Las células señaladas se corresponden con:", options: ["Astrocitos protoplásmicos.", "Oligodendrocitos.", "Neuronas granulares.", "Ninguna de las respuestas corresponden."], correct: 1 },
+        { id: 67, text: "Indique la variedad de tejido.", options: ["Tejido muscular liso.", "Tejido muscular cardiaco.", "Tejido muscular esquelético.", "Ninguna de las respuestas se corresponde."], correct: 0 },
+        { id: 68, text: "¿Qué tipo celular se está señalando?.", options: ["Fibroblasto.", "Muscular lisa.", "Epitelial aplanada.", "Osteoblasto."], correct: 3 },
+        { id: 69, text: "La imagen corresponde al material estriado en una intervención de hernia discal. Señale la respuesta correcta:", options: ["Tejido conjuntivo denso.", "Tejido de resto notocordales.", "Tejido cartilaginoso fibroso.", "Tejido cartilaginoso elástico."], correct: 2 },
+        { id: 70, text: "El círculo nos señala:", options: ["Células plasmáticas.", "Célula macrofágica.", "Célula mastocitaria.", "Célula fibroblástica."], correct: 0 },
+        { id: 71, text: "Indique la variedad de tejido:", options: ["Tejido conjuntivo laxo.", "Tejido adiposo blanco.", "Tejido de grasa parda.", "Tejido con células mucosas."], correct: 1 },
+        { id: 72, text: "Indique la respuesta correcta de la estructura señalada:", options: ["Grupo isogénico axial.", "Grupo isogénico coronario.", "Grupo isogénico hialino.", "Grupo isogénico en degeneración."], correct: 1 },
+        { id: 73, text: "El círculo nos señala:", options: ["Célula plasmática.", "Célula macrofágica.", "Célula mastocitaria.", "Célula fibroblástica.", "Lo que tu quieras que sea <3."], correct: 4 },
+        { id: 74, text: "¿Qué tipo de célula se está señalando?.", options: ["Osteoblasto.", "Osteoclastos.", "Células de Howship.", "Linning cells."], correct: 1 }
+    ];
+
+    let currentQuestions = [];
+    let userAnswers = {};
+
+    function startQuiz() {
+        // Barajar preguntas
+        currentQuestions = [...rawQuestions].sort(() => Math.random() - 0.5);
+        
+        // Barajar opciones dentro de cada pregunta
+        currentQuestions.forEach(q => {
+            // Guardar texto de respuesta correcta
+            const correctText = q.options[q.correct];
+            // Barajar opciones
+            q.options = q.options.sort(() => Math.random() - 0.5);
+            // Encontrar nuevo índice correcto
+            q.correct = q.options.indexOf(correctText);
+        });
+
+        userAnswers = {};
+        buildSidebar();
+        renderQuestions();
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function buildSidebar() {
+        const nav = document.getElementById('nav-grid');
+        nav.innerHTML = '';
+        currentQuestions.forEach((q, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.innerText = i + 1;
+            btn.id = `nav-${i}`;
+            btn.onclick = () => document.getElementById(`q-${i}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            nav.appendChild(btn);
+        });
+    }
+
+    function renderQuestions() {
+        const area = document.getElementById('question-area');
+        area.innerHTML = '';
+        
+        currentQuestions.forEach((q, index) => {
+            const container = document.createElement('div');
+            container.className = 'question-container';
+            container.id = `q-${index}`;
+            
+            // Imagen: usa el ID original para encontrar el archivo correcto (ej: 1.png)
+            const imgHTML = `
+                <div class="img-wrapper">
+                    <img src="${q.id}.png" class="q-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                    <div class="img-error">
+                        ⚠️ <strong>Imagen ${q.id}.png no encontrada</strong><br>
+                        <small>Asegúrate de que está en la misma carpeta.</small>
+                    </div>
+                </div>
+            `;
+
+            const optionsHTML = q.options.map((opt, i) => `
+                <div class="option" onclick="selectOption(${index}, ${i}, this)">
+                    ${opt}
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="question-header">
+                    <span class="question-title">Pregunta ${index + 1}</span>
+                    <span style="color:#ccc">ID: ${q.id}</span>
+                </div>
+                <div style="font-size:1.1em; margin-bottom:15px;">${q.text}</div>
+                ${imgHTML}
+                <div class="options-grid">
+                    ${optionsHTML}
+                </div>
+            `;
+            area.appendChild(container);
+        });
+    }
+
+    function selectOption(qIndex, optIndex, element) {
+        if (userAnswers[qIndex] !== undefined) return; // Ya respondida
+
+        const isCorrect = optIndex === currentQuestions[qIndex].correct;
+        userAnswers[qIndex] = isCorrect;
+
+        const options = element.parentElement.children;
+        const correctIndex = currentQuestions[qIndex].correct;
+
+        if (isCorrect) {
+            element.classList.add('correct');
+            document.getElementById(`nav-${qIndex}`).classList.add('correct');
+        } else {
+            element.classList.add('incorrect');
+            options[correctIndex].classList.add('correct'); // Mostrar la correcta
+            document.getElementById(`nav-${qIndex}`).classList.add('incorrect');
+        }
+
+        // Deshabilitar todas
+        for(let opt of options) opt.classList.add('disabled');
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const correctCount = Object.values(userAnswers).filter(v => v).length;
+        const score = ((correctCount / total) * 10).toFixed(1);
+
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+        
+        document.getElementById('score-display').innerText = score;
+        document.getElementById('stats-display').innerText = `Has acertado ${correctCount} de ${total} preguntas.`;
+    }
+
+    function resetQuiz(mode) {
+        // En este diseño simple, reiniciar es recargar o volver a barajar todo
+        // Para "Repetir Fallos", habría que filtrar. Aquí haremos un reinicio simple para mantenerlo robusto.
+        if (mode === 'failed') {
+            // Filtrar solo las falladas para el nuevo array
+            const failedIndices = Object.keys(userAnswers).filter(i => !userAnswers[i]).map(i => parseInt(i));
+            if (failedIndices.length === 0) {
+                alert("No hay fallos para repetir.");
+                return;
+            }
+            const failedQuestions = failedIndices.map(i => currentQuestions[i]);
+            currentQuestions = failedQuestions;
+            
+            // Re-barajar las falladas para que no salgan en el mismo orden relativo
+            currentQuestions.sort(() => Math.random() - 0.5);
+            
+            userAnswers = {};
+            buildSidebar();
+            renderQuestions();
+            document.getElementById('results-screen').classList.remove('active');
+            document.getElementById('quiz-screen').classList.add('active');
+        }
+    }
+</script>
+
+</body>
+</html>

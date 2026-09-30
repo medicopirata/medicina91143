@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Física Bloque Final (601-700)</title>
+    <style>
+        :root {
+            --primary: #37474f;
+            --secondary: #cfd8dc;
+            --accent: #546e7a;
+            --success: #2e7d32;
+            --error: #c62828;
+            --text: #212121;
+            --bg-color: #eceff1;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding-top: 110px;
+            padding-bottom: 60px;
+        }
+
+        /* HEADER FIJO */
+        #header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(135deg, #263238, #37474f);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .header-content {
+            width: 90%;
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
+        
+        .score-board {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* PROGRESS BAR */
+        #progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            margin-top: 10px;
+        }
+        #progress-fill {
+            height: 100%;
+            background: #90a4ae;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* CONTAINER */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* CARD */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 6px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .card:hover { transform: translateY(-2px); }
+        .card.correct { border-left-color: var(--success); }
+        .card.incorrect { border-left-color: var(--error); }
+
+        .question-header {
+            font-size: 0.85rem;
+            color: #546e7a;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #263238;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        /* OPTIONS */
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #cfd8dc;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(.disabled) {
+            border-color: var(--accent);
+            background-color: #eceff1;
+        }
+
+        .option-btn.correct {
+            background-color: #e8f5e9;
+            border-color: var(--success);
+            color: #1b5e20;
+            font-weight: 600;
+        }
+
+        .option-btn.incorrect {
+            background-color: #ffebee;
+            border-color: var(--error);
+            color: #b71c1c;
+        }
+
+        .option-btn.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        /* FEEDBACK */
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #eceff1;
+            border-radius: 6px;
+            border: 1px solid #b0bec5;
+            color: #37474f;
+            font-size: 0.95rem;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* RESET BUTTON */
+        .btn-reset {
+            display: block;
+            width: 200px;
+            margin: 40px auto;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(55,71,79,0.3);
+        }
+        .btn-reset:hover { background: #263238; }
+
+    </style>
+</head>
+<body>
+
+    <div id="header-bar">
+        <div class="header-content">
+            <h1>Física Bloque Final (601-700)</h1>
+            <div class="score-board">
+                <span id="score">0</span> / <span id="total">0</span>
+            </div>
+        </div>
+        <div id="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="container" id="quiz-container">
+    </div>
+
+    <div class="container">
+        <button class="btn-reset" onclick="location.reload()">Reiniciar Test</button>
+    </div>
+
+    <script>
+        // BASE DE DATOS CORREGIDA Y LIMPIA
+        const questionsDB = [
+            {id: "601", q: "El sudor favorece pérdida por:", opts: {a:"Convección", b:"Conducción", c:"Radiación", d:"Evaporación"}, ans: "d", note: "Cambio de estado absorbe calor latente."},
+            {id: "602", q: "Inaccesibilidad al cero absoluto es consecuencia del principio:", opts: {a:"Primero", b:"Segundo", c:"Tercero", d:"Cero"}, ans: "c", note: "Teorema de Nernst."},
+            {id: "603", q: "En los cambios de estado se modifica:", opts: {a:"Temperatura inicial", b:"Final", c:"No se modifica la temperatura", d:"a y b"}, ans: "c", note: "Calor latente ocurre a T constante."},
+            {id: "604", q: "Ecuación transmisión calor (Q = K·S·ΔT / e):", opts: {a:"Inv resistencia", b:"Inv dif T", c:"...", d:"Directamente proporcional a dif T e inv a resistencia"}, ans: "a", note: "Flujo ~ 1/R y ~ ΔT."},
+            {id: "605", q: "Sistema termodinámico clásico caracterizado por:", opts: {a:"P, W, T", b:"Presión P, volumen V y temperatura T", c:"P, t, T", d:"..."}, ans: "b", note: "Variables de estado."},
+            {id: "606", q: "La temperatura permite:", opts: {a:"Determinar si dos cuerpos están o no en equilibrio térmico", b:"...", c:"...", d:"..."}, ans: "a", note: "Ley Cero."},
+            {id: "607", q: "¿Para qué sudamos?", opts: {a:"Refrigerarnos", b:"...", c:"...", d:"Para evaporar el sudor, consumiendo energía y bajando la temperatura"}, ans: "d", note: "Mecanismo evaporativo."},
+            {id: "608", q: "Escalofríos zona regulación:", opts: {a:"Sudomotora", b:"Voluntaria", c:"Metabólica", d:"Vasomotora"}, ans: "c", note: "Termogénesis química/metabólica involuntaria."},
+            {id: "609", q: "Proceso sistema aislado:", opts: {a:"Su entropía aumenta", b:"Disminuye", c:"...", d:"..."}, ans: "a", note: "Segundo principio (irreversible)."},
+            {id: "610", q: "Ser vivo es un sistema:", opts: {a:"Ordenado (Abierto, baja entropía local)", b:"Estable (equilibrado)", c:"Inestable", d:"..."}, ans: "a", note: "Alta organización (negentropía)."},
+            {id: "611", q: "El calor se mide en:", opts: {a:"Grados", b:"Patios", c:"CV", d:"Julios"}, ans: "d", note: "Energía."},
+            {id: "612", q: "Unidades entropía SI:", opts: {a:"J/K", b:"...", c:"...", d:"..."}, ans: "a", note: "Energía/Temperatura."},
+            {id: "613", q: "Suministrar sangre capilares:", opts: {a:"Difusión", b:"Perfusión", c:"...", d:"..."}, ans: "b", note: "Definición."},
+            {id: "614", q: "Becquerelio unidad de:", opts: {a:"Dosis", b:"...", c:"...", d:"Ninguna (Es Actividad)"}, ans: "d", note: "Desintegraciones/s."},
+            {id: "615", q: "Variable no depende tamaño:", opts: {a:"Intensiva", b:"Extensiva", c:"...", d:"..."}, ans: "a", note: "Ej: Temperatura."},
+            {id: "616", q: "Embolia pulmonar:", opts: {a:"...", b:"Se produce una disminución de la perfusión", c:"...", d:"..."}, ans: "b", note: "Bloqueo vascular."},
+            {id: "617", q: "Centro gravedad brazos arriba:", opts: {a:"Abajo", b:"Derecha", c:"...", d:"Hacia arriba"}, ans: "d", note: "Sube la masa."},
+            {id: "618", q: "CHR para < 1/7:", opts: {a:"4", b:"5", c:"3", d:"2"}, ans: "c", note: "2^2=4, 2^3=8. Se necesitan 3."},
+            {id: "619", q: "Sodio membrana:", opts: {a:"Tendencia a entrar (Pot. Equilibrio)", b:"Salir", c:"...", d:"..."}, ans: "a", note: "Fuerza electromotriz hacia dentro."},
+            {id: "620", q: "Color percibido:", opts: {a:"Físico", b:"Es un atributo psicológico de la luz", c:"...", d:"La b y la c"}, ans: "b", note: "Interpretación cerebral."},
+            {id: "621", q: "Reversible 300K, dS=200:", opts: {a:"60.000 Julios", b:"...", c:"...", d:"..."}, ans: "a", note: "Q = T·dS = 300·200."},
+            {id: "622", q: "Radiaciones baja energía uso:", opts: {a:"Absorben selectivamente", b:"Reduce dosis", c:"Fotoeléctrico", d:"La a) y c)"}, ans: "d", note: "Contraste por efecto fotoeléctrico."},
+            {id: "623", q: "Brazo 1 a 2 (mover):", opts: {a:"Desplaza CG", b:"...", c:"...", d:"..."}, ans: "a", note: "El CG sigue la distribución de masa."},
+            {id: "624", q: "Beta negativa (n->p):", opts: {a:"...", b:"n -> p + e- + v(anti)", c:"...", d:"..."}, ans: "b", note: "Emisión electrón."},
+            {id: "625", q: "Palanca codo (Bíceps):", opts: {a:"De tercer género", b:"...", c:"...", d:"..."}, ans: "a", note: "Potencia entre Fulcro y Resistencia."},
+            {id: "626", q: "MP3 10-40.000 Hz vs 60-10.000:", opts: {a:"...", b:"...", c:"...", d:"No notaría diferencia (Rango 20-20k)"}, ans: "d", note: "El oído no percibe ultrasonidos ni infrasonidos extremos."},
+            {id: "627", q: "Células color:", opts: {a:"...", b:"Conos", c:"Bastones", d:"..."}, ans: "b", note: "Visión fotópica."},
+            {id: "628", q: "Potencia x2, Distancia /2:", opts: {a:"La intensidad aumenta en ocho", b:"...", c:"...", d:"..."}, ans: "a", note: "I ~ P/r^2."},
+            {id: "629", q: "Desintegración beta:", opts: {a:"...", b:"Isóbaro", c:"...", d:"..."}, ans: "b", note: "A constante."},
+            {id: "630", q: "Factor calidad Q:", opts: {a:"...", b:"...", c:"Crece con la L.E.T.", d:"..."}, ans: "c", note: "Transferencia lineal de energía."},
+            {id: "631", q: "Fuerzas palanca:", opts: {a:"Gravitatoria, contacto y muscular", b:"...", c:"...", d:"..."}, ans: "a", note: "Peso, Reacción articular, Potencia."},
+            {id: "632", q: "Ojo nítido 50cm-2m:", opts: {a:"...", b:"...", c:"Miopía y presbicia", d:"..."}, ans: "c", note: "Rango acortado y desplazado."},
+            {id: "633", q: "Detector Centelleo:", opts: {a:"...", b:"...", c:"...", d:"Ninguna (Fluorescencia)"}, ans: "d", note: "Emisión de luz."},
+            {id: "634", q: "Fuerza hueso sobre articulación:", opts: {a:"...", b:"Fuerza de contacto", c:"...", d:"..."}, ans: "b", note: "Reacción articular."},
+            {id: "635", q: "Bastón:", opts: {a:"...", b:"...", c:"Reducir la fuerza muscular sobre la cadera de la pierna sana", d:"..."}, ans: "c", note: "Reduce carga y momento necesario."},
+            {id: "636", q: "Captura electrónica:", opts: {a:"...", b:"Isóbaro", c:"...", d:"Ninguna"}, ans: "b", note: "A constante."},
+            {id: "637", q: "Polipasto 1 fija 2 móviles:", opts: {a:"La fuerza necesaria es la cuarta parte", b:"...", c:"...", d:"..."}, ans: "a", note: "F = P/4."},
+            {id: "638", q: "Aumentar corriente filamento RX:", opts: {a:"...", b:"Aumenta el número de electrones", c:"...", d:"..."}, ans: "b", note: "Efecto termoiónico."},
+            {id: "639", q: "Aumentar voltaje RX:", opts: {a:"Aumenta la energía máxima", b:"...", c:"...", d:"..."}, ans: "a", note: "Emax = eV."},
+            {id: "640", q: "Colores primarios diagrama:", opts: {a:"...", b:"Los vértices del diagrama", c:"...", d:"..."}, ans: "b", note: "Extremos del triángulo de color."},
+            {id: "641", q: "Movimiento terapéutico:", opts: {a:"...", b:"Cinesiterapia", c:"...", d:"..."}, ans: "b", note: "Terapia por movimiento."},
+            {id: "642", q: "Factor energía radiación RX:", opts: {a:"Voltaje (kVp)", b:"...", c:"...", d:"..."}, ans: "a", note: "Diferencia de potencial."},
+            {id: "643", q: "Flujo constante, R aumenta:", opts: {a:"...", b:"...", c:"La caída de presión debe aumentar", d:"..."}, ans: "c", note: "Q = dP/R."},
+            {id: "644", q: "Masa núcleo:", opts: {a:"...", b:"Siempre inferior a la suma de sus componentes", c:"...", d:"..."}, ans: "b", note: "Defecto de masa."},
+            {id: "645", q: "Visión baja luz:", opts: {a:"...", b:"Escotópica", c:"...", d:"..."}, ans: "b", note: "Bastones."},
+            {id: "646", q: "Velocidad crítica más alta si:", opts: {a:"...", b:"La viscosidad del fluido aumenta", c:"...", d:"..."}, ans: "b", note: "Vc prop Viscosidad."},
+            {id: "647", q: "Fluido real tubo:", opts: {a:"...", b:"...", c:"...", d:"La a y c (Max centro, Media mitad)"}, ans: "d", note: "Perfil parabólico."},
+            {id: "648", q: "Variación energía interna cero:", opts: {a:"...", b:"Calor = Trabajo", c:"...", d:"..."}, ans: "b", note: "Proceso isotermo o cíclico."},
+            {id: "649", q: "Absorción Co-60:", opts: {a:"...", b:"...", c:"Efecto Compton", d:"..."}, ans: "c", note: "Energía media."},
+            {id: "650", q: "Corrientes débiles:", opts: {a:"...", b:"No térmicas (ELF)", c:"...", d:"..."}, ans: "b", note: "Inducción."},
+            {id: "651", q: "Fuerza contacto un pie:", opts: {a:"...", b:"...", c:"Se compensa con peso (y abductores)", d:"..."}, ans: "c", note: "Equilibrio estático."},
+            {id: "652", q: "Ni, Cu, Zn (Mismos neutrones 34):", opts: {a:"Isótonos", b:"...", c:"...", d:"..."}, ans: "a", note: "N constante."},
+            {id: "653", q: "Energía por dif temperatura:", opts: {a:"Calor", b:"...", c:"...", d:"..."}, ans: "a", note: "Transferencia térmica."},
+            {id: "654", q: "Fuerza NO produce:", opts: {a:"...", b:"Se moverá a velocidad constante (Falso)", c:"...", d:"..."}, ans: "b", note: "Fuerza neta produce aceleración."},
+            {id: "655", q: "Poliglobulia (viscosidad alta), flujo constante:", opts: {a:"Aumento viscosidad y Aumento Presión", b:"...", c:"...", d:"..."}, ans: "a", note: "Para mantener Q con más R, hace falta más P."},
+            {id: "656", q: "Núcleos inestables:", opts: {a:"...", b:"...", c:"Fuerzas electrostáticas superan nucleares", d:"..."}, ans: "c", note: "Razón de desintegración."},
+            {id: "657", q: "Dirección vibración = propagación:", opts: {a:"...", b:"...", c:"Longitudinales", d:"..."}, ans: "c", note: "Sonido."},
+            {id: "658", q: "Peso equilibrio (Palanca):", opts: {a:"(Cálculo F1d1=F2d2)", b:"...", c:"...", d:"..."}, ans: "a", note: "Ley de la palanca."},
+            {id: "659", q: "Campo B0 RM:", opts: {a:"...", b:"Orientar espines", c:"...", d:"..."}, ans: "b", note: "Magnetización."},
+            {id: "660", q: "Trabajo rozamiento:", opts: {a:"...", b:"Negativo", c:"...", d:"..."}, ans: "b", note: "Disipa energía."},
+            {id: "661", q: "MUY estable:", opts: {a:"...", b:"...", c:"Centrar proyección CG en base", d:"..."}, ans: "c", note: "Máxima estabilidad."},
+            {id: "662", q: "Velocidad impulso:", opts: {a:"...", b:"...", c:"...", d:"Todas son correctas"}, ans: "d", note: "Diámetro, mielina, propiedades."},
+            {id: "663", q: "Diferencia RX y Gamma:", opts: {a:"...", b:"En su origen (Corteza vs Núcleo)", c:"...", d:"..."}, ans: "b", note: "Definición fundamental."},
+            {id: "664", q: "Captura electrónica:", opts: {a:"A cte, Z-1", b:"...", c:"Captura e- cortical", d:"La a) y la c)"}, ans: "d", note: "Mecanismo."},
+            {id: "665", q: "Matiz:", opts: {a:"...", b:"Lambda", c:"Frecuencia", d:"La b y c"}, ans: "d", note: "Color espectral."},
+            {id: "666", q: "Transferir materia:", opts: {a:"...", b:"...", c:"Sistema Abierto", d:"..."}, ans: "c", note: "Termodinámica."},
+            {id: "667", q: "Componentes fuerza muscular:", opts: {a:"...", b:"...", c:"Rotatoria y estabilizadora", d:"..."}, ans: "c", note: "Perpendicular y paralela."},
+            {id: "668", q: "W/m2.sr:", opts: {a:"...", b:"Radiancia", c:"...", d:"..."}, ans: "b", note: "Brillo."},
+            {id: "669", q: "Ergonomía:", opts: {a:"...", b:"...", c:"Relación óptima ser humano-trabajo", d:"..."}, ans: "c", note: "Eficiencia y salud."},
+            {id: "670", q: "Fluorescencia:", opts: {a:"...", b:"Fotoeléctrico", c:"...", d:"..."}, ans: "b", note: "Tras absorción."},
+            {id: "671", q: "Esfuerzo (Fig):", opts: {a:"Tracción", b:"Flexión", c:"...", d:"..."}, ans: "a", note: "Estirar."},
+            {id: "672", q: "Excitación electrones:", opts: {a:"...", b:"...", c:"Ópticas (UV/Visible)", d:"..."}, ans: "c", note: "Saltos cuánticos."},
+            {id: "673", q: "Afirmación cierta:", opts: {a:"...", b:"...", c:"El sonido es una onda longitudinal", d:"..."}, ans: "c", note: "Mecánica presión."},
+            {id: "674", q: "Huesos material:", opts: {a:"...", b:"...", c:"...", d:"Elástico poco deformable"}, ans: "d", note: "Repetida."},
+            {id: "675", q: "Acercar manos giro:", opts: {a:"Disminuye inercia", b:"...", c:"Aumenta velocidad", d:"A y C"}, ans: "c", note: "Conservación momento angular."},
+            {id: "676", q: "NO RM:", opts: {a:"...", b:"...", c:"16O", d:"..."}, ans: "c", note: "Espín nulo."},
+            {id: "677", q: "POCA estabilidad:", opts: {a:"Aumentar altura CG", b:"Llevar proyección al borde", c:"...", d:"La a) y la b)"}, ans: "d", note: "Desestabilizar."},
+            {id: "678", q: "Esfigmomanómetro:", opts: {a:"...", b:"Flujo (indirectamente presión)", c:"...", d:"Variaciones presión mercurio"}, ans: "b", note: "Mide presión arterial."},
+            {id: "679", q: "Señal 6 mSv (Controlada):", opts: {a:"Verde", b:"...", c:"...", d:"..."}, ans: "a", note: "Zona Controlada = Trébol Verde."},
+            {id: "680", q: "Inducir corrientes (No térmico):", opts: {a:"...", b:"...", c:"Menor de 100 KHz", d:"..."}, ans: "c", note: "Baja frecuencia."},
+            {id: "681", q: "Sección eficaz fotoeléctrico:", opts: {a:"...", b:"...", c:"1/E^3", d:"..."}, ans: "c", note: "Inversa energía cubo."},
+            {id: "682", q: "Corrientes intensas:", opts: {a:"...", b:"No térmicas (ELF)", c:"...", d:"..."}, ans: "b", note: "Baja frecuencia."},
+            {id: "683", q: "Energía = Vibración:", opts: {a:"...", b:"...", c:"Longitudinales", d:"..."}, ans: "c", note: "Ondas P."},
+            {id: "684", q: "Aumenta radio giro (masa):", opts: {a:"...", b:"Disminuye velocidad angular", c:"...", d:"..."}, ans: "b", note: "L = I*w constante."},
+            {id: "685", q: "Falta conos L (Rojo):", opts: {a:"...", b:"...", c:"Protanopía", d:"..."}, ans: "c", note: "Ceguera rojo."},
+            {id: "686", q: "RX baja energía:", opts: {a:"...", b:"Coeficiente absorción depende del absorbente", c:"...", d:"..."}, ans: "b", note: "Contraste fotoeléctrico."},
+            {id: "687", q: "Surfactante disminuye superficie:", opts: {a:"...", b:"...", c:"...", d:"Disminuye tensión"}, ans: "d", note: "Evita colapso."},
+            {id: "688", q: "Rapidez trabajo:", opts: {a:"...", b:"Potencia", c:"...", d:"..."}, ans: "b", note: "P = W/t."},
+            {id: "689", q: "Fuerzas musculares:", opts: {a:"Posturas", b:"...", c:"Movimiento", d:"La a) y la c)"}, ans: "d", note: "Estática y Dinámica."},
+            {id: "690", q: "Geiger:", opts: {a:"Ionización", b:"...", c:"...", d:"..."}, ans: "a", note: "Gas."},
+            {id: "691", q: "Equilibrio indiferente:", opts: {a:"...", b:"...", c:"...", d:"No tiende ni a recuperarlo ni a alejarse"}, ans: "d", note: "Nueva posición estable."},
+            {id: "692", q: "Irradiación (Irradiancia):", opts: {a:"...", b:"...", c:"W/m2", d:"..."}, ans: "c", note: "Potencia superficie."},
+            {id: "693", q: "Longitud onda si se conoce:", opts: {a:"...", b:"...", c:"Velocidad y frecuencia (v/f)", d:"..."}, ans: "c", note: "Lambda = v/f."},
+            {id: "694", q: "Sin bastones:", opts: {a:"...", b:"...", c:"...", d:"Visión escotópica"}, ans: "d", note: "Ceguera nocturna."},
+            {id: "695", q: "Potenciales corazón:", opts: {a:"...", b:"...", c:"...", d:"En el nódulo SA"}, ans: "d", note: "Marcapasos natural."},
+            {id: "696", q: "Cociente R:", opts: {a:"CO2 exp / O2 entra", b:"...", c:"...", d:"..."}, ans: "a", note: "Ratio intercambio."},
+            {id: "697", q: "Polea fija:", opts: {a:"Una polea fija", b:"...", c:"...", d:"..."}, ans: "a", note: "Cambia dirección, no fuerza."},
+            {id: "698", q: "Energía:", opts: {a:"...", b:"...", c:"...", d:"Capacidad para producir cambios/trabajo"}, ans: "d", note: "Definición."},
+            {id: "699", q: "Frecuencia observador reposo:", opts: {a:"...", b:"...", c:"Aumenta cuando se acerca y disminuye cuando se aleja", d:"..."}, ans: "c", note: "Doppler."},
+            {id: "700", q: "Radiación frenado:", opts: {a:"...", b:"...", c:"Pérdida de energía cinética (frenado)", d:"..."}, ans: "c", note: "Bremsstrahlung."}
+        ];
+
+        // LÓGICA DEL SIMULADOR
+        const quizContainer = document.getElementById('quiz-container');
+        const scoreSpan = document.getElementById('score');
+        const totalSpan = document.getElementById('total');
+        const progressFill = document.getElementById('progress-fill');
+        
+        let score = 0;
+        let answeredCount = 0;
+
+        function renderQuiz() {
+            totalSpan.textContent = questionsDB.length;
+
+            questionsDB.forEach((q) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `q-${q.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                header.textContent = `Pregunta ${q.id}`;
+                card.appendChild(header);
+
+                const text = document.createElement('div');
+                text.className = 'question-text';
+                text.textContent = q.q;
+                card.appendChild(text);
+
+                const grid = document.createElement('div');
+                grid.className = 'options-grid';
+
+                for (const [key, value] of Object.entries(q.opts)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerHTML = `<strong>${key.toUpperCase()})</strong> ${value}`;
+                    btn.onclick = () => checkAnswer(q, key, btn, card, grid);
+                    grid.appendChild(btn);
+                }
+                card.appendChild(grid);
+
+                const feedback = document.createElement('div');
+                feedback.className = 'feedback';
+                feedback.innerHTML = `<strong>Respuesta Correcta: ${q.ans.toUpperCase()}</strong><br>${q.note}`;
+                card.appendChild(feedback);
+
+                quizContainer.appendChild(card);
+            });
+        }
+
+        function checkAnswer(question, selected, btn, card, grid) {
+            if (card.dataset.answered) return;
+            card.dataset.answered = 'true';
+            answeredCount++;
+
+            const allBtns = grid.querySelectorAll('.option-btn');
+            const feedback = card.querySelector('.feedback');
+
+            allBtns.forEach(b => b.classList.add('disabled'));
+
+            if (selected === question.ans) {
+                score++;
+                btn.classList.add('correct');
+                card.classList.add('correct');
+            } else {
+                btn.classList.add('incorrect');
+                card.classList.add('incorrect');
+                allBtns.forEach(b => {
+                    if (b.innerText.startsWith(question.ans.toUpperCase() + ')')) {
+                        b.classList.add('correct');
+                    }
+                });
+            }
+
+            feedback.style.display = 'block';
+            scoreSpan.textContent = score;
+            const progress = (answeredCount / questionsDB.length) * 100;
+            progressFill.style.width = `${progress}%`;
+        }
+
+        renderQuiz();
+
+    </script>
+</body>
+</html>

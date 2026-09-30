@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIVS 2 - Quiz</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #f1c40f;
+            --success: #27ae60;
+            --error: #c0392b;
+            --text: #333;
+            --bg: #f4f6f7;
+            --sidebar-width: 160px; /* Barra ancha para agrupar */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (Índice) */
+        #sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px;
+            flex-shrink: 0;
+            z-index: 100;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            width: 100%;
+            padding-bottom: 10px;
+        }
+
+        /* Contenedor Grid para los números */
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columnas */
+            gap: 8px;
+            width: 100%;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 5px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .nav-item {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-item:hover { transform: scale(1.1); background-color: rgba(255,255,255,0.2); }
+        .nav-item.active { border-color: white; background-color: rgba(255,255,255,0.25); }
+        .nav-item.correct { background-color: var(--success); }
+        .nav-item.incorrect { background-color: var(--error); }
+        
+        .nav-mark {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            color: var(--accent);
+            font-size: 14px;
+            display: none;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
+            z-index: 2;
+        }
+        .nav-item.marked .nav-mark { display: block; }
+
+        /* MAIN CONTENT */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        /* PANTALLAS */
+        .screen {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        h1, h2 { color: var(--primary); }
+        h1 { font-size: 2.5em; margin-bottom: 0.5em; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.2s;
+            font-weight: 600;
+        }
+        .btn:hover { background-color: #2980b9; }
+        .btn-outline { background: transparent; border: 2px solid var(--secondary); color: var(--secondary); }
+        .btn-outline:hover { background: var(--secondary); color: white; }
+
+        /* TARJETA DE PREGUNTA */
+        .question-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 6px solid var(--secondary);
+            position: relative;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .q-text { font-size: 1.15em; font-weight: 600; width: 90%; line-height: 1.5; }
+        
+        .mark-toggle {
+            cursor: pointer;
+            font-size: 24px;
+            color: #ccc;
+            background: none;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .mark-toggle:hover { transform: scale(1.2); }
+        .mark-toggle.active { color: var(--accent); }
+
+        .options-list { list-style: none; padding: 0; }
+        
+        .option-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+        }
+
+        .option-item:hover:not(.disabled) { background: #e2e6ea; transform: translateX(5px); }
+
+        .option-item.correct { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option-item.wrong { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .option-item.disabled { cursor: default; pointer-events: none; opacity: 0.8; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-radius: 5px;
+            color: #0c5460;
+            display: none;
+            font-size: 0.95em;
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* BARRA FIJA DE FINALIZAR */
+        #finish-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: calc(100% - var(--sidebar-width));
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: flex-end;
+            box-sizing: border-box;
+            z-index: 90;
+        }
+        
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            :root { --sidebar-width: 0px; }
+            #sidebar { display: none; }
+            #finish-bar { width: 100%; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-title">TIVS 2</div>
+        <div id="nav-grid">
+            </div>
+    </div>
+
+    <div id="main">
+        <div class="container">
+            
+            <div id="start-screen" class="screen">
+                <h1>TIVS 2</h1>
+                <h3>Quiz: Hormonas e Inmunología</h3>
+                <p>Selecciona el modo de ordenación:</p>
+                <button class="btn" onclick="initQuiz(false)">Orden Preestablecido</button>
+                <button class="btn" onclick="initQuiz(true)">Orden Aleatorio (Mezcladas)</button>
+            </div>
+
+            <div id="quiz-container" class="hidden">
+            </div>
+
+            <div id="results-screen" class="screen hidden">
+                <h2>Resultados TIVS 2</h2>
+                <p id="score-display" style="font-size: 1.5em; margin: 20px 0; font-weight: bold; color: var(--primary);"></p>
+                <hr>
+                <p>¿Qué deseas hacer ahora?</p>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                    <button class="btn" onclick="restartQuiz('all')">Repetir Completo</button>
+                    <button class="btn" onclick="restartQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="restartQuiz('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+                <br>
+                <button class="btn btn-outline" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="finish-bar" class="hidden">
+        <button class="btn" style="background-color: var(--error);" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+<script>
+    // LISTA DE OPCIONES REUTILIZABLES PARA PREGUNTAS DE EMPAREJAR
+    const optionsEnzymes = [
+        "aldosterona sintasa", "21 alfa hidroxilasa", "11 beta hidroxilasa", 
+        "17,20 desmolasa", "3 beta hidroxiesteroide deshidrogenasa", 
+        "17 beta hidroxiesteroide deshidrogenasa", "aromatasa", "17 alfa hidroxilasa"
+    ];
+    
+    const optionsAxis = [
+        "TRH-TSH-T3/T4", 
+        "renina-angiotensina-aldosterona", 
+        "GnRH-FSH/LH-estrógenos/testosterona"
+    ];
+
+    const optionsAcronyms = [
+        "gonadoliberina", "luteotropa", "somatocrinina", "tirotropina", 
+        "hormona liberadora de tirotropina", "corticotropina", "cortocoliberina", 
+        "somatostatina", "folículo estimulante", "prolactina", "somatotropa"
+    ];
+
+    const optionsCyto = ["antiinflamatoria", "proinflamatoria"];
+
+    // BASE DE DATOS DE PREGUNTAS
+    const rawQuestions = [
+        // --- SÍNTESIS ESTEROIDEAS ---
+        {
+            text: "Empareje la enzima para: corticosterona a aldosterona",
+            options: optionsEnzymes,
+            correct: "aldosterona sintasa",
+            explanation: "corticosterona a aldosterona → aldosterona sintasa"
+        },
+        {
+            text: "Empareje la enzima para: 17 hidroxiprogesterona a dexosicortisol",
+            options: optionsEnzymes,
+            correct: "21 alfa hidroxilasa",
+            explanation: "17 hidroxiprogesterona a dexosicortisol → 21 alfa hidroxilasa"
+        },
+        {
+            text: "Empareje la enzima para: pregnenolona a 17-OH pregnenolona",
+            options: optionsEnzymes,
+            correct: "17 alfa hidroxilasa",
+            explanation: "pregnenolona a 17-OH pregnenolona → 17 alfa hidroxilasa"
+        },
+        {
+            text: "Empareje la enzima para: 11-desoxicorticosterona a corticosterona",
+            options: optionsEnzymes,
+            correct: "11 beta hidroxilasa",
+            explanation: "11-desoxicorticosterona a corticosterona → 11 beta hidroxilasa"
+        },
+        {
+            text: "Empareje la enzima para: 17-OH progesterona a androstenediona",
+            options: optionsEnzymes,
+            correct: "17,20 desmolasa",
+            explanation: "17-OH progesterona a androstenediona → 17,20 desmolasa"
+        },
+        {
+            text: "Empareje la enzima para: 17-OH pregnenolona a dehidroepiandrostenediona",
+            options: optionsEnzymes,
+            correct: "17,20 desmolasa",
+            explanation: "17-OH pregnenolona a dehidroepiandrostenediona → 17,20 desmolasa"
+        },
+        {
+            text: "Empareje la enzima para: dehidroepiandrostenediona a androstenediona",
+            options: optionsEnzymes,
+            correct: "3 beta hidroxiesteroide deshidrogenasa",
+            explanation: "dehidroepiandrostenediona a androstenediona → 3 beta hidroxiesteroide deshidrogenasa"
+        },
+        {
+            text: "Empareje la enzima para: pregnenolona a progesterona",
+            options: optionsEnzymes,
+            correct: "3 beta hidroxiesteroide deshidrogenasa",
+            explanation: "pregnenolona a progesterona → 3 beta hidroxiesteroide deshidrogenasa"
+        },
+        {
+            text: "Empareje la enzima para: androstenediona a testosterona",
+            options: optionsEnzymes,
+            correct: "17 beta hidroxiesteroide deshidrogenasa",
+            explanation: "androstenediona a testosterona → 17 beta hidroxiesteroide deshidrogenasa"
+        },
+        {
+            text: "Empareje la enzima para: progesterona a 11-desoxicorticosterona",
+            options: optionsEnzymes,
+            correct: "21 alfa hidroxilasa",
+            explanation: "progesterona a 11-desoxicorticosterona → 21 alfa hidroxilasa"
+        },
+        {
+            text: "Empareje la enzima para: testosterona a estrona",
+            options: optionsEnzymes,
+            correct: "aromatasa",
+            explanation: "testosterona a estrona → aromatasa"
+        },
+        {
+            text: "Empareje la enzima para: progesterona a 17-OH progesterona",
+            options: optionsEnzymes,
+            correct: "17 alfa hidroxilasa",
+            explanation: "progesterona a 17-OH progesterona → 17 alfa hidroxilasa"
+        },
+        {
+            text: "Empareje la enzima para: desoxicortisol a cortisol",
+            options: optionsEnzymes,
+            correct: "11 beta hidroxilasa",
+            explanation: "desoxicortisol a cortisol → 11 beta hidroxilasa"
+        },
+        // --- EJES HORMONALES ---
+        {
+            text: "Indique la relación correcta: Regulación eje tiroideo",
+            options: optionsAxis,
+            correct: "TRH-TSH-T3/T4",
+            explanation: "Regulación eje tiroideo → TRH-TSH-T3/T4"
+        },
+        {
+            text: "Indique la relación correcta: Regulación del eje de los mineralocorticoides",
+            options: optionsAxis,
+            correct: "renina-angiotensina-aldosterona",
+            explanation: "Regulación del eje de los mineralocorticoides → renina-angiotensina-aldosterona"
+        },
+        {
+            text: "Indique la relación correcta: Regulación eje gonadal",
+            options: optionsAxis,
+            correct: "GnRH-FSH/LH-estrógenos/testosterona",
+            explanation: "Regulación eje gonadal → GnRH-FSH/LH-estrógenos/testosterona"
+        },
+        // --- VARIOS INMUNOLOGÍA/ENDOCRINO ---
+        {
+            text: "Los órganos linfoides secundarios es el lugar donde se produce la respuesta inmune específica.",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "El sistema inmune esta formado por células tejidos y órganos capaces de emitir una respuesta para proteger al hospedador de una infección activa y eliminarla.",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "Las tres fases de la respuesta inmune son:",
+            options: [
+                "a. Reconocimiento, procesamiento y respuesta",
+                "b. Reconocimiento, señalización y respuesta",
+                "c. Reconocimiento, modulación y respuesta",
+                "d. Aislamiento, procesamiento y respuesta"
+            ],
+            correct: "a. Reconocimiento, procesamiento y respuesta",
+            explanation: "La respuesta correcta es: Reconocimiento, procesamiento y respuesta"
+        },
+        {
+            text: "La vasopresina puede actuar sobre el eje suprarrenal",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es 'Verdadero'"
+        },
+        {
+            text: "La unión de la adiponectina a su receptor activa a la enzima acetil-CoA carboxilasa",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "La región del antígeno que reacciona directamente con el anticuerpo, BCR o TCR se denomina",
+            options: ["Epítopo", "Parátopo"],
+            correct: "Epítopo",
+            explanation: "La región del antígeno que reacciona directamente con el anticuerpo, BCR o TCR se denomina → Epítopo"
+        },
+        {
+            text: "La región del anticuerpo que reacciona específicamente con el antígeno se denomina",
+            options: ["Epítopo", "Parátopo"],
+            correct: "Parátopo",
+            explanation: "La región del anticuerpo que reacciona específicamente con el antígeno se denomina → Parátopo"
+        },
+        // --- SIGLAS ---
+        { text: "Significado de: GnRH", options: optionsAcronyms, correct: "gonadoliberina", explanation: "GnRH → gonadoliberina" },
+        { text: "Significado de: LH", options: optionsAcronyms, correct: "luteotropa", explanation: "LH → luteotropa" },
+        { text: "Significado de: GHRH", options: optionsAcronyms, correct: "somatocrinina", explanation: "GHRH → somatocrinina" },
+        { text: "Significado de: TSH", options: optionsAcronyms, correct: "tirotropina", explanation: "TSH → tirotropina" },
+        { text: "Significado de: TRH", options: optionsAcronyms, correct: "hormona liberadora de tirotropina", explanation: "TRH → hormona liberadora de tirotropina" },
+        { text: "Significado de: ACTH", options: optionsAcronyms, correct: "corticotropina", explanation: "ACTH → corticotropina" },
+        { text: "Significado de: CRH", options: optionsAcronyms, correct: "cortocoliberina", explanation: "CRH → cortocoliberina" },
+        { text: "Significado de: GIH", options: optionsAcronyms, correct: "somatostatina", explanation: "GIH → somatostatina" },
+        { text: "Significado de: FSH", options: optionsAcronyms, correct: "folículo estimulante", explanation: "FSH → folículo estimulante" },
+        { text: "Significado de: PRL", options: optionsAcronyms, correct: "prolactina", explanation: "PRL → prolactina" },
+        { text: "Significado de: GH", options: optionsAcronyms, correct: "somatotropa", explanation: "GH → somatotropa" },
+
+        // --- MÁS PREGUNTAS ---
+        {
+            text: "Los ejes hipotálamo-hipofisario se regulan a través de la neurohipófisis",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+        {
+            text: "En el mecanismo de señalización de la hormona del crecimiento, la unión a su receptor produce",
+            options: [
+                "liberación de AMPc",
+                "activación vía JAK2/STAT 5",
+                "activación de fosfolipasa C",
+                "que se acople a proteína G"
+            ],
+            correct: "activación vía JAK2/STAT 5",
+            explanation: "La respuesta correcta es: activación vía JAK2/STAT 5"
+        },
+        {
+            text: "La inmunoglobulina mayoritaria en la respuesta secundaria es",
+            options: ["IgM", "IgA", "IgG"],
+            correct: "IgG",
+            explanation: "La inmunoglobulina mayoritaria en la respuesta secundaria es → IgG"
+        },
+        {
+            text: "La inmunoglobulina que aparece como un dímero en la en las secreciones serosas y mucosas es",
+            options: ["IgM", "IgA", "IgG"],
+            correct: "IgA",
+            explanation: "La inmunoglobulina que aparece como un dímero en la en las secreciones serosas y mucosas es → IgA"
+        },
+        {
+            text: "La inmunoglobulina que aparece como un pentámero es",
+            options: ["IgM", "IgA", "IgG"],
+            correct: "IgM",
+            explanation: "La inmunoglobulina que aparece como un pentámero es → IgM"
+        },
+        {
+            text: "La estructura de las hormonas producidas en la adenohipófisis son",
+            options: ["lipoproteínas", "glucoproteínas", "lipídicas", "inmunoglobulinas"],
+            correct: "glucoproteínas",
+            explanation: "La respuesta correcta es: glucoproteínas"
+        },
+        {
+            text: "Los órganos linfoides secundarios son el bazo, el timo y MALT (tejido linfoide asociado a mucosas).",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "La oxitocina se produce en la adenohipófisis",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+        // --- CITOCINAS ---
+        { text: "Efecto sobre inflamación: Adiponectina", options: optionsCyto, correct: "antiinflamatoria", explanation: "Adiponectina → antiinflamatoria" },
+        { text: "Efecto sobre inflamación: Leptina", options: optionsCyto, correct: "proinflamatoria", explanation: "Leptina → proinflamatoria" },
+        { text: "Efecto sobre inflamación: IL-6", options: optionsCyto, correct: "proinflamatoria", explanation: "IL-6 → proinflamatoria" },
+        { text: "Efecto sobre inflamación: IL-10", options: optionsCyto, correct: "antiinflamatoria", explanation: "IL-10 → antiinflamatoria" },
+
+        // --- ENLACES Y CÉLULAS ---
+        {
+            text: "En el enlace N glucosídico interviene el grupo amino de la",
+            options: ["Asparragina", "Serina"],
+            correct: "Asparragina",
+            explanation: "En el enlace N glucosídico interviene el grupo amino de la → Asparragina"
+        },
+        {
+            text: "En el enlace O glucosídico interviene el grupo OH de la",
+            options: ["Asparragina", "Serina"],
+            correct: "Serina",
+            explanation: "En el enlace O glucosídico interviene el grupo OH de la → Serina"
+        },
+        { text: "Tejido asociado a: macrófago M2", options: ["tejido adiposo no obeso", "tejido adiposo obeso"], correct: "tejido adiposo no obeso", explanation: "macrófago M2 → tejido adiposo no obeso" },
+        { text: "Tejido asociado a: Linfocitos CD4", options: ["tejido adiposo no obeso", "tejido adiposo obeso"], correct: "tejido adiposo no obeso", explanation: "Linfocitos CD4 → tejido adiposo no obeso" },
+        { text: "Tejido asociado a: Linfocitos CD8", options: ["tejido adiposo no obeso", "tejido adiposo obeso"], correct: "tejido adiposo obeso", explanation: "Linfocitos CD8 → tejido adiposo obeso" },
+        { text: "Tejido asociado a: macrófagos M1", options: ["tejido adiposo no obeso", "tejido adiposo obeso"], correct: "tejido adiposo obeso", explanation: "macrófagos M1 → tejido adiposo obeso" },
+        
+        {
+            text: "La liberación de insulina por la célula del páncreas depende del cierre de los canales de sodio",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "Los órganos linfoides primarios son los ganglios linfáticos y la médula ósea.",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es 'Verdadero' (Según texto proporcionado)"
+        },
+        {
+            text: "BCR y TCR son moléculas de reconocimiento.",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+        {
+            text: "La insulina es una hormona hiperglucemiante",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "¿Qué molécula se libera junto a la insulina de forma equimolecular por las células beta del páncreas endocrino?",
+            options: ["amilina", "polipéptido pancreático", "glucagón", "péptido C"],
+            correct: "péptido C",
+            explanation: "La respuesta correcta es: péptido C"
+        },
+        {
+            text: "El Complejo Mayor de Histocompatibilidad que presenta antígenos a los linfocitos T citotóxicos es",
+            options: ["MHC I", "MHC II"],
+            correct: "MHC I",
+            explanation: "MHC I presenta a Citotóxicos"
+        },
+        {
+            text: "El Complejo Mayor de Histocompatibilidad que presenta antígenos a los linfocitos T Helper es",
+            options: ["MHC I", "MHC II"],
+            correct: "MHC II",
+            explanation: "MHC II presenta a Helper"
+        },
+        {
+            text: "La enzima que cataliza la formación de pregenolona es la 17,20 desmolasa",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+        // --- PÁNCREAS CÉLULAS ---
+        { text: "Célula productora de: glucagón", options: ["células α Islotes de Langerhans", "células F Islotes de Langerhans", "células β Islotes de Langerhans"], correct: "células α Islotes de Langerhans", explanation: "glucagón → células α Islotes de Langerhans" },
+        { text: "Célula productora de: polipétido pancreático", options: ["células α Islotes de Langerhans", "células F Islotes de Langerhans", "células β Islotes de Langerhans"], correct: "células F Islotes de Langerhans", explanation: "polipétido pancreático → células F Islotes de Langerhans" },
+        { text: "Célula productora de: insulina", options: ["células α Islotes de Langerhans", "células F Islotes de Langerhans", "células β Islotes de Langerhans"], correct: "células β Islotes de Langerhans", explanation: "insulina → células β Islotes de Langerhans" },
+
+        {
+            text: "El tejido adiposo blanco se caracteriza por controlar la termogénesis",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "El tejido adiposo es insulinoindependiente",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "En la señalización intracelular por la unión de la adiponectina a su receptor, se activa la molécula:",
+            options: ["calcio-calmodulina", "AMPc", "AMPK", "fosfoinositol 3-fosfato"],
+            correct: "AMPK",
+            explanation: "La respuesta correcta es: AMPK"
+        },
+        {
+            text: "En la vía de señalización de la somatocrinina se inhibe el sistema adenilato ciclasa",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        }
+    ];
+
+    // ESTADO DE LA APLICACIÓN
+    let currentQuestions = [];
+    let markedQuestions = new Set(); 
+    let answersStatus = {}; // { id: true/false/null }
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function initQuiz(randomOrder) {
+        rawQuestions.forEach((q, index) => { if(!q.id) q.id = index; });
+        
+        currentQuestions = [...rawQuestions];
+        
+        if (randomOrder) {
+            shuffle(currentQuestions);
+        }
+
+        markedQuestions.clear();
+        answersStatus = {};
+        
+        renderQuiz();
+    }
+
+    function restartQuiz(mode) {
+        let pool = [];
+
+        if (mode === 'all') {
+            pool = [...rawQuestions];
+        } else if (mode === 'failed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false);
+        } else if (mode === 'marked') {
+            pool = rawQuestions.filter(q => markedQuestions.has(q.id));
+        } else if (mode === 'mixed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false || markedQuestions.has(q.id));
+        }
+
+        if (pool.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        currentQuestions = shuffle(pool);
+        answersStatus = {}; 
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('results-screen').classList.add('hidden');
+        document.getElementById('quiz-container').classList.remove('hidden');
+        document.getElementById('finish-bar').classList.remove('hidden');
+
+        const container = document.getElementById('quiz-container');
+        const navGrid = document.getElementById('nav-grid'); // Usamos Grid
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            // 1. Crear Tarjeta
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${index}`;
+
+            let optionsObj = q.options.map(opt => ({ 
+                text: opt, 
+                isCorrect: opt.trim() === q.correct.trim() 
+            }));
+            shuffle(optionsObj);
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'q-header';
+            
+            const title = document.createElement('div');
+            title.className = 'q-text';
+            title.innerHTML = `${index + 1}. ${q.text}`;
+            
+            const markBtn = document.createElement('button');
+            markBtn.className = 'mark-toggle';
+            markBtn.innerHTML = '★'; 
+            markBtn.title = "Marcar para revisar luego";
+            if(markedQuestions.has(q.id)) markBtn.classList.add('active');
+            
+            markBtn.onclick = () => toggleMark(q.id, markBtn, index);
+
+            header.appendChild(title);
+            header.appendChild(markBtn);
+            card.appendChild(header);
+
+            // Opciones
+            const ul = document.createElement('ul');
+            ul.className = 'options-list';
+
+            optionsObj.forEach(opt => {
+                const li = document.createElement('li');
+                li.className = 'option-item';
+                li.innerText = opt.text;
+                li.onclick = function() {
+                    handleAnswer(q, opt.isCorrect, li, card, index);
+                };
+                ul.appendChild(li);
+            });
+            card.appendChild(ul);
+
+            // Explicación (CORREGIDO EL BUG DE 'opt')
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.innerHTML = `<strong></strong><br>${q.explanation}`;
+            expl.id = `expl-${index}`;
+            card.appendChild(expl);
+
+            container.appendChild(card);
+
+            // 2. Sidebar Grid Item
+            const nav = document.createElement('div');
+            nav.className = 'nav-item';
+            nav.innerText = index + 1;
+            nav.id = `nav-${index}`;
+            nav.onclick = () => {
+                document.getElementById(`q-card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            
+            const markInd = document.createElement('div');
+            markInd.className = 'nav-mark';
+            markInd.innerText = '★';
+            nav.appendChild(markInd);
+            
+            if(markedQuestions.has(q.id)) nav.classList.add('marked');
+
+            navGrid.appendChild(nav); // Añadimos al grid
+        });
+    }
+
+    function toggleMark(originalId, btnElement, index) {
+        if (markedQuestions.has(originalId)) {
+            markedQuestions.delete(originalId);
+            btnElement.classList.remove('active');
+            document.getElementById(`nav-${index}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(originalId);
+            btnElement.classList.add('active');
+            document.getElementById(`nav-${index}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(questionObj, isCorrect, liElement, cardElement, index) {
+        if (cardElement.classList.contains('answered')) return;
+        cardElement.classList.add('answered');
+
+        answersStatus[questionObj.id] = isCorrect;
+
+        const options = cardElement.querySelectorAll('.option-item');
+        options.forEach(opt => {
+            opt.classList.add('disabled'); 
+            if (opt.innerText.trim() === questionObj.correct.trim()) {
+                opt.classList.add('correct');
+            }
+        });
+
+        if (!isCorrect) {
+            liElement.classList.add('wrong');
+        }
+
+        const expl = document.getElementById(`expl-${index}`);
+        expl.style.display = 'block';
+        expl.style.backgroundColor = isCorrect ? '#d4edda' : '#f8d7da';
+        expl.style.color = isCorrect ? '#155724' : '#721c24';
+        expl.style.borderColor = isCorrect ? '#c3e6cb' : '#f5c6cb';
+        expl.querySelector('strong').innerText = isCorrect ? "¡Correcto!" : "Incorrecto";
+
+        const navItem = document.getElementById(`nav-${index}`);
+        navItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function finishQuiz() {
+        document.getElementById('quiz-container').classList.add('hidden');
+        document.getElementById('finish-bar').classList.add('hidden');
+        document.getElementById('results-screen').classList.remove('hidden');
+        // No limpiamos sidebar aquí
+        
+        let total = currentQuestions.length;
+        let correct = 0;
+        let answered = 0;
+
+        currentQuestions.forEach(q => {
+            if (answersStatus.hasOwnProperty(q.id)) {
+                answered++;
+                if (answersStatus[q.id]) correct++;
+            }
+        });
+
+        const scoreText = `Has acertado ${correct} de ${total} preguntas (${answered < total ? 'Cuestionario incompleto' : 'Completado'}).`;
+        document.getElementById('score-display').innerText = scoreText;
+    }
+
+</script>
+
+</body>
+</html>

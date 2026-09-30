@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Bioquímica de los Neurotransmisores</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        /* Scrolbar personalizada */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. Para que una molécula sea catalogada como un "neurotransmisor clásico", ¿qué requisito de síntesis debe cumplir? A) Debe ser sintetizada exclusivamente en las células gliales. B) Todo lo necesario para formarlo (precursores, enzimas) tiene que estar dentro de la neurona que lo va a liberar. C) Debe ser transportada desde el hígado al cerebro. D) Debe ser un péptido de más de 30 aminoácidos.
+Respuesta correcta: B. Explicación: El profesor insiste en que la síntesis "de cero" exige que toda la maquinaria esté en la propia neurona.
+2. ¿Dónde se almacena un neurotransmisor clásico antes de ser liberado a la hendidura sináptica? A) En el núcleo neuronal. B) En las mitocondrias. C) En vesículas sinápticas. D) Libre en el citosol.
+Respuesta correcta: C. Explicación: Tras sintetizarse, se almacenan en vesículas para protegerlos y prepararlos para su liberación.
+3. ¿Cuál es la señal bioquímica u "orden" que provoca que las vesículas liberen los neurotransmisores mediante exocitosis? A) La salida de potasio. B) La entrada de Calcio (Ca2+) en el terminal presináptico tras un cambio de voltaje. C) La entrada de Cloruro. D) La producción de ATP.
+Respuesta correcta: B. Explicación: El impulso eléctrico abre canales de calcio dependientes de voltaje, y ese aumento de calcio dispara la exocitosis.
+4. ¿Qué ocurre fisiológicamente en la neurona postsináptica si el receptor del neurotransmisor abre canales de Potasio (K+) o Cloruro (Cl-)? A) El Potasio sale y el Cloruro entra, hiperpolarizando la membrana (Respuesta inhibitoria). B) El Potasio entra, provocando una respuesta excitatoria. C) Se libera ATP masivamente. D) La célula entra en apoptosis.
+Respuesta correcta: A. Explicación: El potasio está más concentrado dentro y sale, mientras el cloruro entra. Esto hace el interior más negativo, impidiendo el potencial de acción.
+5. ¿Cómo se define un receptor "ionotrópico"? A) Es un receptor acoplado a proteína G. B) Es un canal iónico que forma parte de la misma estructura del receptor y se abre rápidamente al unirse el neurotransmisor. C) Es un receptor que viaja al núcleo. D) Es una enzima que destruye iones.
+Respuesta correcta: B. Explicación: Tienen el canal en su propia estructura (generalmente 5 subunidades), lo que permite respuestas iónicas inmediatas.
+6. ¿Qué segmento transmembrana forma la pared interior del poro en un receptor ionotrópico (ej. receptores colinérgicos)? A) El segmento M1. B) El segmento M2 de cada subunidad. C) El segmento M3. D) El segmento M4.
+Respuesta correcta: B. Explicación: Las regiones M2 de las 5 subunidades se agrupan en el centro para formar el canal por donde pasan los iones.
+7. Los receptores "metabotrópicos" son más complejos y lentos porque: A) Tienen 12 regiones transmembrana. B) Deben ser fosforilados por ADN. C) Están acoplados a una proteína G heterotrimérica (7 regiones transmembrana) que desencadena vías de segundos mensajeros. D) Destruyen al neurotransmisor.
+Respuesta correcta: C. Explicación: No tienen canal propio, actúan activando proteínas G que posteriormente modulan enzimas o canales.
+8. Cuando una proteína G se activa al llegar un neurotransmisor, cambia su conformación al: A) Perder afinidad por GTP y unirse a GDP. B) Perder afinidad por GDP y ganar afinidad por GTP, disociándose en subunidad alfa y el dímero beta-gamma. C) Convertirse en ATP. D) Fosforilar a la enzima MAO.
+Respuesta correcta: B. Explicación: En reposo está unida a GDP. Al activarse, cambia GDP por GTP y se rompe para iniciar la señalización.
+9. Si un receptor metabotrópico está acoplado a la subunidad G alfa S (Gs), ¿cuál será su efecto intracelular? A) Inhibir la adenilato ciclasa. B) Activar la adenilato ciclasa, aumentar el AMPc y dar una respuesta EXCITATORIA. C) Activar la fosfolipasa C exclusivamente. D) Abrir canales de cloruro.
+Respuesta correcta: B. Explicación: La subunidad S (Stimulatory) activa la producción de AMPc, fosforilando canales para una respuesta excitatoria.
+10. Si el receptor se acopla a la subunidad G alfa Q (Gq), la enzima que se activa es la: A) Adenilato ciclasa. B) Fosfolipasa C (generando IP3 y DAG). C) MAO. D) COMT.
+Respuesta correcta: B. Explicación: La Gq rompe fosfolípidos de membrana vía fosfolipasa C, generando segundos mensajeros que elevan el calcio (excitatorio).
+11. ¿Qué respuesta celular genera la activación de un receptor asociado a G alfa I (Gi)? A) Respuesta excitatoria rápida. B) Aumento drástico de AMPc. C) Inhibición de la adenilato ciclasa, disminuyendo el AMPc, lo que produce una respuesta INHIBITORIA. D) Muerte celular.
+Respuesta correcta: C. Explicación: La letra "i" indica inhibición; frena la adenilato ciclasa abriendo canales de potasio y frenando la señal.
+12. En el proceso de "inactivación", si un neurotransmisor NO se degrada en la hendidura sináptica, la otra gran vía para eliminarlo es: A) Convertirlo en gas. B) Recaptarlo hacia el interior de la neurona mediante transportadores activos. C) Cristalizarlo. D) Excretarlo hacia la saliva.
+Respuesta correcta: B. Explicación: Las neuronas "limpian" la sinapsis recaptando el neurotransmisor con transportadores para reutilizarlo o degradarlo dentro.
+13. Químicamente, ¿qué define a una "Amina Biógena"? A) Es un ácido graso de cadena larga. B) Es un producto derivado de la hidrólisis de glucógeno. C) Es un compuesto que siempre deriva de la descarboxilación de un aminoácido. D) Es una proteína de 50 aminoácidos.
+Respuesta correcta: C. Explicación: El profesor recalcó que en la síntesis de todas las aminas biógenas siempre hay un paso de descarboxilación de un aminoácido precursor.
+14. (¡Pista de clase!) El término "catecolamina" hace referencia a moléculas que poseen en su estructura: A) Un anillo imidazol. B) Un grupo Catecol (orto-dihidroxibenceno) y una cadena lateral con grupo amino. C) Un grupo indol. D) Un anillo de purina.
+Respuesta correcta: B. Explicación: Este grupo químico define a la dopamina, noradrenalina y adrenalina.
+15. (¡Pregunta de Trivial!) ¿Cuáles son las tres catecolaminas fundamentales? A) Serotonina, Melatonina y GABA. B) Dopamina, Noradrenalina (Norepinefrina) y Adrenalina (Epinefrina). C) Histamina, Glicina y Taurina. D) Acetilcolina, Glutamato y ATP.
+Respuesta correcta: B. Explicación: El profesor literal dijo "Esto es pregunta de trivial... Dopamina, noradrenalina y adrenalina".
+16. ¿Cuál es el aminoácido PRECURSOR a partir del cual se sintetizan todas las catecolaminas? A) Triptófano. B) Histidina. C) Tirosina. D) Serina.
+Respuesta correcta: C. Explicación: "Importante aquí ya grabado en la mente, el precursor de todas las catecolaminas es el aminoácido tirosina".
+17. Si hay un déficit de Tirosina en la dieta, el cuerpo puede formarla a nivel hepático hidroxilando otro aminoácido esencial. ¿Cuál? A) Glicina. B) Triptófano. C) Fenilalanina. D) Glutamato.
+Respuesta correcta: C. Explicación: La enzima fenilalanina hidroxilasa convierte la fenilalanina en tirosina añadiendo un grupo OH.
+18. Las enzimas "hidroxilasas de aminoácidos aromáticos" (como la Fenilalanina hidroxilasa y la Tirosina hidroxilasa) necesitan OBLIGATORIAMENTE un cofactor donador de electrones para funcionar. ¿Cómo se llama? A) Vitamina B6 (Piridoxal fosfato). B) Vitamina C. C) Tetrahidrobiopterina (THB). D) S-adenosilmetionina (SAM).
+Respuesta correcta: C. Explicación: La THB dona los electrones necesarios para reducir el oxígeno a agua mientras se añade el OH al anillo aromático.
+19. (¡Asociación Clínica!) ¿Qué enfermedad rara pediátrica se caracteriza por un fallo congénito en la síntesis del cofactor Tetrahidrobiopterina (GTP Ciclohidrolasa 1), imposibilitando la formación de Dopamina? A) Esquizofrenia. B) Enfermedad de Segawa. C) Miastenia Gravis. D) Celiaquía.
+Respuesta correcta: B. Explicación: Puesto de ejemplo en clase, estos niños no sintetizan THB, por lo que toda la vía de las catecolaminas se paraliza.
+20. En la síntesis de Dopamina, el primer paso enzimático convierte la Tirosina en: A) Noradrenalina. B) L-DOPA. C) Ácido Homovanílico. D) Adrenalina.
+Respuesta correcta: B. Explicación: La tirosina hidroxilasa hidroxila la tirosina formando DOPA (dihidroxifenilalanina).
+21. El segundo paso para obtener Dopamina es convertir la L-DOPA en Dopamina. ¿Qué enzima cataliza este paso eliminando un grupo carboxilo? A) DOPA descarboxilasa. B) DOPA oxidasa. C) DOPA metiltransferasa. D) Tirosinasa.
+Respuesta correcta: A. Explicación: Es una descarboxilasa de aminoácidos aromáticos, el paso clásico que define a una "amina biógena".
+22. ¿Qué cofactor vitamínico utiliza la DOPA descarboxilasa? A) Vitamina C. B) Piridoxal fosfato (Vitamina B6). C) Vitamina B12. D) SAM.
+Respuesta correcta: B. Explicación: Todas las descarboxilasas de este grupo comparten el piridoxal fosfato como cofactor.
+23. Una vez sintetizada en el citosol, la Dopamina debe entrar en la vesícula sináptica. ¿Qué transportador utiliza? A) GLUT4. B) VMAT (Transportador Vesicular de Monoaminas). C) SERT. D) Bomba Sodio/Potasio.
+Respuesta correcta: B. Explicación: El VMAT introduce las monoaminas a la vesícula aprovechando la salida de protones (antiporte).
+24. El transportador VMAT funciona como un antiporte que requiere un pH ácido dentro de la vesícula. ¿Quién genera este gradiente de protones? A) Una bomba de protones impulsada por ATP (ATPasa). B) La dopamina misma. C) El calcio. D) La MAO.
+Respuesta correcta: A. Explicación: La célula gasta ATP para meter protones a la vesícula y mantener un pH de 5.5, que luego el VMAT usa como energía de intercambio.
+25. A nivel anatómico, la vía dopaminérgica "Nigroestriada" (desde la sustancia negra) está relacionada con: A) La producción de leche materna. B) El control y la regulación del movimiento (asociada al Parkinson). C) La digestión gástrica exclusivamente. D) La visión nocturna.
+Respuesta correcta: B. Explicación: La degeneración de esta vía produce la sintomatología motora de la enfermedad de Parkinson.
+26. La vía "Mesolímbica" dopaminérgica se encarga fundamentalmente de: A) Los reflejos medulares inhibitorios. B) La expresión de estados afectivos, recompensa, placer y adicciones. C) El control de la respiración. D) La contracción de la vesícula biliar.
+Respuesta correcta: B. Explicación: Es el "circuito de recompensa", implicado en la euforia y en el mecanismo de adicción a drogas.
+27. ¿Qué droga inhibe el transportador de recaptación de dopamina (DAT), provocando una concentración sostenida y excesiva de dopamina en la sinapsis (adicción)? A) Marihuana. B) Heroína. C) Cocaína. D) Cafeína.
+Respuesta correcta: C. Explicación: La cocaína bloquea el DAT, por lo que la dopamina no se limpia de la hendidura y sigue estimulando la vía de la recompensa.
+28. (¡Asociación Clínica!) Un exceso de liberación de dopamina en las vías mesolímbica y mesocortical está bioquímicamente asociado a la sintomatología de: A) La Esquizofrenia (delirios, alucinaciones). B) La Diabetes tipo 1. C) El Alzheimer en fase terminal. D) El hipotiroidismo severo.
+Respuesta correcta: A. Explicación: Fármacos antipsicóticos como el haloperidol actúan antagonizando (bloqueando) estos receptores de dopamina.
+29. Los receptores de Dopamina son todos metabotrópicos y se dividen en dos familias (D1 y D2). ¿Qué caracteriza a la familia D1 (receptores D1 y D5)? A) Tienen subunidad alfa "i", siendo inhibitorios. B) Tienen subunidad alfa "s" (Gs), activan la adenilato ciclasa y son EXCITATORIOS. C) Son receptores nucleares. D) Son canales iónicos de cloruro.
+Respuesta correcta: B. Explicación: La familia D1 estimula la producción de AMPc (respuesta excitatoria).
+30. La familia D2 de dopamina (D2, D3, D4) provoca una respuesta celular: A) Excitatoria por calcio. B) Inhibitoria, ya que poseen subunidad Gi que frena la adenilato ciclasa. C) Indiferente. D) Que sintetiza nueva dopamina.
+Respuesta correcta: B. Explicación: La Gi reduce el AMPc, por lo que la respuesta a nivel del receptor es inhibitoria.
+31. Para inactivar la Dopamina extracelular, ¿cómo se llama su transportador de recaptación específico? A) SERT. B) NET. C) DAT (Transportador Activo de Dopamina). D) VMAT.
+Respuesta correcta: C. Explicación: El DAT recaptura la dopamina desde la hendidura sináptica hacia el interior de la neurona mediante simporte de sodio.
+32. Una vez recaptada la dopamina al citosol, ¿cuáles son las DOS enzimas encargadas de su degradación catabólica? A) Tripsina y Pepsina. B) Acetilcolinesterasa y Peptidasa. C) MAO (Monoamino oxidasa) y COMT (Catecol-O-metil transferasa). D) Histaminasa y DAO.
+Respuesta correcta: C. Explicación: La MAO desamina y la COMT añade un grupo metilo.
+33. ¿Qué reacción química cataliza la enzima COMT en las catecolaminas? A) Quita un grupo amino. B) Introduce un grupo metilo (usando SAM como donador) en la posición 3 del anillo catecol. C) Oxida el anillo bencénico. D) Fosforila la molécula.
+Respuesta correcta: B. Explicación: Catecol-O-METIL transferasa; metila la catecolamina inactivándola.
+34. ¿Qué reacción química cataliza la MAO? A) Metilación. B) Desaminación oxidativa (quita el grupo amino de la cadena lateral). C) Fosforilación. D) Acetilación.
+Respuesta correcta: B. Explicación: Convierte la amina en un aldehído intermediario al retirar el nitrógeno.
+35. (¡Pista de examen!) Sea por la vía intracelular (MAO luego COMT) o extracelular (COMT luego MAO), el PRODUCTO FINAL de degradación específico de la DOPAMINA que se excreta en orina es el: A) Ácido Vanilmandélico. B) Ácido Homovanílico (HVA). C) Ácido 5-hidroxiindolacético (5-HIAA). D) Metanefrina.
+Respuesta correcta: B. Explicación: El profesor recalcó textualmente: "Siempre que hablemos de ácido homovanílico tenemos que asociarlo con dopamina... asociación de producto con neurotransmisor".
+36. La síntesis de las catecolaminas es secuencial. ¿A partir de qué molécula se sintetiza directamente la Noradrenalina? A) Tirosina. B) L-DOPA. C) Dopamina. D) Adrenalina.
+Respuesta correcta: C. Explicación: La vía es: Tirosina -> DOPA -> Dopamina -> Noradrenalina.
+37. ¿Qué enzima cataliza la conversión de Dopamina en Noradrenalina (añadiendo un grupo OH en la cadena lateral)? A) Dopamina beta-hidroxilasa (DBH). B) Tirosina hidroxilasa. C) COMT. D) Feniletanolamina N-metiltransferasa.
+Respuesta correcta: A. Explicación: La DBH hidroxila a la dopamina. Es dependiente de Cobre y Vitamina C.
+38. (¡Pista del profesor!) La síntesis de Noradrenalina tiene una característica espacial única respecto al resto de la vía. ¿Dónde se encuentra ubicada la enzima Dopamina beta-hidroxilasa? A) Flotando libre en la hendidura sináptica. B) En el retículo endoplasmático liso. C) DENTRO de las propias vesículas sinápticas. D) En las células gliales exclusivamente.
+Respuesta correcta: C. Explicación: A diferencia de los pasos anteriores (que ocurren en el citosol), la dopamina entra a la vesícula y allí dentro es donde se transforma en noradrenalina.
+39. ¿Qué cofactor antioxidante utiliza la Dopamina beta-hidroxilasa para su función enzimática? A) THB (Tetrahidrobiopterina). B) Piridoxal fosfato. C) Vitamina C (Ácido ascórbico). D) Calcio.
+Respuesta correcta: C. Explicación: Esta enzima utiliza Vitamina C (y cobre) para hidroxilar, a diferencia de las hidroxilasas de anillo que usan THB.
+40. En el sistema nervioso periférico, la Noradrenalina es el neurotransmisor principal de las neuronas: A) Posganglionares del sistema simpático. B) Preganglionares del parasimpático. C) Motoras somáticas. D) Sensoriales.
+Respuesta correcta: A. Explicación: La noradrenalina orquesta las respuestas clásicas de "lucha o huida" del sistema simpático a nivel de los órganos diana.
+41. El paso final de la ruta forma la Adrenalina (Epinefrina). ¿A partir de qué molécula se sintetiza? A) Dopamina directamente. B) Serotonina. C) Noradrenalina. D) L-DOPA.
+Respuesta correcta: C. Explicación: Es el último eslabón de la síntesis secuencial de catecolaminas.
+42. ¿Qué reacción química define la conversión de Noradrenalina en Adrenalina? A) Eliminación de un oxígeno. B) Adición de un grupo metilo en el grupo amino terminal (N-metilación). C) Fosforilación de la cadena. D) Ruptura del anillo catecol.
+Respuesta correcta: B. Explicación: La enzima Feniletanolamina N-Metil Transferasa (PNMT) transfiere un metilo.
+43. ¿De qué molécula (el "donador universal") extrae la enzima PNMT el grupo metilo para fabricar adrenalina? A) Metionina pura. B) S-adenosilmetionina (SAM). C) Vitamina C. D) ATP.
+Respuesta correcta: B. Explicación: La SAM cede el metilo y se convierte en S-adenosilhomocisteína, igual que en la reacción de la COMT.
+44. (¡Pista de clase!) Para fabricar Adrenalina existe un "escollo" logístico. Si la noradrenalina se forma DENTRO de la vesícula, pero la enzima PNMT está en el CITOSOL, ¿qué debe ocurrir? A) La vesícula destruye a la enzima. B) La noradrenalina debe SALIR de la vesícula al citosol, convertirse en adrenalina por la PNMT, y VOLVER a ser introducida en otra vesícula (vía VMAT) para su almacenamiento. C) La adrenalina se fabrica en el torrente sanguíneo. D) La PNMT entra a la vesícula mediante fagocitosis.
+Respuesta correcta: B. Explicación: Es un vaivén: Dopamina entra -> se hace NA -> sale al citosol -> se hace Adrenalina -> entra a la vesícula de nuevo.
+45. ¿Cuál es el principal rol fisiológico de la Adrenalina? A) Es un neurotransmisor inhibitorio medular puro. B) Su peso como neurotransmisor es muy pequeño; actúa predominantemente como HORMONA liberada por la médula suprarrenal a la sangre. C) Regula el sueño y la vigilia. D) Degrada el ácido gástrico.
+Respuesta correcta: B. Explicación: La adrenalina se produce masivamente en las glándulas suprarrenales y ejerce efectos endocrinos a nivel cardiovascular y respiratorio.
+46. Los receptores "adrenérgicos" reconocen noradrenalina y adrenalina. ¿Qué tipo de receptores son en su totalidad? A) Ionotrópicos. B) Canales de cloro. C) Metabotrópicos (acoplados a proteína G). D) Intracelulares.
+Respuesta correcta: C. Explicación: Se dividen en Alfa y Beta, pero todos utilizan la vía de señalización por proteínas G.
+47. Si un receptor adrenérgico es de tipo Alfa-1, ¿qué proteína G tiene asociada y qué respuesta da? A) Gq, respuesta excitatoria (mediante calcio e IP3). B) Gi, respuesta inhibitoria. C) Gs, aumento de AMPc. D) No usa proteína G.
+Respuesta correcta: A. Explicación: Los Alfa-1 utilizan Gq (fosfolipasa C), mientras los Alfa-2 usan Gi (inhibitorios).
+48. Todos los receptores adrenérgicos de la familia BETA (Beta-1, Beta-2, Beta-3) tienen en común que: A) Inhiben la contracción muscular siempre. B) Son metabotrópicos excitatorios asociados a la proteína Gs, aumentando el AMPc. C) Son ionotrópicos. D) Solo unen dopamina.
+Respuesta correcta: B. Explicación: La familia Beta está acoplada de manera uniforme a Gs, estimulando la adenilato ciclasa.
+49. Para inactivar la Noradrenalina/Adrenalina por recaptación desde la sinapsis, las neuronas utilizan un transportador análogo al de la dopamina. ¿Cómo se llama? A) SERT. B) DAT. C) NET (Transportador de Norepinefrina). D) VMAT.
+Respuesta correcta: C. Explicación: El NET reintroduce la catecolamina al citosol neuronal mediante transporte acoplado a Na+.
+50. (¡Pregunta de Examen - Analíticas!) El producto final de la degradación CONJUNTA de noradrenalina y adrenalina (vía COMT y MAO), que se mide rutinariamente en orina es el: A) Ácido Homovanílico (HVA). B) Ácido 5-hidroxiindolacético (5-HIAA). C) Ácido Vanilmandélico (VMA) y el 3-metoxi-4-hidroxifenilglicol (MHPG/MOPEG). D) Ácido fólico.
+Respuesta correcta: C. Explicación: El VMA (forma ácida) y el MHPG (forma alcohol) son los metabolitos finales clásicos que reflejan la degradación de ambas catecolaminas.
+51. (¡Pregunta de Examen - Analíticas!) Si una analítica muestra niveles alterados ESPECÍFICAMENTE de "Metanefrina" en orina, indica un fallo en la degradación EXCLUSIVA de: A) Noradrenalina. B) Dopamina. C) Adrenalina. D) Serotonina.
+Respuesta correcta: C. Explicación: El profesor recalcó: "Si en la analítica viene niveles bajos de metanefrina... solo de adrenalina". La normetanefrina es de la noradrenalina.
+52. En la ruta de degradación, cuando actúa la enzima Aldehído Reductasa, el intermediario aldehído se convierte en: A) Un ácido carboxílico (ej. Ácido vanilmandélico). B) Un compuesto hidroxilado/alcohol (ej. MHPG/MOPEG). C) Un anillo aromático puro. D) Una amina biógena nueva.
+Respuesta correcta: B. Explicación: Las deshidrogenasas forman ácidos (VMA), y las reductasas forman compuestos con grupos alcohol.
+53. La Serotonina (5-hidroxitriptamina o 5-HT) se clasifica bioquímicamente dentro de las aminas biógenas como una: A) Catecolamina. B) Imidazolamina. C) Indolamina. D) Purina.
+Respuesta correcta: C. Explicación: Posee un grupo Indol (benceno unido a un anillo pirrol) más la cadena lateral amino.
+54. ¿Cuál es el aminoácido precursor OBLIGATORIO para la síntesis de Serotonina? A) Tirosina. B) Glutamato. C) Triptófano. D) Fenilalanina.
+Respuesta correcta: C. Explicación: "Aminoácido aromático Triptófano". Es una ruta análoga ("hermana gemela") a la de la tirosina/dopamina.
+55. La síntesis de Serotonina consta de solo dos pasos. El primer paso (limitante) catalizado por la Triptófano Hidroxilasa convierte el triptófano en: A) L-DOPA. B) 5-hidroxitriptófano (5-HTP). C) 5-HIAA. D) Melatonina.
+Respuesta correcta: B. Explicación: La enzima añade un grupo OH en la posición 5 del anillo. Utiliza también el cofactor THB (tetrahidrobiopterina).
+56. El segundo paso para obtener la 5-HT (Serotonina) es la eliminación del grupo carboxilo del 5-HTP mediante la enzima: A) 5-hidroxitriptófano descarboxilasa. B) Monoamino oxidasa. C) COMT. D) VMAT.
+Respuesta correcta: A. Explicación: Usa vitamina B6 (piridoxal fosfato) para descarboxilar, el mismo cofactor de todas las aminas biógenas.
+57. Aunque es un neurotransmisor central, ¿dónde se localiza y sintetiza la MAYOR parte de la serotonina de nuestro cuerpo (para función hormonal/paracrina)? A) En los núcleos del rafe del cerebro exclusivamente. B) En las células enterocromafines del tracto gastrointestinal. C) En los osteoclastos. D) En los miocitos cardíacos.
+Respuesta correcta: B. Explicación: Solo 1-2% está en el cerebro. La inmensa mayoría regula el intestino (vómito, motilidad) y viaja en plaquetas.
+58. En el Sistema Nervioso Central, las neuronas serotoninérgicas se concentran principalmente en: A) Sustancia Negra. B) Área tegmental ventral. C) Los Núcleos del Rafe (tallo cerebral), enviando proyecciones a todo el encéfalo y médula. D) Cerebelo puro.
+Respuesta correcta: C. Explicación: Son los centros productores de serotonina en el cerebro, modulando ánimo, dolor y sueño.
+59. Los receptores de Serotonina se dividen en 7 familias. Todos son metabotrópicos EXCEPTO uno, que es ionotrópico. ¿Cuál es? A) Familia 5-HT1. B) Familia 5-HT2. C) Familia 5-HT3. D) Familia 5-HT4.
+Respuesta correcta: C. Explicación: La profesora incidió en que es el único receptor ionotrópico entre TODAS las aminas biógenas.
+60. Para inactivar la serotonina en el espacio sináptico, se utiliza un transportador de recaptación específico (bloqueado por antidepresivos como la fluoxetina). Este se llama: A) DAT. B) VMAT. C) SERT. D) NET.
+Respuesta correcta: C. Explicación: El SERT recapta serotonina hacia el interior neuronal acoplado al movimiento de iones.
+61. (¡Pista de examen!) Tras ser recaptada, la serotonina es degradada por una ÚNICA enzima, a diferencia de las catecolaminas. ¿Qué enzima la degrada intracelularmente? A) COMT. B) MAO (Monoamino oxidasa). C) Triptofano hidroxilasa. D) Acetilcolinesterasa.
+Respuesta correcta: B. Explicación: La COMT solo reconoce grupos catecol. Como la serotonina es indol, la COMT no la toca. Solo la degrada la MAO.
+62. (¡Asociación Clínica!) ¿Cuál es el PRODUCTO FINAL de la degradación de la Serotonina que encontramos bajo en el líquido cefalorraquídeo de pacientes con depresión? A) Ácido Homovanílico (HVA). B) Ácido Vanilmandélico (VMA). C) Ácido 5-hidroxiindolacético (5-HIAA). D) Metanefrina.
+Respuesta correcta: C. Explicación: La MAO y la aldehído deshidrogenasa convierten la 5-HT en 5-HIAA. Bajos niveles implican bajo metabolismo de serotonina.
+63. Los fármacos denominados "Inhibidores de la MAO" (IMAOs) se utilizan como antidepresivos porque: A) Destruyen la serotonina para aliviar el cerebro. B) Al bloquear la enzima que la degrada (MAO), la serotonina disponible en la neurona aumenta, corrigiendo el déficit del paciente. C) Estimulan la COMT. D) Se convierten ellos mismos en serotonina mágica.
+Respuesta correcta: B. Explicación: Evitan que se catabolice, permitiendo que la poca serotonina fabricada tenga un efecto más prolongado.
+64. La Histamina pertenece al grupo de las aminas biógenas y bioquímicamente es una: A) Imidazolamina. B) Catecolamina. C) Indolamina. D) Proteína.
+Respuesta correcta: A. Explicación: Está formada por un anillo imidazol y una cadena lateral etilamina.
+65. ¿Cuál es el aminoácido precursor y qué reacción lo convierte en Histamina en un solo paso? A) Glutamato (desaminación). B) Histidina (descarboxilación, mediante la histidina descarboxilasa con vit B6). C) Serina (hidroxilación). D) Triptófano (descarboxilación).
+Respuesta correcta: B. Explicación: Las aminas biógenas requieren descarboxilar un aminoácido; en este caso la histidina.
+66. La mayor parte de la histamina corporal (que no actúa como neurotransmisor) se encuentra almacenada en: A) Las neuronas del cerebelo. B) El hígado. C) Células cebadas (mastocitos) y basófilos, implicada en respuestas alérgicas. D) Los eritrocitos.
+Respuesta correcta: C. Explicación: La histamina es la señal clave de la respuesta alérgica inmediata.
+67. A nivel del SNC, la histamina producida en el núcleo tuberomamilar del hipotálamo regula la percepción del dolor y, de forma muy marcada, el: A) Reflejo miotático. B) Ciclo de sueño-vigilia (manteniendo la vigilia). C) Equilibrio cerebeloso. D) Control motor estriado.
+Respuesta correcta: B. Explicación: Es fundamental para mantener el estado de alerta cerebral.
+68. (¡Pista de clase!) ¿Por qué los antihistamínicos (ej. medicación para la alergia) suelen causar mucho sueño como efecto secundario? A) Porque matan a las neuronas. B) Porque cruzan la barrera hematoencefálica y bloquean el receptor H1 (encargado de mantener la vigilia), induciendo somnolencia. C) Porque aumentan la adrenalina. D) Porque actúan como la cafeína.
+Respuesta correcta: B. Explicación: Al "toquetear" el receptor que regula la vigilia central, provocan sueño inevitable.
+69. Una curiosidad de los receptores de Histamina (todos metabotrópicos) es que la familia H3 funciona principalmente como: A) Canal iónico rápido. B) Receptor purinérgico. C) Autorreceptores presinápticos (al llenarse de histamina, inhiben la liberación de más histamina). D) Excitador muscular exclusivo.
+Respuesta correcta: C. Explicación: Sensan cuánta histamina hay fuera y mandan una señal inhibitoria para que la neurona deje de liberarla.
+70. A diferencia de dopamina, noradrenalina y serotonina, el proceso de inactivación de la HISTAMINA tiene una gran particularidad en el SNC: A) Se evapora. B) Es inactivada directamente en la sangre por anticuerpos. C) NO tiene transportadores de recaptación, por lo que toda la degradación es extracelular o en células vecinas. D) Solo la inactiva la insulina.
+Respuesta correcta: C. Explicación: "No se han descrito recaptadores de histamina, por lo que toda la degradación es extracelular".
+71. La degradación de la histamina ocurre en dos pasos. La enzima análoga a la COMT, encargada de introducir un grupo metilo es la: A) Histaminasa o Histamina N-metiltransferasa (HNMT). B) MAO. C) PNMT. D) Diamino oxidasa (DAO).
+Respuesta correcta: A. Explicación: Utiliza SAM para metilar el anillo imidazol, formando N-metilhistamina.
+72. ¿Qué enzima se encarga del segundo paso de degradación, la desaminación de la metilhistamina? A) La TPO. B) La MAO o la DAO (Diamino oxidasa). C) La fosfolipasa. D) La descarboxilasa.
+Respuesta correcta: B. Explicación: Tras ser metilada, la cadena lateral es desaminada por estas oxidasas, dando lugar al producto ácido final.
+73. El metabolito excretable producto de la degradación completa de la histamina se denomina: A) Ácido Vanilmandélico. B) Ácido Homovanílico. C) Ácido N-metil imidazolacético. D) 5-HIAA.
+Respuesta correcta: C. Explicación: Es el producto resultante tras la acción combinada de HNMT y MAO/DAO.
+74. Químicamente, ¿a qué familia pertenece la Acetilcolina (ACh)? A) Amina biógena. B) Aminoácido libre. C) Neuropéptido. D) Éster (formado por la unión de un alcohol y un ácido carboxílico).
+Respuesta correcta: D. Explicación: El profesor recalcó que cambiamos de grupo. La ACh es un éster formado por colina y ácido acético.
+75. (¡Pista de examen!) La síntesis de Acetilcolina requiere dos precursores fundamentales. ¿Cuáles son? A) Serotonina y DOPA. B) Colina (proveniente de la dieta/hígado o reciclaje) y Acetil-CoA (proveniente de la glucólisis mitocondrial). C) Histidina y Yodo. D) ATP y ADP.
+Respuesta correcta: B. Explicación: La Colina y el Acetil-CoA reaccionan para formar el éster. El Acetil-CoA es muy abundante en la neurona.
+76. ¿Qué enzima citosólica cataliza la unión de la Colina con el Acetil-CoA? A) Acetilcolinesterasa (AChE). B) MAO. C) Colina Acetiltransferasa (ChAT). D) PNMT.
+Respuesta correcta: C. Explicación: La transferasa une ambos precursores eliminando la coenzima A en el proceso.
+77. ¿Cómo se llama el transportador que introduce la acetilcolina recién formada al interior de la vesícula sináptica? A) VMAT. B) Transportador vesicular de Acetilcolina (VAChT). C) SERT. D) GLUT4.
+Respuesta correcta: B. Explicación: Ya no usamos el VMAT (que es para monoaminas). La ACh tiene su propio transportador vesicular antiporte de protones.
+78. La Acetilcolina es el neurotransmisor EXCLUSIVO del sistema somático periférico a nivel de: A) Los glóbulos rojos. B) El tejido adiposo. C) Las placas motoras (unión neuromuscular), ordenando la contracción de los músculos voluntarios. D) La síntesis ósea.
+Respuesta correcta: C. Explicación: Gobierna el movimiento somático actuando sobre los receptores del músculo esquelético.
+79. En el Sistema Nervioso Autónomo, la Acetilcolina es el neurotransmisor principal de TODAS las neuronas: A) Solo posganglionares simpáticas. B) Preganglionares (simpáticas y parasimpáticas) y de las posganglionares del parasimpático. C) Que degradan lípidos. D) Aferentes del dolor.
+Respuesta correcta: B. Explicación: Domina la vía del descanso/digestión (parasimpático) y los ganglios autónomos centrales.
+80. Existen dos tipos de receptores colinérgicos. ¿Cuáles son los denominados "Nicotínicos"? A) Receptores metabotrópicos en el corazón. B) Receptores que causan depresión. C) Receptores Ionotrópicos (canal iónico) localizados principalmente en la placa motora muscular y ganglios, activados también por nicotina. D) Receptores inhibidores exclusivos.
+Respuesta correcta: C. Explicación: Son rápidos, de 5 subunidades, y dejan pasar sodio y calcio para contraer el músculo.
+81. En un receptor Nicotínico (ej. NMJ), ¿cuántas moléculas de Acetilcolina deben unirse (en las subunidades alfa) para que el canal se abra? A) Solo una. B) Diez. C) Dos. D) Ninguna, es voltaje-dependiente.
+Respuesta correcta: C. Explicación: Las diapositivas y el esquema indican que requiere la unión simultánea de dos moléculas de ACh para activarse.
+82. Los receptores colinérgicos "Muscarínicos" (M1 a M5) tienen como característica principal que: A) Se bloquean con vitamina C. B) Son metabotrópicos (acoplados a proteína G), más lentos y se activan también por la toxina muscarina. C) Son canales puros de cloruro. D) Solo existen en el hígado.
+Respuesta correcta: B. Explicación: Median las respuestas parasimpáticas en órganos diana y son GPCRs.
+83. En cuanto a la INACTIVACIÓN, ¿qué enzima ubicada en la hendidura sináptica degrada ultra-rápidamente a la Acetilcolina? A) Acetilcolinesterasa (AChE). B) MAO. C) COMT. D) Pepsina.
+Respuesta correcta: A. Explicación: Rompe el éster en acetato y colina en milisegundos. "No podemos recaptar directamente la ACh, la degradación debe ser extracelular".
+84. Una vez la Acetilcolinesterasa hidroliza la ACh, ¿qué componente es recaptado por el terminal presináptico para poder volver a fabricar neurotransmisor? A) El acetato. B) La acetilcolina entera. C) La Colina, a través del Transportador de Colina de Alta Afinidad (ChT). D) El Acetil-CoA.
+Respuesta correcta: C. Explicación: La célula ahorra recursos recuperando la colina libre y reutilizándola inmediatamente en la síntesis.
+85. (¡Pista de examen!) La enfermedad autoinmune llamada Miastenia Gravis provoca gran debilidad muscular porque: A) Destruye la médula espinal. B) El paciente fabrica anticuerpos que se unen y BLOQUEAN los receptores nicotínicos de acetilcolina en la placa motora, impidiendo la contracción muscular. C) Falta dopamina en la sustancia negra. D) Falla la bomba de sodio/potasio.
+Respuesta correcta: B. Explicación: Lo mencionó al hablar de patologías: los receptores están inutilizados por los anticuerpos.
+86. ¿Cuál es la base farmacológica del tratamiento para los pacientes con Miastenia Gravis? A) Administrar inyecciones de dopamina. B) Fármacos ANTI-colinesterásicos (inhibidores de la AChE) para evitar que se degrade la ACh, aumentando su concentración en la sinapsis para que pueda "competir" con los anticuerpos. C) Bloquear los receptores muscarínicos. D) Operar el tiroides.
+Respuesta correcta: B. Explicación: Si bloqueas la enzima que limpia la sinapsis, inundas la zona de ACh y fuerzas la activación de los receptores que queden libres.
+87. ¿En qué grupo químico clasificamos la Acetilcolina, el GABA y el Glutamato? A) Todos son catecolaminas. B) ACh es un éster; GABA y Glutamato son aminoácidos (inhibidor y excitador respectivamente). C) Son todos neuropéptidos de alto peso. D) Son gases.
+Respuesta correcta: B. Explicación: Es la distinción clara de familias químicas en el esquema de neurotransmisores.
+88. En el receptor muscarínico, los subtipos IMPARES (M1, M3, M5) producen una respuesta celular: A) Inhibitoria vía Gi. B) Excitatoria vía Gq (activan fosfolipasa C, generando IP3 y calcio). C) Excitatoria vía canal iónico rápido. D) Neutra.
+Respuesta correcta: B. Explicación: Los impares son activadores y los pares (M2, M4) son inhibidores.
+89. El ácido gamma-aminobutírico (GABA) ostenta el título de ser: A) Un neurotransmisor muy marginal. B) El PRINCIPAL neurotransmisor INHIBITORIO del Sistema Nervioso Central (hasta el 40% de las neuronas lo usan). C) El activador universal de la médula. D) Una hormona digestiva.
+Respuesta correcta: B. Explicación: Promueve la relajación e inhibe respuestas excitatorias en casi la mitad de las sinapsis del cerebro.
+90. ¿A partir de qué molécula y mediante qué reacción se sintetiza el GABA? A) Del triptófano por hidroxilación. B) Del Glutamato (aminoácido) mediante una descarboxilación (pérdida de CO2) catalizada por la enzima Glutamato Descarboxilasa (GAD) con Vit B6. C) De la histidina pura. D) Del acetato y la colina.
+Respuesta correcta: B. Explicación: Solo requiere este paso simple de pérdida de un grupo carboxilo. Es curioso que el inhibidor universal nazca del excitador universal.
+91. ¿Cuál es el origen inicial del "esqueleto" del glutamato utilizado en las neuronas gabaérgicas para fabricar GABA? A) La dieta grasa. B) Se roba del intermediario del ciclo de Krebs "Alfa-cetoglutarato" (a través de transaminación con aspartato). C) Viene de la destrucción del hueso. D) Es gas absorbido por la sangre.
+Respuesta correcta: B. Explicación: La célula usa el alfa-cetoglutarato mitocondrial, le mete un grupo amino y forma el glutamato necesario para hacer GABA.
+92. Tras ser sintetizado, el GABA se almacena en vesículas utilizando un transportador específico de aminoácidos inhibitorios. ¿Cómo se llama? A) VMAT. B) VGAT (Transportador Vesicular de GABA/Glicina). C) GLUT1. D) NIS.
+Respuesta correcta: B. Explicación: Funciona por antiporte de protones, como todos los vesiculares, pero es específico para GABA y Glicina.
+93. Existen dos grandes receptores para el GABA. El receptor GABAA se caracteriza por ser: A) Metabotrópico y muy lento. B) Ionotrópico (canal iónico) compuesto típicamente por 5 subunidades complejas, que al abrirse deja entrar iones CLORURO (Cl-) provocando hiperpolarización. C) Un receptor puramente de sodio. D) Intracelular y genómico.
+Respuesta correcta: B. Explicación: Es el rey de la inhibición rápida; mete cargas negativas (Cloro) a la célula impidiendo el disparo eléctrico.
+94. (¡Pista de examen!) El receptor GABAA tiene sitios de unión "alostéricos" (diferentes al del GABA) que sirven como diana farmacológica. ¿Qué tipo de medicamentos famosos actúan aquí POTENCIANDO la acción inhibitoria del GABA? A) Antidepresivos ISRS. B) Antibióticos betalactámicos. C) Benzodiacepinas (ej. Diazepam/Valium), Barbitúricos y el Etanol. D) Anfetaminas.
+Respuesta correcta: C. Explicación: Se unen en zonas anexas y hacen que el canal responda más fuerte o más tiempo al GABA, causando sedación y relajación.
+95. A diferencia del GABAA, el receptor GABAB es: A) Ionotrópico y causa convulsiones. B) Metabotrópico (dímero B1/B2 acoplado a proteína Gi/o), cuya acción inhibe la adenilato ciclasa o abre canales de potasio (respuesta lenta inhibitoria). C) Un canal de calcio. D) Un transportador mitocondrial.
+Respuesta correcta: B. Explicación: Sigue siendo inhibitorio, pero a través de mecanismos lentos asociados a proteínas G.
+96. La inactivación del GABA requiere su recaptación (mediante el transportador GAT). ¿Qué particularidad tiene este proceso de "limpieza" sináptica del GABA y del Glutamato? A) Solo ocurre de noche. B) No solo son recaptados por la propia neurona presináptica, sino también asimilados activamente por las CÉLULAS GLIALES vecinas (astrocitos). C) Lo recapta el riñón. D) No se recapta, se evapora como gas.
+Respuesta correcta: B. Explicación: La glia juega un papel vital actuando como "basurero" de aminoácidos neurotransmisores para evitar excitotoxicidad/sobresedación.
+97. Una vez recaptado en la neurona (o en la glia), el GABA se degrada intracelularmente en dos pasos. El primer paso utiliza la enzima GABA-T. ¿Qué hace? A) Añade un OH. B) Transamina el GABA cediendo su grupo amino al alfa-cetoglutarato, formando Glutamato y Semialdehído succínico. C) Lo vuelve glucosa. D) Evapora la cadena lateral.
+Respuesta correcta: B. Explicación: Devuelve el nitrógeno al ciclo formando glutamato de nuevo.
+98. (¡Pista del profesor!) El producto final de la degradación del GABA es el Succinato. ¿Por qué es tan eficiente o "bonita" metabólicamente esta ruta (el Shunt del GABA)? A) Porque produce luz en el cerebro. B) Porque robamos alfa-cetoglutarato del Ciclo de Krebs para hacer GABA, y tras usarlo, lo devolvemos al mismo Ciclo de Krebs en forma de Succinato, creando una ruta alternativa perfecta sin perder recursos. C) Porque se gasta sin producir ATP. D) Porque genera adrenalina simultáneamente.
+Respuesta correcta: B. Explicación: Es la conexión íntima entre la vía de neurotransmisión y la vía metabólica energética de la célula mitocondrial.
+99. Si el GABA se recapta en la CÉLULA GLIAL, no se puede reutilizar directamente. ¿Qué hace la glia para "devolverlo" a la neurona gabaérgica? A) Se lo queda para siempre. B) Convierte el glutamato derivado en GLUTAMINA (mediante glutamina sintetasa), que sí puede viajar libremente sin excitar los tejidos, para que la neurona gabaérgica la recoja y vuelva a hacer GABA. C) Lo convierte en grasa. D) Lo excreta a la sangre periférica.
+Respuesta correcta: B. Explicación: Las células gliales alimentan de materia prima (glutamina) a las neuronas de manera segura.
+100. La Glicina es el aminoácido más sencillo (R=Hidrógeno) pero funciona como el PRINCIPAL neurotransmisor inhibidor (junto al GABA) ¿En qué zonas anatómicas? A) En los lóbulos frontales cerebrales. B) En las áreas caudales: médula espinal, tronco cerebral y retina. C) En el estómago. D) En los ganglios simpáticos.
+Respuesta correcta: B. Explicación: Es fundamental para los reflejos espinales de inhibición recíproca (coordinación motora).
+101. La Glicina se sintetiza en un solo paso a partir del aminoácido SERINA. ¿Qué enzima (que necesita THF/Folato) cataliza este paso? A) Serina descarboxilasa. B) Serina hidroximetiltransferasa. C) MAO B. D) DOPA descarboxilasa.
+Respuesta correcta: B. Explicación: Elimina el grupo hidroximetilo cediéndolo al folato para dejar el aminoácido puro más básico.
+102. El receptor de Glicina es ionotrópico y causa un efecto inhibitorio idéntico al del GABAA, ya que permite la entrada de: A) Sodio. B) Calcio. C) Cloruro (Cl-). D) Magnesio.
+Respuesta correcta: C. Explicación: Al igual que el GABA, hiperpolariza introduciendo iones negativos.
+103. A diferencia del GABA y Catecolaminas, la Glicina NO se degrada enzimáticamente en la sinapsis para inactivarse. ¿Qué le ocurre? A) Es únicamente recaptada por su transportador GLYT y, si no se reutiliza, se degrada a nivel general en la mitocondria dando amonio y CO2. B) Se destruye por COMT glial. C) Se transforma en dopamina. D) Sale en forma de gas.
+Respuesta correcta: A. Explicación: Su inactivación depende puramente de los transportadores, no de enzimas catabólicas sinápticas específicas.
+104. La TAURINA es un compuesto sintetizado a partir del aminoácido Cisteína. (¡Mito desmentido en clase!) Comercialmente (Red Bull, Monster) se vende como energizante excitatorio, pero en realidad a nivel cerebral funciona como: A) Un potente excitador epiléptico. B) Un compuesto neutro. C) Un neuromodulador INHIBITORIO/Neuroprotector que potencia la acción del GABA y la Glicina. D) Un destructor de sinapsis.
+Respuesta correcta: C. Explicación: El profesor recalcó que el efecto estimulante es de la cafeína y azúcar; la taurina en sí modula la inhibición para evitar daños cerebrales (excitotoxicidad).
+105. Aunque la Glicina es inhibidora en la médula, paradójicamente cumple una función esencial en las sinapsis excitatorias cerebrales. ¿Cuál? A) Se convierte en Adrenalina. B) Es un co-agonista indispensable que debe unirse (junto al glutamato) al receptor NMDA para que este se pueda activar. C) Destruye la mielina. D) Bloquea el calcio.
+Respuesta correcta: B. Explicación: Sin glicina "modulando en positivo", el receptor de glutamato NMDA no funciona.
+106. El Glutamato (Ácido glutámico) es el antagonista funcional del GABA, porque actúa fisiológicamente como: A) El principal neurotransmisor EXCITATORIO rápido del Sistema Nervioso Central (ampliamente distribuido, sobre todo en la corteza). B) El inhibidor medular principal. C) Una hormona que da sueño. D) Un bloqueador muscular.
+Respuesta correcta: A. Explicación: Es el "acelerador" de nuestro cerebro en contraposición al GABA.
+107. Las neuronas glutamatérgicas suelen sintetizar el glutamato de novo a partir de la desaminación de otro aminoácido que ha sido "enviado" desde las células gliales. ¿Cuál es? A) Histidina. B) Glicina. C) Glutamina (vía la enzima Glutaminasa). D) Alanina.
+Respuesta correcta: C. Explicación: Las glías reciclan el glutamato en glutamina segura y la mandan a la neurona, que le quita el grupo amino recuperando el excitador activo.
+108. (¡Pista de examen!) Un exceso sostenido de liberación de Glutamato (por ej. en isquemias, traumatismos o epilepsia) desencadena un proceso patológico letal para las neuronas conocido como: A) Depresión transitoria. B) Miastenia celular. C) Excitotoxicidad (entrada masiva e incontrolada de Calcio que activa proteasas, daño mitocondrial y lleva a la apoptosis/muerte neuronal). D) Parálisis de Bell.
+Respuesta correcta: C. Explicación: Se "sobreestimula" la célula metiendo tanto calcio que desencadena una cascada apoptótica y de radicales libres; esto está en la base del Alzheimer, fibromialgia, esclerosis, etc..
+109. ¿Por qué el receptor ionotrópico de Glutamato tipo NMDA es considerado "híbrido" o espacialmente complejo en procesos de plasticidad neuronal y aprendizaje? A) Porque solo funciona si tienes fiebre. B) Porque además de requerir ligandos (Glutamato y Glicina), su poro está bloqueado en reposo por un catión de MAGNESIO (Mg2+), necesitando un CAMBIO DE VOLTAJE previo para escupir el magnesio y dejar pasar el calcio. C) Porque inhibe la entrada iónica. D) Porque no tiene canal propio.
+Respuesta correcta: B. Explicación: Es un "detector de coincidencia". Necesita que otra señal haya despolarizado previamente la membrana para liberar el "tapón" de magnesio.
+110. A nivel cognitivo, ¿para qué es fundamental el glutamato y su controlada activación fina (como la del NMDA)? A) Solo para percibir colores. B) Para la plasticidad neuronal, la "poda sináptica" y la potenciación a largo plazo (LTP), que son la base biológica del APRENDIZAJE y la MEMORIA. C) Para digerir proteínas cárnicas. D) Para sudar.
+Respuesta correcta: B. Explicación: Remodela las ramas del árbol neuronal, fortaleciendo sinapsis usadas y podando inútiles.
+111. ¿Cómo se inactiva el Glutamato en la hendidura sináptica para evitar su enorme toxicidad? A) Mediante la enzima COMT exclusivamente. B) Evaporación de monómeros. C) Recaptación rápida y ávida por transportadores de aminoácidos excitatorios tanto en la neurona presináptica como en las Células Gliales (que lo convierten rápido a glutamina). D) Convirtiéndolo espontáneamente en ATP.
+Respuesta correcta: C. Explicación: Es idéntico al proceso del GABA; las glías actúan de esponja basurera vital para proteger al cerebro.
+112. Cambiando a purinas: ¿Es cierto que la famosa molécula energética ATP (Adenosín trifosfato) puede actuar "per se" como un neurotransmisor? A) No, el ATP solo sirve para dar energía a las bombas, nunca transmite señales. B) Sí, se almacena en vesículas, se libera, se recapta y actúa sobre receptores purinérgicos como neurotransmisor excitatorio rápido, especialmente en el SNA y dolor. C) Solo si se convierte en adrenalina. D) Únicamente en el hígado.
+Respuesta correcta: B. Explicación: Fue un descubrimiento sorprendente. "El ATP también funciona como neurotransmisor... en neuronas purinérgicas".
+113. El nucleósido Adenosina es un importante neuromodulador inhibitorio central que promueve: A) Convulsiones epilépticas graves. B) El estado de alerta y el pánico. C) La supresión de la excitación y la promoción natural del SUEÑO a medida que se acumula durante el día. D) La contracción muscular masiva.
+Respuesta correcta: C. Explicación: La adenosina en sus receptores A1 frena el cerebro promoviendo el descanso.
+114. (¡Asociación Cotidiana!) ¿Cuál es el mecanismo de acción de la CAFEÍNA en relación a la neurotransmisión purinérgica? A) Es un agonista de la serotonina. B) Es un inhibidor/antagonista que bloquea el receptor A1 de la Adenosina, impidiendo que esta nos cause sueño. C) Destruye a la MAO. D) Crea glutamato artificial.
+Respuesta correcta: B. Explicación: Al ocupar el sitio de la adenosina, el cerebro no se entera de que está cansado.
+115. El Óxido Nítrico (NO) y el Monóxido de Carbono (CO) son los conocidos "Gasotransmisores". ¿Qué regla de los neurotransmisores clásicos INCUMPLEN a nivel pre-sináptico? A) Solo existen en bacterias. B) No se sintetizan nunca en el cuerpo. C) Como son gases, NO se pueden almacenar en vesículas, no tienen receptores de membrana clásicos y su liberación escapa a los estímulos vesiculares normales. D) Son sólidos a temperatura corporal.
+Respuesta correcta: C. Explicación: Difunden libremente a través de los lípidos al momento de sintetizarse.
+116. El Óxido Nítrico (NO) tiene un comportamiento direccional "extraño" conocido como transmisión retrógrada. Esto quiere decir que: A) Va del intestino a la boca. B) Se sintetiza en la neurona POSTsináptica (tras estímulos glutamatérgicos y calcio) y viaja "hacia atrás" a la neurona PREsináptica para activar la guanilato ciclasa. C) Va del axón al soma. D) Bloquea todos los vasos sanguíneos.
+Respuesta correcta: B. Explicación: En lugar de viajar de emisor a receptor, viaja de receptor a emisor para "confirmar" o modular la señal.
+117. ¿A partir de qué proceso catabólico celular rutinario se forma el Monóxido de Carbono (CO) que va a funcionar como neuroprotector en el sistema nervioso? A) A partir de la oxidación de lípidos. B) A partir de la glucólisis anaerobia. C) En el proceso normal de degradación del grupo Hemo (ej. glóbulos rojos, citocromos). D) Por acción de la insulina.
+Respuesta correcta: C. Explicación: Aunque en altas dosis es tóxico, fisiológicamente el cuerpo genera su propio CO desde el hemo para regular el tono vascular.
+118. El ion ZINC (Zn) en el sistema nervioso actúa como un potente neuromodulador de la actividad excitatoria e inhibitoria. ¿Cuál es su acción sobre el Glutamato? A) Potencia masivamente el glutamato. B) Actúa como un antagonista natural, inhibiendo la acción del glutamato en los receptores NMDA (para evitar su sobreexcitación). C) Destruye al glutamato físicamente. D) Se une al ATP para formar vesículas.
+Respuesta correcta: B. Explicación: El Zinc controla al NMDA, evitando que se vuelva loco y cause excitotoxicidad.
+119. Entrando en el grupo de los "Neuropéptidos" (ej. Endorfinas, Sustancia P, VIP), ¿qué gran diferencia anatómica presentan en su síntesis comparados con neurotransmisores pequeños (ej. dopamina, gaba)? A) Se sintetizan en el hueso. B) Su síntesis NO ocurre en el botón terminal/sináptico, sino en los ribosomas del SOMA NEURONAL (cuerpo de la célula), requiriendo de transcripción/traducción proteica y empaquetamiento en el aparato de Golgi. C) No requieren precursores de aminoácidos. D) Se forman en la sangre extracelular.
+Respuesta correcta: B. Explicación: Al ser proteínas de 30-40 aminoácidos, la neurona tiene que usar la "fábrica pesada" del soma y luego bajarlos por el axón en grandes vesículas.
+120. Además de sintetizarse en el soma y almacenarse en vesículas grandes provenientes del Golgi, la INACTIVACIÓN sináptica de los Neuropéptidos: A) Se basa en una recaptación ultraveloz. B) Utiliza transportadores DAT. C) NO tiene transportadores de recaptación ni enzimas específicas rápidas, siendo degradados lentamente por peptidasas inespecíficas en el espacio extracelular, lo que explica su acción lenta y prolongada. D) Son bloqueados por anticuerpos en segundos.
+Respuesta correcta: C. Explicación: Sus efectos son neuromoduladores a muy largo plazo. Una vez liberados de forma difusa, las peptidasas genéricas los van destruyendo poco a poco, no hay un "limpiador de alta velocidad".
+</textarea>
+
+<script>
+    // Variables de Estado
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {}, // Almacena si fue correcta (true/false) por ID
+        marked: new Set() // IDs marcados
+    };
+
+    // --- Parser de Texto Literal a Array de Objetos ---
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        // Limpiamos cabeceras de bloque y saltos conflictivos
+        text = text.replace(/-+\nBLOQUE.*?\n/g, '').replace(/\r\n/g, '\n');
+        
+        // Separamos por el inicio de cada respuesta
+        let blocks = text.split(/(?=Respuesta correcta:)/);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Extraer la Respuesta y la Explicación del bloque actual
+            let ansMatch = block.match(/^Respuesta correcta:\s*([A-D])\.?\s*Explicación:\s*(.*?)(?=\n\d+\.\s|$)/s);
+            let correctLetter = ansMatch ? ansMatch[1] : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            // Lo que sobra es la siguiente pregunta
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            // Parsear el texto de la pregunta actual y sus opciones
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+A\)\s+(.*?)\s+B\)\s+(.*?)\s+C\)\s+(.*?)\s+D\)\s+(.*)/s);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    // Utilidad: Mezclar Array (Fisher-Yates)
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    // Iniciar Cuestionario
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        // Copiamos el dataset proporcionado y lo mezclamos si se pide
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        
+        // Reiniciar estado de respuestas en esta vuelta (Mantenemos los "marcados" de la BD global)
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1; // Número de visualización
+            
+            // 1. Crear Botón de Índice
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            // 2. Mezclar opciones internamente
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            // 3. Crear Tarjeta de Pregunta
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                // Usamos JSON.stringify para escapar comillas si las hubiera en el texto
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    // Funciones de Interacción
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return; // Ya respondida
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        // Bloquear todas y pintar
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            // Hack para saber cuál era la correcta evaluando el string del onclick
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        // Mostrar Explicación
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    // Finalización y Repeticiones
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        // Contar cuantas marcadas hay DENTRO DEL QUIZ ACTUAL
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            // Filtrar las incorrectas o no respondidas en la vuelta actual
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            // Unimos los ids de las falladas/no respondidas (de la sesión actual) y las marcadas globalmente
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    // Arranque
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

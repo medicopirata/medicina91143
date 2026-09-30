@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Fisiología Junio 2023</title>
+    <style>
+        :root {
+            --primary: #8e44ad;
+            --secondary: #9b59b6;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: #333;
+            background-color: #f4f6f7;
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 300px;
+            background-color: var(--dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a252f;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            overflow-y: auto;
+            padding-right: 5px;
+            flex-grow: 1;
+            align-content: start;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 6px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #ecf0f1;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.1s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary); transform: scale(1.1); z-index: 2; }
+        .nav-btn.active { background-color: var(--secondary); border: 2px solid white; }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--danger); color: white; }
+        .nav-btn.marked { box-shadow: inset 0 0 0 2px var(--warning); }
+
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        /* Main Content */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .screen { display: none; max-width: 900px; margin: 0 auto; }
+        .screen.active { display: block; }
+
+        /* UI Elements */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.1s, box-shadow 0.2s;
+            min-width: 200px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--dark); color: white; }
+        .btn-exam { background-color: var(--danger); color: white; }
+        .btn-action { background-color: var(--success); color: white; }
+        .btn-warning { background-color: var(--warning); color: #2c3e50; }
+
+        /* Question Styles */
+        .question-container {
+            background: white;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .question-text { font-size: 1.2em; font-weight: 600; color: #2c3e50; line-height: 1.4; text-align: left; }
+        
+        .mark-check {
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 28px;
+            transition: color 0.2s;
+            user-select: none;
+            margin-left: 15px;
+        }
+        .mark-check.marked { color: var(--warning); }
+        
+        .options-grid { display: grid; gap: 12px; }
+        .option {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+            text-align: left;
+        }
+        .option:hover:not(.disabled) { background-color: #e2e6ea; border-color: #adb5bd; }
+        .option.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
+        .option.disabled { cursor: default; pointer-events: none; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-radius: 8px;
+            display: none;
+            border-left: 5px solid var(--success);
+            text-align: left;
+        }
+        .feedback.error { background-color: #fdeaea; border-color: var(--danger); }
+
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3 id="sidebar-title">Preguntas</h3>
+        <div id="nav-grid"></div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--success)"></div> Bien</span>
+            <span><div class="dot" style="background:var(--danger)"></div> Mal</span>
+            <span><div class="dot" style="background:var(--warning)"></div> Marca</span>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="start-screen" class="screen active">
+            <div class="card">
+                <h1 style="color:var(--primary)">Fisiología Celular y Tisular</h1>
+                <h3 style="color:#7f8c8d">Examen Junio 2023</h3>
+                <p>31 Preguntas Oficiales</p>
+                <hr style="margin: 30px 0; opacity: 0.2">
+                
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <button class="btn btn-primary" onclick="startQuiz('ordered')">Realizar en Orden (1-31)</button>
+                    <button class="btn btn-secondary" onclick="startQuiz('random')">Orden Aleatorio</button>
+                    <button class="btn btn-exam" onclick="startQuiz('exam20')">Simulacro Rápido (20 Preguntas)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="questions-list"></div>
+            <div id="controls">
+                <button class="btn btn-exam" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);" onclick="finishQuiz()">Finalizar Examen</button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <div class="card">
+                <h2 style="color:var(--primary)">Resultados</h2>
+                <div id="score-display" style="font-size: 3em; font-weight:bold; color:var(--secondary); margin: 20px 0;"></div>
+                <div id="stats-display" style="color:#7f8c8d; font-size: 1.2em;"></div>
+                
+                <hr style="margin: 30px 0; opacity: 0.2">
+                <h3>Opciones de Repaso</h3>
+                <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+                    <button class="btn btn-exam" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn btn-warning" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-secondary" onclick="resetQuiz('failed_marked')">Falladas + Marcadas</button>
+                    <button class="btn btn-action" onclick="resetQuiz('all')">Repetir Examen Completo</button>
+                </div>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Data Base (31 Questions - June 2023) ---
+    const questionsDB = [
+        { id: 1, text: "Son antiagregantes plaquetarios procedentes del endotelio:", options: ["Prostaglandina I2 (Prostaciclina)", "Serotonina", "Tromboxano A2", "Factor de Von Willebrand", "Fibrinógeno"], correct: 0, explanation: "La Prostaciclina (PGI2) y el Óxido Nítrico son los principales antiagregantes liberados por el endotelio sano." },
+        { id: 2, text: "En relación a la neurotransmisión colinérgica es incorrecto afirmar:", options: ["La colina se recapta a nivel presináptico por el transportador de alta afinidad para colina", "El transporte de acetilcolina a las vesículas es un transporte activo secundario antiporte", "La actividad colinérgica es muy potente por la escasa actividad catalítica de la acetilcolinesterasa", "La colinacetiltransferasa media la unión de acetil-CoA y colina, en la síntesis de acetilcolina", "La neutrotransmisión colinérgica está limitada en patologías como el síndrome miasteniforme de Lambert Eaton"], correct: 2, explanation: "INCORRECTO: La acetilcolinesterasa tiene una actividad catalítica extremadamente ALTA y rápida, no escasa." },
+        { id: 3, text: "Con respecto a los neutrófilos es incorrecto decir que:", options: ["Son los principales responsables de las respuestas alérgicas", "Fagocitan bacterias y partículas extrañas", "Son los glóbulos blancos más escasos en sangre circulante", "Mediante su degranulación liberan sustancias oxidantes y proteasas", "Circulan en sangre y se reclutan en los tejidos tras una infección bacteriana"], correct: 2, explanation: "INCORRECTO: Los neutrófilos son los leucocitos MÁS abundantes (60-70%), no los más escasos. (Nota: La opción A también es técnicamente falsa pues los basófilos/mastocitos median la alergia, pero C es un error cuantitativo flagrante)." },
+        { id: 4, text: "La aparición de petequias es indicativo de:", options: ["No funciona la vía intrínseca de la coagulación", "Una disminución en la función plaquetaria (Trombocitopenia/patía)", "Insuficiencia de vitamina K", "No funciona la vía extrínseca de la coagulación", "Insuficiencia de vitamina B12"], correct: 1, explanation: "Las petequias son características de defectos en la hemostasia primaria (plaquetas)." },
+        { id: 5, text: "Referido a la generación y/o conducción del potencial de acción (p.a):", options: ["En el síndrome de Guillain-Barré la desmielinización reduce la velocidad... debido a aumento en capacitancia", "La inactivación de canales K+ impide nuevo p.a", "Se puede generar en cualquier punto de la neurona", "En el segmento inicial la densidad de canales Na+ es baja", "La mielinización tiene un mayor impacto en la velocidad que el aumento del diámetro"], correct: 4, explanation: "La mielinización (conducción saltatoria) aumenta la velocidad mucho más eficientemente que aumentar el diámetro." },
+        { id: 6, text: "¿Cuál/es de las siguientes moléculas participa/n en procesos de señalización paracrina?:", options: ["Conexinas", "Factores estimulantes del crecimiento de colonias", "Integrinas", "Cadherinas", "Neurotrofinas"], correct: 4, explanation: "Las neurotrofinas (como NGF, BDNF) actúan frecuentemente como señales paracrinas o retrógradas." },
+        { id: 7, text: "Indique cuál/es de los siguientes NO son posibles mecanismos para inhibir la acción de una citoquina:", options: ["Mediante otra citoquina con efecto opuesto", "Mediante recaptación de la citoquina por transportadores localizados en células análogas", "Mediante receptores solubles que compiten con el receptor de membrana", "Mediante enzimas que degradan las citoquinas", "Mediante una molécula análoga que actúe como inhibidor competitivo"], correct: 1, explanation: "Las citoquinas no se 'recaptan' como los neurotransmisores clásicos; se degradan o internalizan con el receptor." },
+        { id: 8, text: "Con respecto a la neutrotransmisión glutamatérgica es incorrecto afirmar que:", options: ["El receptor NMDA requiere de la unión de la glicerina como co-agonista", "Las sinapsis glutamatérgicas están mediadas por receptores tipo NMDA y no-NMDA", "El comportamiento de los receptores NMDA depende del potencial de membrana", "La actividad excitadora o inhibitoria del glutamato depende de su localización", "El bloqueo de receptores NMDA interfiere con el aprendizaje"], correct: 0, explanation: "INCORRECTO: El receptor NMDA requiere GLICINA, no 'Glicerina' (Glicerol). (Error tipográfico en el examen original que hace falsa la opción)." },
+        { id: 9, text: "En cuanto a la eficacia sináptica en invertebrados es incorrecto:", options: ["La sensibilización implica un aumento de la eficacia sináptica", "El condicionamiento clásico implica facilitación presináptica...", "En la sensibilización se observa una disminución de la liberación de neurotransmisor", "En la habituación hay una disminución en el número de vesículas", "La habituación implica un decremento de la eficacia sináptica"], correct: 2, explanation: "INCORRECTO: En la sensibilización AUMENTA la liberación de neurotransmisor (serotonina facilita)." },
+        { id: 10, text: "En relación a los alimentos y nutrientes es incorrecto afirmar que:", options: ["Los requerimientos energéticos son, en general, mayores en el embarazo que en la lactancia", "La comida basura activa circuitos de recompensa", "Las dietas veganas requieren suplementos", "La palatabilidad mejora con aceite", "El 'plato Harvard' es una guía saludable"], correct: 0, explanation: "INCORRECTO: La lactancia suele requerir un mayor aporte energético metabólico que el embarazo mismo." },
+        { id: 11, text: "Respecto a los mecanismos de transporte activo es incorrecto que:", options: ["La ATPasa Na+ K- introduce 2 K+ y saca 3 Na+", "El tipo primario utiliza energía directa del ATP", "El soluto se transporta contra gradiente", "Crea y mantiene un estado de desequilibrio", "En el de tipo secundario la hidrólisis de ATP se produce por la propia proteína transportadora"], correct: 4, explanation: "INCORRECTO: En el transporte secundario, la proteína NO hidroliza ATP; usa la energía cinética del gradiente de otro ión (creado previamente por un primario)." },
+        { id: 12, text: "Los potenciales locales o electrotónicos (señala la incorrecta):", options: ["Pueden sumarse en el tiempo y en el espacio", "Sólo tienen lugar en células excitables fisiológicamente", "Son potenciales de acción", "Ocurren experimentalmente en respuesta a corriente", "Son cambios en el potencial de membrana"], correct: 2, explanation: "INCORRECTO: Los potenciales locales NO son potenciales de acción (no son 'todo o nada', no se propagan sin decaer)." },
+        { id: 13, text: "Cuando nos referimos al fenómeno de adaptación en los receptores sensoriales:", options: ["Hablamso de receptor fásico cuando la adaptación es rápida", "Al continuar el estímulo la respuesta es continua indefinidamente", "Hablamos de receptor tónico cuando la adaptación es rápida", "La adaptación permite mantener la respuesta sin estímulo", "Mejora la transducción"], correct: 0, explanation: "Receptor Fásico = Adaptación Rápida. Receptor Tónico = Adaptación Lenta." },
+        { id: 14, text: "Respecto al óxido nítrico es incorrecto decir que:", options: ["Promueve la agregación plaquetaria", "Regula la relajación vascular (vasodilatación)", "Se une a grupos -SH", "Regula la guanilato ciclasa soluble", "Se sintetiza en células endoteliales"], correct: 0, explanation: "INCORRECTO: El NO inhibe la agregación plaquetaria y produce vasodilatación." },
+        { id: 15, text: "Un índice hematocrito del 42% indica:", options: ["Contenido de eritrocitos es 58%", "Trombocitopenia", "Relación volumen células/total es 42%", "Infección", "Relación volumen eritrocitos/total es 42%"], correct: 4, explanation: "El hematocrito es el porcentaje del volumen total de sangre ocupado por los glóbulos rojos." },
+        { id: 16, text: "Son factores activadores de la agregación plaquetaria:", options: ["Óxido nítrico", "Antitrombina", "Prostaciclina (PGI2)", "Serotonina", "Tromboxano A2"], correct: 4, explanation: "El Tromboxano A2 es un potente agregante y vasoconstrictor. (Serotonina es un agonista débil, TxA2 es la respuesta principal)." },
+        { id: 17, text: "Respecto a la hematopoyesis:", options: ["En el adulto, las células madre están en médula ósea de huesos planos (esternón)", "Eritrocitos son fragmentos de megacariocitos", "Procesos regulados por interleuquinas", "Todos a partir de megacariocitos", "Reticulocitos precursores de plaquetas"], correct: 0, explanation: "La hematopoyesis adulta ocurre en la médula ósea roja (huesos planos y epífisis de largos)." },
+        { id: 18, text: "Señale la incorrecta: Madre A- (AO) y Padre B- (BO) pueden tener hijos:", options: ["A", "AB", "0+ (Rh positivo)", "B", "0-"], correct: 2, explanation: "INCORRECTO: Si ambos padres son Rh- (dd), no pueden tener un hijo Rh+ (D_), ya que ninguno tiene el alelo D." },
+        { id: 19, text: "¿Cuál/es de los siguientes elementos NO están relacionados con la LTP?:", options: ["Respuesta a estímulos alta frecuencia", "Fosforilación receptores AMPA", "LTP tardía cambios estructurales", "LTP temprana cambios eficacia", "La LTP induce aumento de liberación de GABA presináptico"], correct: 4, explanation: "INCORRECTO: La LTP suele referirse a sinapsis glutamatérgicas excitatorias, no al aumento de GABA (inhibidor)." },
+        { id: 20, text: "Indique cuál NO es un mecanismo para inhibir una citoquina (Repetida Q7):", options: ["Otra citoquina opuesta", "Recaptación de la citoquina", "Receptores solubles", "Enzimas degradadoras", "Molécula análoga"], correct: 1, explanation: "Las citoquinas no se recaptan." },
+        { id: 21, text: "En cuanto a ingesta de nutrientes es incorrecto:", options: ["Colesterol 300mg/día", "Producción endógena de omega 3/6 suple la ingesta", "Lactante requiere más proteína proporcionalmente", "Azúcares origen natural", "Ingesta calórica lactante proporcionalmente menor"], correct: 1, explanation: "INCORRECTO: Los ácidos grasos Omega 3 y 6 son ESENCIALES, el cuerpo no puede sintetizarlos, deben ingerirse." },
+        { id: 22, text: "Solución NaCl 75mM (150 mOsm). Añadir 150mM de X para ser Isosmolar (300) e Hipotónica:", options: ["Sacarosa", "Glucosa", "Urea", "KCl", "Benceno"], correct: 2, explanation: "Para ser Isosmolar debe sumar 300 mOsm total (150 NaCl + 150 Urea). Para ser Hipotónica, el soluto añadido debe penetrar la célula (Urea penetra), dejando solo los 150 mOsm efectivos del NaCl (Hipotónico)." },
+        { id: 23, text: "Respecto a monocitos y macrófagos:", options: ["Fagocitan patógenos y son CPA", "Liberan heparina", "Son CPA (Presentadoras Antígeno)", "Más abundantes", "Liberan histamina"], correct: 2, explanation: "Son Células Presentadoras de Antígeno (CPA) profesionales y fagocitos. (Nota: La A también es correcta, pero C es su función inmunológica distintiva en contexto tisular)." },
+        { id: 24, text: "Requerimientos para eritropoyesis:", options: ["Vitamina K", "Ácido fólico", "Hierro", "Vitamina C", "Calcio"], correct: 2, explanation: "El hierro es fundamental para el grupo Hemo. (Ácido fólico y B12 también, pero Hierro es la respuesta clásica de 'ladrillo')." },
+        { id: 25, text: "La antitrombina (señale la incorrecta):", options: ["Es una enzima de la cascada", "Heparina interactúa con ella", "Se une a trombina y la inactiva", "Heparina aumenta su afinidad", "Es anticoagulante"], correct: 0, explanation: "INCORRECTA: La antitrombina no es una enzima (proteasa) activa de la cascada, es un INHIBIDOR (serpina) de las proteasas." },
+        { id: 26, text: "¿Cuál no interviene en la formación del coágulo de fibrina?", options: ["Óxido nítrico", "Calcio", "Factor tisular", "Trombina", "Vitamina K"], correct: 0, explanation: "El Óxido Nítrico es anticoagulante/vasodilatador, no forma el coágulo." },
+        { id: 27, text: "Un fallo en la retracción del coágulo es indicativo de:", options: ["Fallo vía intrínseca", "Insuficiencia Vit K", "Nada es correcto", "Insuficiencia plasminógeno", "Disminución en la función plaquetaria"], correct: 4, explanation: "La retracción del coágulo depende de la actina/miosina de las plaquetas." },
+        { id: 28, text: "¿Qué tipos celulares son presentadores de antígenos?", options: ["Macrófagos", "Eosinófilos", "Neutrófilos", "Mastocitos", "Basófilos"], correct: 0, explanation: "Macrófagos, Células Dendríticas y Linfocitos B son las CPA profesionales." },
+        { id: 29, text: "Vía señalización: ligando > receptor > proteína G > adenilato ciclasa > AMPc. El segundo mensajero es:", options: ["Adenilato ciclasa", "AMPc", "Proteína G", "Receptor", "Ligando"], correct: 1, explanation: "El AMPc (AMPCíclico) es el segundo mensajero generado." },
+        { id: 30, text: "¿Cuál/es de las siguientes son propiedades de los eritrocitos?", options: ["Hemoglobina se oxida a metahemoglobina (Falso, patológico)", "Carecen de citoesqueleto (Falso, espectrina)", "Toda la energía de forma anaerobia", "Menos resistencia osmótica", "Muy flexibles"], correct: 2, explanation: "Obtienen energía solo por glucólisis anaerobia (no tienen mitocondrias)." },
+        { id: 31, text: "Indique cuál/es de estas moléculas son segundos mensajeros:", options: ["AMPc y Diacilglicerol", "Acetilcolina", "Diacilglicerol", "Fosfolipasa C", "PKA"], correct: 0, explanation: "AMPc y DAG son segundos mensajeros clásicos." }
+    ];
+
+    // --- Quiz Logic ---
+    let currentQuestions = [];
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentMode = 'ordered';
+
+    function startQuiz(mode) {
+        currentMode = mode;
+        userAnswers = {};
+        markedQuestions.clear();
+        
+        let indices = questionsDB.map((_, i) => i);
+        
+        if (mode === 'random') {
+            indices.sort(() => Math.random() - 0.5);
+        } else if (mode === 'exam20') {
+            indices.sort(() => Math.random() - 0.5);
+            indices = indices.slice(0, 20);
+        }
+
+        loadQuestions(indices);
+        
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function loadQuestions(indices) {
+        currentQuestions = indices;
+        const container = document.getElementById('questions-list');
+        const navGrid = document.getElementById('nav-grid');
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        indices.forEach((qIndex, displayIndex) => {
+            const q = questionsDB[qIndex];
+            
+            // Randomize options map
+            let optionIndices = q.options.map((_, i) => i);
+            optionIndices.sort(() => Math.random() - 0.5);
+            
+            // Render HTML
+            const div = document.createElement('div');
+            div.className = 'question-container';
+            div.id = `q-${qIndex}`;
+            div.innerHTML = `
+                <div class="question-header">
+                    <span class="question-text">${displayIndex}. ${q.text}</span>
+                    <span class="mark-check" onclick="toggleMark(${qIndex})" id="mark-${qIndex}" title="Marcar para revisar">★</span>
+                </div>
+                <div class="options-grid">
+                    ${optionIndices.map(optIdx => `
+                        <div class="option" onclick="selectAnswer(${qIndex}, ${optIdx}, this, ${q.correct})">
+                            ${q.options[optIdx]}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="feedback" id="feedback-${qIndex}"></div>
+            `;
+            container.appendChild(div);
+
+            // Sidebar Item
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.innerText = displayIndex;
+            navBtn.id = `nav-${qIndex}`;
+            navBtn.onclick = () => {
+                document.getElementById(`q-${qIndex}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            navGrid.appendChild(navBtn);
+        });
+    }
+
+    function selectAnswer(qIndex, selectedOptIdx, optionElem, correctOptIdx) {
+        if (userAnswers[qIndex]) return; // Already answered
+
+        const isCorrect = selectedOptIdx === correctOptIdx;
+        userAnswers[qIndex] = { selectedOption: selectedOptIdx, isCorrect: isCorrect };
+
+        // UI Updates
+        const parent = optionElem.parentNode;
+        const options = parent.getElementsByClassName('option');
+        
+        for(let opt of options) {
+            opt.classList.add('disabled');
+            if (opt.innerText.trim() === questionsDB[qIndex].options[correctOptIdx].trim()) {
+                opt.classList.add('correct');
+            }
+        }
+
+        if (!isCorrect) {
+            optionElem.classList.add('incorrect');
+        }
+
+        // Show Feedback
+        const feedbackEl = document.getElementById(`feedback-${qIndex}`);
+        feedbackEl.style.display = 'block';
+        feedbackEl.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Respuesta Incorrecta'}</strong><br>${questionsDB[qIndex].explanation || ''}`;
+        feedbackEl.classList.add(isCorrect ? 'success' : 'error');
+
+        // Update Sidebar
+        const navBtn = document.getElementById(`nav-${qIndex}`);
+        navBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qIndex) {
+        if (markedQuestions.has(qIndex)) {
+            markedQuestions.delete(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.remove('marked');
+            document.getElementById(`nav-${qIndex}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.add('marked');
+            document.getElementById(`nav-${qIndex}`).classList.add('marked');
+        }
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = total > 0 ? ((correct / total) * 10).toFixed(1) : 0;
+
+        const scoreEl = document.getElementById('score-display');
+        const statsEl = document.getElementById('stats-display');
+
+        scoreEl.innerHTML = `Nota: ${score} / 10`;
+        statsEl.innerHTML = `Aciertos: ${correct} / ${total}`;
+
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+    }
+
+    function resetQuiz(criteria) {
+        let nextIndices = [];
+
+        if (criteria === 'all') {
+            startQuiz(currentMode);
+            return;
+        }
+
+        if (criteria === 'failed') {
+            nextIndices = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+        } else if (criteria === 'marked') {
+            nextIndices = Array.from(markedQuestions);
+        } else if (criteria === 'failed_marked') {
+            const failed = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+            const marked = Array.from(markedQuestions);
+            nextIndices = [...new Set([...failed, ...marked])];
+        }
+
+        if (nextIndices.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        userAnswers = {};
+        nextIndices.sort(() => Math.random() - 0.5);
+
+        loadQuestions(nextIndices);
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Receptores y Placa Motora</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. Según el repaso inicial del profesor en clase, ¿cómo se reciclan funcionalmente las vesículas sinápticas tras liberar el neurotransmisor? A) Por difusión simple. B) Por exocitosis inversa. C) Por endocitosis. D) Por transporte activo de clatrina libre. Respuesta correcta: C Explicación: El profesor confirma durante el Kahoot que el reciclaje de las vesículas se produce mediante endocitosis.
+2. ¿Qué efecto patológico característico tiene la toxina botulínica en la unión neuromuscular, mencionado durante la clase? A) Parálisis espástica. B) Genera arrugas. C) Parálisis flácida. D) Hiperexcitabilidad muscular. Respuesta correcta: C Explicación: El profesor explica que el botulismo produce una parálisis flácida al impedir la liberación de neurotransmisores, motivo por el cual se busca farmacológicamente crear agonistas.
+3. Los receptores postsinápticos se clasifican según el control que ejercen sobre los canales iónicos. ¿Cómo se denominan aquellos que actúan mediante un control INDIRECTO? A) Receptores ionotrópicos. B) Receptores metabotrópicos. C) Canales de fuga. D) Canales activados por voltaje. Respuesta correcta: B Explicación: Los metabotrópicos están acoplados a proteínas G, por lo que el receptor y el canal iónico son proteínas distintas, ejerciendo un control indirecto.
+4. ¿Qué característica estructural define fundamentalmente a un receptor IONOTRÓPICO? A) Está acoplado a una proteína G intracelular. B) Tiene tres dominios: extracelular, intracelular y nuclear. C) El propio receptor tiene una parte transmembrana que forma el canal iónico. D) Requiere la síntesis de AMPc para abrirse. Respuesta correcta: C Explicación: El profesor insiste en que en los ionotrópicos, la propia proteína tiene el sitio de unión y forma el canal a través de la membrana.
+5. Respecto a la latencia o duración de las respuestas, los receptores metabotrópicos median respuestas: A) Extremadamente rápidas (milisegundos). B) Mucho más lentas (cientos de milisegundos, minutos o incluso horas). C) Inmediatas, sin retraso sináptico. D) Estrictamente de 1 milisegundo. Respuesta correcta: B Explicación: Al depender de cascadas de segundos mensajeros y proteínas G, los metabotrópicos son mucho más lentos que los ionotrópicos.
+6. El dominio intracelular de un receptor metabotrópico tiene como función principal: A) Formar un poro acuoso para el Sodio. B) Unir el neurotransmisor de reserva. C) Interactuar y activar a una proteína G. D) Fosforilar el núcleo de la célula. Respuesta correcta: C Explicación: Según las diapositivas y la clase, el dominio extracelular une el NT, y el intracelular activa la proteína G.
+7. ¿Por qué la unión neuromuscular (especialmente de la rana) es el modelo por antonomasia para estudiar la transmisión sináptica in vitro? A) Porque es la sinapsis más compleja del cuerpo. B) Porque es muy resistente a la hipoxia y fácil de aislar y mantener viva. C) Porque sus neuronas no tienen vaina de mielina. D) Porque utiliza glutamato como neurotransmisor. Respuesta correcta: B Explicación: El profesor destaca que es fácil de mantener fuera del organismo porque resiste muy bien la falta de oxígeno (anoxia/hipoxia).
+8. En la unión neuromuscular existe una relación "uno a uno". ¿Qué significa esto fisiológicamente? A) Un músculo solo tiene una célula muscular. B) Un neurotransmisor solo se une a un receptor. C) Una motoneurona controla todas las fibras de un músculo. D) Una fibra muscular es controlada por una sola motoneurona, facilitando el estudio de la integración. Respuesta correcta: D Explicación: A diferencia del SNC donde una neurona recibe miles de sinapsis, en la placa motora una fibra recibe aferencias de una sola motoneurona.
+9. ¿Qué nivel de "eficacia" tiene la sinapsis de la unión neuromuscular en condiciones fisiológicas normales? A) Muy bajo, requiere sumación de muchas neuronas. B) Medio, funciona el 50% de las veces. C) Alto grado de eficacia: en el 100% de las ocasiones un PA presináptico genera un PA postsináptico. D) Nulo, solo genera potenciales electrotónicos que se pierden. Respuesta correcta: C Explicación: El profesor subraya que tiene un alto grado de eficacia, garantizando siempre la contracción muscular.
+10. El neurotransmisor utilizado en la unión neuromuscular de los vertebrados y estudiado en estos experimentos es: A) Glutamato. B) GABA. C) Glicina. D) Acetilcolina. Respuesta correcta: D Explicación: La acetilcolina se libera desde el terminal motor y se une a receptores nicotínicos en la fibra muscular.
+11. ¿Qué tipo de receptores se encuentran concentrados en las indentaciones de la placa motora para recibir a la Acetilcolina? A) Receptores muscarínicos metabotrópicos. B) Receptores nicotínicos ionotrópicos. C) Receptores de Glutamato tipo NMDA. D) Receptores adrenérgicos. Respuesta correcta: B Explicación: El profesor menciona explícitamente que son receptores nicotínicos, que son canales iónicos activados por ligando (ionotrópicos).
+12. El Potencial de Placa Motora (PPM) es por definición: A) Un potencial de acción muscular. B) Una respuesta de repolarización masiva. C) Una respuesta LOCAL (potencial electrotónico o graduado) que se propaga pasivamente con decremento. D) Un potencial de reposo alterado por patología. Respuesta correcta: C Explicación: Al igual que otros potenciales postsinápticos, el PPM es una despolarización local y graduada que decae en el espacio.
+13. (PREGUNTA DESTACADA POR EL PROFESOR) Si el PPM en condiciones fisiológicas siempre alcanza el umbral y genera un potencial de acción que "ensucia" el registro, ¿cómo se logra AISLAR experimentalmente el PPM para estudiarlo solo? A) Aumentando la concentración de sodio extracelular. B) Disminuyendo la concentración de Calcio (Ca2+) en el líquido extracelular. C) Cortando el axón motor. D) Enfriando la preparación a 0ºC. Respuesta correcta: B Explicación: Al disminuir el calcio extracelular, entra menos calcio al terminal presináptico, se libera menos neurotransmisor y el PPM generado no alcanza el umbral, pudiendo estudiarse de forma aislada.
+14. Al reducir la concentración de calcio extracelular en este experimento, logramos específicamente que: A) Se libere menos neurotransmisor (Acetilcolina) tras la llegada del PA al terminal presináptico. B) Se inactiven los receptores postsinápticos. C) El músculo pierda su capacidad contráctil permanentemente. D) La fibra muscular se vuelva eléctricamente neutra. Respuesta correcta: A Explicación: La liberación de NT es dependiente de calcio; menos calcio externo = menos entrada de calcio = menos exocitosis de vesículas.
+15. Al registrar la Corriente de Placa Motora (CPM) generada tras la estimulación, el profesor indica que se observa una "corriente negativa". En electrofisiología, esto significa: A) Que la célula está muriendo. B) Que están saliendo cargas positivas de la célula. C) Que es una corriente neta de ENTRADA de iones (cargas positivas que entran a la célula). D) Que están entrando electrones negativos. Respuesta correcta: C Explicación: El profesor hace hincapié: una corriente negativa se interpreta como una corriente de entrada a la célula (cationes entrando), lo que provoca despolarización.
+16. ¿Qué efecto tiene sobre el voltaje de la membrana (Vm) esta corriente "negativa" de placa motora? A) Hiperpolarización. B) Despolarización. C) Estabilización en -90 mV. D) Ningún cambio. Respuesta correcta: B Explicación: Al entrar cargas netas positivas al interior celular, el potencial de membrana se hace menos negativo (se despolariza).
+17. Según los datos del experimento, ¿cuál es el Potencial de Equilibrio para el Potasio (EK)? A) +65 mV. B) 0 mV. C) -100 mV. D) -65 mV. Respuesta correcta: C Explicación: El profesor indica claramente en la pizarra/diapositivas que el EK es -100 mV.
+18. ¿Cuál es el Potencial de Equilibrio para el Sodio (ENa) en esta misma preparación? A) -100 mV. B) +65 mV. C) 0 mV. D) -20 mV. Respuesta correcta: B Explicación: El profesor y las diapositivas sitúan el ENa en +65 mV.
+19. Según la Ley de Ohm (I=g(Vm−E)), si la membrana postsináptica de la placa motora fuera EXCLUSIVAMENTE permeable al Potasio, ¿a qué potencial de membrana (Vm) la corriente sería cero (desaparecería el PPM)? A) A +65 mV. B) A 0 mV. C) A -100 mV (su potencial de equilibrio). D) A -20 mV. Respuesta correcta: C Explicación: Si el potasio fuera el único ión, al alcanzar su potencial de equilibrio (-100mV), no habría fuerza electromotriz (Vm−EK=0), por tanto la corriente sería cero.
+20. De igual forma, si los receptores nicotínicos fueran EXCLUSIVAMENTE permeables al Sodio, el potencial de placa desaparecería al fijar el Vm en: A) -100 mV. B) 0 mV. C) -65 mV. D) +65 mV. Respuesta correcta: D Explicación: A +65 mV, el gradiente electroquímico del sodio se anula, por lo que no habría corriente neta de sodio.
+21. Sin embargo, en la realidad experimental, el Potencial de Placa Motora se invierte/cancela a un Vm de aproximadamente: A) -100 mV. B) +65 mV. C) 0 mV. D) -90 mV. Respuesta correcta: C Explicación: Los registros muestran que la corriente se anula y cambia de signo justo a 0 mV, lo que se denomina Potencial de Inversión.
+22. ¿Qué conclusión fundamental extrae el profesor del hecho de que el potencial de inversión sea 0 mV y no coincida con el ENa ni el EK? A) Que los canales nicotínicos son impermeables a los iones. B) Que los canales activados por Acetilcolina no son selectivos para un solo ión, sino que dejan permear AMBOS iones (Sodio y Potasio) simultáneamente. C) Que el Cloro es el verdadero responsable del PPM. D) Que la membrana ha sido destruida por la técnica. Respuesta correcta: B Explicación: Al cancelarse en un punto intermedio, demuestra que tanto el sodio como el potasio participan en la corriente a través de ese canal.
+23. ¿A qué se denomina "Potencial de Inversión" en una sinapsis? A) Al potencial de equilibrio de un ión individual aislado en el vacío. B) Al potencial de membrana al cual la corriente iónica NETA a través de los canales activados por el NT es cero (se cancela o cambia de signo). C) Al punto donde se abren los canales de Calcio. D) Al voltaje máximo del potencial de acción. Respuesta correcta: B Explicación: El potencial de inversión es el Vm donde las corrientes de entrada y salida se igualan (flujo neto = 0) a través del canal sináptico.
+24. A un potencial de membrana de 0 mV (su potencial de inversión), ¿qué está ocurriendo físicamente con los iones en el receptor nicotínico? A) Los canales están cerrados. B) Solo entra Sodio. C) La cantidad de Sodio que entra es exactamente igual a la cantidad de Potasio que sale, resultando en un flujo neto cero. D) La bomba Na/K se detiene. Respuesta correcta: C Explicación: El profesor pone el ejemplo: "Si saco tres cargas positivas (K+) y meto a la vez otras tres cargas positivas (Na+), no cambio el potencial".
+25. Si los canales nicotínicos fueran EXACTAMENTE IGUAL de permeables al Sodio y al Potasio, el potencial de inversión esperado sería: A) 0 mV exactos. B) El punto matemático intermedio entre -100 mV y +65 mV (aprox. -17 a -20 mV). C) +65 mV. D) -100 mV. Respuesta correcta: B Explicación: El profesor razona que si participaran por igual, el punto de corte sería la mitad exacta entre ambos potenciales de equilibrio. Como no es así, uno es más permeable que otro.
+26. Puesto que el potencial de inversión real (0 mV) está más cerca del potencial de equilibrio del Sodio (+65 mV) que del Potasio (-100 mV), deducimos que: A) El canal es más permeable al Potasio. B) El canal es más permeable al Sodio (aprox. 1.8 veces más). C) El canal es impermeable al Sodio. D) El Calcio es el que dicta el potencial. Respuesta correcta: B Explicación: Por ecuación de Goldman, si el potencial de inversión se "arrastra" hacia el ENa, significa que el canal tiene mayor conductancia intrínseca para el Na+ (PNa=1.8PK).
+27. A un Potencial de Membrana en reposo fisiológico (-90 mV en el músculo), ¿por qué se produce una DESPOLARIZACIÓN cuando se abre el canal nicotínico? A) Porque la fuerza electromotriz para el Sodio es inmensa (gran entrada) mientras que para el Potasio es pequeña (poca salida), resultando en una entrada neta de cationes. B) Porque solo sale Potasio. C) Porque entra Cloro. D) Porque los canales se bloquean. Respuesta correcta: A Explicación: A -90mV, estamos muy lejos de +65mV (fuerza impulsora gigante para el Na+) y muy cerca de -100mV (fuerza impulsora pequeña para el K+). Por tanto, entra mucho más Na+ del K+ que sale.
+28. Aplicando la Ley de Ohm (I=g(Vm−E)) al receptor postsináptico, ¿qué parámetro determina el número de canales iónicos que se abren? A) La intensidad (I). B) La fuerza electromotriz (Vm−E). C) La conductancia (g). D) El potencial de equilibrio (E). Respuesta correcta: C Explicación: La "g" (conductancia) es directamente proporcional al número de canales abiertos en la membrana.
+29. ¿Qué técnica electrofisiológica avanzada menciona el profesor que permite aislar un fragmento de membrana para estudiar las corrientes de UN SOLO canal iónico? A) Western Blot. B) Patch-Clamp en configuración "outside-out". C) Electroencefalograma. D) Microscopía electrónica de barrido. Respuesta correcta: B Explicación: El profesor describe la técnica de Patch-Clamp (outside-out) donde se expone la cara externa de la membrana a una pipeta para añadir ligandos.
+30. En un registro de Patch-Clamp de un canal iónico individual, ¿qué aspecto tiene la gráfica de la corriente? A) Es una curva sinusoidal continua. B) Muestra transiciones cuadradas abruptas entre un estado de "cerrado" (cero corriente) y "abierto" (corriente fija de pequeña amplitud). C) Es una línea plana inalterable. D) Muestra picos que aumentan exponencialmente de tamaño. Respuesta correcta: B Explicación: Un canal individual solo puede estar abierto o cerrado. Su apertura genera una corriente cuadrada minúscula (ej. 2 pA) y al cerrarse vuelve a cero.
+31. ¿Cuál es una aplicación práctica fundamental de la técnica Patch-Clamp mencionada por el profesor relacionada con enfermedades como el botulismo? A) Extraer el ADN del músculo. B) Testar fármacos de nuevo diseño (ej. buscar agonistas específicos) observando si logran abrir los canales aislados. C) Destruir las toxinas directamente con electricidad. D) Medir la presión arterial. Respuesta correcta: B Explicación: El profesor comenta que sirve para probar moléculas que actúen como agonistas/antagonistas y ver si abren o cierran el canal en tiempo real.
+32. Si el registro de un canal nicotínico individual nos muestra una corriente unitaria de aproximadamente 2 picoamperios (pA), y la corriente macroscópica de todo el potencial de placa es de 600,000 pA. ¿Cuántos canales deben abrirse simultáneamente? A) 2 canales. B) 100 canales. C) Aproximadamente 300,000 canales. D) 1,200,000 canales. Respuesta correcta: C Explicación: El profesor hace el cálculo simulado en clase: 600,000 / 2 = 300,000 canales activos necesarios para generar esa corriente total.
+33. En resumen, la corriente TOTAL que pasa a través de la membrana postsináptica NO depende de: A) El número de canales que se abren (conductancia). B) El gradiente de concentración de los iones (potencial de equilibrio). C) El potencial de membrana en ese instante (Vm). D) El peso molecular de los lípidos de la bicapa. Respuesta correcta: D Explicación: La corriente I=g(Vm−E) depende de la conductancia (canales abiertos), el Vm, y el E (gradientes).
+34. A diferencia de la placa motora (todas excitadoras), las sinapsis en el Sistema Nervioso Central (SNC) entre neuronas: A) Son siempre inhibidoras. B) Pueden ser excitadoras o inhibidoras, permitiendo la integración de señales. C) Nunca usan receptores ionotrópicos. D) Tienen una relación uno-a-uno infalible. Respuesta correcta: B Explicación: El profesor indica que en el SNC una neurona recibe miles de sinapsis de ambos tipos para integrar la información y decidir si dispara o no.
+35. Clásicamente, ¿cuál es el neurotransmisor principal de las sinapsis EXCITADORAS en el Sistema Nervioso Central? A) GABA. B) Glicina. C) Glutamato. D) Endorfinas. Respuesta correcta: C Explicación: En la mayoría de los casos, las sinapsis excitadoras del SNC utilizan Glutamato.
+36. ¿A qué iones son permeables los canales iónicos activados por Glutamato en las sinapsis excitadoras del SNC? A) Exclusivamente a Calcio. B) Exclusivamente a Cloro. C) A Sodio (Na+) y Potasio (K+) conjuntamente. D) A Magnesio puro. Respuesta correcta: C Explicación: Al igual que los nicotínicos de ACh, los receptores excitadores de glutamato abren canales catiónicos permeables a Na+ y K+.
+37. ¿Qué es un EPSP? A) Potencial de Placa Somática Extra. B) Potencial Postsináptico Inhibidor. C) Potencial Postsináptico Excitador (del inglés Excitatory Postsynaptic Potential). D) Enzima Proteolítica de Sinapsis Periférica. Respuesta correcta: C Explicación: Es la despolarización generada en la neurona postsináptica por un transmisor excitador.
+38. Fisiológicamente, ¿cómo se define correctamente una "sinapsis excitadora"? A) Aquella que siempre llega a +30 mV. B) Aquella que AUMENTA la probabilidad de que se genere un potencial de acción en la neurona postsináptica (la acerca al umbral). C) Aquella que detiene la bomba Na+/K+. D) Aquella que hiperpolariza la célula. Respuesta correcta: B Explicación: El profesor pide no confundir excitar con despolarizar a ciegas, y define excitadora como la que aumenta la probabilidad de disparo de un AP.
+39. ¿Cuáles son los dos neurotransmisores INHIBIDORES más frecuentes en el Sistema Nervioso Central? A) Glutamato y Aspartato. B) Acetilcolina y Dopamina. C) GABA y Glicina. D) Noradrenalina y Serotonina. Respuesta correcta: C Explicación: Ambos abren canales de cloro y median la inhibición rápida clásica.
+40. ¿A qué ión son principalmente permeables los canales ionotrópicos activados por GABA o Glicina en el adulto? A) Sodio (Na+). B) Potasio (K+). C) Cloro (Cl-). D) Calcio (Ca2+). Respuesta correcta: C Explicación: El profesor remarca que abren canales aniónicos permeables al cloro.
+41. Al potencial de membrana en reposo normal (-65 mV), la apertura de canales de Cloro por GABA suele provocar: A) Una despolarización masiva hacia +65 mV. B) Un potencial postsináptico inhibidor (IPSP), que generalmente es una hiperpolarización. C) Una entrada masiva de Sodio. D) El cierre de las uniones GAP. Respuesta correcta: B Explicación: El Cloro entra a la célula, introduciendo cargas negativas e hiperpolarizando la membrana (alejándola del umbral).
+42. ¿Qué relación existe entre el Potencial de Inversión de un IPSP mediado por GABA y el Potencial de Equilibrio del Cloro (ECl)? A) Son completamente distintos y opuestos. B) El Potencial de Inversión del IPSP es exactamente IGUAL al Potencial de Equilibrio del Cloro. C) El de inversión es 0 mV y el del Cloro es +65 mV. D) El de inversión es -100 mV siempre. Respuesta correcta: B Explicación: Como el canal es permeable a un único ión (Cl-), el potencial de inversión de la sinapsis coincide perfectamente con el equilibrio termodinámico de ese ión.
+43. En una sinapsis inhibidora, si fijamos experimentalmente el Vm a -65 mV (y el ECl es -65 mV), al añadir GABA: A) Se observará una despolarización gigante. B) La corriente neta será CERO y no se registrará cambio en el voltaje, aunque el canal esté abierto. C) La neurona disparará un AP. D) Entrará Sodio de golpe. Respuesta correcta: B Explicación: Si el Vm coincide con el Potencial de Equilibrio del ión que permea, la fuerza electromotriz es nula, por lo que no hay flujo neto a pesar de aumentar la conductancia.
+44. (PISTA DE EXAMEN/RAZONAMIENTO) El profesor plantea que en los bebés neonatos la ATPasa que bombea Cloro no funciona al 100%. ¿Qué consecuencia tiene esto sobre el Potencial de Equilibrio del Cloro (ECl)? A) Pasa de ser negativo a ser altamente positivo (+100 mV). B) No cambia, siempre es inmutable. C) Se vuelve menos negativo que en el adulto, situándose en torno a -55 o -60 mV. D) Destruye los receptores GABA. Respuesta correcta: C Explicación: Al acumularse un poco más de cloro dentro, el gradiente cambia y el E_Cl se sitúa en un valor menos negativo (-55mV) que el Vm de reposo (-65mV).
+45. Siguiendo el razonamiento propuesto para la próxima clase: si un neonato tiene el Vm de reposo en -65 mV y su ECl está en -55 mV, ¿qué ocurrirá físicamente si se abre un receptor GABAérgico? A) El Cloro entrará fuertemente. B) El Cloro tenderá a SALIR de la célula para intentar llevar el voltaje hacia su equilibrio de -55 mV. C) El Sodio entrará por el canal de Cloro. D) No habrá ningún flujo. Respuesta correcta: B Explicación: Si Vm (-65) está más negativo que E_Cl (-55), la fuerza impulsora empuja al anión Cl- hacia afuera. La salida de cargas negativas hace que el interior se vuelva más positivo.
+46. Por lo tanto, en ese escenario neonatal hipotético, la acción del GABA generaría un cambio de voltaje: A) Despolarizante. B) Hiperpolarizante puro. C) Nulo, no alteraría el Vm en absoluto. D) Oscilante infinito. Respuesta correcta: A Explicación: Al salir un ión negativo (Cloro) de la célula, el Vm sube de -65 a -55 mV, lo que por definición es una despolarización.
+47. El profesor deja este "cliffhanger" para hacer pensar sobre una diferencia conceptual clave: Una sinapsis que despolariza (como la del neonato del ejemplo) ¿es excitadora matemáticamente siempre? A) Sí, si despolariza siempre dispara potenciales de acción. B) No necesariamente; si la despolarización estabiliza la membrana en un valor (ej. -55mV) que sigue estando por debajo o igual al umbral, puede seguir actuando funcionalmente como inhibidora (shunt inhibition). C) El GABA nunca puede despolarizar en ninguna especie ni etapa vital. D) Una sinapsis despolarizante destruye la neurona. Respuesta correcta: B Explicación: Es el concepto que el profesor quiere que maduren: excitar/inhibir no es sinónimo absoluto de despolarizar/hiperpolarizar, depende de cómo interacciona con el umbral (se verá en integración).
+48. En las sinapsis excitadoras típicas (Glutamato o ACh), si experimentalmente despolarizamos la membrana postsináptica hasta +20 mV y estimulamos el terminal presináptico, la corriente resultante será: A) De entrada (negativa), provocando más despolarización. B) De salida (positiva), lo que tenderá a hiperpolarizar la membrana hacia el potencial de inversión (0 mV). C) Nula. D) Infinita. Respuesta correcta: B Explicación: A +20 mV estamos por encima del potencial de inversión (0 mV). La fuerza impulsora para la salida de K+ supera a la de entrada de Na+, por lo que el flujo neto es hacia afuera.
+49. Observando la gráfica de la corriente de un canal activado por acetilcolina a -90 mV y a -20 mV, la "altura" (amplitud) de la corriente hacia abajo es mayor a -90 mV. ¿Por qué? A) Porque a -90 mV se abren más canales. B) Porque a -90 mV la fuerza electromotriz (Vm−E) para el influjo neto de cationes es mucho mayor que a -20 mV. C) Porque la temperatura afecta al registro. D) Porque a -20 mV los canales se degradan. Respuesta correcta: B Explicación: Según la ley de Ohm, a mayor diferencia entre Vm y E (0 mV), mayor es la intensidad de la corriente.
+50. ¿Qué ocurriría con la amplitud de un Potencial de Placa Motora si se aplicara un veneno que bloqueara selectivamente la mitad de los receptores nicotínicos postsinápticos? A) El PPM sería exactamente igual, pero duraría el doble. B) El PPM sería la mitad de amplio, ya que la conductancia (g) se reduciría a la mitad. C) El PPM desaparecería por completo instantáneamente. D) El PPM invertiría su polaridad. Respuesta correcta: B Explicación: Al bloquear canales, disminuye 'g' en la ecuación de Ohm, por lo que la corriente total y el consecuentemente cambio de voltaje se atenúan.
+51. Si sustituimos el líquido extracelular por uno artificial sin Sodio, ¿hacia dónde se desplazaría bruscamente el potencial de inversión del canal nicotínico? A) Hacia el potencial de equilibrio del K+ (-100 mV), ya que el Na+ ya no contribuiría al influjo. B) Hacia +100 mV. C) Se mantendría en 0 mV inamovible. D) Hacia el umbral de Calcio. Respuesta correcta: A Explicación: Sin Na+ extracelular, su gradiente desaparece/se invierte, por lo que el único ión que domina fuertemente el flujo es el K+, acercando la inversión a su EK.
+52. En un EPSP generado por glutamato en una dendrita de la corteza cerebral, ¿qué ión es responsable de la mayor parte de la carga inicial que DESPOLARIZA la membrana alejándola del reposo? A) La salida de K+. B) La entrada masiva de Ca2+. C) La entrada masiva de Na+ empujada por un inmenso gradiente electroquímico a -65 mV. D) La salida de Cl-. Respuesta correcta: C Explicación: En el EPSP, al igual que en la placa motora, el componente dominante inicial es el flujo interno de Na+.
+53. Físicamente, ¿por qué los receptores metabotrópicos no pueden mediar reflejos motores de retirada en milisegundos? A) Porque el ligando nunca llega al receptor a tiempo. B) Porque requieren la activación secuencial de proteínas G, síntesis de segundos mensajeros y fosforilación de canales, pasos enzimáticos que toman demasiado tiempo. C) Porque se encuentran en la médula ósea. D) Porque solo existen en el corazón. Respuesta correcta: B Explicación: Son procesos intracelulares en cascada que introducen latencias desde decenas a cientos de milisegundos, incompatibles con respuestas ultrarrápidas.
+54. ¿A qué se refiere la Ley de Ohm (I=g⋅(Vm−E)) cuando habla de "Fuerza Electroquímica" o electromotriz? A) A la temperatura de la sinapsis multiplicada por la constante de Faraday. B) A la diferencia entre el potencial de membrana actual (Vm) y el potencial al que ese ión o canal estaría en equilibrio (E). C) A la cantidad de ATP consumida por la conductancia. D) A la velocidad de reciclaje vesicular. Respuesta correcta: B Explicación: La fuerza impulsora es la "tensión" que empuja al ión, definida por cuánto se aleja la célula del punto de equilibrio de ese ión.
+55. El último paso de la neurotransmisión según el esquema general, tras generar todos los PSPs (excitadores e inhibidores) en la neurona postsináptica, es: A) Su rápida exportación al hígado. B) La "Integración (suma)" de todos ellos en el soma/cono axónico para determinar si se dispara finalmente un Potencial de Acción. C) La destrucción irreversible de las dendritas. D) La fagocitosis de la neurona. Respuesta correcta: B Explicación: El esquema final concluye que la excitación o inhibición neta se somete a integración sináptica para decidir el disparo del PA.
+56. En una gráfica clásica de Patch-Clamp (registro de canal único), el eje Y (vertical) representa la intensidad de Corriente (en pA). Cuando la línea baja bruscamente desde 0 pA hasta -2 pA, el investigador interpreta que: A) Se ha vaciado la pipeta. B) El canal se acaba de CERRAR. C) El canal se acaba de ABRIR y está permitiendo la entrada de cationes. D) El receptor se ha desnaturalizado. Respuesta correcta: C Explicación: El "escalón" hacia abajo representa una corriente negativa de magnitud fija, lo que significa que el canal está abierto y fluyen iones hacia adentro.
+57. ¿En qué estado (abierto o cerrado) pasa la mayor parte del tiempo un receptor nicotínico individual cuando el tejido NO está expuesto a acetilcolina? A) Abierto. B) Cerrado (fluctuaciones raras o nulas a corriente cero). C) Medio abierto. D) Inactivado irreversiblemente. Respuesta correcta: B Explicación: Al ser activado por ligando, sin ligando (ACh), la probabilidad de apertura es bajísima y el registro se mantiene en cero pA (cerrado).
+58. En resumen metodológico, ¿qué dos factores debe controlar el profesor para mantener una sinapsis en un estado "subumbral" estable (evitando el espasmo o el potencial de acción)? A) Reducir el Calcio extracelular o aplicar bajas dosis de antagonistas postsinápticos (para mermar liberación o recepción). B) Aumentar el Sodio y el Potasio a niveles letales. C) Inyectar ATP y Cloro. D) Calentar la placa motora. Respuesta correcta: A Explicación: Son las dos herramientas clásicas descritas: presinápticamente (bajar Ca2+ para liberar menos NT) o postsinápticamente (testar drogas que bloqueen receptores).
+59. El concepto de "relación uno a uno" en la placa motora, comparado con el SNC, subraya que: A) Ambas zonas operan igual. B) El SNC requiere la sumación convergente de cientos de EPSPs para alcanzar el umbral, mientras que un solo axón motor basta para contraer su fibra muscular diana. C) Un solo EPSP del cerebro puede causar un ataque epiléptico garantizado. D) Solo hay un músculo en el cuerpo. Respuesta correcta: B Explicación: El profesor enfatiza la diferencia abismal de eficacia y la necesidad de integración en el SNC frente a la seguridad de la placa motora.
+60. Para asentar el conocimiento general exigido por el profesor: ¿El potencial de inversión de una sinapsis depende del neurotransmisor (la molécula química) o del RECEPTOR iónico al que se une? A) Del peso molecular del neurotransmisor exclusivamente. B) De la concentración de glucosa. C) Exclusivamente del tipo de RECEPTOR (los canales iónicos que abre y sus permeabilidades específicas). D) Del volumen de la vesícula presináptica. Respuesta correcta: C Explicación: Todo el razonamiento de la ley de Ohm y el potencial de inversión (0 mV para nicotínico, E_Cl para GABA) se basa en la permeabilidad de los poros iónicos del receptor activado, no en la molécula de NT en sí misma.
+</textarea>
+
+<script>
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {},
+        marked: new Set()
+    };
+
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        // Limpiamos saltos y posibles etiquetas "Bloque" para que no interfieran
+        text = text.replace(/Bloque.*?\n/g, '').replace(/\r\n/g, '\n');
+        
+        let blocks = text.split(/(?=Respuesta correcta:)/);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Regex ajustada para limpiar opcionalmente la palabra "Explicación:" del texto y no duplicarla
+            let ansMatch = block.match(/^Respuesta correcta:\s*([A-D])\.?\s*(?:Explicación:\s*)?(.*?)(?=\n\d+\.\s|$)/s);
+            let correctLetter = ansMatch ? ansMatch[1] : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+A\)\s+(.*?)\s+B\)\s+(.*?)\s+C\)\s+(.*?)\s+D\)\s+(.*)/s);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1;
+            
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return;
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

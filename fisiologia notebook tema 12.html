@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Potencial de Acción</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 8px;
+        }
+
+        .index-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 0;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+
+        .mark-btn {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            transition: background 0.2s;
+        }
+
+        .mark-btn.active {
+            background: #fef08a;
+            border-color: #eab308;
+            color: #854d0e;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .option-label:hover { background: var(--bg); }
+        
+        .option-label input { margin-right: 10px; }
+
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        
+        #finish-btn-container {
+            text-align: center;
+            margin-top: 2rem;
+            padding-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario: Potencial de Acción</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        
+        <div id="questions-container"></div>
+
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        const dbQuestions = [
+            {
+                id: 1,
+                text: "Según el profesor, ¿qué capacidad exclusiva define a las \"células excitables\" (neuronas, musculares, secretoras)?",
+                options: [
+                    { text: "A) Tienen canales de fuga que siempre están abiertos.", isCorrect: false },
+                    { text: "B) Poseen la capacidad de modificar selectivamente la permeabilidad iónica generando cambios transitorios en el Vm (potenciales de acción).", isCorrect: true },
+                    { text: "C) Tienen bicapa lipídica que actúa como condensador.", isCorrect: false },
+                    { text: "D) Se comunican exclusivamente mediante uniones GAP.", isCorrect: false }
+                ]
+            },
+            {
+                id: 2,
+                text: "¿Cuál es el requisito indispensable para que una célula pueda generar un Potencial de Acción?",
+                options: [
+                    { text: "A) Que no tenga canales de potasio.", isCorrect: false },
+                    { text: "B) Que carezca de bomba Na+/K+.", isCorrect: false },
+                    { text: "C) Que exprese canales iónicos dependientes de voltaje en su membrana plasmática.", isCorrect: true },
+                    { text: "D) Que su potencial de reposo sea positivo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 3,
+                text: "El profesor insiste en que no se deben confundir los potenciales electrotónicos con los potenciales de acción. ¿Cuál de las siguientes es una característica EXCLUSIVA del potencial electrotónico?",
+                options: [
+                    { text: "A) Siempre es despolarizante.", isCorrect: false },
+                    { text: "B) Sigue la Ley de Ohm (es una respuesta graduada proporcional al estímulo).", isCorrect: true },
+                    { text: "C) Se propaga largas distancias sin decremento.", isCorrect: false },
+                    { text: "D) Tiene una amplitud fija de unos 100 mV.", isCorrect: false }
+                ]
+            },
+            {
+                id: 4,
+                text: "¿A qué se refiere el profesor cuando afirma que el potencial de acción es una respuesta \"estereotipada\" o \"todo o nada\"?",
+                options: [
+                    { text: "A) A que la célula puede elegir hacer medio potencial de acción si el estímulo es débil.", isCorrect: false },
+                    { text: "B) A que si no se alcanza el umbral, la respuesta es nula, y si se alcanza, la amplitud y duración del potencial serán siempre idénticas, independientemente de si el estímulo es mayor.", isCorrect: true },
+                    { text: "C) A que todos los iones entran al mismo tiempo.", isCorrect: false },
+                    { text: "D) A que la membrana se destruye y se vuelve a formar.", isCorrect: false }
+                ]
+            },
+            {
+                id: 5,
+                text: "¿A qué distancia aproximada se encuentra el \"umbral\" de activación por encima del potencial de membrana en reposo?",
+                options: [
+                    { text: "A) A 1 o 2 mV.", isCorrect: false },
+                    { text: "B) A 15 - 20 mV por encima del potencial de reposo (ej. de -70mV a -55mV).", isCorrect: true },
+                    { text: "C) A 100 mV por encima del potencial de reposo.", isCorrect: false },
+                    { text: "D) Siempre en 0 mV exactamente.", isCorrect: false }
+                ]
+            },
+            {
+                id: 6,
+                text: "Mientras que el potencial electrotónico puede ser hiperpolarizante o despolarizante, el potencial de acción...",
+                options: [
+                    { text: "A) Siempre se desencadena ante estímulos despolarizantes.", isCorrect: true },
+                    { text: "B) Siempre se desencadena ante estímulos hiperpolarizantes.", isCorrect: false },
+                    { text: "C) Puede desencadenarse por frío exclusivamente.", isCorrect: false },
+                    { text: "D) No requiere de ningún estímulo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 7,
+                text: "¿Cuál es la duración fisiológica típica de un potencial de acción neuronal mencionada en clase?",
+                options: [
+                    { text: "A) 1 a 2 segundos.", isCorrect: false },
+                    { text: "B) 100 a 200 milisegundos.", isCorrect: false },
+                    { text: "C) 1 a 2 milisegundos.", isCorrect: true },
+                    { text: "D) 0.1 microsegundos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 8,
+                text: "Si medimos la amplitud total de un potencial de acción desde su inicio en reposo hasta su pico máximo, el salto es de aproximadamente:",
+                options: [
+                    { text: "A) 15 mV.", isCorrect: false },
+                    { text: "B) 40 mV.", isCorrect: false },
+                    { text: "C) 80 - 100 mV (desde -70 mV hasta +30 o +50 mV).", isCorrect: true },
+                    { text: "D) 200 mV.", isCorrect: false }
+                ]
+            },
+            {
+                id: 9,
+                text: "Para ilustrar la importancia de que el potencial de acción viaje \"sin decremento\", el profesor pone el ejemplo de:",
+                options: [
+                    { text: "A) La neurona motora que controla el movimiento del dedo gordo del pie, que debe enviar la señal a más de 1 metro de distancia desde la médula.", isCorrect: true },
+                    { text: "B) El latido del corazón en reposo.", isCorrect: false },
+                    { text: "C) La digestión en el intestino grueso.", isCorrect: false },
+                    { text: "D) La sinapsis en la retina.", isCorrect: false }
+                ]
+            },
+            {
+                id: 10,
+                text: "Durante la fase inicial de DESPOLARIZACIÓN RÁPIDA (espiga) del potencial de acción, ¿qué evento iónico es el responsable principal?",
+                options: [
+                    { text: "A) Un aumento brusco y transitorio de la permeabilidad al Sodio (PNa), provocando un influjo masivo de Na+.", isCorrect: true },
+                    { text: "B) Un aumento de la permeabilidad al Potasio (PK).", isCorrect: false },
+                    { text: "C) Una entrada masiva de aniones Cloro (Cl-).", isCorrect: false },
+                    { text: "D) La activación máxima de la bomba de Sodio/Potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 11,
+                text: "¿En qué proporción aumenta la permeabilidad al sodio (PNa) durante la despolarización rápida respecto a la situación de reposo?",
+                options: [
+                    { text: "A) 2 veces.", isCorrect: false },
+                    { text: "B) 10 veces.", isCorrect: false },
+                    { text: "C) Aproximadamente 500 veces (pasa de 0.04 a 20).", isCorrect: true },
+                    { text: "D) 10.000 veces.", isCorrect: false }
+                ]
+            },
+            {
+                id: 12,
+                text: "Durante la fase de REPOLARIZACIÓN (caída del potencial), el evento principal es:",
+                options: [
+                    { text: "A) Los canales de K+ se cierran y los de Na+ se abren.", isCorrect: false },
+                    { text: "B) Hay una caída en la PNa (los canales de sodio se inactivan) y la membrana se hace muy permeable al K+ (apertura de canales de potasio dependientes de voltaje).", isCorrect: true },
+                    { text: "C) La bomba Na/K saca todas las cargas negativas.", isCorrect: false },
+                    { text: "D) Entra calcio a la célula.", isCorrect: false }
+                ]
+            },
+            {
+                id: 13,
+                text: "La fase de POST-HIPERPOLARIZACIÓN ocurre porque el potencial de membrana cae por debajo del nivel de reposo (ej. hasta -80 mV). ¿A qué se debe?",
+                options: [
+                    { text: "A) A que los canales de Na+ se abren de nuevo al revés.", isCorrect: false },
+                    { text: "B) A que los canales de potasio dependientes de voltaje permanecen aún abiertos (su cierre es lento), acercando el Vm todavía más al Potencial de Equilibrio del Potasio (EK).", isCorrect: true },
+                    { text: "C) A la entrada masiva de Cloro.", isCorrect: false },
+                    { text: "D) A la destrucción de las proteínas aniónicas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 14,
+                text: "(Pregunta de razonamiento del PDF). ¿Por qué durante el pico del potencial de acción el voltaje de la membrana NO llega exactamente a alcanzar el Potencial de Equilibrio del Sodio (ENa, +65mV)?",
+                options: [
+                    { text: "A) Porque el sodio desaparece del líquido extracelular.", isCorrect: false },
+                    { text: "B) Por la inactivación de los canales de Na+, la apertura retrasada de los canales de K+, y la corriente residual de K+ de los canales de fuga que tira hacia valores negativos.", isCorrect: true },
+                    { text: "C) Porque la célula explota a +50 mV.", isCorrect: false },
+                    { text: "D) Porque el calcio lo empuja hacia abajo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 15,
+                text: "(PREGUNTA CLAVE DE EXAMEN). ¿Cuántos estados conformacionales funcionales tienen los canales de Sodio y los de Potasio dependientes de voltaje, respectivamente?",
+                options: [
+                    { text: "A) Ambos tienen 2 estados (abierto y cerrado).", isCorrect: false },
+                    { text: "B) Na+ tiene 3 estados (Cerrado, Abierto, Inactivado) y K+ tiene 2 estados (Cerrado, Abierto).", isCorrect: true },
+                    { text: "C) Na+ tiene 2 estados y K+ tiene 3 estados.", isCorrect: false },
+                    { text: "D) Ambos tienen 3 estados.", isCorrect: false }
+                ]
+            },
+            {
+                id: 16,
+                text: "¿Qué diferencia conceptual recalca el profesor entre un canal de Sodio en estado CERRADO y uno en estado INACTIVADO?",
+                options: [
+                    { text: "A) Ninguna, son sinónimos.", isCorrect: false },
+                    { text: "B) En estado cerrado, el canal es sensible a voltaje (puede abrirse si hay estímulo); en estado inactivado, el canal es insensible a voltaje y no se abrirá por mucho que se despolarice la membrana.", isCorrect: true },
+                    { text: "C) El inactivo deja pasar potasio.", isCorrect: false },
+                    { text: "D) El cerrado está bloqueado por veneno.", isCorrect: false }
+                ]
+            },
+            {
+                id: 17,
+                text: "En la configuración del canal de Sodio mostrada en clase, la \"bolita\" intracelular representa:",
+                options: [
+                    { text: "A) La compuerta de activación (sensible a voltaje).", isCorrect: false },
+                    { text: "B) La compuerta de inactivación (insensible a voltaje directo, dependiente de tiempo/despolarización sostenida).", isCorrect: true },
+                    { text: "C) Un ion de calcio.", isCorrect: false },
+                    { text: "D) La proteína G.", isCorrect: false }
+                ]
+            },
+            {
+                id: 18,
+                text: "En una célula en absoluto REPOSO (-70 mV), ¿en qué conformación se encuentran la mayoría de los canales de Sodio dependientes de voltaje?",
+                options: [
+                    { text: "A) Inactivados (compuerta de inactivación cerrada).", isCorrect: false },
+                    { text: "B) Cerrados (compuerta de activación cerrada, compuerta de inactivación abierta) y capaces de abrirse.", isCorrect: true },
+                    { text: "C) Abiertos.", isCorrect: false },
+                    { text: "D) Destruidos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 19,
+                text: "Los canales de Sodio y de Potasio dependientes de voltaje tienen aproximadamente el mismo umbral de activación (-55mV). Entonces, ¿por qué no se abren al mismo tiempo durante el potencial de acción?",
+                options: [
+                    { text: "A) Porque el potasio es más pesado.", isCorrect: false },
+                    { text: "B) Porque el mecanismo de apertura de la compuerta del Potasio es más lento (apertura \"retrasada\") que el del Sodio.", isCorrect: true },
+                    { text: "C) Porque no hay potasio cerca de la membrana.", isCorrect: false },
+                    { text: "D) Porque el sodio inhibe directamente al potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 20,
+                text: "Durante el inicio del potencial de acción se produce un \"bucle de retroalimentación positiva\" (Ciclo de Hodgkin). ¿En qué consiste?",
+                options: [
+                    { text: "A) Apertura de canales K+ → sale K+ → se despolariza → se abren más canales de K+.", isCorrect: false },
+                    { text: "B) Despolarización al umbral → apertura de algunos canales Na+ → entra Na+ → mayor despolarización → reclutamiento y apertura de más canales de Na+.", isCorrect: true },
+                    { text: "C) La bomba Na/K produce más ATP a medida que entra sodio.", isCorrect: false },
+                    { text: "D) El potencial de acción induce potenciales electrotónicos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 21,
+                text: "¿Cuál es el factor interno biológico fundamental que detiene este bucle de retroalimentación positiva del Sodio, evitando que la célula se quede despolarizada para siempre?",
+                options: [
+                    { text: "A) El agotamiento absoluto de todo el ATP celular.", isCorrect: false },
+                    { text: "B) La \"inactivación\" dependiente de tiempo de los canales de Sodio voltaje dependientes.", isCorrect: true },
+                    { text: "C) La mielina que asfixia al axón.", isCorrect: false },
+                    { text: "D) El descenso de la temperatura.", isCorrect: false }
+                ]
+            },
+            {
+                id: 22,
+                text: "Según explicó el profesor sobre el reclutamiento, cuando se llega al \"umbral\" estricto (-55 mV):",
+                options: [
+                    { text: "A) Se abren absolutamente todos los canales de sodio de la neurona a la vez.", isCorrect: false },
+                    { text: "B) Se abren solo los canales necesarios para iniciar el bucle de retroalimentación, ya que no todos los canales tienen milimétricamente el mismo umbral de voltaje exacto.", isCorrect: true },
+                    { text: "C) No se abre ningún canal hasta llegar a 0 mV.", isCorrect: false },
+                    { text: "D) Se abren primero los de potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 23,
+                text: "La técnica de fijación o \"clampeo\" de voltaje se utiliza en el laboratorio para:",
+                options: [
+                    { text: "A) Mantener el potencial de membrana constante (fijo) a un valor determinado por el investigador y medir así las corrientes iónicas resultantes.", isCorrect: true },
+                    { text: "B) Destruir las células excitables.", isCorrect: false },
+                    { text: "C) Extraer el núcleo neuronal.", isCorrect: false },
+                    { text: "D) Medir la velocidad de pensamiento.", isCorrect: false }
+                ]
+            },
+            {
+                id: 24,
+                text: "En el experimento de Clampeo de Voltaje, si HIPERPOLARIZAMOS la célula (pasándola de -65 mV a -130 mV y manteniéndola ahí), ¿qué corrientes se observan?",
+                options: [
+                    { text: "A) Una gran entrada de sodio.", isCorrect: false },
+                    { text: "B) Solo la corriente \"capacitativa\" inicial (para cargar la membrana); después la corriente iónica es CERO (no se abren canales dependientes de hiperpolarización).", isCorrect: true },
+                    { text: "C) Una corriente oscilante.", isCorrect: false },
+                    { text: "D) Una salida continua de potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 25,
+                text: "Al realizar el clampeo y DESPOLARIZAR la membrana por encima del umbral (ej. llevarla bruscamente a 0 mV), se registran dos corrientes secuenciales. ¿Cuáles son?",
+                options: [
+                    { text: "A) Una corriente de salida rápida seguida de una entrada lenta.", isCorrect: false },
+                    { text: "B) Una corriente de entrada transitoria (rápida), seguida de una corriente de salida más lenta que persiste mientras dure la despolarización.", isCorrect: true },
+                    { text: "C) Dos corrientes de entrada continuas.", isCorrect: false },
+                    { text: "D) Ninguna corriente tras la capacitativa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 26,
+                text: "(TRAMPA DE EXAMEN EXPLICADA EN CLASE). En el experimento de sustitución iónica, quitamos todo el Sodio del medio extracelular (Na+ free). Al despolarizar la membrana, ¿qué le ocurre a la corriente \"temprana transitoria\"?",
+                options: [
+                    { text: "A) Desaparece y se convierte en cero.", isCorrect: false },
+                    { text: "B) Aumenta brutalmente hacia el interior.", isCorrect: false },
+                    { text: "C) No solo desaparece, sino que se INVIERTE (pasa a ser una pequeña corriente de SALIDA), porque al cambiar el gradiente de concentración, el potencial de equilibrio del sodio cambia, y el poco sodio interior ahora tiende a salir.", isCorrect: true },
+                    { text: "D) Se transforma en una corriente de potasio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 27,
+                text: "La Tetrodotoxina (TTX) es una neurotoxina usada en investigación que bloquea de forma específica:",
+                options: [
+                    { text: "A) Los canales de K+ voltaje dependientes.", isCorrect: false },
+                    { text: "B) La bomba Na/K ATPasa.", isCorrect: false },
+                    { text: "C) Los canales de Na+ voltaje dependientes.", isCorrect: true },
+                    { text: "D) Los receptores de Acetilcolina.", isCorrect: false }
+                ]
+            },
+            {
+                id: 28,
+                text: "Si en un experimento de fijación de voltaje añadimos Tetrodotoxina (TTX) al baño, la gráfica resultante mostrará:",
+                options: [
+                    { text: "A) Solo la corriente de entrada transitoria.", isCorrect: false },
+                    { text: "B) Solo la corriente de salida lenta y persistente (la corriente de potasio queda intacta).", isCorrect: true },
+                    { text: "C) Ninguna corriente.", isCorrect: false },
+                    { text: "D) Ambas corrientes potenciadas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 29,
+                text: "El Tetraetilamonio (TEA) es un bloqueador específico de:",
+                options: [
+                    { text: "A) Los canales de Sodio.", isCorrect: false },
+                    { text: "B) La bomba de Calcio.", isCorrect: false },
+                    { text: "C) Los canales de Potasio (K+) dependientes de voltaje.", isCorrect: true },
+                    { text: "D) Los canales de fuga.", isCorrect: false }
+                ]
+            },
+            {
+                id: 30,
+                text: "El profesor hizo una pausa para comentar el origen biológico de la Tetrodotoxina, muy famosa en la gastronomía. ¿De dónde procede?",
+                options: [
+                    { text: "A) Del veneno de la araña viuda negra.", isCorrect: false },
+                    { text: "B) De las glándulas del Pez Globo (Fugu).", isCorrect: true },
+                    { text: "C) Del hongo Amanita muscaria.", isCorrect: false },
+                    { text: "D) De las toxinas del cólera.", isCorrect: false }
+                ]
+            },
+            {
+                id: 31,
+                text: "(Pregunta de integración del PDF). Si a una neurona le añadimos Ouabaína (un potente inhibidor de la bomba Na+/K+ ATPasa) y a los 2 minutos le damos un estímulo supraumbral. ¿Qué pasará?",
+                options: [
+                    { text: "A) No se generará potencial de acción porque la bomba es necesaria milisegundo a milisegundo para el disparo.", isCorrect: false },
+                    { text: "B) Se generará un potencial de acción normal, ya que a corto plazo los gradientes iónicos preexistentes se mantienen y son suficientes para disparar (la bomba repone a largo plazo).", isCorrect: true },
+                    { text: "C) El potencial se invierte hacia abajo.", isCorrect: false },
+                    { text: "D) La neurona se divide en dos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 32,
+                text: "Sin embargo, en el caso anterior, si intentamos estimular la misma neurona 2 HORAS DESPUÉS de añadir Ouabaína:",
+                options: [
+                    { text: "A) Se generará el potencial sin problemas.", isCorrect: false },
+                    { text: "B) No se generará el potencial de acción, porque al no funcionar la bomba durante horas, los gradientes iónicos se habrán disipado progresivamente.", isCorrect: true },
+                    { text: "C) El potencial será el doble de grande.", isCorrect: false },
+                    { text: "D) Se convertirá en un potencial electrotónico.", isCorrect: false }
+                ]
+            },
+            {
+                id: 33,
+                text: "Si experimentalmente, mediante inyección de corriente, mantenemos (fijamos) el Vm de una neurona a -10 mV de forma constante y entonces le aplicamos un estímulo supraumbral extra, ¿se generará un potencial de acción? (Ver PDF Q6)",
+                options: [
+                    { text: "A) Sí, porque a -10 mV está muy excitada.", isCorrect: false },
+                    { text: "B) No, porque al mantenerla crónicamente despolarizada a -10 mV, los canales de Sodio voltaje dependientes estarán permanentemente INACTIVADOS (acomodación), impidiendo el disparo.", isCorrect: true },
+                    { text: "C) Se generará pero de cloro.", isCorrect: false },
+                    { text: "D) Solo la fase de repolarización.", isCorrect: false }
+                ]
+            },
+            {
+                id: 34,
+                text: "¿Qué es el Periodo Refractario Absoluto (PRA)?",
+                options: [
+                    { text: "A) El tiempo en el que una neurona dispara sin parar.", isCorrect: false },
+                    { text: "B) El intervalo de tiempo durante el cual es IMPOSIBLE generar un segundo potencial de acción, por muy intenso que sea el estímulo.", isCorrect: true },
+                    { text: "C) Cuando se puede generar un potencial si el estímulo es el doble de fuerte.", isCorrect: false },
+                    { text: "D) El periodo de reposo nocturno.", isCorrect: false }
+                ]
+            },
+            {
+                id: 35,
+                text: "(PREGUNTA CRUCIAL DEL PROFESOR). A nivel molecular/conformacional, ¿qué estado de los canales determina el Periodo Refractario ABSOLUTO?",
+                options: [
+                    { text: "A) Que los canales de potasio están cerrados.", isCorrect: false },
+                    { text: "B) Que los canales de Sodio voltaje dependientes se encuentran en conformación INACTIVADA, siendo incapaces de abrirse ante cualquier despolarización.", isCorrect: true },
+                    { text: "C) Que la bomba Na/K se ha parado.", isCorrect: false },
+                    { text: "D) Que los canales de sodio están cerrados.", isCorrect: false }
+                ]
+            },
+            {
+                id: 36,
+                text: "¿Qué define al Periodo Refractario Relativo (PRR)?",
+                options: [
+                    { text: "A) Es imposible generar un potencial de acción.", isCorrect: false },
+                    { text: "B) Es posible generar un segundo potencial de acción, pero el estímulo debe ser de MAYOR intensidad o duración que el umbral normal.", isCorrect: true },
+                    { text: "C) La neurona dispara con un estímulo menor al normal.", isCorrect: false },
+                    { text: "D) El potencial de membrana vuelve a ser positivo.", isCorrect: false }
+                ]
+            },
+            {
+                id: 37,
+                text: "A nivel molecular, ¿qué justificación electrofisiológica explica el Periodo Refractario RELATIVO?",
+                options: [
+                    { text: "A) Los canales de Na+ siguen todos inactivados.", isCorrect: false },
+                    { text: "B) La mayoría de canales de Na+ ya se han reiniciado al estado CERRADO, pero los canales de K+ voltaje dependientes siguen ABIERTOS (fase de post-hiperpolarización). Al estar el Vm más negativo (hiperpolarizado), se requiere más corriente para alcanzar el umbral de -55mV.", isCorrect: true },
+                    { text: "C) Hay exceso de Sodio dentro de la célula.", isCorrect: false },
+                    { text: "D) Se agota el ATP.", isCorrect: false }
+                ]
+            },
+            {
+                id: 38,
+                text: "La duración total de los periodos refractarios es fundamental en la fisiología neuronal porque:",
+                options: [
+                    { text: "A) Limita y determina la FRECUENCIA MÁXIMA de disparo (cuántos potenciales de acción por segundo puede generar una célula).", isCorrect: true },
+                    { text: "B) Indica la cantidad de neurotransmisor que se sintetiza.", isCorrect: false },
+                    { text: "C) Aumenta la capacitancia.", isCorrect: false },
+                    { text: "D) Impide que las neuronas se toquen entre sí.", isCorrect: false }
+                ]
+            },
+            {
+                id: 39,
+                text: "Si medimos que el Periodo Refractario Absoluto de una neurona es de 2 milisegundos (0.002 s). ¿Cuál será la máxima frecuencia teórica (frecuencia = 1/Tiempo) de potenciales de acción que puede generar esa neurona?",
+                options: [
+                    { text: "A) 2 Hz.", isCorrect: false },
+                    { text: "B) 100 Hz.", isCorrect: false },
+                    { text: "C) 500 Hz (potenciales por segundo).", isCorrect: true },
+                    { text: "D) 1000 Hz.", isCorrect: false }
+                ]
+            },
+            {
+                id: 40,
+                text: "(EJEMPLO CLÍNICO-FISIOLÓGICO). El profesor pregunta por el músculo que necesita contraerse más rápido y cuyas motoneuronas tienen periodos refractarios cortísimos, alcanzando los 500 Hz. ¿Cuál es?",
+                options: [
+                    { text: "A) El miocardio (corazón).", isCorrect: false },
+                    { text: "B) La musculatura extraocular (que permite movimientos rápidos del ojo vitales para cazar/huir).", isCorrect: true },
+                    { text: "C) Los músculos intercostales.", isCorrect: false },
+                    { text: "D) El músculo liso intestinal.", isCorrect: false }
+                ]
+            },
+            {
+                id: 41,
+                text: "Por el contrario, los músculos dorsales que nos mantienen erguidos de forma postural, no necesitan tanta velocidad. Sus motoneuronas suelen disparar a una frecuencia máxima aproximada de:",
+                options: [
+                    { text: "A) 1 Hz.", isCorrect: false },
+                    { text: "B) 100 Hz.", isCorrect: true },
+                    { text: "C) 500 Hz.", isCorrect: false },
+                    { text: "D) 10.000 Hz.", isCorrect: false }
+                ]
+            },
+            {
+                id: 42,
+                text: "Si observas la gráfica de la conductancia (g) del Sodio y del Potasio a lo largo del tiempo durante un AP, notarás que:",
+                options: [
+                    { text: "A) gNa y gK suben y bajan exactamente a la vez.", isCorrect: false },
+                    { text: "B) gNa sube muy rápido y cae rápidamente, mientras que gK tiene un ascenso lento y se mantiene elevada más tiempo.", isCorrect: true },
+                    { text: "C) gK siempre es mayor que gNa en el pico del potencial.", isCorrect: false },
+                    { text: "D) Ambas conductancias se hacen cero en el umbral.", isCorrect: false }
+                ]
+            },
+            {
+                id: 43,
+                text: "En la \"de-inactivación\" o reseteo de los canales de Na+ (pasar de inactivado a cerrado), la condición indispensable que debe darse es:",
+                options: [
+                    { text: "A) Que pase al menos 1 hora.", isCorrect: false },
+                    { text: "B) Que el potencial de membrana se repolarice volviendo a valores negativos cercanos al reposo (ej. volver de +30mV a -70mV).", isCorrect: true },
+                    { text: "C) Que actúe la mielina.", isCorrect: false },
+                    { text: "D) La unión de un ligando ATP intracelular.", isCorrect: false }
+                ]
+            },
+            {
+                id: 44,
+                text: "Si te enseñan una gráfica en el examen donde un estímulo inyectado es el doble de fuerte que el estímulo umbral normal, la \"espiga\" (amplitud) del potencial de acción resultante será:",
+                options: [
+                    { text: "A) El doble de alta (100 mV más).", isCorrect: false },
+                    { text: "B) La mitad de alta.", isCorrect: false },
+                    { text: "C) Exactamente la misma que la del estímulo umbral (por el principio de todo o nada).", isCorrect: true },
+                    { text: "D) Negativa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 45,
+                text: "En las clases anteriores vimos que la propagación del potencial electrotónico es \"pasiva\". ¿Cómo define el profesor la propagación del Potencial de Acción?",
+                options: [
+                    { text: "A) Pasiva también, pero más fuerte.", isCorrect: false },
+                    { text: "B) Activa (requiere que la señal se regenere punto por punto abriendo nuevos canales voltaje dependientes).", isCorrect: true },
+                    { text: "C) Estática.", isCorrect: false },
+                    { text: "D) Retrógrada de forma exclusiva.", isCorrect: false }
+                ]
+            },
+            {
+                id: 46,
+                text: "La \"bolita\" (compuerta de inactivación) del canal de sodio bloquea el poro en la fase 3 del potencial de acción. Esta inactivación asegura fundamentalmente:",
+                options: [
+                    { text: "A) La unidireccionalidad de la propagación del potencial de acción a lo largo del axón.", isCorrect: true },
+                    { text: "B) Que el potencial vaya hacia atrás.", isCorrect: false },
+                    { text: "C) Que entre más potasio.", isCorrect: false },
+                    { text: "D) La síntesis de vesículas sinápticas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 47,
+                text: "Si un fármaco impidiese que los canales de potasio dependientes de voltaje se abrieran, ¿qué ocurriría visualmente en la gráfica del potencial de acción de esa neurona?",
+                options: [
+                    { text: "A) No se llegaría nunca a +30mV.", isCorrect: false },
+                    { text: "B) La repolarización sería extremadamente lenta, dependiendo únicamente del cierre (inactivación) de los de Na+ y los canales de fuga, alargando la duración de la espiga enormemente.", isCorrect: true },
+                    { text: "C) El potencial caería de golpe a -100mV.", isCorrect: false },
+                    { text: "D) Se generaría un potencial de acción inverso.", isCorrect: false }
+                ]
+            },
+            {
+                id: 48,
+                text: "En las células excitables, la permeabilidad basal del Potasio (PK) en reposo es de 1. ¿Cuál es el valor aproximado de la PNa en ese mismo reposo según el PDF?",
+                options: [
+                    { text: "A) 1.", isCorrect: false },
+                    { text: "B) 20.", isCorrect: false },
+                    { text: "C) 0.04 (es decir, muy baja).", isCorrect: true },
+                    { text: "D) 500.", isCorrect: false }
+                ]
+            },
+            {
+                id: 49,
+                text: "Si el umbral está a -55mV y el potencial de reposo a -70mV, ¿un estímulo que despolarice la membrana solo hasta -60mV generará un potencial de acción?",
+                options: [
+                    { text: "A) Sí, un potencial de acción más pequeñito.", isCorrect: false },
+                    { text: "B) No, solo generará un potencial electrotónico que se disipará.", isCorrect: true },
+                    { text: "C) Sí, con la misma amplitud que siempre.", isCorrect: false },
+                    { text: "D) Matará a la neurona.", isCorrect: false }
+                ]
+            },
+            {
+                id: 50,
+                text: "Según la secuencia de eventos, ¿qué ocurre cronológicamente en el último lugar durante el potencial de acción?",
+                options: [
+                    { text: "A) El cierre de las compuertas de activación del Sodio.", isCorrect: false },
+                    { text: "B) La apertura de las compuertas de activación del Potasio.", isCorrect: false },
+                    { text: "C) El cierre de los canales de Potasio, volviendo al estado de reposo tras la post-hiperpolarización.", isCorrect: true },
+                    { text: "D) La apertura de los canales de Sodio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 51,
+                text: "El concepto \"conductancia\" (g) mencionado en la gráfica del potencial de acción es equivalente fisiológico a:",
+                options: [
+                    { text: "A) La capacidad del condensador celular.", isCorrect: false },
+                    { text: "B) La permeabilidad (P) de la membrana a un ion específico (refleja los canales abiertos).", isCorrect: true },
+                    { text: "C) El grosor de la membrana.", isCorrect: false },
+                    { text: "D) La temperatura del tejido.", isCorrect: false }
+                ]
+            },
+            {
+                id: 52,
+                text: "Durante la fase de ascenso rápido (despolarización) hacia +30mV, la fuerza impulsora (Fuerza Electromotriz) que mueve el sodio hacia adentro:",
+                options: [
+                    { text: "A) Permanece constante todo el tiempo.", isCorrect: false },
+                    { text: "B) Se hace cada vez mayor.", isCorrect: false },
+                    { text: "C) Va disminuyendo progresivamente a medida que el Vm se acerca a +65mV (ENa).", isCorrect: true },
+                    { text: "D) Se hace negativa.", isCorrect: false }
+                ]
+            },
+            {
+                id: 53,
+                text: "(PREGUNTA TRAMPA). ¿Es el Potencial de Acción una señal eléctrica o química?",
+                options: [
+                    { text: "A) Es puramente química porque hay neurotransmisores.", isCorrect: false },
+                    { text: "B) Es un cambio puramente eléctrico causado por el flujo de iones a través de la membrana.", isCorrect: true },
+                    { text: "C) Es magnética.", isCorrect: false },
+                    { text: "D) Es una onda de sonido en el agua corporal.", isCorrect: false }
+                ]
+            },
+            {
+                id: 54,
+                text: "¿En qué lado de la membrana de la célula excitable (intracelular o extracelular) hay mayor concentración de Potasio en reposo?",
+                options: [
+                    { text: "A) En el extracelular.", isCorrect: false },
+                    { text: "B) Es exactamente igual a ambos lados.", isCorrect: false },
+                    { text: "C) En el intracelular.", isCorrect: true },
+                    { text: "D) No hay potasio en el cuerpo humano.", isCorrect: false }
+                ]
+            },
+            {
+                id: 55,
+                text: "El hecho de que la célula use señales \"Todo o Nada\" para transmitir información a larga distancia es una solución evolutiva al problema de:",
+                options: [
+                    { text: "A) La alta resistencia del citoplasma y las continuas fugas de la membrana que atenúan cualquier señal pasiva a pocos milímetros.", isCorrect: true },
+                    { text: "B) La necesidad de usar mucho ATP.", isCorrect: false },
+                    { text: "C) La escasez de sodio en la dieta.", isCorrect: false },
+                    { text: "D) El grosor de los huesos.", isCorrect: false }
+                ]
+            },
+            {
+                id: 56,
+                text: "¿Por qué se dice que el potencial de acción \"no sigue la Ley de Ohm\"?",
+                options: [
+                    { text: "A) Porque la Ley de Ohm no aplica a la biología.", isCorrect: false },
+                    { text: "B) Porque la Ley de Ohm establece que V=I·R, por lo que la respuesta (V) debería crecer si aumento el estímulo (I). En el AP, el estímulo mayor no genera un potencial mayor.", isCorrect: true },
+                    { text: "C) Porque la resistencia es nula.", isCorrect: false },
+                    { text: "D) Porque el voltaje siempre es cero.", isCorrect: false }
+                ]
+            },
+            {
+                id: 57,
+                text: "Cuando una neurona dispara a 100 Hz (100 potenciales de acción por segundo), ¿cómo se transmite el \"mensaje\" o \"intensidad\" de una señal aferente fuerte al sistema nervioso central si todos los APs son iguales?",
+                options: [
+                    { text: "A) Aumentando la amplitud de cada AP.", isCorrect: false },
+                    { text: "B) A través de la frecuencia de los potenciales de acción (un estímulo más fuerte genera más disparos por segundo).", isCorrect: true },
+                    { text: "C) Modificando la duración a 50 milisegundos.", isCorrect: false },
+                    { text: "D) Produciendo calcio en lugar de sodio.", isCorrect: false }
+                ]
+            },
+            {
+                id: 58,
+                text: "Si el Periodo Refractario Relativo se alarga mucho (ej. un fármaco ralentiza el cierre del potasio), ¿qué efecto principal tendrá sobre la comunicación neuronal?",
+                options: [
+                    { text: "A) La neurona será capaz de disparar más rápido.", isCorrect: false },
+                    { text: "B) Disminuirá drásticamente su frecuencia máxima de disparo.", isCorrect: true },
+                    { text: "C) Aumentará la velocidad de conducción axonal.", isCorrect: false },
+                    { text: "D) No afectará en nada.", isCorrect: false }
+                ]
+            },
+            {
+                id: 59,
+                text: "A diferencia del potencial electrotónico, cuyo responsable puede ser la apertura de canales dependientes de ligando (ej. sinapsis), el potencial de acción es exclusivo de los canales:",
+                options: [
+                    { text: "A) Mecano-dependientes.", isCorrect: false },
+                    { text: "B) De fuga continuos.", isCorrect: false },
+                    { text: "C) Dependientes de Voltaje.", isCorrect: true },
+                    { text: "D) Fosforilados por ATPasas.", isCorrect: false }
+                ]
+            },
+            {
+                id: 60,
+                text: "Como resumen magistral, las tres fases fundamentales del potencial de acción y sus actores iónicos son:",
+                options: [
+                    { text: "A) 1. Espiga (entra Cl), 2. Caída (entra Na), 3. Hiperpolarización (sale K).", isCorrect: false },
+                    { text: "B) 1. Despolarización (Entra Na+), 2. Repolarización (Sale K+), 3. Post-hiperpolarización (Persiste salida de K+).", isCorrect: true },
+                    { text: "C) 1. Despolarización (Sale Na+), 2. Repolarización (Entra K+), 3. Post-hiperpolarización (Entra Cl-).", isCorrect: false },
+                    { text: "D) 1. Activación de Bomba Na/K, 2. Desactivación de Bomba, 3. Reversión de bomba.", isCorrect: false }
+                ]
+            }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {}; // id -> isCorrect
+        let markedQuestions = new Set(); // ids
+
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría para repetir.");
+                showEndScreen();
+                return;
+            }
+
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente para este intento?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                // --- Botón del Índice ---
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                // --- Tarjeta de la Pregunta ---
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                // Cabecera de la pregunta
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.textContent = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.innerHTML = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                // Lista de Opciones (Mezcladas)
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    label.id = `label-${q.id}-${optIndex}`;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList);
+                    
+                    label.appendChild(input);
+                    label.appendChild(document.createTextNode(opt.text));
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                // Caja de Corrección / Feedback
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement) {
+            // Deshabilitar todas las opciones para esta pregunta tras responder
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            // Actualizar color en el índice lateral
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Colorear opciones
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            // Mostrar el texto de feedback
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            const correctText = allOptionsData.find(o => o.isCorrect).text;
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong> La respuesta es correcta.`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong> La explicación/respuesta correcta es:<br><em>${correctText}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Bioquímica: Hemoglobina, Mioglobina y Hemostasia</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantalla de Inicio */
+        #setup-screen, #result-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover { background: var(--primary); }
+        .btn-finish { background: var(--error); position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+
+        /* Layout Principal */
+        #main-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            gap: 5px;
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .nav-dot.answered { background: var(--secondary); }
+        .nav-dot.marked { border: 2px solid #f1c40f; }
+
+        /* Área de Preguntas */
+        #quiz-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .mark-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover { background: #f9f9f9; border-color: var(--secondary); }
+        .option.correct { background: #d4edda; border-color: var(--success); cursor: default; }
+        .option.wrong { background: #f8d7da; border-color: var(--error); cursor: default; }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-left: 5px solid var(--secondary);
+            display: none;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>Cuestionario de Bioquímica</h1>
+        <p>Seleccione el orden de las preguntas:</p>
+        <div>
+            <input type="radio" id="order-fixed" name="order" value="fixed" checked>
+            <label for="order-fixed">Preestablecido</label>
+            <input type="radio" id="order-random" name="order" value="random">
+            <label for="order-random">Aleatorio</label>
+        </div>
+        <button class="btn" onclick="startQuiz()">Comenzar Cuestionario</button>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text"></p>
+        <div id="retry-options">
+            <button class="btn" onclick="retry('all')">Repetir todo</button>
+            <button class="btn" onclick="retry('failed')">Repetir falladas</button>
+            <button class="btn" onclick="retry('marked')">Repetir marcadas</button>
+            <button class="btn" onclick="retry('failed-marked')">Repetir falladas + marcadas</button>
+        </div>
+    </div>
+
+    <button id="finish-btn" class="btn btn-finish hidden" onclick="finishQuiz()">Finalizar y Ver Opciones</button>
+
+    <div id="main-container">
+        <div id="sidebar"></div>
+        <div id="quiz-area"></div>
+    </div>
+
+    <script>
+        const rawData = [
+            { q: "La profesora mostró una gráfica resumen y advirtió: \"Esta es una pregunta de mí, sí o sí\". ¿Qué conjunto de factores produce una desviación de la curva de la hemoglobina hacia la DERECHA (menor afinidad, mayor liberación de O₂)?", a: "pH alto, baja pCO₂, baja temperatura y bajo 2,3-BPG.", b: "pH bajo (acidez), alta pCO₂, alta temperatura y alto 2,3-BPG.", c: "Ausencia de 2,3-BPG y disminución del metabolismo celular.", d: "Intoxicación grave por monóxido de carbono (CO).", correct: "b", exp: "Chivatazo de examen. Todos los factores que indican que un tejido está trabajando metabólicamente (genera ácido, CO₂, calor) desplazan la curva a la derecha para cederle oxígeno." },
+            { q: "Para explicar la función del 2,3-Bifosfoglicerato (2,3-BPG), la profesora puso el ejemplo del entrenamiento en altura de los ciclistas. Fisiológicamente, la adaptación a la altitud implica:", a: "Reducir la síntesis de 2,3-BPG para que la hemoglobina retenga todo el oxígeno posible.", b: "Un aumento de 2,3-BPG originado en la vía de Rapoport-Luebering, lo que estabiliza la desoxihemoglobina y facilita la liberación del poco oxígeno disponible hacia los tejidos.", c: "La transformación de hemoglobina adulta en hemoglobina fetal.", d: "La unión irreversible del 2,3-BPG al átomo de hierro.", correct: "b", exp: "En condiciones de hipoxia (altura), el eritrocito aumenta la producción de 2,3-BPG para desplazar la curva a la derecha, garantizando que el oxígeno captado se libere fácilmente en los tejidos." },
+            { q: "¿Cómo actúa estructuralmente este 2,3-BPG sobre la molécula de hemoglobina?", a: "Se une covalentemente al grupo hemo compitiendo con el oxígeno.", b: "Degrada la histidina proximal.", c: "Se acomoda en la cavidad central entre las cadenas β, estableciendo interacciones electrostáticas con grupos de carga positiva que estabilizan la forma T (tensa).", d: "Rompe los enlaces carbamato formados por el CO₂.", correct: "c", exp: "El 2,3-BPG es una molécula muy negativa que encaja como una llave en el hueco positivo de la hemoglobina desoxigenada, estabilizando este estado T." },
+            { q: "Al estudiar los ligandos del hierro (Fe2+) en el grupo hemo, la profesora fue tajante sobre la disposición espacial. Señale la afirmación CORRECTA:", a: "La histidina distal se une directamente al hierro.", b: "Ambas histidinas se unen al hierro bloqueando la entrada de oxígeno.", c: "El nitrógeno imidazólico de la histidina proximal (His F8 o His 93) se une directamente al Fe²⁺, mientras que la histidina distal (His E7) solo estabiliza al oxígeno mediante puentes de hidrógeno.", d: "El oxígeno ocupa el lugar de la histidina proximal en el estado relajado.", correct: "c", exp: "Trampa bioquímica clásica. La Proximal toca el hierro; la Distal NO toca el hierro, solo estabiliza el oxígeno que entra." },
+            { q: "La profesora explicó el peligro de la intoxicación por Monóxido de Carbono (CO). ¿Por qué es tan letal este gas?", a: "Porque oxida la hemoglobina a metahemoglobina de forma inmediata.", b: "Porque destruye los eritrocitos al unirse a su membrana.", c: "Porque tiene una afinidad por la hemoglobina entre 200 y 300 veces mayor que el oxígeno, impidiendo la respiración tisular.", d: "Porque bloquea la acción de la 2,3-bifosfoglicerato mutasa.", correct: "c", exp: "El CO compite por el mismo sitio de unión en el hierro que el O2, pero con una afinidad inmensamente superior, bloqueando el transporte vital." },
+            { q: "De acuerdo con el Efecto Bohr, ¿cuál es el mecanismo bioquímico por el cual un descenso del pH facilita la liberación de oxígeno?", a: "Los protones (H+) disuelven el anillo de porfirina.", b: "El metabolismo produce CO₂ que, al unirse al agua (anhidrasa carbónica), forma ácido carbónico. Este libera protones (H+) que acidifican el medio, estabilizando la forma T de la hemoglobina y favoreciendo la disociación del O₂.", c: "El ácido destruye físicamente el 2,3-BPG.", d: "Los protones se unen al hierro oxidándolo a férrico.", correct: "b", exp: "Detallado en el audio: el CO2 del metabolismo se convierte en bicarbonato y protones; esos protones bajan el pH y fuerzan a la Hb a soltar el O2." },
+            { q: "A diferencia del CO, que se une al hierro, el dióxido de carbono endógeno (CO₂) reduce la afinidad de la hemoglobina mediante otro mecanismo. ¿A dónde se une el CO₂?", a: "A la histidina distal.", b: "Al oxígeno molecular, formando peróxidos.", c: "A los grupos α-amino terminales de las cadenas de globina, formando enlaces carbamato que estabilizan la forma T.", d: "Al centro activo de la enzima ciclooxigenasa.", correct: "c", exp: "El CO2 reacciona con los extremos amino de la proteína formando carbamatos, un cambio estructural que fuerza a la molécula a liberar su oxígeno." },
+            { q: "En la clínica, la prueba de la Hemoglobina Glicosilada (HbA1c) permite evaluar el control glucémico de un paciente diabético. ¿Por qué es un marcador de los últimos 2-3 meses y no solo del momento de la extracción?", a: "Porque el páncreas tarda tres meses en sintetizar insulina.", b: "Porque se trata de una unión enzimática reversible que depende de la dieta semanal.", c: "Porque es una unión irreversible de la glucosa al grupo amino de la valina terminal (cadena β), y la vida media del eritrocito es de aproximadamente 3 meses.", d: "Porque se almacena en el músculo a largo plazo.", correct: "c", exp: "Como la glucosa se pega de forma irreversible a la HbA1c, este biomarcador viaja durante toda la vida útil del glóbulo rojo, funcionando como un \"historial\" de la glucemia de esos meses." },
+            { q: "La profesora insistió en no confundir Gasometría con Pulsioximetría. Señale la afirmación CORRECTA respecto al pulsioxímetro de dedo:", a: "Mide con alta precisión el pH arterial.", b: "Es capaz de medir la pO₂ y la pCO₂ basándose en fluorescencia.", c: "Sustituye completamente a la gasometría en pacientes críticos.", d: "Es un método no invasivo que estima el % de saturación absorbiendo luz roja e infrarroja, pero NO mide pO₂, pCO₂ ni pH.", correct: "d", exp: "La profesora recalcó que el pulsioxímetro te da el porcentaje (saturación), pero jamás te dará las presiones parciales de los gases ni el estado ácido-base." },
+            { q: "Físicamente, el cambio de la hemoglobina de Estado T (Tenso) a Estado R (Relajado) y su cooperativismo ocurren porque:", a: "La entrada del primer O₂ tira del hierro hacia el plano de la porfirina, provocando un giro de 15º de la pareja α1β1 y modificando las interacciones entre subunidades.", b: "Las cuatro subunidades captan oxígeno simultáneamente por obligación.", c: "La mioglobina empuja el oxígeno dentro de la molécula.", d: "La histidina distal oxida el hierro a Fe3+.", correct: "a", exp: "El tirón del hierro hacia el plano rompe las interacciones tensas y hace girar a la molécula, abriéndola (estado R) para que el resto de oxígenos entren fácilmente." },
+            { q: "¿Cuáles son los valores normales del coeficiente de cooperatividad (Coeficiente de Hill, nH) para la Mioglobina y la Hemoglobina?", a: "Mb: nH=4 / Hb: nH=1.", b: "Ambas tienen un valor de 1.", c: "Mb: nH=1 (no cooperativa) / Hb: nH=2,8−3 (cooperativa).", d: "Mb: nH=0,5 / Hb: nH=4.", correct: "c", exp: "Al ser un monómero, la mioglobina no coopera (n=1). La hemoglobina es tetramérica y su valor experimental está cerca de 3." },
+            { q: "La Drepanocitosis (Anemia Falciforme) es una hemoglobinopatía causante de la Hemoglobina S (HbS). ¿Cuál es su defecto molecular primario?", a: "La pérdida completa del gen en el cromosoma 11.", b: "Una mutación de un único nucleótido que cambia ácido glutámico por valina en la cadena β. La HbS desoxigenada polimeriza formando filamentos que deforman al hematíe.", c: "Una sobreproducción de cadenas α que precipitan.", d: "La incapacidad de la médula para sintetizar el grupo hemo.", correct: "b", exp: "Es una mutación cualitativa. Al cambiar un aminoácido, la forma desoxigenada se vuelve insoluble y forma \"agujas\" que estiran la célula dándole forma de hoz." },
+            { q: "A diferencia de la drepanocitosis, las Talasemias se caracterizan por ser defectos:", a: "Cualitativos, donde la molécula se forma entera pero es defectuosa.", b: "Exclusivos del grupo prostético (hemo).", c: "Cuantitativos, donde uno o más genes son disfuncionales y las cadenas de globina (α o β) se producen en cantidad insuficiente o nula.", d: "Transmitidos únicamente por el cromosoma X.", correct: "c", exp: "En las talasemias falta cantidad de proteína. Las cadenas β fallan por defectos en el cromosoma 11, y las α por el cromosoma 16." },
+            { q: "Ya dentro del inicio del bloque de Hemostasia, la profesora preguntó a la clase por la diana farmacológica de los AINEs (como el ibuprofeno o la aspirina) para evitar la agregación plaquetaria. ¿Cuál es esa diana?", a: "Inhiben la síntesis de óxido nítrico endotelial.", b: "Inhiben la enzima Ciclooxigenasa (COX), bloqueando la formación de Tromboxano A2 a partir de ácido araquidónico.", c: "Degrada directamente la malla de fibrina.", d: "Bloquean los receptores de serotonina en la plaqueta.", correct: "b", exp: "Chivatazo explícito en el audio. El ácido araquidónico pasa a Tromboxano A2 (potente agregante y vasoconstrictor) mediante la ciclooxigenasa, enzima que bloquean los antiinflamatorios." },
+            { q: "Fisiológicamente, ¿por qué el endotelio vascular intacto (sano) NO produce la agregación de las plaquetas ni forma trombos?", a: "Porque secreta grandes cantidades de colágeno al torrente sanguíneo.", b: "Porque las células endoteliales están recubiertas de trombina.", c: "Porque el endotelio produce sustancias antiagregantes y vasodilatadoras como el Óxido Nítrico (NO) y la Prostaciclina.", d: "Porque carece de flujo sanguíneo directo.", correct: "c", exp: "El endotelio sano mantiene a raya a las plaquetas liberando NO y prostaciclina, que inhiben su agregación y dilatan el vaso." },
+            { q: "¿Qué efecto intracelular produce el Óxido Nítrico (NO) en el músculo liso y plaquetas para evitar la agregación?", a: "Estimula la adenilato ciclasa y aumenta el AMPc.", b: "Inhibe totalmente la glucólisis.", c: "Estimula la guanilato ciclasa, aumentando el GMP cíclico y disminuyendo la entrada de Calcio.", d: "Destruye los gránulos alfa de las plaquetas.", correct: "c", exp: "Al disminuir el calcio intracelular, el NO impide que la plaqueta se active y libere sus gránulos, y relaja el músculo liso del vaso." },
+            { q: "Según explicó la profesora, ¿qué son exactamente las plaquetas circulantes?", a: "Leucocitos especializados en la coagulación con núcleo lobulado.", b: "Fragmentos citoplasmáticos carentes de núcleo que provienen de unas células gigantes de la médula ósea llamadas megacariocitos.", c: "Eritrocitos inmaduros que han perdido su hemoglobina.", d: "Proteínas plasmáticas sintetizadas en el hígado.", correct: "b", exp: "Las plaquetas no son células verdaderas, son fragmentos que se desprenden del megacariocito, por lo que no tienen núcleo ni capacidad de dividirse." },
+            { q: "En la estructura interna de una plaqueta, ¿qué elementos encontramos almacenados en los denominados \"Gránulos densos\"?", a: "Fibrinógeno y factor de von Willebrand.", b: "Óxido nítrico y prostaciclina.", c: "Calcio, ATP, ADP y 5HT (Serotonina).", d: "Hemoglobina y mioglobina.", correct: "c", exp: "La profesora hizo el inciso explícito: \"5HT es serotonina\". Estos gránulos almacenan los elementos \"pesados\" (calcio y nucleótidos)." },
+            { q: "Por otro lado, ¿qué proteínas vitales para la coagulación se almacenan en los \"Gránulos alfa\" de las plaquetas?", a: "Fibrinógeno y Factor de von Willebrand.", b: "Únicamente serotonina.", c: "Tromboxano A2 en estado puro.", d: "Plasmina y plasminógeno.", correct: "a", exp: "Los gránulos alfa contienen proteínas grandes como el fibrinógeno (vital para la agregación posterior) y factores de crecimiento." },
+            { q: "La profesora detalló dos receptores clave en la membrana de las plaquetas. Durante la ADHESIÓN inicial al vaso roto, ¿qué receptor usa la plaqueta para pegarse al factor de von Willebrand / colágeno expuesto?", a: "Receptor 2B3A.", b: "Receptor de insulina.", c: "Receptor glucoproteico 1B (GPIb).", d: "Receptor de hepcidina.", correct: "c", exp: "El receptor 1B ancla la plaqueta a la herida (colágeno/vWF). Una vez allí, se activará el otro receptor para llamar a más plaquetas." },
+            { q: "Una vez la plaqueta está adherida, cambia de forma y secreta sustancias para llamar a más plaquetas (AGREGACIÓN). ¿Qué receptor se activa ahora para unir unas plaquetas con otras formando un puente?", a: "El receptor 1B.", b: "El receptor 2B3A, que utiliza moléculas de fibrinógeno como \"pegamento\" entre las plaquetas.", c: "El receptor de óxido nítrico.", d: "El receptor de histamina.", correct: "b", exp: "El complejo GPIIb/IIIa (2B3A) se activa y se une al fibrinógeno (que tiene forma alargada), creando una red que atrapa a las demás plaquetas formando el tapón." },
+            { q: "De forma secuencial, cuando se produce una rotura en un vaso sanguíneo, ¿cuál es el primerísimo evento fisiológico que ocurre para evitar el desangramiento?", a: "La formación inmediata de una malla de fibrina.", b: "Una vasodilatación local provocada por el colágeno.", c: "Una vasoconstricción local inmediata para reducir el flujo sanguíneo hacia la herida.", d: "La activación de la fibrinólisis.", correct: "c", exp: "Antes incluso de que las plaquetas formen el tapón, el vaso dañado sufre un espasmo (vasoconstricción) para minimizar la pérdida de sangre inicial." },
+            { q: "El proceso de hemostasia se divide en etapas. El tapón que forman las plaquetas (hemostasia primaria) es frágil. ¿Qué proceso debe ocurrir a continuación (hemostasia secundaria) para asegurar la herida definitivamente?", a: "Las plaquetas deben fusionarse formando una única célula gigante.", b: "Se debe activar la cascada de coagulación para transformar el fibrinógeno soluble en una malla de fibrina insoluble que fije y consolide el tapón.", c: "El endotelio debe producir óxido nítrico para disolver el tapón.", d: "Las células rojas deben calcificarse sobre la herida.", correct: "b", exp: "El tapón plaquetario primario \"se lo lleva la corriente\" si no es estabilizado por la malla de fibrina (hemostasia secundaria), que es el objetivo final de la cascada de coagulación." },
+            { q: "Volviendo a la hemoglobina: Si analizamos la estructura secundaria de la mioglobina y de las cadenas de globina, ¿qué conformación presentan casi en un 75%?", a: "Son estructuras lineales sin plegar.", b: "Predominan las láminas β-plegadas ricas en queratina.", c: "Presentan 8 segmentos de α-hélice dextrógira (denominados de la A a la H).", d: "Son triple hélices de colágeno.", correct: "c", exp: "Las globinas son el ejemplo clásico de proteínas globulares con altísimo contenido en alfa-hélice." },
+            { q: "Si extraemos una gasometría arterial pura (generalmente de la arteria radial), ¿cuáles son los rangos normales de presión parcial para O₂ y CO₂ que deberíamos observar?", a: "pO₂ 35-45 mmHg / pCO₂ 80-105 mmHg.", b: "pO₂ 80-105 mmHg / pCO₂ 35-45 mmHg.", c: "pO₂ 26 mmHg / pCO₂ 26 mmHg.", d: "pO₂ 1-4 mmHg / pCO₂ 100 mmHg.", correct: "b", exp: "La sangre arterial (recién oxigenada) presenta alta pO₂ (80-105 mmHg) y una pCO₂ baja/controlada (35-45 mmHg)." },
+            { q: "La P50 de la hemoglobina fetal (HbF) es menor que la de la hemoglobina materna (HbA1). Fisiológicamente, ¿qué implica esto para el feto?", a: "Que su hemoglobina es incapaz de soltar oxígeno.", b: "Que su curva está desplazada hacia la izquierda, lo que le otorga mayor afinidad y le permite extraer eficientemente el oxígeno de la sangre materna a través de la placenta.", c: "Que su hemoglobina no presenta cooperativismo.", d: "Que padece una talasemia congénita.", correct: "b", exp: "La menor P50 de la HbF asegura que en el lecho capilar placentario, el oxígeno pase de la madre (menor afinidad) al feto (mayor afinidad)." },
+            { q: "Para entender la cascada de coagulación que se verá en la próxima clase, la profesora adelantó que la mayoría de los factores de coagulación son proteínas que se sintetizan en el hígado y circulan de una forma especial. ¿Cómo circulan?", a: "Como enzimas plenamente activas y destructivas.", b: "Como zimógenos (proenzimas inactivas), que solo se activarán mediante roturas proteolíticas cuando se inicie la cascada.", c: "Viajan en el interior de los eritrocitos.", d: "Están almacenadas exclusivamente en los pulmones.", correct: "b", exp: "Los factores (ej. Protrombina, Factor X) circulan inactivos (zimógenos) para que la sangre no se coagule espontáneamente por todo el cuerpo." },
+            { q: "La fase final de la hemostasia se produce cuando el vaso ya ha sido reparado por completo. ¿Cómo se denomina al mecanismo fisiológico encargado de degradar el coágulo y quién lo ejecuta?", a: "Coagulación, ejecutada por el factor de von Willebrand.", b: "Fibrinólisis, ejecutada por la enzima Plasmina.", c: "Agregación secundaria, ejecutada por la trombina.", d: "Vasodilatación, ejecutada por el tromboxano A2.", correct: "b", exp: "La plasmina es la tijera biológica encargada de degradar la malla de fibrina (fibrinólisis) para restaurar el flujo normal una vez que la pared endotelial ha sanado." },
+            { q: "En relación con las variantes de la hemoglobina en el desarrollo humano, ¿qué cadenas componen la hemoglobina embrionaria Gower-1?", a: "2α,2β.", b: "2α,2γ.", c: "2ζ,2ϵ.", d: "2α,2δ.", correct: "c", exp: "Según el temario, Gower-1 (2ζ,2ϵ) y Gower-2 (2α,2ϵ) son los primeros tipos de hemoglobina presentes exclusivamente en la fase embrionaria." },
+            { q: "Si representamos matemáticamente el cooperativismo de la hemoglobina usando la Ecuación de Hill, transformamos la curva sigmoidea en líneas rectas al aplicar logaritmos. ¿Qué nos indica la pendiente máxima experimental obtenida en esa gráfica?", a: "El número exacto de miligramos de hierro en la sangre.", b: "El coeficiente de Hill (nH), que al ser superior a 1 (aprox. 2,8-3) demuestra que la hemoglobina presenta cooperatividad positiva.", c: "La vida media de la hemoglobina, que es de 120 días.", d: "Que la hemoglobina ha mutado a hemoglobina S.", correct: "b", exp: "Explicado en el audio: el cálculo de la pendiente en la zona de transición nos da el coeficiente experimental, que refleja el alosterismo y la cooperatividad del tetrámero." }
+        ];
+
+        let currentQuestions = [];
+        let answersState = {}; // { indexInCurrent: { selected, correct, marked, answered } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz() {
+            const isRandom = document.getElementById('order-random').checked;
+            currentQuestions = JSON.parse(JSON.stringify(rawData));
+            if (isRandom) shuffle(currentQuestions);
+            
+            answersState = {};
+            initUI();
+        }
+
+        function initUI() {
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('main-container').style.display = 'flex';
+            document.getElementById('finish-btn').classList.remove('hidden');
+
+            const sidebar = document.getElementById('sidebar');
+            const quizArea = document.getElementById('quiz-area');
+            sidebar.innerHTML = '';
+            quizArea.innerHTML = '';
+
+            currentQuestions.forEach((q, i) => {
+                // Crear Nav Dot
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.id = `dot-${i}`;
+                dot.innerText = i + 1;
+                dot.onclick = () => document.getElementById(`q-${i}`).scrollIntoView();
+                sidebar.appendChild(dot);
+
+                // Crear Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${i}`;
+
+                // Aleatorizar opciones
+                const opts = [
+                    { key: 'a', text: q.a },
+                    { key: 'b', text: q.b },
+                    { key: 'c', text: q.c },
+                    { key: 'd', text: q.d }
+                ];
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <strong>Pregunta ${i + 1}</strong>
+                        <label class="mark-container">
+                            <input type="checkbox" onchange="toggleMark(${i}, this.checked)"> Marcar
+                        </label>
+                    </div>
+                    <p>${q.q}</p>
+                    <div class="options-container">
+                        ${opts.map(o => `
+                            <div class="option" data-key="${o.key}" onclick="checkAnswer(${i}, '${o.key}', this)">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${i}">${q.exp}</div>
+                `;
+                quizArea.appendChild(card);
+            });
+        }
+
+        function checkAnswer(qIdx, selectedKey, element) {
+            if (answersState[qIdx]?.answered) return;
+
+            const correctKey = currentQuestions[qIdx].correct;
+            const isCorrect = selectedKey === correctKey;
+
+            if (!answersState[qIdx]) answersState[qIdx] = {};
+            
+            answersState[qIdx].answered = true;
+            answersState[qIdx].correct = isCorrect;
+            answersState[qIdx].selected = selectedKey;
+
+            const container = element.parentElement;
+            const options = container.querySelectorAll('.option');
+            
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.dataset.key === correctKey) opt.classList.add('correct');
+                if (opt.dataset.key === selectedKey && !isCorrect) opt.classList.add('wrong');
+            });
+
+            document.getElementById(`exp-${qIdx}`).style.display = 'block';
+            document.getElementById(`dot-${qIdx}`).classList.add('answered');
+        }
+
+        function toggleMark(qIdx, isMarked) {
+            if (!answersState[qIdx]) answersState[qIdx] = {};
+            answersState[qIdx].marked = isMarked;
+            document.getElementById(`dot-${qIdx}`).classList.toggle('marked', isMarked);
+        }
+
+        function finishQuiz() {
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('finish-btn').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            const total = currentQuestions.length;
+            const correctas = Object.values(answersState).filter(s => s.correct).length;
+            document.getElementById('score-text').innerText = `Has acertado ${correctas} de ${total} preguntas.`;
+        }
+
+        function retry(type) {
+            let nextQuestions = [];
+
+            if (type === 'all') {
+                nextQuestions = rawData;
+            } else {
+                nextQuestions = currentQuestions.filter((q, i) => {
+                    const state = answersState[i] || {};
+                    const isFailed = state.answered && !state.correct;
+                    const isMarked = state.marked;
+
+                    if (type === 'failed') return isFailed;
+                    if (type === 'marked') return isMarked;
+                    if (type === 'failed-marked') return isFailed || isMarked;
+                });
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas que coincidan con ese criterio.");
+                return;
+            }
+
+            currentQuestions = JSON.parse(JSON.stringify(nextQuestions));
+            const isRandom = document.getElementById('order-random').checked;
+            if (isRandom) shuffle(currentQuestions);
+            
+            answersState = {};
+            initUI();
+        }
+    </script>
+</body>
+</html>

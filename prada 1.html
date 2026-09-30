@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Tema 13: Mediastino (Vista Completa)</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --background-color: #f4f7f6;
+            --card-background: #ffffff;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden; /* El scroll lo manejan los contenedores internos */
+        }
+
+        /* --- SIDEBAR (Índice) --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #bdc3c7;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            background-color: #1a252f;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.2rem; }
+        .sidebar-stats { font-size: 0.9rem; margin-top: 10px; color: #bdc3c7; }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columnas de números */
+            gap: 8px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 5px;
+            background-color: #34495e;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none; /* Para usar enlaces internos */
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); }
+        .nav-btn.correct { background-color: var(--success-color); border: 2px solid #2ecc71; }
+        .nav-btn.incorrect { background-color: var(--error-color); border: 2px solid #e74c3c; }
+        .nav-btn.marked { border: 2px solid #f1c40f; color: #f1c40f; font-weight: 900; }
+        .nav-btn.current { box-shadow: 0 0 0 2px white inset; }
+
+        /* --- MAIN CONTENT --- */
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 { color: var(--primary-color); border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; }
+
+        /* --- TARJETA DE PREGUNTA --- */
+        .question-card {
+            background-color: var(--card-background);
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid var(--secondary-color);
+            scroll-margin-top: 20px; /* Para que el scroll no pegue al borde */
+        }
+
+        .question-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-number {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .bookmark-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #95a5a6;
+            font-size: 0.9rem;
+            padding: 4px 8px;
+            transition: 0.2s;
+        }
+        .bookmark-btn:hover { background-color: #ecf0f1; }
+        .bookmark-btn.active { border-color: #f1c40f; color: #f39c12; background-color: #fef9e7; }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(.disabled) {
+            border-color: var(--secondary-color);
+            background-color: #ebf5fb;
+        }
+
+        .option-btn.correct {
+            background-color: #d4edda;
+            border-color: var(--success-color);
+            color: #155724;
+        }
+
+        .option-btn.incorrect {
+            background-color: #f8d7da;
+            border-color: var(--error-color);
+            color: #721c24;
+            opacity: 0.8;
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .feedback.show { display: block; animation: slideDown 0.3s ease-out; }
+        .feedback.success { background-color: #e8f8f5; color: #0e6251; border-left: 4px solid #2ecc71; }
+        .feedback.error { background-color: #fdedec; color: #78281f; border-left: 4px solid #e74c3c; }
+
+        /* --- PANEL DE RESULTADOS FINAL --- */
+        .results-panel {
+            background-color: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 50px;
+            text-align: center;
+            display: none; /* Se muestra al final */
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .action-btn:hover { background-color: #2980b9; transform: translateY(-2px); }
+        .action-btn.secondary { background-color: #7f8c8d; }
+        .action-btn.secondary:hover { background-color: #95a5a6; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; max-height: 150px; border-right: none; border-bottom: 1px solid #bdc3c7; }
+            .sidebar-nav { display: flex; overflow-x: auto; padding: 10px; }
+            .nav-btn { flex: 0 0 40px; height: 40px; width: 40px; margin-right: 5px; }
+            .main-content { padding: 20px; overflow: visible; }
+        }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Tema 13: Mediastino</h2>
+        <div class="sidebar-stats">
+            <span id="progress-text">0/11</span> respondidas
+        </div>
+    </div>
+    <div id="sidebar-nav" class="sidebar-nav">
+        </div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h1>Cuestionario de Anatomía</h1>
+        <p>Selecciona la respuesta correcta. Las preguntas se corregirán automáticamente.</p>
+
+        <div id="questions-list">
+            </div>
+
+        <div id="results-panel" class="results-panel">
+            <h2>Resultados Finales</h2>
+            <p id="score-text" style="font-size: 1.5rem; margin: 20px 0;">Has acertado X de Y</p>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="resetQuiz('all')">Repetir Todo</button>
+                <button class="action-btn secondary" onclick="resetQuiz('wrong')">Repetir Falladas</button>
+                <button class="action-btn secondary" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="action-btn secondary" onclick="resetQuiz('wrong_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- BASE DE DATOS DE PREGUNTAS (Literal del texto) ---
+    // Incluye duplicados si están en el texto original para mantener la numeración y literalidad.
+    const dbQuestions = [
+        {
+            id: 0,
+            originalId: "Sin Numero",
+            question: "La arteria pericardiofrénica es rama de:",
+            options: [
+                { text: "Arteria intercostal anterior.", correct: false },
+                { text: "Arteria subclavia.", correct: false },
+                { text: "Arteria torácica interna.", correct: true },
+                { text: "Arteria vertebral.", correct: false }
+            ],
+            explanation: "Según el texto: 'La arteria pericardiofrénica es rama de: Arteria torácica interna.'"
+        },
+        {
+            id: 1,
+            originalId: "1",
+            question: "El mediastino es el espacio comprendido entre:",
+            options: [
+                { text: "los pulmones", correct: false },
+                { text: "la parrilla costal", correct: false },
+                { text: "las pleuras parietales", correct: true },
+                { text: "las pleuras viscerales", correct: false }
+            ],
+            explanation: "Según el texto: 'El mediastino es el espacio comprendido entre: las pleuras parietales'"
+        },
+        {
+            id: 2,
+            originalId: "2",
+            question: "En el mediastino medio o visceral:",
+            options: [
+                { text: "se encuentra la cadena simpática torácica", correct: false },
+                { text: "se ve nacer el nervio laríngeo recurrente derecho", correct: false },
+                { text: "encontramos el esófago", correct: false },
+                { text: "hallamos al corazón con los grandes vasos entrando y saliendo de él", correct: true }
+            ],
+            explanation: "Según el texto: 'En el mediastino medio o visceral: hallamos al corazón con los grandes vasos entrando y saliendo de él'"
+        },
+        {
+            id: 3,
+            originalId: "3",
+            question: "¿Qué estructura se encuentra en el mediastino posterior?",
+            options: [
+                { text: "Nervio frénico derecho.", correct: false },
+                { text: "Esófago, porción torácica.", correct: true },
+                { text: "Vena cava superior.", correct: false },
+                { text: "Vena cava inferior.", correct: false }
+            ],
+            explanation: "Según el texto: '¿Qué estructura se encuentra en el mediastino posterior? Esófago, porción torácica.'"
+        },
+        {
+            id: 4,
+            originalId: "4",
+            question: "Qué elementos nerviosos se encargan del contingente simpático de los plexos mediastínicos:",
+            options: [
+                { text: "Nervios cardíacos simpáticos cervicales.", correct: true },
+                { text: "Nervios esplácnicos mayor de la cadena simpática paravertebral.", correct: false },
+                { text: "Nervios torácicos de la cadena simpática paravertebral.", correct: false },
+                { text: "Nervio vago.", correct: false }
+            ],
+            explanation: "Según el texto: 'Qué elementos nerviosos se encargan del contingente simpático de los plexos mediastínicos: Nervios cardíacos simpáticos cervicales.'"
+        },
+        {
+            id: 5,
+            originalId: "5",
+            question: "Los ligamentos pericardicofrénicos fijan el centro tendinoso del diafragma con",
+            options: [
+                { text: "Mediastino posterior", correct: false },
+                { text: "Cara mediastínica del pulmón derecho", correct: false },
+                { text: "El saco pericárdico", correct: true },
+                { text: "EL tejido conectivo laxo del mediastino", correct: false }
+            ],
+            explanation: "Según el texto: 'Los ligamentos pericardicofrénicos fijan el centro tendinoso del diafragma con... c. El saco pericárdico'"
+        },
+        {
+            id: 6,
+            originalId: "6",
+            question: "Cuál de las siguientes estructuras no forma parte del mediastino superior:",
+            options: [
+                { text: "Cayado aórtico", correct: false },
+                { text: "Venas braquiocefálicas", correct: false },
+                { text: "Arteria carótida común izquierda", correct: false },
+                { text: "Tronco arteria pulmonar", correct: true },
+                { text: "Tronco arterial braquiocefálico derecho", correct: false }
+            ],
+            explanation: "Según el texto: 'Cuál de las siguientes estructuras no forma parte del mediastino superior: Tronco arteria pulmonar'"
+        },
+        {
+            id: 7,
+            originalId: "11",
+            question: "Qué elementos nerviosos se encargan del contingente simpático de los plexos mediastínicos:",
+            options: [
+                { text: "Nervio vago", correct: false },
+                { text: "Nervios esplácnicos mayor de la cadena simpática para vertebral", correct: false },
+                { text: "Nervios torácicos de la cadena simpática paravertebral", correct: false },
+                { text: "Nervios cardíacos simpáticos cervicales", correct: true }
+            ],
+            explanation: "(Pregunta duplicada en el texto original). Respuesta correcta: Nervios cardíacos simpáticos cervicales."
+        },
+        {
+            id: 8,
+            originalId: "78",
+            question: "¿Dónde se localiza la membrana intercostal externa?",
+            options: [
+                { text: "En el espacio intercostal", correct: false },
+                { text: "Entre el musculo intercostal externo y elevadores de las costillas", correct: false },
+                { text: "Entre el musculo intercostal interno y serrato", correct: false },
+                { text: "Entre el intercostal externo e interno", correct: true }
+            ],
+            explanation: "Según el texto: '¿Dónde se localiza la membrana intercostal externa? ... d) Entre el intercostal externo e interno'"
+        },
+        {
+            id: 9,
+            originalId: "42",
+            question: "¿Qué estructura se encuentra en el mediastino posterior?",
+            options: [
+                { text: "Nervio frénico derecho", correct: false },
+                { text: "Esófago, porción torácica", correct: true },
+                { text: "Vena cava superior", correct: false }
+            ],
+            explanation: "(Pregunta duplicada en el texto original). Respuesta correcta: Esófago, porción torácica."
+        },
+        {
+            id: 10,
+            originalId: "55",
+            question: "El timo tiene relación con:",
+            options: [
+                { text: "El tronco braquicefálico derecho venoso", correct: false },
+                { text: "El tronco braquiocefálico izquierdo venoso", correct: false },
+                { text: "Diafragma", correct: false },
+                { text: "Epiglotis", correct: false },
+                { text: "A y B son ciertas", correct: true }
+            ],
+            explanation: "Según el texto: 'El timo tiene relación con... A y B son ciertas' (referido a los troncos venosos braquiocefálicos)."
+        }
+    ];
+
+    // --- ESTADO DE LA APLICACIÓN ---
+    let currentQuestions = [...dbQuestions];
+    let markedIds = new Set();
+    let userAnswers = {}; // { id: boolean (acierto/fallo) }
+
+    // --- FUNCIONES UTILITARIAS ---
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    // --- RENDERIZADO ---
+    function renderQuiz() {
+        const list = document.getElementById('questions-list');
+        const nav = document.getElementById('sidebar-nav');
+        const resultsPanel = document.getElementById('results-panel');
+        
+        list.innerHTML = '';
+        nav.innerHTML = '';
+        resultsPanel.style.display = 'none'; // Ocultar resultados al inicio
+
+        if (currentQuestions.length === 0) {
+            list.innerHTML = '<div class="question-card"><h3>No hay preguntas que coincidan con el filtro seleccionado.</h3></div>';
+            return;
+        }
+
+        currentQuestions.forEach((q, index) => {
+            // 1. Renderizar Botón Sidebar
+            const btn = document.createElement('a');
+            btn.href = `#q-${q.id}`;
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            btn.id = `nav-btn-${q.id}`;
+            
+            // Estado inicial del botón (si ya se respondió antes y se está filtrando)
+            if (userAnswers[q.id] === true) btn.classList.add('correct');
+            if (userAnswers[q.id] === false) btn.classList.add('incorrect');
+            if (markedIds.has(q.id)) btn.classList.add('marked');
+
+            nav.appendChild(btn);
+
+            // 2. Renderizar Tarjeta de Pregunta
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            // Mezclar opciones cada vez que se renderiza
+            // Nota: Si ya está respondida, deberíamos mostrar el estado. 
+            // Para simplificar "repetir", reseteamos el orden salvo que queramos persistir. 
+            // El usuario pidió "cada vez que se cargue debe ordenar las respuestas en un orden diferente".
+            // Al hacer "Reset", se vuelve a cargar, así que reordenamos.
+            const shuffledOptions = shuffle([...q.options]);
+
+            let optionsHTML = '';
+            shuffledOptions.forEach(opt => {
+                // Lógica para onclick
+                // Escapamos comillas simples para el string del HTML
+                const safeText = opt.text.replace(/'/g, "\\'");
+                optionsHTML += `<button class="option-btn" onclick="handleAnswer(${q.id}, ${opt.correct}, this)">${opt.text}</button>`;
+            });
+
+            const isMarked = markedIds.has(q.id);
+
+            card.innerHTML = `
+                <div class="question-header-row">
+                    <span class="question-number">Pregunta ${index + 1} (Ref: ${q.originalId})</span>
+                    <button class="bookmark-btn ${isMarked ? 'active' : ''}" onclick="toggleMark(${q.id}, this)">
+                        ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                    </button>
+                </div>
+                <div class="question-text">${q.question}</div>
+                <div class="options-grid" id="opts-${q.id}">
+                    ${optionsHTML}
+                </div>
+                <div class="feedback" id="feed-${q.id}"></div>
+            `;
+            list.appendChild(card);
+        });
+
+        updateProgress();
+    }
+
+    // --- LÓGICA DE RESPUESTA ---
+    function handleAnswer(questionId, isCorrect, btnElement) {
+        // Evitar responder dos veces
+        if (userAnswers.hasOwnProperty(questionId)) return;
+
+        // Guardar respuesta
+        userAnswers[questionId] = isCorrect;
+
+        // UI Feedback en la tarjeta
+        const container = document.getElementById(`opts-${questionId}`);
+        const feedbackBox = document.getElementById(`feed-${questionId}`);
+        const navBtn = document.getElementById(`nav-btn-${questionId}`);
+        const questionData = dbQuestions.find(q => q.id === questionId);
+
+        // Bloquear todos los botones de esta pregunta
+        const buttons = container.querySelectorAll('.option-btn');
+        buttons.forEach(b => {
+            b.classList.add('disabled');
+            b.onclick = null; // Quitar listener
+            
+            // Si es la correcta, marcarla en verde siempre para que se vea cuál era
+            // Buscamos la opción en la data original que coincide con el texto
+            // (Comparación de texto simple)
+            const optData = questionData.options.find(o => o.text === b.innerText);
+            if (optData && optData.correct) {
+                b.classList.add('correct');
+            }
+        });
+
+        // Estilo del botón pulsado
+        if (isCorrect) {
+            // btnElement.classList.add('correct'); // Ya se añade arriba si es correcta
+            feedbackBox.innerHTML = `<strong>¡Correcto!</strong><br>${questionData.explanation}`;
+            feedbackBox.className = 'feedback success show';
+            navBtn.classList.add('correct');
+        } else {
+            btnElement.classList.add('incorrect');
+            feedbackBox.innerHTML = `<strong>Incorrecto.</strong><br>${questionData.explanation}`;
+            feedbackBox.className = 'feedback error show';
+            navBtn.classList.add('incorrect');
+        }
+
+        updateProgress();
+    }
+
+    // --- MARCADOR ---
+    function toggleMark(id, btn) {
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        if (markedIds.has(id)) {
+            markedIds.delete(id);
+            btn.innerHTML = '☆ Marcar';
+            btn.classList.remove('active');
+            if (navBtn) navBtn.classList.remove('marked');
+        } else {
+            markedIds.add(id);
+            btn.innerHTML = '★ Marcada';
+            btn.classList.add('active');
+            if (navBtn) navBtn.classList.add('marked');
+        }
+    }
+
+    // --- PROGRESO Y FINALIZACIÓN ---
+    function updateProgress() {
+        const answeredCount = Object.keys(userAnswers).length;
+        const total = currentQuestions.length;
+        document.getElementById('progress-text').innerText = `${answeredCount}/${total}`;
+
+        if (answeredCount === total && total > 0) {
+            showResults();
+        }
+    }
+
+    function showResults() {
+        const panel = document.getElementById('results-panel');
+        panel.style.display = 'block';
+        
+        let correctas = 0;
+        Object.values(userAnswers).forEach(val => { if(val) correctas++; });
+        
+        const total = currentQuestions.length;
+        document.getElementById('score-text').innerText = `Has acertado ${correctas} de ${total}`;
+        
+        // Auto scroll al final
+        panel.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- RESET Y FILTROS ---
+    function resetQuiz(mode) {
+        // Limpiar respuestas visuales anteriores
+        userAnswers = {}; 
+        
+        // Filtrar preguntas según modo
+        if (mode === 'all') {
+            currentQuestions = [...dbQuestions];
+        } else if (mode === 'wrong') {
+            // Filtramos las que se fallaron en la sesión anterior
+            // Nota: Para que esto funcione bien tras varios resets, hay que tener cuidado.
+            // Aquí miramos el estado de los botones del nav actual antes de borrarlo.
+            // O mejor, usamos 'userAnswers' que acabamos de limpiar? No, necesitamos guardar el estado previo.
+            // Vamos a obtener los IDs fallados del DOM actual antes de limpiar.
+            const wrongIds = [];
+            currentQuestions.forEach(q => {
+                const navBtn = document.getElementById(`nav-btn-${q.id}`);
+                if (navBtn && navBtn.classList.contains('incorrect')) {
+                    wrongIds.push(q.id);
+                }
+            });
+            currentQuestions = dbQuestions.filter(q => wrongIds.includes(q.id));
+        } else if (mode === 'marked') {
+            currentQuestions = dbQuestions.filter(q => markedIds.has(q.id));
+        } else if (mode === 'wrong_marked') {
+            const wrongIds = [];
+            currentQuestions.forEach(q => {
+                const navBtn = document.getElementById(`nav-btn-${q.id}`);
+                if (navBtn && navBtn.classList.contains('incorrect')) {
+                    wrongIds.push(q.id);
+                }
+            });
+            currentQuestions = dbQuestions.filter(q => wrongIds.includes(q.id) || markedIds.has(q.id));
+        }
+
+        renderQuiz();
+        // Scroll al inicio
+        document.querySelector('.main-content').scrollTop = 0;
+    }
+
+    // Inicializar
+    renderQuiz();
+
+</script>
+</body>
+</html>

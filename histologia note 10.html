@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz: Músculo Esquelético y Cardíaco</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        /* Pantallas */
+        #start-screen, #end-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        #quiz-container {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Sidebar (Índice) */
+        #sidebar {
+            width: 250px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            height: max-content;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #sidebar h3 { margin-top: 0; text-align: center; }
+        #index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .index-btn {
+            padding: 8px 0;
+            text-align: center;
+            background: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #333;
+            border: 2px solid transparent;
+        }
+        .index-btn:hover { background: #ced4da; }
+        .index-btn.correct { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .index-btn.incorrect { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .index-btn.marked { border: 2px solid #ffc107; box-shadow: inset 0 0 5px rgba(255,193,7,0.5); }
+
+        /* Área de preguntas */
+        #main-content {
+            flex: 1;
+            padding-bottom: 100px;
+        }
+        .question-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .question-text { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; }
+        
+        .mark-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #fff3cd;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: #f8f9fa;
+            border: 1px solid #dae0e5;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+        .option:hover:not(:disabled) { background: #e2e6ea; }
+        .option.correct-ans { background: #d4edda !important; border-color: #c3e6cb; color: #155724; font-weight: bold; }
+        .option.incorrect-ans { background: #f8d7da !important; border-color: #f5c6cb; color: #721c24; }
+        
+        .explanation {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #e2e3e5;
+            border-left: 5px solid #6c757d;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        /* Botón flotante para finalizar */
+        #finish-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            z-index: 1000;
+        }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Quizz: Tejido Muscular y Placa Motora</h1>
+        <p>Selecciona cómo deseas ordenar las preguntas:</p>
+        <div>
+            <button onclick="initQuiz('original')">Orden Preestablecido</button>
+            <button onclick="initQuiz('random')">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="quiz-container" style="display: none;">
+        <div id="sidebar">
+            <h3>Índice</h3>
+            <div id="index-grid"></div>
+        </div>
+
+        <div id="main-content">
+            <div id="questions-list"></div>
+        </div>
+    </div>
+
+    <div id="finish-bar" style="display: none;">
+        <button class="btn-danger" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <div id="end-screen" style="display: none;">
+        <h1>Resultados del Cuestionario</h1>
+        <h2 id="score-display"></h2>
+        <p>¿Qué deseas hacer ahora?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: 0 auto;">
+            <button onclick="restartQuiz('all')">Volver a realizarlo completo</button>
+            <button onclick="restartQuiz('failed')">Repetir solo las falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir solo las marcadas</button>
+            <button onclick="restartQuiz('failed_marked')">Repetir falladas + marcadas</button>
+        </div>
+    </div>
+
+<script>
+    const rawQuestions = [
+        {
+            text: "🚨 AVISO DE CLASE: Si observamos un corte transversal de tejido muscular estriado esquelético, ¿dónde encontraremos localizados los núcleos celulares?",
+            options: [
+                { text: "En el centro geométrico de la célula, siendo siempre únicos.", isCorrect: false },
+                { text: "En la periferia de la célula, justo por debajo del sarcolema, siendo múltiples por cada fibra.", isCorrect: true },
+                { text: "Libres en el endomisio, fuera de la célula muscular.", isCorrect: false },
+                { text: "En el centro exacto del sarcómero, en la banda H.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: La profesora avisa ('esta foto os va a caer') que la característica diagnóstica del músculo esquelético son sus múltiples núcleos aplastados en la periferia."
+        },
+        {
+            text: "La inervación motora del músculo esquelético se realiza mediante la placa motora. Al conjunto formado por una fibra nerviosa (axón) y todas las fibras musculares que inerva se le denomina:",
+            options: [
+                { text: "Fascículo muscular.", isCorrect: false },
+                { text: "Huso neuromuscular.", isCorrect: false },
+                { text: "Unidad motora.", isCorrect: true },
+                { text: "Sincitio funcional.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Definición exacta dada en clase. Un músculo puede tener varias unidades motoras que determinan la precisión de su movimiento."
+        },
+        {
+            text: "A nivel de la placa motora, el axón pierde su vaina de mielina y libera un neurotransmisor para despolarizar el sarcolema. ¿Cuál es este neurotransmisor clásico?",
+            options: [
+                { text: "Dopamina.", isCorrect: false },
+                { text: "Adrenalina.", isCorrect: false },
+                { text: "Acetilcolina.", isCorrect: true },
+                { text: "Serotonina.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La acetilcolina interactúa con los canales iónicos del sarcolema iniciando la despolarización."
+        },
+        {
+            text: "APLICACIÓN CLÍNICA: ¿Qué toxina, empleada terapéuticamente en oftalmología (estrabismos) o medicina estética, actúa bloqueando el receptor de acetilcolina en la placa motora y paralizando el músculo esquelético?",
+            options: [
+                { text: "Toxina tetánica.", isCorrect: false },
+                { text: "Toxina diftérica.", isCorrect: false },
+                { text: "Toxina botulínica (Botox).", isCorrect: true },
+                { text: "Muscarina.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La profesora pone este ejemplo de cómo bloquear intencionadamente la unión neuromuscular con toxina botulínica para producir relajación/parálisis muscular."
+        },
+        {
+            text: "En el músculo esquelético, la invaginación del sarcolema (túbulo T) contacta con el retículo sarcoplásmico formando la TRIADA. ¿Dónde se localiza anatómicamente esta triada?",
+            options: [
+                { text: "En la línea Z.", isCorrect: false },
+                { text: "En el centro de la banda H.", isCorrect: false },
+                { text: "En la unión entre la línea oscura y la línea clara (unión A-I).", isCorrect: true },
+                { text: "En los discos intercalares.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Diferencia crucial que hay que memorizar: la triada esquelética siempre se sitúa en la unión A-I."
+        },
+        {
+            text: "Si una fibra muscular sufre una denervación (se corta el nervio que la inerva), esta se atrofia. ¿Qué tipo de fibras musculares son de contracción explosiva, metabolismo anaeróbico y sufren una degeneración rapidísima e irreversible si pierden su inervación?",
+            options: [
+                { text: "Las fibras rojas (oxidativas).", isCorrect: false },
+                { text: "Las fibras blancas (tipo II).", isCorrect: true },
+                { text: "Las fibras intrafusales.", isCorrect: false },
+                { text: "Las células satélite.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Las fibras blancas (anaeróbicas, rápidas, fatigables) toleran muy mal la denervación comparadas con las rojas."
+        },
+        {
+            text: "Ante un infarto o un aplastamiento del músculo esquelético, la regeneración parcial es posible gracias a unas células que proliferan y forman miotubos. ¿Cómo se llaman estas células?",
+            options: [
+                { text: "Fibroblastos del perimisio.", isCorrect: false },
+                { text: "Células de Purkinje.", isCorrect: false },
+                { text: "Células satélite.", isCorrect: true },
+                { text: "Macrófagos residentes.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Las células satélite están debajo de la lámina basal y actúan como células de reserva (stem cells) para regenerar el músculo esquelético."
+        },
+        {
+            text: "Según la profesora, para que la regeneración del músculo esquelético mediante células satélite sea eficiente y exitosa, es indispensable que se cumplan ciertas condiciones, destacando principalmente:",
+            options: [
+                { text: "Que no haya macrófagos en la zona.", isCorrect: false },
+                { text: "Que la lámina basal (membrana basal) esté íntegra o completa.", isCorrect: true },
+                { text: "Que haya una separación (distancia) gigantesca entre los cabos del músculo roto.", isCorrect: false },
+                { text: "Que el músculo reciba estimulación simpática.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Se requieren tres cosas: lámina basal íntegra, células satélite funcionantes y poca distancia entre los extremos sanos de la lesión."
+        },
+        {
+            text: "METÁFORA DE CLASE: El receptor sensorial del músculo esquelético se llama 'Huso Neuromuscular' porque su forma recuerda al instrumento con el que se hilaba la lana y con el que se pinchó:",
+            options: [
+                { text: "Blancanieves.", isCorrect: false },
+                { text: "La Cenicienta.", isCorrect: false },
+                { text: "La Bella Durmiente.", isCorrect: true },
+                { text: "Rapunzel.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La profesora hace la broma/regla nemotécnica del huso de la rueda de la Bella Durmiente para que los alumnos recuerden su forma alargada."
+        },
+        {
+            text: "Si imaginamos que el músculo esquelético es un bloque de 'plastilina' y le clavamos un 'bolígrafo', el bolígrafo representa el huso neuromuscular. ¿Cómo se denominan las fibras musculares convencionales que están POR FUERA del huso (la plastilina)?",
+            options: [
+                { text: "Fibras intrafusales.", isCorrect: false },
+                { text: "Fibras extrafusales.", isCorrect: true },
+                { text: "Células satélite.", isCorrect: false },
+                { text: "Fibras nodales.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Las fibras extrafusales son las fibras musculares esqueléticas de trabajo normal (la plastilina)."
+        },
+        {
+            text: "Dentro de la cápsula del huso neuromuscular encontramos fibras musculares modificadas llamadas FIBRAS INTRAFUSALES. Según la disposición de sus núcleos, se dividen en dos tipos:",
+            options: [
+                { text: "Fibras rojas y blancas.", isCorrect: false },
+                { text: "Fibras de Purkinje y nodales.", isCorrect: false },
+                { text: "Fibras con núcleos en bolsa y fibras con núcleos en cadena.", isCorrect: true },
+                { text: "Fibras estrelladas y fusiformes.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Es la clasificación morfológica estricta que da la profesora para las fibras intrafusales del huso."
+        },
+        {
+            text: "La inervación SENSITIVA que manda la información de estiramiento del músculo al sistema nervioso central consta de dos tipos de terminaciones situadas sobre las fibras intrafusales. Estas son:",
+            options: [
+                { text: "Placas motoras y uniones gap.", isCorrect: false },
+                { text: "Terminaciones en flor (en los extremos) y terminaciones anuloespirales (enrolladas en el centro).", isCorrect: true },
+                { text: "Corpúsculos de Pacini y terminaciones libres.", isCorrect: false },
+                { text: "Discos intercalares y desmosomas.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Describe que las terminaciones 'en flor' se abren como un trébol en los polos, y las 'espirales' se enrollan alrededor de los núcleos centrales."
+        },
+        {
+            text: "PREGUNTA CLAVE DE INERVACIÓN MOTORA: Las neuronas que llevan la orden motora EXCLUSIVAMENTE a las fibras musculares de trabajo normales (fibras extrafusales) provocando la contracción principal del músculo, se denominan:",
+            options: [
+                { text: "Motoneuronas Gamma.", isCorrect: false },
+                { text: "Neuronas sensitivas espirales.", isCorrect: false },
+                { text: "Motoneuronas Alfa.", isCorrect: true },
+                { text: "Células de Schwann.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Las motoneuronas Alfa inervan el músculo extrafusal (las placas motoras convencionales)."
+        },
+        {
+            text: "Por el contrario, ¿qué neuronas inervan a las fibras INTRAFUSALES (dentro del huso) para modular y mantener la tensión del propio receptor durante la contracción muscular?",
+            options: [
+                { text: "Motoneuronas Alfa.", isCorrect: false },
+                { text: "Motoneuronas Gamma.", isCorrect: true },
+                { text: "Neuronas preganglionares simpáticas.", isCorrect: false },
+                { text: "Células piramidales de la corteza.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Las motoneuronas Gamma inervan la porción contráctil de las fibras del huso para ajustar su sensibilidad."
+        },
+        {
+            text: "Al observar el miocardio al microscopio, a diferencia del músculo esquelético cuyas células están perfectamente alineadas, la profesora describe el tejido cardíaco como:",
+            options: [
+                { text: "Un conjunto de fibras rectas y paralelas sin conexiones.", isCorrect: false },
+                { text: "Células esféricas flotando en líquido sinovial.", isCorrect: false },
+                { text: "Un patrón abigarrado de células con formas irregulares (en Y, en N) que encajan unas con otras tridimensionalmente.", isCorrect: true },
+                { text: "Una masa sin estriaciones ni núcleos visibles.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Las células cardíacas son ramificadas o bifurcadas para crear una red tridimensional que contrae las cavidades del corazón."
+        },
+        {
+            text: "Citológicamente, si hacemos un corte transversal de una célula muscular cardíaca, ¿dónde visualizaremos su núcleo?",
+            options: [
+                { text: "En la periferia, aplastado contra la membrana.", isCorrect: false },
+                { text: "En el centro de la célula, siendo habitualmente único y redondo/ovalado.", isCorrect: true },
+                { text: "No tienen núcleo en su estado maduro.", isCorrect: false },
+                { text: "Siempre tiene más de 10 núcleos por célula en los polos.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Otra diferencia diagnóstica crucial. En corte transversal, el núcleo cardíaco se ve claramente en el medio del citoplasma."
+        },
+        {
+            text: "Frecuentemente, en el citoplasma de las células musculares cardíacas cercanas a los polos del núcleo se observan acúmulos de un pigmento pardo-amarillento resultante del desgaste celular ('pigmento de envejecimiento'). Se llama:",
+            options: [
+                { text: "Melanina.", isCorrect: false },
+                { text: "Hemosiderina.", isCorrect: false },
+                { text: "Lipofuscina.", isCorrect: true },
+                { text: "Bilirrubina.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La profesora señala directamente estos gránulos marrones en las fotos como lipofuscina, típica de células de larga vida con alta actividad."
+        },
+        {
+            text: "A nivel ultraestructural, el sistema de invaginaciones del sarcolema en la célula muscular cardíaca NO forma una triada. ¿Cómo se llama su estructura equivalente y dónde se sitúa?",
+            options: [
+                { text: "Díada (1 túbulo T + 1 cisterna del retículo), y se sitúa a nivel de la línea Z.", isCorrect: true },
+                { text: "Tríada inversa, situada en la banda M.", isCorrect: false },
+                { text: "Cuarteto (2 túbulos T + 2 cisternas), en la línea Z.", isCorrect: false },
+                { text: "Díada, y se sitúa en la unión A-I.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: a. Explicación: A diferencia de la triada esquelética en la unión A-I, el corazón tiene díadas en la línea Z."
+        },
+        {
+            text: "El complejo de unión exclusivo que mantiene pegadas a las células musculares cardíacas por sus extremos, permitiendo la transmisión de la fuerza y del impulso eléctrico, se denomina:",
+            options: [
+                { text: "Placa motora.", isCorrect: false },
+                { text: "Huso neuromuscular.", isCorrect: false },
+                { text: "Disco intercalar (o estría escalariforme).", isCorrect: true },
+                { text: "Línea de cemento de von Ebner.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Es la estructura morfológica característica que define los límites y la unión funcional entre los cardiomiocitos."
+        },
+        {
+            text: "El disco intercalar tiene una forma escalonada con dos componentes: transversal y longitudinal. ¿Qué tipo de uniones celulares predominan en el COMPONENTE TRANSVERSAL (el que sufre la fuerza de tracción)?",
+            options: [
+                { text: "Exclusivamente uniones Gap (comunicantes).", isCorrect: false },
+                { text: "Moléculas de adhesión: Fascia adherens (que ancla actina, vinculina) y Desmosomas (que anclan desmina).", isCorrect: true },
+                { text: "Placas motoras y receptores de acetilcolina.", isCorrect: false },
+                { text: "Hemidesmosomas y lámina basal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: La parte transversal, que aguanta el tirón mecánico, es rica en desmosomas y fascia adherens. La profesora pide memorizar especialmente los desmosomas y la vinculina/actina."
+        },
+        {
+            text: "¿Qué proteína del citoesqueleto se ancla fuertemente a los desmosomas en el componente transversal del disco intercalar para evitar que las células se separen durante los latidos?",
+            options: [
+                { text: "Miosina.", isCorrect: false },
+                { text: "Queratina.", isCorrect: false },
+                { text: "Desmina.", isCorrect: true },
+                { text: "Tubulina.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El esquema del PDF detalla que los filamentos intermedios de desmina se anclan a los desmosomas en el disco intercalar."
+        },
+        {
+            text: "Por otro lado, en el COMPONENTE LONGITUDINAL del disco intercalar encontramos un tipo de unión esencial para el paso de iones (calcio, sodio) que permite que todo el corazón se despolarice como un sincitio. ¿De qué unión hablamos?",
+            options: [
+                { text: "Fascia adherens.", isCorrect: false },
+                { text: "Uniones estrechas (Tight junctions).", isCorrect: false },
+                { text: "Uniones de hendidura o comunicantes (Gap junctions).", isCorrect: true },
+                { text: "Sinapsis químicas.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La profesora hace la metáfora de los 'flotadores o tubos' (hexámeros de conexinas) que conectan citoplasmas permitiendo el paso rápido de moléculas e iones."
+        },
+        {
+            text: "Según la explicación de clase, ¿por qué NO hay Uniones Gap en la porción transversal del disco intercalar y solo están en la porción longitudinal?",
+            options: [
+                { text: "Porque la porción transversal no tiene membrana plasmática.", isCorrect: false },
+                { text: "Porque las Uniones Gap no soportan tensiones mecánicas fuertes ('como un velcro de papel') y se romperían si estuvieran en la zona de tracción máxima.", isCorrect: true },
+                { text: "Porque por ahí solo pasan glóbulos rojos.", isCorrect: false },
+                { text: "Porque en la porción transversal ya hay calcio almacenado.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Las Gap junctions son para comunicación, no para anclaje; si estuvieran en la parte transversal que soporta el tirón mecánico, se desgarrarían."
+        },
+        {
+            text: "El corazón no depende de placas motoras voluntarias para latir. ¿Cómo se llaman las células musculares modificadas, de menor tamaño, sin discos intercalares pero que inician y marcan el ritmo del latido en los nódulos (SA y AV)?",
+            options: [
+                { text: "Células de Purkinje.", isCorrect: false },
+                { text: "Células Nodales.", isCorrect: true },
+                { text: "Células Satélite.", isCorrect: false },
+                { text: "Mioblastos piramidales.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Según el PDF, las células nodales son más pequeñas, tienen escasas miofibrillas periféricas, mucho glucógeno y no poseen discos intercalares ni desmosomas."
+        },
+        {
+            text: "El impulso eléctrico se distribuye por el ventrículo gracias a una red especializada de células musculares modificadas llamadas Células de Purkinje. ¿Cuál de estas características es típica de una célula de Purkinje?",
+            options: [
+                { text: "Son mucho más pequeñas que un cardiomiocito normal.", isCorrect: false },
+                { text: "Carecen de glucógeno.", isCorrect: false },
+                { text: "Son muy voluminosas, generalmente binucleadas y tienen pocas miofibrillas desplazadas a la periferia.", isCorrect: true },
+                { text: "Se regeneran constantemente.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Las diapositivas del PDF definen claramente a las células de Purkinje por su gran tamaño, aspecto pálido (glucógeno), binucleación y miofibrillas periféricas."
+        },
+        {
+            text: "APLICACIÓN CLÍNICA: Según el documento PDF sobre biomedicina, ¿qué enzima liberada al suero sanguíneo por los cardiomiocitos necrosados es un biomarcador característico utilizado para diagnosticar un Infarto de Miocardio?",
+            options: [
+                { text: "Fosfatasa ácida.", isCorrect: false },
+                { text: "Creatín Quinasa MB (CK-MB).", isCorrect: true },
+                { text: "Anhidrasa carbónica.", isCorrect: false },
+                { text: "Colagenasa tipo I.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El texto destaca que la LDH-1 y específicamente la isoenzima Creatín Quinasa MB (CK-MB) se liberan de los cardiomiocitos muertos al torrente sanguíneo tras la isquemia."
+        },
+        {
+            text: "Tras un infarto de miocardio agudo con necrosis de cardiomiocitos, la reparación fisiológica del tejido en el adulto se realiza mediante:",
+            options: [
+                { text: "Proliferación masiva de células satélite que restauran el músculo íntegramente.", isCorrect: false },
+                { text: "División mitótica rápida de los cardiomiocitos supervivientes.", isCorrect: false },
+                { text: "No hay regeneración muscular; la zona necrótica es reemplazada por tejido conjuntivo fibroso (una cicatriz).", isCorrect: true },
+                { text: "Formación de tejido óseo ectópico.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La profesora explica que el corazón no se regenera. La isquemia mata la célula muscular y esta se sustituye por una cicatriz inerte, afectando a la contracción."
+        },
+        {
+            text: "Si le presentan al microscopio un corte transversal de tejido, en el que observa fibras muy ordenadas pero NO hay núcleos en el interior de los citoplasmas (sino fuera, en el conjuntivo), y con la técnica tricrómica se ven todas de color rojo. ¿Qué tejido es?",
+            options: [
+                { text: "Músculo cardíaco.", isCorrect: false },
+                { text: "Músculo esquelético.", isCorrect: true },
+                { text: "Tendón (tejido conjuntivo).", isCorrect: false },
+                { text: "Células nodales.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El músculo esquelético tiene los núcleos en la periferia. Al hacer un corte transversal a menudo parecen estar 'fuera' o pegados al borde. Con el tricrómico el músculo se ve rojo."
+        },
+        {
+            text: "Si comparamos la riqueza mitocondrial de las distintas células, ¿qué característica diferencial tienen las Fibras Musculares Rojas (esqueléticas lentas) y los Cardiomiocitos?",
+            options: [
+                { text: "Ambos carecen casi por completo de mitocondrias, ya que son glucolíticos puros.", isCorrect: false },
+                { text: "Ambos tienen una enorme cantidad de mitocondrias porque su actividad es continua, aeróbica y muy demandante de energía sostenida.", isCorrect: true },
+                { text: "Las rojas tienen mitocondrias, pero los cardiomiocitos no.", isCorrect: false },
+                { text: "Ninguno de los dos tiene retículo sarcoplásmico.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Tanto las fibras esqueléticas rojas (posturales/resistencia) como el músculo cardíaco (latido ininterrumpido) necesitan metabolismo oxidativo y están llenos de mitocondrias."
+        },
+        {
+            text: "La unión miotendinosa es la zona crítica donde el músculo estriado esquelético transfiere la fuerza al esqueleto. ¿Qué tejido conforma exactamente el tendón que se ancla al músculo?",
+            options: [
+                { text: "Tejido muscular liso.", isCorrect: false },
+                { text: "Cartílago hialino.", isCorrect: false },
+                { text: "Tejido conjuntivo denso orientado.", isCorrect: true },
+                { text: "Tejido adiposo pardo.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El tendón está hecho de conectivo denso regular cuyas fibras colágenas se entrelazan íntimamente con las invaginaciones del sarcolema muscular terminal."
+        },
+        {
+            text: "En la ultraestructura del músculo esquelético, las miofibrillas no están 'sueltas', sino interconectadas por proteínas del citoesqueleto extramiofibrilar. La principal proteína que enlaza y estabiliza lateralmente los discos Z de miofibrillas adyacentes es:",
+            options: [
+                { text: "La Actina.", isCorrect: false },
+                { text: "La Miosina.", isCorrect: false },
+                { text: "La Desmina.", isCorrect: true },
+                { text: "El Retículo endoplásmico.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La desmina es el filamento intermedio fundamental para el anclaje estructural de la maquinaria sarcomérica."
+        },
+        {
+            text: "Según el PDF, ¿qué función cumple la proteína transmembrana intercambiadora de Na+/Ca2+ en el sarcolema del músculo cardíaco?",
+            options: [
+                { text: "Sintetizar glucógeno.", isCorrect: false },
+                { text: "Producir acetilcolina.", isCorrect: false },
+                { text: "Expulsar el calcio del citoplasma al exterior (junto a la recaptación por el retículo) para permitir la relajación muscular.", isCorrect: true },
+                { text: "Formar los desmosomas.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El esquema de la célula cardíaca muestra el intercambiador Na+/Ca2+ en la membrana, encargado de bombear el calcio fuera tras la contracción para relajar la célula."
+        },
+        {
+            text: "La membrana plasmática (sarcolema) tanto del músculo esquelético como del cardíaco está recubierta externamente de forma íntima por una estructura que es esencial para la regeneración y el anclaje extracelular. Se trata de:",
+            options: [
+                { text: "La placa motora.", isCorrect: false },
+                { text: "La lámina basal.", isCorrect: true },
+                { text: "El hueso subcondral.", isCorrect: false },
+                { text: "El epimisio denso.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Todas las fibras musculares esqueléticas y cardíacas poseen una lámina basal propia secretada por ellas mismas."
+        },
+        {
+            text: "¿Qué enfermedad grave, ilustrada metafóricamente por el físico Stephen Hawking, menciona la profesora que es causada por la degeneración y muerte progresiva de las motoneuronas del asta anterior de la médula espinal (las que inervan al músculo esquelético)?",
+            options: [
+                { text: "Esclerosis Lateral Amiotrófica (ELA).", isCorrect: true },
+                { text: "Botulismo.", isCorrect: false },
+                { text: "Infarto de Miocardio.", isCorrect: false },
+                { text: "Distrofia muscular de Duchenne.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: a. Explicación: 'Todos recordaréis a Hawking... padece una ELA, un cuadro donde se afectan las motoneuronas del asta posterior/anterior de la mente que son las que van a inervar la fibra muscular'."
+        },
+        {
+            text: "En los músculos que requieren movimientos finos, precisos y delicados (como los extrínsecos del ojo), cada axón motor inervará:",
+            options: [
+                { text: "A miles de fibras musculares a la vez.", isCorrect: false },
+                { text: "A ninguna fibra, dependen de los husos neuromusculares.", isCorrect: false },
+                { text: "A muy pocas fibras musculares (1 a 5), siendo las unidades motoras muy pequeñas.", isCorrect: true },
+                { text: "A todo el músculo cardíaco.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Explica que en zonas de alta precisión (movimientos del ojo o dedos), una placa motora inerva a muy pocas fibras para controlar al milímetro la contracción."
+        },
+        {
+            text: "A nivel del corazón, existen unas células mioendocrinas especializadas localizadas principalmente en las aurículas. Según el PDF, ¿qué se observa en su citoplasma yuxtanuclear?",
+            options: [
+                { text: "Discos intercalares dobles.", isCorrect: false },
+                { text: "Gránulos secretores (que contienen péptido natriurético auricular).", isCorrect: true },
+                { text: "Cristales de hidroxiapatita.", isCorrect: false },
+                { text: "Neuronas piramidales.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El PDF destaca que existen 'células mioendocrinas de localización atrial que en su citoplasma yuxtanuclear muestran gránulos secretores'."
+        },
+        {
+            text: "En el esquema del sarcómero cortado transversalmente a nivel de la banda A (zona de solapamiento), la disposición geométrica de los filamentos muestra que:",
+            options: [
+                { text: "Solo hay gruesos o solo hay finos, pero no se mezclan.", isCorrect: false },
+                { text: "Cada filamento grueso de miosina está rodeado por seis filamentos finos de actina formando un patrón hexagonal regular.", isCorrect: true },
+                { text: "Los filamentos están desordenados como en el músculo liso.", isCorrect: false },
+                { text: "El núcleo está en el medio de los filamentos.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: En las micrografías electrónicas transversales del PDF se observa este patrón cristalino perfecto en la banda A donde la miosina central está rodeada de un hexágono de actina."
+        },
+        {
+            text: "La despolarización y liberación de calcio en la contracción. Cuando el impulso nervioso viaja por los túbulos T, ¿qué orgánulo intracelular se despolariza en respuesta y vierte bruscamente el Calcio almacenado al sarcoplasma?",
+            options: [
+                { text: "El aparato de Golgi.", isCorrect: false },
+                { text: "El núcleo.", isCorrect: false },
+                { text: "Las cisternas del retículo sarcoplásmico (Retículo Endoplásmico Liso).", isCorrect: true },
+                { text: "Las mitocondrias.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El retículo sarcoplásmico es el reservorio intracelular de calcio en las células musculares estriadas."
+        },
+        {
+            text: "Si observamos que una fibra intrafusal del huso neuromuscular tiene sus núcleos amontonados y agrupados en el centro de forma desordenada ('como una bolsa de canicas'), la clasificamos como:",
+            options: [
+                { text: "Fibra con núcleos en cadena.", isCorrect: false },
+                { text: "Célula de Purkinje.", isCorrect: false },
+                { text: "Fibra con núcleos en bolsa (nuclear bag fiber).", isCorrect: true },
+                { text: "Fibra motora Alfa.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Metáfora directa de la profesora para diferenciar las fibras en bolsa ('como canicas') de las fibras en cadena ('ordenaditas en fila')."
+        },
+        {
+            text: "¿Cuál es el nombre del tejido conjuntivo que rodea TODO el músculo esquelético por su cara exterior, anclándose a las fascias circundantes? (Recordando la metáfora de la funda externa de la cartuchera).",
+            options: [
+                { text: "Endomisio.", isCorrect: false },
+                { text: "Epimisio.", isCorrect: true },
+                { text: "Perimisio.", isCorrect: false },
+                { text: "Sarcolema.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El epimisio es la envuelta conectiva macroscópica que rodea el vientre completo del músculo, antes de que este se subdivida en fascículos (perimisio)."
+        }
+    ];
+
+    let currentQuestions = [];
+    
+    // Preparar el array maestro añadiendo el ID original
+    const masterQuestions = rawQuestions.map((q, index) => {
+        return {
+            id: index + 1,
+            originalText: (index + 1) + ". " + q.text,
+            options: q.options,
+            explanation: q.explanation,
+            marked: false,
+            answered: false,
+            correct: null
+        };
+    });
+
+    // Utilidades
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function initQuiz(orderMode) {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'none';
+        document.getElementById('quiz-container').style.display = 'flex';
+        document.getElementById('finish-bar').style.display = 'block';
+
+        // Clonar array para el estado actual
+        currentQuestions = JSON.parse(JSON.stringify(masterQuestions));
+        
+        // Mantener el estado de 'marked' si estamos reiniciando
+        currentQuestions.forEach((q, i) => q.marked = masterQuestions[i].marked);
+
+        if (orderMode === 'random') {
+            shuffleArray(currentQuestions);
+        }
+
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        const indexGrid = document.getElementById('index-grid');
+        const questionsList = document.getElementById('questions-list');
+        
+        indexGrid.innerHTML = '';
+        questionsList.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            const displayNum = index + 1;
+            
+            // Render Índice
+            const idxBtn = document.createElement('a');
+            idxBtn.href = `#q-${q.id}`;
+            idxBtn.className = 'index-btn';
+            idxBtn.id = `idx-${q.id}`;
+            idxBtn.textContent = displayNum;
+            if (q.marked) idxBtn.classList.add('marked');
+            indexGrid.appendChild(idxBtn);
+
+            // Render Pregunta
+            const qCard = document.createElement('div');
+            qCard.className = 'question-card';
+            qCard.id = `q-${q.id}`;
+
+            // Pestaña de marcado
+            const markDiv = document.createElement('div');
+            markDiv.className = 'mark-container';
+            markDiv.innerHTML = `<input type="checkbox" id="mark-${q.id}" ${q.marked ? 'checked' : ''} onchange="toggleMark(${q.id}, this.checked)"> <label for="mark-${q.id}">Marcar</label>`;
+            qCard.appendChild(markDiv);
+
+            // Texto de la pregunta literal
+            const qText = document.createElement('div');
+            qText.className = 'question-text';
+            qText.textContent = `${displayNum}. ${q.originalText.substring(q.originalText.indexOf('.') + 2)}`;
+            qCard.appendChild(qText);
+
+            // Barajar opciones cada vez que se carga
+            let shuffledOptions = JSON.parse(JSON.stringify(q.options));
+            shuffleArray(shuffledOptions);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.id = `opts-${q.id}`;
+            
+            shuffledOptions.forEach((opt, optIndex) => {
+                const optBtn = document.createElement('button');
+                optBtn.className = 'option';
+                optBtn.textContent = opt.text;
+                optBtn.onclick = () => handleAnswer(q.id, opt.isCorrect, optBtn, optionsContainer, q.explanation);
+                optionsContainer.appendChild(optBtn);
+            });
+            qCard.appendChild(optionsContainer);
+
+            // Explicación (oculta inicialmente)
+            const expDiv = document.createElement('div');
+            expDiv.className = 'explanation';
+            expDiv.id = `exp-${q.id}`;
+            expDiv.textContent = q.explanation;
+            qCard.appendChild(expDiv);
+
+            questionsList.appendChild(qCard);
+        });
+    }
+
+    function handleAnswer(qId, isCorrect, btnElement, container, explanation) {
+        // Encontrar pregunta
+        const q = currentQuestions.find(x => x.id === qId);
+        if (q.answered) return; 
+
+        q.answered = true;
+        q.correct = isCorrect;
+
+        // Actualizar maestro
+        masterQuestions.find(x => x.id === qId).answered = true;
+        masterQuestions.find(x => x.id === qId).correct = isCorrect;
+
+        // Desactivar botones y colorear correcta
+        const buttons = container.querySelectorAll('.option');
+        buttons.forEach(b => {
+            b.disabled = true;
+            const optText = b.textContent;
+            const originalOpt = q.options.find(o => o.text === optText);
+            if (originalOpt.isCorrect) {
+                b.classList.add('correct-ans');
+            }
+        });
+
+        if (!isCorrect) {
+            btnElement.classList.add('incorrect-ans');
+        }
+
+        // Mostrar explicación
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+
+        // Actualizar índice
+        const idxBtn = document.getElementById(`idx-${qId}`);
+        idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qId, isMarked) {
+        const q = currentQuestions.find(x => x.id === qId);
+        q.marked = isMarked;
+        masterQuestions.find(x => x.id === qId).marked = isMarked;
+
+        const idxBtn = document.getElementById(`idx-${qId}`);
+        if (isMarked) {
+            idxBtn.classList.add('marked');
+        } else {
+            idxBtn.classList.remove('marked');
+        }
+    }
+
+    function finishQuiz() {
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('finish-bar').style.display = 'none';
+        
+        let correctCount = masterQuestions.filter(q => q.correct === true).length;
+        let totalAnswered = masterQuestions.filter(q => q.answered === true).length;
+
+        document.getElementById('score-display').textContent = `Has respondido ${totalAnswered} preguntas. Aciertos: ${correctCount}`;
+        document.getElementById('end-screen').style.display = 'flex';
+    }
+
+    function restartQuiz(mode) {
+        masterQuestions.forEach(q => {
+            q.answered = false;
+            q.correct = null;
+        });
+
+        let subset = [];
+        if (mode === 'all') {
+            subset = JSON.parse(JSON.stringify(masterQuestions));
+        } else if (mode === 'failed') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.correct === false)));
+            if (subset.length === 0) { alert("¡No hay preguntas falladas!"); return; }
+        } else if (mode === 'marked') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.marked === true)));
+            if (subset.length === 0) { alert("¡No hay preguntas marcadas!"); return; }
+        } else if (mode === 'failed_marked') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.correct === false || q.marked === true)));
+            if (subset.length === 0) { alert("¡No hay preguntas falladas ni marcadas!"); return; }
+        }
+
+        document.getElementById('end-screen').style.display = 'none';
+        
+        if (confirm("¿Deseas mezclar el orden de las preguntas aleatoriamente? (Aceptar = Sí, Cancelar = No)")) {
+            shuffleArray(subset);
+        }
+
+        currentQuestions = subset;
+        document.getElementById('quiz-container').style.display = 'flex';
+        document.getElementById('finish-bar').style.display = 'block';
+        
+        renderQuiz();
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Integración Sináptica y Circuitos Neuronales</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. Según el repaso del profesor, ¿cuántos tipos de neurotransmisores y de receptores participan normalmente en la placa motora (unión neuromuscular)? A) Múltiples neurotransmisores y múltiples receptores. B) Un único neurotransmisor (Glutamato) y un receptor metabotrópico. C) Un único neurotransmisor (Acetilcolina) y un único tipo de receptor (nicotínico). D) Varios neurotransmisores, pero un solo receptor. Respuesta correcta: C. Explicación: El modelo de la unión neuromuscular es muy simple: solo interviene la acetilcolina uniéndose a su receptor nicotínico.
+2. En condiciones fisiológicas normales, ¿cuál es el grado de eficacia (factor de seguridad) de una sinapsis neuromuscular? A) Muy bajo, requiere sumación de muchos potenciales. B) Alto grado de eficacia: un potencial de acción presináptico genera siempre un potencial de acción muscular (100% de las ocasiones). C) Nulo, solo genera potenciales hiperpolarizantes. D) Medio, funciona el 50% de las veces. Respuesta correcta: B. Explicación: El profesor subraya que la placa motora tiene un alto factor de seguridad para asegurar siempre la contracción.
+3. A diferencia de la unión neuromuscular, las sinapsis entre neuronas en el Sistema Nervioso Central (SNC) se caracterizan por: A) Tener una relación uno-a-uno infalible. B) Utilizar exclusivamente acetilcolina. C) Recibir un alto número de entradas sinápticas (convergencia) de baja eficacia individual. D) Generar siempre respuestas despolarizantes. Respuesta correcta: C. Explicación: En el SNC, una sola neurona recibe miles de contactos y la activación de uno solo rara vez es suficiente para generar un potencial de acción; se requiere integración.
+4. El profesor menciona una rara excepción anatómica en el SNC donde existe un contacto sináptico único muy potente (relación 1:1) similar a la placa motora. ¿Dónde se encuentra? A) En el miocardio. B) En el núcleo coclear (sinapsis en Cáliz). C) En la corteza visual. D) En el ganglio de la raíz dorsal. Respuesta correcta: B. Explicación: Lo menciona a título informativo como una curiosidad anatómica que escapa a la regla general de alta convergencia del SNC.
+5. En el SNC, las entradas sinápticas que recibe una neurona pueden ser: A) Únicamente excitadoras. B) Únicamente inhibidoras. C) Excitadoras e inhibidoras. D) Exclusivamente eléctricas. Respuesta correcta: C. Explicación: Esta es una diferencia fundamental con la placa motora (que solo excita); el SNC procesa información mediante la integración de señales de ambos tipos.
+6. Un Potencial Postsináptico Excitador (EPSP) se caracteriza por ser: A) Siempre hiperpolarizante. B) Siempre despolarizante. C) Una respuesta "todo o nada". D) Indiferente al voltaje. Respuesta correcta: B. Explicación: Los EPSPs siempre generan una despolarización local en la membrana postsináptica.
+7. ¿Qué iones son los principales responsables de generar un EPSP al aumentar la permeabilidad de la membrana postsináptica? A) Solo Cloro (Cl−). B) Sodio (Na+) y Potasio (K+). C) Magnesio (Mg2+). D) Calcio (Ca2+) exclusivamente. Respuesta correcta: B. Explicación: Tal como vimos en temas anteriores y repasa el PDF, la apertura de canales permeables a Na+ y K+ (como los de glutamato) genera el EPSP.
+8. En el Sistema Nervioso Central, el neurotransmisor que frecuentemente media los EPSP es: A) GABA. B) Glicina. C) Glutamato. D) Serotonina. Respuesta correcta: C. Explicación: El glutamato es el principal neurotransmisor excitador del SNC.
+9. Un Potencial Postsináptico Inhibidor (IPSP) clásicamente resulta del aumento de la permeabilidad a: A) Sodio y Calcio. B) Cloro (Cl−) o Potasio (K+). C) Fósforo. D) Magnesio. Respuesta correcta: B. Explicación: La entrada de Cloro o la salida de Potasio introducen/dejan cargas netas negativas, hiperpolarizando la célula.
+10. Fisiológicamente, ¿qué regiones de la neurona actúan como zona de "recepción" donde se propagan pasivamente los potenciales locales (EPSP e IPSP)? A) Los Nodos de Ranvier. B) Las dendritas y el soma. C) El axón distal. D) Las vesículas presinápticas. Respuesta correcta: B. Explicación: El profesor explica que la neurona está polarizada funcionalmente: dendritas/soma reciben y el axón transmite.
+11. ¿Dónde se "toma la decisión" fisiológica (lectura/integración) de si se dispara o no un nuevo potencial de acción? A) En la espina dendrítica. B) En el núcleo. C) En el cono axónico o segmento inicial (SI). D) En la vaina de mielina. Respuesta correcta: C. Explicación: Todos los potenciales locales viajan hacia el segmento inicial, donde se decide el disparo.
+12. ¿Por qué el segmento inicial es el lugar óptimo para iniciar el potencial de acción? A) Porque no tiene mielina. B) Porque presenta una elevadísima densidad de canales de Sodio (Na+) dependientes de voltaje. C) Porque es la zona más grande de la neurona. D) Porque carece de canales de potasio. Respuesta correcta: B. Explicación: Esta alta densidad de canales reduce el umbral de disparo en esa zona específica.
+13. (PREGUNTA CLAVE). En un adulto, el potencial de equilibrio del Cloro (ECl) es de aprox. -70 mV. Si la neurona está en reposo a -60 mV y se abre una sinapsis GABAérgica (permeable a Cloro), ¿qué ocurre? A) El Cloro sale, despolarizando la célula. B) El Cloro entra (buscando su equilibrio en -70mV), provocando una hiperpolarización (IPSP clásico). C) No hay flujo de iones. D) Se dispara un potencial de acción inmediato. Respuesta correcta: B. Explicación: Al estar el Vm (-60) más positivo que el ECl (-70), la fuerza electromotriz empuja al anión negativo (Cl-) hacia adentro, negativizando aún más la célula.
+14. Según la explicación del profesor, ¿qué alteración fisiológica existe en el estadio neonatal respecto al Cloro? A) Tienen un exceso de canales de sodio. B) La bomba (ATPasa) que saca el cloro no se ha expresado completamente, por lo que el gradiente de cloro no está bien establecido y su potencial de equilibrio (ECl) es menos negativo (aprox. -50 mV). C) Los neonatos no tienen receptores GABA. D) El cloro se transforma en potasio en la sangre. Respuesta correcta: B. Explicación: Esta falta de madurez de la bomba de cloro es la base de todo el razonamiento posterior sobre el GABA despolarizante.
+15. En el caso del neonato, si su Vm de reposo es -60 mV y su ECl es -50 mV. Cuando se activa el receptor GABA y se abren los canales de Cloro, ¿hacia dónde se mueve el ión? A) El Cloro entra a la célula. B) El Cloro SALE de la célula (para llevar el Vm de -60 hacia -50 mV). C) No se mueve. D) Entra Sodio por el canal de Cloro. Respuesta correcta: B. Explicación: Para alcanzar su equilibrio (-50mV), la célula debe perder cargas negativas, por lo que el Cloro sale.
+16. Físicamente, la salida de Cloro (anión) en el neonato provoca en la membrana postsináptica: A) Una hiperpolarización. B) Una despolarización. C) Una parada cardíaca. D) Una estabilización exacta en -60 mV. Respuesta correcta: B. Explicación: Al perder cargas negativas, el interior de la célula se vuelve más positivo (se despolariza de -60 a -50mV).
+17. (PREGUNTA EXIGIDA EN CLASE). Si esta sinapsis GABAérgica del neonato produce una DESPOLARIZACIÓN, ¿por qué el profesor insiste en que sigue siendo INHIBITORIA funcionalmente? A) Porque destruye los receptores de glutamato. B) Porque aunque despolariza, su Potencial de Reversión (-50 mV) sigue estando POR DEBAJO del umbral de disparo del potencial de acción. Al acercarse el Vm a -50 mV, la sinapsis "tira" de la membrana impidiendo que llegue al umbral. C) Porque el GABA siempre hiperpolariza, el profesor se equivocó. D) Porque apaga las mitocondrias. Respuesta correcta: B. Explicación: Esta es la clave del razonamiento: una sinapsis es inhibidora si su Erev es menor que el umbral, independientemente de si desde el reposo despolariza o hiperpolariza.
+18. Por lo tanto, la definición universal estricta para saber si una sinapsis es EXCITADORA es: A) Que siempre libere Glutamato. B) Que siempre hiperpolarice. C) Que su Potencial de Reversión (Erev) sea MAYOR (esté por encima) que el umbral de disparo. D) Que su Potencial de Reversión sea negativo. Respuesta correcta: C. Explicación: Si Erev>umbral, la apertura de los canales tenderá a cruzar el umbral y disparar la neurona.
+19. Según los esquemas del PDF, si una sinapsis abre canales cuyo Erev es EXACTAMENTE IGUAL al potencial de membrana en reposo (-65 mV): A) Generará un EPSP gigante. B) No generará cambio de voltaje (ni se despolariza ni se hiperpolariza), pero seguirá siendo una sinapsis INHIBIDORA (inhibición por cortocircuito o "shunt"). C) Será una sinapsis excitadora. D) Disparará el potencial de acción. Respuesta correcta: B. Explicación: Al no haber fuerza electromotriz el Vm no cambia, pero al abrir canales aumenta la conductancia (cae la resistencia), dificultando que otras sinapsis excitadoras alcancen el umbral.
+20. Si un potencial sináptico tiene un Erev de -50 mV, el Vm de reposo es -65 mV y el umbral es -40 mV. ¿Qué respuesta registramos y qué tipo de sinapsis es? (Cuestión 5 del PDF) A) Registramos un EPSP, y es una sinapsis excitadora. B) Registramos un IPSP, y es inhibidora. C) Registramos una despolarización, pero es una sinapsis INHIBIDORA. D) No se registra nada. Respuesta correcta: C. Explicación: De -65 a -50 hay despolarización, pero como -50 está por debajo de -40 (umbral), impide el disparo y por tanto es inhibidora.
+21. El fenómeno por el cual potenciales sinápticos consecutivos generados en la MISMA región de la membrana se suman se denomina: A) Sumación espacial. B) Integración presináptica. C) Sumación temporal. D) Facilitación retrógrada. Respuesta correcta: C. Explicación: La sumación en el tiempo de estímulos sucesivos de una sola sinapsis.
+22. ¿Qué propiedad pasiva de la membrana neuronal determina la probabilidad de que ocurra una sumación temporal? A) La constante de espacio (λ). B) El diámetro del axón. C) La constante de tiempo (τ). D) La densidad de la mielina. Respuesta correcta: C. Explicación: El curso temporal de la despolarización y repolarización depende directamente de τ.
+23. Si una neurona tiene una constante de tiempo (τ) muy GRANDE (ej. 100 ms en lugar de 20 ms), ¿cómo afectará esto a la sumación temporal? A) La probabilidad de sumación temporal será MAYOR, ya que los potenciales sinápticos decaerán más lentamente y podrán solaparse con los siguientes. B) La probabilidad de sumación será MENOR. C) Evitará cualquier tipo de sumación. D) Los potenciales se volverán hiperpolarizantes. Respuesta correcta: A. Explicación: Un τ grande significa una repolarización lenta; el voltaje residual de un EPSP "espera" más tiempo al siguiente EPSP.
+24. En el ejemplo del profesor sobre sumación temporal, los estímulos a sumar proceden de: A) Diferentes neuronas aferentes. B) La misma neurona (misma sinapsis) disparando repetidamente con un breve intervalo de tiempo. C) Células de la glía vecinas. D) La propia neurona postsináptica. Respuesta correcta: B. Explicación: La sumación temporal implica la activación sucesiva de la misma vía aferente.
+25. El profesor avisa que si el valor de τ se altera patológicamente haciéndose muy grande, ¿qué consecuencia clínica puede derivarse en el SNC? A) Parálisis flácida periférica. B) Enfermedades neurodegenerativas por sobreexcitación (excitotoxicidad), ya que la neurona suma en exceso estímulos y no se "apaga". C) Sordera aguda. D) Ceguera cortical. Respuesta correcta: B. Explicación: Al prolongarse las despolarizaciones, la neurona genera demasiados potenciales de acción, agotándose o sufriendo excitotoxicidad.
+26. ¿Pueden sumarse temporalmente dos potenciales postsinápticos inhibidores (IPSPs)? A) Sí, generando una hiperpolarización aún mayor. B) No, solo se suman los EPSPs. C) Sí, pero se convierten en despolarizantes. D) Solo si la temperatura es de 0ºC. Respuesta correcta: A. Explicación: Las propiedades pasivas y la suma algebraica se aplican por igual a hiperpolarizaciones y despolarizaciones.
+27. En la sumación temporal, los EPSP que se van sumando en la dendrita viajan hacia el cono axónico mediante propagación: A) Activa (sin decremento). B) Saltatoria. C) Pasiva (con decremento). D) Antidrómica. Respuesta correcta: C. Explicación: Todos los potenciales locales en dendritas y soma se propagan de manera pasiva y sufren atenuación antes de llegar al SI.
+28. La integración de múltiples potenciales sinápticos generados SIMULTÁNEAMENTE en DISTINTAS localizaciones de la membrana postsináptica se conoce como: A) Sumación temporal. B) Facilitación presináptica. C) Sumación espacial. D) Propagación activa. Respuesta correcta: C. Explicación: Como provienen de distintas regiones (espacio), se denomina sumación espacial.
+29. En la sumación espacial, si se activa simultáneamente una sinapsis excitadora (A) y una inhibidora (C) de igual magnitud, ¿qué ocurre en el segmento inicial? A) Se suman creando un EPSP doble. B) Se cancelan aritméticamente (la hiperpolarización neutraliza la despolarización). C) Se genera un potencial de acción directamente. D) La sinapsis eléctrica toma el control. Respuesta correcta: B. Explicación: El PDF muestra gráficamente cómo A+C resulta en un potencial nulo (línea plana) al anularse mutuamente.
+30. ¿Qué propiedad pasiva determina el grado de atenuación de estos potenciales cuando viajan hacia el segmento inicial, y por ende, la probabilidad de sumación espacial? A) La constante de espacio o longitud (λ). B) La constante de tiempo (τ). C) El número de mitocondrias. D) La velocidad de conducción saltatoria. Respuesta correcta: A. Explicación: La λ dicta cuánta amplitud se pierde por cada milímetro recorrido.
+31. Si una neurona tiene una constante de espacio (λ) MAYOR (ej. 1 mm frente a 0.33 mm), ¿qué efecto tiene sobre un EPSP distal? A) El EPSP se atenuará mucho más rápido. B) El EPSP llegará al cono axónico con MAYOR amplitud, favoreciendo la sumación espacial y el posible disparo. C) El EPSP se volverá hiperpolarizante. D) El EPSP no se moverá de la dendrita. Respuesta correcta: B. Explicación: Un λ grande significa menos atenuación. El potencial "sobreviene" mejor al viaje pasivo.
+32. ¿Por qué es necesaria la sumación espacial en las neuronas del SNC? A) Porque el Glutamato no funciona bien. B) Porque los potenciales sinápticos individuales son de muy baja eficacia (amplitud pequeña) y uno solo rara vez basta para alcanzar el umbral en el segmento inicial. C) Porque no hay suficientes canales de sodio. D) Porque las neuronas no tienen constante de tiempo. Respuesta correcta: B. Explicación: El profesor resalta que, a diferencia de la placa motora, las sinapsis del SNC son débiles individualmente.
+33. En un experimento, se estimulan a la vez la entrada A (despolariza +10 mV) y la entrada B (despolariza +5 mV) en dendritas adyacentes. Asumiendo que no hay atenuación, ¿cuál será el cambio teórico de voltaje en el soma? A) +50 mV. B) +15 mV. C) +5 mV. D) 0 mV. Respuesta correcta: B. Explicación: La sumación espacial opera por suma algebraica de los voltajes generados.
+34. Imagina dos sinapsis inhibidoras con exactamente la misma "eficacia sináptica" (mismo cambio local de Vm). La sinapsis A está en una espina dendrítica distal y la sinapsis B está directamente en el soma (axosomática). ¿Cuál tendrá mayor peso para abortar un potencial de acción en el segmento inicial? A) La sinapsis A (distal). B) La sinapsis B (proximal/axosomática). C) Ambas tendrán exactamente el mismo peso. D) Ninguna, el soma no acepta sinapsis. Respuesta correcta: B. Explicación: Al estar más cerca del cono axónico, la señal de B sufre mucha menos atenuación espacial (λ) y llega con mayor magnitud.
+35. Por esta razón fisiológica, ¿qué tipo de sinapsis suelen abundar anatómicamente sobre el soma neuronal? A) Sinapsis eléctricas exclusivamente. B) Sinapsis excitadoras. C) Sinapsis inhibidoras, para actuar como un "freno" efectivo antes de la zona de disparo. D) Sinapsis neuromusculares. Respuesta correcta: C. Explicación: El profesor explica que las sinapsis inhibitorias se colocan estratégicamente en el soma para poder bloquear eficazmente entradas excitadoras indeseadas.
+36. El profesor hace una reflexión sobre la sobreexcitación: las sinapsis axosomáticas inhibitorias son cruciales para: A) Multiplicar los estímulos sensoriales dolorosos. B) Evitar que información "sin sentido" (exceso de ruido excitador) trascienda al resto de la red neuronal, impidiendo potenciales de acción indeseados. C) Generar el ritmo cardíaco. D) Transformar al GABA en excitador. Respuesta correcta: B. Explicación: Proveen una "actividad tónica inhibitoria" que filtra las señales antes de que puedan disparar.
+37. ¿Qué destino sufren los EPSP que se originan muy lejos en el árbol dendrítico si la constante de espacio de la neurona es muy corta? A) Se convierten en mielina. B) Se atenúan tanto por propagación pasiva que desaparecen antes de alcanzar el segmento inicial. C) Rebotan y destruyen la sinapsis originaria. D) Aceleran su velocidad hasta la velocidad de la luz. Respuesta correcta: B. Explicación: La atenuación pasiva agota la despolarización si la distancia es grande y λ es pequeña.
+38. Existen sinapsis que no se hacen sobre dendritas o somas, sino directamente sobre los terminales presinápticos de otra neurona (axo-axónicas). Su función principal es: A) Inducir potenciales de acción en el axón postsináptico. B) Generar EPSPs gigantes. C) Modular la CANTIDAD de neurotransmisor que se liberará cuando llegue un potencial de acción a ese terminal. D) Degradar la mielina. Respuesta correcta: C. Explicación: El profesor recalca que NO generan EPSP ni IPSP, sino que regulan el nivel de liberación del NT.
+39. En el mecanismo de "Facilitación Presináptica" mencionado en clase (ej. mediado por Serotonina), la acción neuromoduladora provoca que: A) Se abran canales de Cloro. B) Se abran más canales de Calcio (Ca2+) en el terminal, elevando los niveles de Calcio intraterminal y liberando MÁS neurotransmisor. C) Se cierren los canales de Calcio. D) El potencial de acción retroceda hacia el soma. Respuesta correcta: B. Explicación: La serotonina facilita la apertura de canales de Calcio, prolongando su entrada y potenciando la exocitosis vesicular.
+40. Por el contrario, en la "Inhibición Presináptica" (ej. mediada por GABA en receptores metabotrópicos del terminal), el efecto es: A) Aumentar drásticamente la entrada de Calcio. B) Cerrar o inactivar canales de Calcio (Ca2+), provocando que entre menos calcio y se libere MENOS neurotransmisor. C) Generar un IPSP clásico en la dendrita postsináptica. D) Inducir la destrucción de la vesícula. Respuesta correcta: B. Explicación: Al disminuir el Calcio disponible durante el potencial de acción, se inhibe la secreción de NT.
+41. (Cuestión 7 del PDF). La neurona A inhibe a B. La neurona C hace una sinapsis EXCITADORA (facilitadora) sobre el terminal de A. ¿Qué efecto tiene la activación de C sobre la respuesta final en B? A) B será sobreexcitada y disparará. B) C hará que A libere más neurotransmisor inhibidor, por tanto la inhibición (IPSP) registrada en B será MAYOR. C) C anulará la liberación de A. D) B no sufrirá ningún cambio. Respuesta correcta: B. Explicación: Si C facilita a A, A suelta más NT. Como A es inhibitoria para B, B sufrirá un IPSP mucho más grande.
+42. Las sinapsis axo-axónicas de facilitación y disfacilitación modifican el terminal presináptico sin producir: A) Cambios metabólicos. B) Gasto de ATP. C) Despolarizaciones o hiperpolarizaciones clásicas (EPSP o IPSP) en la célula postsináptica final. D) Interacción con proteínas G. Respuesta correcta: C. Explicación: Su efecto es puramente modulador del Calcio, no generan respuestas eléctricas graduadas típicas.
+43. En la inhibición presináptica mediada por GABA, el receptor implicado en el terminal axónico suele ser: A) Un receptor ionotrópico de Cloro (GABA-A). B) Un receptor metabotrópico (que regula vías para cerrar el canal de Calcio). C) Un receptor nicotínico. D) Un receptor de estrógenos. Respuesta correcta: B. Explicación: El profesor especifica que son receptores metabotrópicos los que intervienen cerrando los canales de calcio en este proceso.
+44. El patrón de circuito donde la información de múltiples neuronas sensoriales confluye hacia una única neurona de segundo orden se denomina: A) Divergencia. B) Reverberación. C) Convergencia. D) Retroalimentación inhibidora. Respuesta correcta: C. Explicación: Convergencia es el flujo "de muchos a uno".
+45. El profesor pone un ejemplo práctico con un "pie de rey" o compás para distinguir dos puntos en el dorso de la espalda. Este bajo poder de discriminación táctil se debe a que: A) En la espalda no hay receptores nerviosos. B) Los campos receptivos convergen (circuitos de convergencia) en una misma vía, y el cerebro lo interpreta como un solo punto. C) Hay demasiada divergencia en la espalda. D) La mielina es muy gruesa en esa zona. Respuesta correcta: B. Explicación: La convergencia anatómica hace que estímulos en áreas amplias terminen activando la misma neurona final, perdiendo resolución espacial.
+46. Por el contrario, en la yema de los dedos el poder de discriminación táctil es altísimo y utilizamos el sistema Braille. Esto se debe a que la información se procesa predominantemente mediante circuitos de: A) Convergencia masiva. B) Divergencia (campos receptivos muy pequeños y vías dedicadas que se separan). C) Reverberación epiléptica. D) Inhibición presináptica generalizada. Respuesta correcta: B. Explicación: Un solo punto táctil activa vías que divergen, manteniendo o amplificando la resolución del estímulo.
+47. Un circuito donde una neurona A excita a B, y a su vez B envía una colateral que vuelve a excitar a A, manteniéndose la señal activa temporalmente, se denomina: A) Circuito en paralelo simple. B) Divergencia motora. C) Circuito reverberante. D) Inhibición lateral. Respuesta correcta: C. Explicación: La reverberación es un ciclo de retroalimentación positiva que mantiene "viva" una señal (base de memoria a corto plazo).
+48. (PREGUNTA CLAVE DEL AUDIO). El profesor pregunta qué función vital e inconsciente es rítmica mientras dormimos. La respuesta (respiración) puede explicarse por la existencia de: A) Circuitos en serie puros. B) Circuitos oscilantes o generadores de patrones rítmicos. C) Exceso de sumación espacial. D) La bomba de Sodio/Potasio del corazón. Respuesta correcta: B. Explicación: El profesor utiliza la respiración como el ejemplo clásico in vivo de actividad generada por redes oscilantes del SNC.
+49. ¿Cómo explica el profesor el funcionamiento básico de un circuito oscilante simple (el "pum pum pum")? A) Una neurona A permanentemente activa excita a una neurona B; pero B, al activarse, envía una sinapsis INHIBIDORA de vuelta a A (o a través de una interneurona), "callándola" temporalmente y creando un patrón rítmico de on/off. B) Todas las neuronas disparan a la vez hasta agotarse. C) La neurona A excita a B, y B excita a A infinitamente hasta causar epilepsia. D) Las neuronas dejan de producir ATP cíclicamente. Respuesta correcta: A. Explicación: Este es el mecanismo preciso narrado en el audio para generar una oscilación: excitación continua + retroalimentación inhibitoria.
+50. En el ejemplo del circuito oscilante, cuando la neurona B inhibe a la neurona A, ¿qué ocurre a continuación? A) La neurona A muere. B) Como A se silencia, deja de excitar a B. Al apagarse B, cesa la inhibición sobre A, permitiendo que A vuelva a disparar y reiniciando el ciclo. C) B se queda encendida para siempre. D) Interviene la serotonina bloqueando el calcio. Respuesta correcta: B. Explicación: Al retirarse el freno inhibitorio de B, la neurona A (que tiene actividad tónica) vuelve a su actividad normal de disparo rítmico.
+51. En la integración sináptica global, si una neurona recibe simultáneamente 10 EPSPs de 2 mV cada uno en dendritas distales y 1 IPSP de 15 mV en el soma. Asumiendo atenuación en las dendritas, el resultado final en el segmento inicial probablemente será: A) El disparo seguro de un potencial de acción. B) Una fuerte hiperpolarización que abortará cualquier disparo. C) Una despolarización masiva de +35 mV. D) La apertura de canales de calcio presinápticos. Respuesta correcta: B. Explicación: Los EPSP distales se atenuarán, y el IPSP proximal mantendrá gran parte de sus 15 mV negativos, dominando y "vetando" a los excitadores.
+52. Fisiológicamente, ¿por qué los EPSPs se describen a menudo como poseedores de un "curso temporal" asimétrico (subida rápida, bajada muy lenta)? A) Porque la acetilcolina tarda horas en degradarse. B) Porque dependen de la constante de tiempo (τ) para descargar el "condensador" de la membrana, lo cual ralentiza el retorno al potencial de reposo. C) Porque la temperatura neuronal fluctúa. D) Porque los canales de Sodio no se cierran nunca. Respuesta correcta: B. Explicación: La capacitancia de la bicapa lipídica obliga a que la repolarización sea progresiva y exponencial.
+53. (Repaso PDF Cuestión 4). Si el ECl = -65 mV y el Vm en reposo = -65 mV. Al abrirse canales de Cloro por la acción de una sinapsis: A) El potencial de membrana no cambiará visiblemente. B) Ocurrirá una despolarización. C) Ocurrirá una hiperpolarización brusca. D) Se generará una oscilación. Respuesta correcta: A. Explicación: Puesto que Vm = ECl, la fuerza electromotriz es cero, y no hay flujo neto del ión.
+54. ¿Cómo actúa funcionalmente la sinapsis de la pregunta anterior (-65 mV) si llegan a la vez EPSPs excitadores de otras dendritas? A) Sumará despolarizaciones. B) Actuará como un cortocircuito (Shunt inhibition), ya que los canales de Cloro abiertos mantienen la membrana "anclada" cerca de -65 mV y la corriente excitadora se fugará por ellos, impidiendo llegar al umbral. C) Acelerará el disparo. D) No afectará a los EPSPs. Respuesta correcta: B. Explicación: Este es el concepto clave de "inhibición silenciosa" o "shunt". Fija la membrana en un valor seguro debajo del umbral.
+55. Según el diagrama general de la neurona visto en el PDF, ¿qué representa la "Zona Conductora"? A) Las dendritas y el soma donde viajan los EPSP. B) La mielina en exclusividad. C) El axón, por donde se transmite el potencial de acción "todo o nada" sin decremento. D) El espacio sináptico. Respuesta correcta: C. Explicación: El axón es la vía de conducción rápida y sin atenuación hasta los terminales de salida.
+56. ¿Qué parámetro de la ecuación de sumación espacial decae siguiendo la fórmula exponencial e−x/λ? A) La concentración de calcio. B) La amplitud o voltaje del potencial electrotónico. C) La cantidad de mielina. D) La temperatura del soma. Respuesta correcta: B. Explicación: El voltaje del potencial postsináptico (Vx) decrece exponencialmente con la distancia x, dictado por λ.
+57. El profesor hizo una analogía con la transmisión de información táctil en el Braille. ¿Por qué es biológicamente desventajoso tener campos de convergencia masivos en los dedos? A) Porque dolería mucho leer. B) Porque toda la información espacial detallada se mezclaría en un único "píxel" sensorial, impidiendo distinguir letras pequeñas. C) Porque gastaría demasiado glutamato. D) Porque los dedos se moverían involuntariamente. Respuesta correcta: B. Explicación: La convergencia sacrifica la resolución espacial (agudeza) a favor de la sensibilidad, algo inútil para leer texturas finas.
+58. En resumen, ¿cuál es el propósito final de todo el "Proceso de Integración Sináptica" que realiza la neurona en su cono axónico? A) Decidir si sintetiza o no más neuropéptidos. B) Transformar las múltiples señales químicas lentas en una única respuesta computada: disparar o no disparar un Potencial de Acción. C) Detener los latidos del corazón. D) Generar nuevos receptores nicotínicos. Respuesta correcta: B. Explicación: La integración evalúa el "peso" total de excitaciones e inhibiciones; si la suma llega al umbral, hay AP; si no, hay silencio.
+59. La expresión "transmisión en paralelo" en el SNC hace referencia a: A) Dos neuronas que nunca se comunican. B) La información fluyendo simultáneamente por múltiples circuitos o vías separadas pero adyacentes, permitiendo un procesamiento simultáneo de diferentes aspectos de un estímulo. C) Una neurona que dispara el doble de rápido. D) Sinapsis eléctricas exclusivamente. Respuesta correcta: B. Explicación: Como se ve en el esquema "in parallel", un solo origen puede repartir información a procesadores simult primary simultáneos.
+60. Para asentar conocimientos: ¿Cuál de las siguientes afirmaciones sobre los IPSP y EPSP es FALSA según todo lo visto? A) Son respuestas locales y graduadas. B) Se propagan de forma activa y sin decremento a lo largo de las dendritas. C) Su amplitud y duración son variables dependiendo del estímulo. D) Su suma en el segmento inicial determina la generación del potencial de acción. Respuesta correcta: B. Explicación: Es la FALSA porque los EPSP/IPSP se propagan de forma  y  (sometidos a λ y τ). La propagación activa es exclusiva del potencial de acción en el axón.
+</textarea>
+
+<script>
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {},
+        marked: new Set()
+    };
+
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        // Limpiar cabeceras de bloque y retornos de carro
+        text = text.replace(/Bloque.*?\n/g, '').replace(/\r\n/g, '\n');
+        
+        // Dividir usando el "Respuesta correcta:" como pivote
+        let blocks = text.split(/(?=Respuesta correcta:)/);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Match para atrapar la letra y la explicación, ignorando opcionalmente la palabra "Explicación:"
+            let ansMatch = block.match(/^Respuesta correcta:\s*([A-D])\.?\s*(?:Explicación:\s*)?(.*?)(?=\n\d+\.\s|$)/s);
+            let correctLetter = ansMatch ? ansMatch[1] : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            // Lo sobrante es el texto de la siguiente pregunta
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            // Atrapar el número, el enunciado y las 4 opciones
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+A\)\s+(.*?)\s+B\)\s+(.*?)\s+C\)\s+(.*?)\s+D\)\s+(.*)/s);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1;
+            
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return;
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

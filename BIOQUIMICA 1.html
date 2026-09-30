@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Bioquímica - Bloque 1 (1-50)</title>
+    <style>
+        :root {
+            --primary: #0277bd;
+            --secondary: #e1f5fe;
+            --success: #2e7d32;
+            --error: #c62828;
+            --text: #263238;
+            --bg: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-top: 80px;
+            padding-bottom: 60px;
+        }
+
+        /* HEADER */
+        #header-bar {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 100;
+            text-align: center;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* TARJETAS */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 5px solid transparent;
+        }
+
+        .card.correct { border-left-color: var(--success); }
+        .card.incorrect { border-left-color: var(--error); }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #fff;
+            border: 1px solid #cfd8dc;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(.disabled) { background: var(--secondary); }
+        
+        .option-btn.correct { background: #c8e6c9; border-color: var(--success); }
+        .option-btn.incorrect { background: #ffcdd2; border-color: var(--error); }
+        .option-btn.disabled { pointer-events: none; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 10px;
+            background: #eceff1;
+            border-radius: 4px;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-reset {
+            display: block;
+            width: 200px;
+            margin: 30px auto;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header-bar">
+        <div class="header-content">
+            <h2>Bioquímica (1-50)</h2>
+            <div>Aciertos: <span id="score">0</span>/50</div>
+        </div>
+    </div>
+
+    <div class="container" id="quiz-container"></div>
+    <button class="btn-reset" onclick="location.reload()">Reiniciar Examen</button>
+
+    <script>
+        // BASE DE DATOS: PREGUNTAS 1-50 (LIMPIAS)
+        const questionsDB = [
+            {id:1, q:"El agua actúa como disolvente universal principalmente por:", opts:{a:"Baja tensión superficial", b:"Baja constante dieléctrica", c:"Carácter apolar", d:"Densidad elevada", e:"Elevada constante dieléctrica y puentes de H"}, ans:"e", note:"Su polaridad y capacidad de formar puentes de hidrógeno permiten disolver compuestos iónicos y polares."},
+            {id:2, q:"A 25 ºC, en agua pura, [H3O+] es igual a:", opts:{a:"10^-7 M", b:"10^-14 M", c:"7 M", d:"10^7 M", e:"14 M"}, ans:"a", note:"En condiciones neutras pH=7, por lo tanto [H+]=10^-7."},
+            {id:3, q:"El pH de una disolución neutra (25 ºC) es:", opts:{a:"6.5", b:"7.0", c:"7.4", d:"8.0", e:"Depende de la fuerza iónica"}, ans:"b", note:"Definición de neutralidad a 25ºC."},
+            {id:4, q:"En una solución hipotónica, un hematíe:", opts:{a:"No cambia", b:"Se encoge", c:"Se hincha y puede hemolizar", d:"Aumenta concentración Hb", e:"Precipita sales"}, ans:"c", note:"El agua entra en la célula buscando igualar la osmolaridad, provocando hinchazón."},
+            {id:5, q:"Respecto al plasma, el suero fisiológico (ClNa 0.16 M) es isotónico por lo que:", opts:{a:"Igual concentración molar 0.16 M", b:"Igual osmolaridad (aprox 0.32 osmolar)", c:"Osmolaridad 0.16", d:"Lisaría hematíes", e:"Iones atraviesan membrana"}, ans:"b", note:"0.16 M de NaCl se disocia en 2 partículas, dando aprox 0.32 osmolar, similar al plasma."},
+            {id:6, q:"Una membrana 'dialítica' permite el paso de:", opts:{a:"Solo agua", b:"Agua y cristaloides (verdaderos solutos), no coloides", c:"Todo", d:"Nada", e:"Solo coloides"}, ans:"b", note:"La diálisis separa solutos pequeños de coloides (proteínas)."},
+            {id:7, q:"La presión que atrae agua al intravascular debido a proteínas plasmáticas se denomina:", opts:{a:"Hidrostática", b:"Osmótica total", c:"Tónica", d:"Piezoeléctrica", e:"Oncótica"}, ans:"e", note:"Presión coloidosmótica o oncótica."},
+            {id:8, q:"Según Henderson–Hasselbalch, un tampón es más eficaz cuando:", opts:{a:"pKa lejos del pH", b:"Relación sal/ácido es 20", c:"pKa ≈ pH y concentraciones altas", d:"Ácido >> Sal", e:"Sal >> Ácido"}, ans:"c", note:"Máxima capacidad amortiguadora cuando pH = pKa."},
+            {id:9, q:"En sangre, el componente respiratorio del tampón bicarbonato es:", opts:{a:"HCO3-", b:"CO2", c:"H2PO4-", d:"Hemoglobina", e:"NH3"}, ans:"b", note:"El CO2 es regulado por los pulmones (componente respiratorio)."},
+            {id:10, q:"En el tampón fosfato fisiológico, el par útil es:", opts:{a:"H3PO4/H2PO4-", b:"H2PO4-/HPO4(2-)", c:"HPO4(2-)/PO4(3-)", d:"HPO3/PO3", e:"H2PO3/HPO3"}, ans:"b", note:"El pKa de este par está cerca del pH fisiológico."},
+            {id:11, q:"Un aumento de [H+] en sangre (acidosis) provoca inicialmente:", opts:{a:"Disminución pCO2", b:"Alcalinización tisular", c:"Aumento HCO3 renal inmediato", d:"Caída anhidrasa", e:"Respuesta hiperventilatoria (para bajar pCO2)"}, ans:"e", note:"La acidosis estimula el centro respiratorio para eliminar CO2."},
+            {id:12, q:"¿Cuál es el principal tampón sanguíneo?", opts:{a:"Fosfato", b:"Albúmina", c:"Glutatión", d:"Hemoglobina", e:"Bicarbonato"}, ans:"e", note:"El sistema bicarbonato es el tampón extracelular más importante."},
+            {id:13, q:"El 'efecto Bohr' se refiere a:", opts:{a:"Más afinidad O2 si baja pH", b:"Más afinidad CO2 si sube pH", c:"Aumento 2,3-BPG", d:"Menos afinidad CO2 si baja pH", e:"Disminución afinidad Hb por O2 cuando baja el pH"}, ans:"e", note:"El pH ácido (tejidos activos) favorece la liberación de oxígeno."},
+            {id:14, q:"Los aminoácidos proteinogénicos humanos son:", opts:{a:"D-alfa", b:"L-beta", c:"D-beta", d:"DL-alfa", e:"L-alfa-Aminoácidos"}, ans:"e", note:"Las proteínas humanas están formadas por L-alfa-aminoácidos."},
+            {id:15, q:"¿Qué asociación aminoácido-característica es INCORRECTA?", opts:{a:"Glutamato - polar", b:"Serina - polar", c:"Tirosina - cadena alifática (FALSO, es aromático)", d:"Cisteína - tiol", e:"Lisina - polar"}, ans:"c", note:"La Tirosina tiene un anillo aromático, no es puramente alifática."},
+            {id:16, q:"Un zwitterión de un aminoácido a pH fisiológico presenta carga neta:", opts:{a:"+1", b:"-1", c:"0", d:"+2", e:"Variable"}, ans:"c", note:"Tiene cargas positiva y negativa que se anulan."},
+            {id:17, q:"El punto isoeléctrico (pI) es:", opts:{a:"pH mínimo solubilidad", b:"pH precipitación", c:"pH al que la carga neta es 0", d:"pH = pKa amino", e:"pH = pKa carboxilo"}, ans:"c", note:"Definición de punto isoeléctrico."},
+            {id:18, q:"La tríada catalítica de las serín-proteasas es:", opts:{a:"Ser, His, Glu", b:"Serina, Histidina y Aspartato", c:"Cys, His, Asp", d:"Tyr, Lys, Glu", e:"Thr, Cys, Asp"}, ans:"b", note:"Ejemplo clásico: Quimiotripsina."},
+            {id:19, q:"Respecto a la quimiotripsina, es FALSO que:", opts:{a:"Es serín proteasa", b:"Realiza ataque electrófilo (FALSO, es nucleófilo)", c:"Tríada Ser-His-Asp", d:"Usa el OH de Serina", e:"Forma complejo tetraédrico"}, ans:"b", note:"La serina actúa como nucleófilo atacando al carbonilo."},
+            {id:20, q:"Un giro Beta se favorece por la presencia de:", opts:{a:"Lys/Arg", b:"Prolina y Glicina", c:"Phe/Tyr", d:"Leu/Ile", e:"Asp/Glu"}, ans:"b", note:"Pro y Gly permiten la curvatura cerrada del giro."},
+            {id:21, q:"La alfa-hélice se estabiliza por:", opts:{a:"Disulfuro", b:"Hidrofóbicas", c:"Iónicas", d:"Covalentes", e:"Puentes de H intracatenarios (n a n+4)"}, ans:"e", note:"Puentes de hidrógeno paralelos al eje de la hélice."},
+            {id:22, q:"Una lámina Beta antiparalela se caracteriza por:", opts:{a:"Puentes H misma hebra", b:"Polaridad igual", c:"Puentes de H entre hebras con polaridad opuesta", d:"Sin puentes H", e:"Solo en fibrosas"}, ans:"c", note:"Los puentes de hidrógeno son perpendiculares y rectos en la antiparalela."},
+            {id:23, q:"¿Qué unión estabiliza la estructura secundaria?", opts:{a:"Disulfuro", b:"Iónicos", c:"Peptídicos", d:"Puentes de Hidrógeno", e:"Covalentes"}, ans:"d", note:"Estructura secundaria depende de puentes de H en el esqueleto."},
+            {id:24, q:"¿Qué enlace une los aminoácidos?", opts:{a:"Glucosídico", b:"Fosfodiéster", c:"Puentes H", d:"Peptídico", e:"Iónico"}, ans:"d", note:"Enlace amida entre grupo amino y carboxilo."},
+            {id:25, q:"Asociación INCORRECTA (Función AA):", opts:{a:"Lisina-nucleófilo", b:"Aspartato-ácido", c:"Histidina - unión grupos prostéticos por enlace peptídico", d:"Cisteína-disulfuro", e:"Treonina-fosforilable"}, ans:"c", note:"Los grupos prostéticos (como el hemo) no se unen por enlace peptídico a la cadena."},
+            {id:26, q:"Respecto a proteínas, es FALSO:", opts:{a:"Formadas por 20 AA", b:"Todos son enantiómeros D", c:"Todos son L", d:"Enlace covalente", e:"Tienen N y C terminal"}, ans:"b", note:"Los AA en proteínas son serie L."},
+            {id:27, q:"Hélice alfa y hoja beta son:", opts:{a:"Estructura primaria", b:"Estructura secundaria", c:"Terciaria", d:"Cuaternaria", e:"Espacial"}, ans:"b", note:"Patrones de plegamiento local."},
+            {id:28, q:"La hemoglobina presenta:", opts:{a:"2 subunidades", b:"Disulfuro entre cadenas", c:"Un hemo", d:"No alostérico", e:"4 subunidades (2 alfa, 2 beta) unidas no covalentemente"}, ans:"e", note:"Tetrámero."},
+            {id:29, q:"Función principal mioglobina:", opts:{a:"Transporte sangre", b:"Almacenamiento O2 en músculo", c:"Transporte lípidos", d:"pH", e:"Almacén Fe"}, ans:"b", note:"Reserva de oxígeno en tejido muscular."},
+            {id:30, q:"Función principal hemoglobina:", opts:{a:"Transporte ácidos grasos", b:"Transporte O2 y CO2", c:"Almacén Fe", d:"Glucosa", e:"pH"}, ans:"b", note:"Transporte de gases sanguíneo."},
+            {id:31, q:"Metal esencial en hemoglobina:", opts:{a:"Cobre", b:"Hierro", c:"Magnesio", d:"Zinc", e:"Calcio"}, ans:"b", note:"El ión Ferroso (Fe2+) une el oxígeno."},
+            {id:32, q:"El precursor INMEDIATO de la bilirrubina es:", opts:{a:"Hemoglobina", b:"Hemo", c:"Globina", d:"Ferroquelatasa", e:"Biliverdina"}, ans:"e", note:"Hemo -> Biliverdina -> Bilirrubina."},
+            {id:33, q:"La bilirrubina no conjugada viaja en sangre:", opts:{a:"Libre", b:"Unida a albúmina", c:"En HDL", d:"Con transferrina", e:"En quilomicrones"}, ans:"b", note:"Es insoluble, requiere transporte por albúmina."},
+            {id:34, q:"¿Cuál es incorrecta?", opts:{a:"Sedoheptulosa: cetosa 7C (Correcto)", b:"Lactosa: Beta 1-4 (Correcto)", c:"Almidón: polímero glucosa", d:"Heparina: mucopolisacárido", e:"Sedoheptulosa es celosa (Término incorrecto)"}, ans:"e", note:"Pregunta formulada por descarte en el original. Sedoheptulosa es una CETOHEPTOSA."},
+            {id:35, q:"En la lactosa, el enlace es:", opts:{a:"Alfa 1-4", b:"Beta 1-4 (Gal-Glc)", c:"Alfa 1-2", d:"Beta 1-6", e:"Alfa 1-6"}, ans:"b", note:"Galactosa beta 1 -> 4 Glucosa."},
+            {id:36, q:"La sacarosa es no reductora porque:", opts:{a:"No tiene OH", b:"Ambos carbonos anoméricos forman el enlace", c:"pH ácido", d:"Insoluble", e:"Polisacárido"}, ans:"b", note:"Glucosa y Fructosa unen sus carbonos anoméricos."},
+            {id:37, q:"Un disacárido reductor tiene:", opts:{a:"Ambos anoméricos en enlace", b:"Un carbono anomérico libre", c:"OH acetilados", d:"Enlace peptídico", e:"Fosfodiéster"}, ans:"b", note:"El anomérico libre puede oxidarse."},
+            {id:38, q:"El glucógeno presenta ramificaciones:", opts:{a:"Beta 1-6", b:"Alfa 1-6 cada 8-12 residuos", c:"Alfa 1-4", d:"Beta 1-4", e:"Alfa 1-2"}, ans:"b", note:"Estructura ramificada para rápida movilización."},
+            {id:39, q:"Sobre el glucógeno, es correcto:", opts:{a:"El hepático libera glucosa a sangre", b:"Muscular mantiene glucemia", c:"Sintasa hace enlaces 1-6", d:"Degradación da solo glucosa", e:"Desramificante rompe 1-4"}, ans:"a", note:"El hígado posee Glucosa-6-fosfatasa para exportar glucosa."},
+            {id:40, q:"Enzima que rompe enlaces glucosídicos en digestión almidón:", opts:{a:"Amilasa", b:"Lipasa", c:"Pepsina", d:"Tripsina", e:"Maltasa"}, ans:"a", note:"Alfa-amilasa salival y pancreática."},
+            {id:41, q:"Asociación INCORRECTA de lipoproteínas:", opts:{a:"IDL -> precursor LDL", b:"HDL -> transporte reverso", c:"VLDL -> TG endógenos", d:"LDL -> transporte colesterol EXÓGENO (Falso)", e:"Quilomicrón -> TG exógenos"}, ans:"d", note:"LDL transporta colesterol endógeno (derivado de VLDL) a los tejidos."},
+            {id:42, q:"Glucoproteínas vs Proteoglicanos. Glucoproteínas tienen:", opts:{a:"Más 50% carbohidrato", b:"Cadenas muy largas", c:"Fracción glucídica menor y ramificada", d:"Siempre ácido urónico", e:"Sin aminoazúcares"}, ans:"c", note:"Proteoglicanos son mayoritariamente carbohidrato lineal; glucoproteínas son mayoritariamente proteína."},
+            {id:43, q:"En proteoglicanos, los disacáridos repetitivos incluyen:", opts:{a:"Dos hexosas", b:"Un aminoazúcar y un ácido urónico", c:"Dos ácidos", d:"Desoxiazúcares", e:"Pentosas"}, ans:"b", note:"Estructura típica de los GAGs."},
+            {id:44, q:"Sobre glucoproteínas, es FALSO que:", opts:{a:"La unión es NO covalente", b:"Enlace O con Ser/Thr", c:"Enlace N con Asn", d:"Enlace O vía GalNAc", e:"Enlace N vía GlcNAc"}, ans:"a", note:"La unión entre carbohidrato y proteína ES covalente."},
+            {id:45, q:"En el enlace glucosídico:", opts:{a:"Siempre 2 anoméricos", b:"Nunca anoméricos", c:"Interviene al menos un carbono anomérico", d:"Entre 2 OH cualquiera", e:"Siempre alfa 1-4"}, ans:"c", note:"Definición de enlace O-glucosídico."},
+            {id:46, q:"Para formar UDP-glucosa, la G1P reacciona con:", opts:{a:"UTP", b:"UDP", c:"UMP", d:"ATP", e:"AMP"}, ans:"a", note:"Glucosa-1-P + UTP -> UDP-Glucosa + PPi."},
+            {id:47, q:"Coenzima transportador de glucosa activada:", opts:{a:"CDP", b:"AMP", c:"GTP", d:"CTP", e:"UDP"}, ans:"e", note:"UDP-Glucosa es el donante para glucógeno."},
+            {id:48, q:"Un ácido graso 18:1 w9 es:", opts:{a:"Linoleico", b:"Linolénico", c:"Oleico", d:"Esteárico", e:"Palmítico"}, ans:"c", note:"Ácido Oleico."},
+            {id:49, q:"Un ácido graso 16:4 w3:", opts:{a:"4 dobles enlaces", b:"3 dobles enlaces", c:"16 carbonos", d:"Saturado", e:"A y C son ciertas"}, ans:"e", note:"16 carbonos y 4 insaturaciones."},
+            {id:50, q:"¿Qué ácido graso es esencial?", opts:{a:"Palmítico", b:"Oleico", c:"Linoleico", d:"Esteárico", e:"Butírico"}, ans:"c", note:"El cuerpo humano no puede sintetizar omega-6 (Linoleico)."}
+        ];
+
+        const quizContainer = document.getElementById('quiz-container');
+        const scoreSpan = document.getElementById('score');
+        
+        let score = 0;
+        let answeredQuestions = 0;
+
+        function renderQuiz() {
+            questionsDB.forEach((q, index) => {
+                // Crear Tarjeta
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                // Pregunta
+                const title = document.createElement('div');
+                title.className = 'question-text';
+                title.textContent = `${q.id}. ${q.q}`;
+                card.appendChild(title);
+
+                // Opciones
+                const grid = document.createElement('div');
+                grid.className = 'options-grid';
+
+                Object.keys(q.opts).forEach(key => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerHTML = `<strong>${key.toUpperCase()})</strong> ${q.opts[key]}`;
+                    
+                    btn.onclick = () => checkAnswer(card, key, q.ans, q.note, btn);
+                    
+                    grid.appendChild(btn);
+                });
+                card.appendChild(grid);
+
+                // Feedback
+                const feedback = document.createElement('div');
+                feedback.className = 'feedback';
+                feedback.innerHTML = `<strong>Correcta: ${q.ans.toUpperCase()}</strong><br>${q.note}`;
+                card.appendChild(feedback);
+
+                quizContainer.appendChild(card);
+            });
+        }
+
+        function checkAnswer(card, selected, correct, note, btn) {
+            if(card.classList.contains('answered')) return;
+            
+            card.classList.add('answered');
+            const allBtns = card.querySelectorAll('.option-btn');
+            
+            if(selected === correct) {
+                score++;
+                btn.classList.add('correct');
+                card.classList.add('correct');
+            } else {
+                btn.classList.add('incorrect');
+                card.classList.add('incorrect');
+                // Marcar la correcta
+                allBtns.forEach(b => {
+                    if(b.innerHTML.includes(`<strong>${correct.toUpperCase()})`)) {
+                        b.classList.add('correct');
+                    }
+                });
+            }
+
+            scoreSpan.textContent = score;
+            card.querySelector('.feedback').style.display = 'block';
+        }
+
+        renderQuiz();
+    </script>
+</body>
+</html>

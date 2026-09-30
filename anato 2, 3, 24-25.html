@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz de Anatomía Integral</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--bg);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Índice */
+        #sidebar {
+            width: 350px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .index-header {
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ffffff33;
+            margin-bottom: 15px;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .index-item {
+            background: #34495e;
+            border: 1px solid #5d6d7e;
+            color: white;
+            padding: 8px 2px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.answered-correct { background: var(--success); border-color: #1e8449; }
+        .index-item.answered-wrong { background: var(--error); border-color: #922b21; }
+        .index-item.is-marked {
+            border: 2px solid var(--marked) !important;
+            color: var(--marked);
+            font-weight: bold;
+        }
+
+        /* Contenedor Principal */
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid #dcdde1;
+        }
+
+        .question-card.correct { border-left-color: var(--success); }
+        .question-card.wrong { border-left-color: var(--error); }
+
+        .mark-tab {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            cursor: pointer;
+            user-select: none;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 15px;
+            border: 1px solid #eee;
+        }
+
+        .mark-tab input {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 20px;
+            line-height: 1.4;
+            padding-right: 120px;
+        }
+
+        .option {
+            display: block;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) {
+            background-color: #f0f7ff;
+            border-color: var(--accent);
+        }
+
+        .option.selected-correct {
+            background-color: #d4edda !important;
+            border-color: var(--success) !important;
+            color: #155724;
+            font-weight: 600;
+        }
+
+        .option.selected-wrong {
+            background-color: #f8d7da !important;
+            border-color: var(--error) !important;
+            color: #721c24;
+        }
+
+        .option.show-correct {
+            border-color: var(--success);
+            background-color: #d4edda;
+        }
+
+        .option.disabled {
+            pointer-events: none;
+        }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #1565c0;
+            display: none;
+            line-height: 1.5;
+            border-left: 4px solid var(--accent);
+        }
+
+        /* Modales y Botones */
+        #init-overlay, #result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: 0.3s;
+            font-size: 1rem;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #2980b9; }
+
+        .btn-finish {
+            background: var(--error);
+            color: white;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .hidden { display: none !important; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-overlay">
+        <div class="modal">
+            <h2>Cuestionario de Anatomía</h2>
+            <p>Selecciona el modo de realización:</p>
+            <button type="button" class="btn btn-primary" onclick="initQuiz(false)">Orden Preestablecido</button>
+            <button type="button" class="btn btn-primary" onclick="initQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="result-overlay" class="hidden">
+        <div class="modal">
+            <h2>Resultados</h2>
+            <div id="final-stats"></div>
+            <p>¿Qué deseas hacer ahora?</p>
+            <div class="stats-grid">
+                <button type="button" class="btn btn-primary" onclick="restart('all')">Repetir Completo</button>
+                <button type="button" class="btn btn-primary" style="background:#e67e22" onclick="restart('failed')">Repetir Falladas</button>
+                <button type="button" class="btn btn-primary" style="background:var(--marked); color:#000;" onclick="restart('marked')">Repetir Marcadas</button>
+                <button type="button" class="btn btn-primary" style="background:var(--primary)" onclick="restart('both')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="index-header">
+            <h3>Preguntas</h3>
+        </div>
+        <div id="index-grid" class="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container"></div>
+        <button type="button" class="btn btn-finish" onclick="finishSession()">Finalizar Cuestionario</button>
+    </div>
+
+    <script>
+        const rawQuestions = [
+            {
+                id: 29, q: "29. El músculo transverso del tórax (triangular del esternón) es un músculo muy aplanado de la pared torácica. Su situación topográfica exacta es:",
+                options: ["Subcutáneo, recubriendo la cara anterior del esternón y el pectoral mayor.", "En la cara posterior (interna) de la porción inferior del esternón y cartílagos costales adyacentes.", "Rellenando el espacio entre la columna torácica posterior y los arcos costales.", "Adherido al diafragma muscular central."],
+                correct: 1, exp: "Tapiza internamente la 'pechera' ósea anterior, visible desde dentro de la caja torácica."
+            },
+            {
+                id: 30, q: "30. Biomecánicamente, al traccionar desde el esternón hacia los cartílagos costales lateralmente, el transverso del tórax actúa en la respiración como un:",
+                options: ["Inspirador forzado (eleva costillas).", "Músculo neutro sin acción real.", "Espirador accesorio (deprime/tira hacia abajo y adentro de los cartílagos costales).", "Ligamento suspensorio pasivo."],
+                correct: 2, exp: "Al contraerse, arrastra los cartílagos hacia el esternón, cerrando la caja torácica."
+            },
+            {
+                id: 31, q: "31. El músculo transverso del tórax guarda una relación vascular fundamental para la cirugía cardíaca. ¿Qué arterias quedan 'atrapadas' discurriendo entre este músculo y los cartílagos costales?",
+                options: ["Las arterias intercostales posteriores puras.", "La arteria torácica interna (mamaria interna) y sus venas homónimas.", "Las arterias torácicas laterales (mamarias externas).", "El tronco pulmonar central."],
+                correct: 1, exp: "La arteria mamaria interna desciende protegida detrás de los cartílagos y por delante del transverso del tórax."
+            },
+            {
+                id: 32, q: "32. ¿Hasta qué cartílago costal suelen descender los fascículos más inferiores del transverso del tórax desde su inserción esternal?",
+                options: ["Hasta el 1er cartílago clavicular.", "Del 2º al 6º cartílago costal.", "Hasta las costillas flotantes 11ª y 12ª.", "Exclusivamente en las apófisis transversas torácicas."],
+                correct: 1, exp: "Tiene forma de abanico, abriéndose desde el esternón bajo hacia los cartílagos medios."
+            },
+            {
+                id: 33, q: "33. Según su clasificación morfológica y de movimiento, la articulación costovertebral (la unión directa de la cabeza costal con los cuerpos vertebrales) pertenece al tipo de las articulaciones:",
+                options: ["Sincondrosis rígidas inamovibles.", "Sinoviales (plana/artrodia de doble cavidad).", "Sínfisis cartilaginosas secundarias.", "Trocoides puras de rotación."],
+                correct: 1, exp: "Poseen cápsula, líquido sinovial y movimiento de deslizamiento vital para respirar."
+            },
+            {
+                id: 34, q: "34. En una vértebra torácica típica (ej. T5), ¿qué elementos óseos concretos se unen para conformar esta articulación de la cabeza costal?",
+                options: ["El cuello de la costilla con el vértice de la apófisis espinosa.", "La cabeza de la costilla con la hemicarilla inferior de la vértebra superior, la hemicarilla superior de la vértebra inferior y el disco intervertebral interpuesto.", "El tubérculo de la costilla con la apófisis transversa correspondiente en exclusiva.", "La base cartilaginosa costal con el borde lateral del esternón."],
+                correct: 1, exp: "La cabeza costal en cuña se encaja exactamente entre dos cuerpos vertebrales, 'mordiendo' el disco intervertebral."
+            },
+            {
+                id: 35, q: "35. Para estabilizar este 'encaje' en el disco, existe un ligamento intrarticular corto que divide la cavidad sinovial en dos mitades (superior e inferior). Este ligamento se ancla desde:",
+                options: ["La cresta de la cabeza costal hasta el fibrocartílago del disco intervertebral.", "El ligamento longitudinal anterior a la apófisis espinosa.", "El esternón hasta la costilla falsa.", "El foramen intervertebral a la médula."],
+                correct: 0, exp: "El ligamento intrarticular de la cabeza costal amarra la costilla firmemente al disco, haciendo doble la articulación."
+            },
+            {
+                id: 36, q: "36. A diferencia de las costillas típicas, la cabeza de la primera (1ª) y las dos últimas costillas (11ª y 12ª) presentan una articulación costovertebral ATÍPICA porque:",
+                options: ["Son articulaciones fusionadas (sinostosis) desde el nacimiento.", "No tienen cápsula sinovial.", "La cabeza costal se articula mediante una única carilla completa con el cuerpo de su propia vértebra, sin tocar el disco ni la vértebra vecina.", "Se articulan en la apófisis espinosa lumbar."],
+                correct: 2, exp: "T1, T11 y T12 poseen carillas redondas y enteras, al no compartir la costilla."
+            },
+            {
+                id: 37, q: "37. La epiglotis funciona como una válvula fundamental en el cruce aerodigestivo. Durante el acto fisiológico de la deglución, su acción mecánica consiste en:",
+                options: ["Abatirse hacia atrás y abajo para cerrar firmemente el vestíbulo laríngeo y proteger la vía aérea de la aspiración.", "Elevarse bruscamente para abrir al máximo la entrada a la tráquea torácica.", "Mantenerse vertical e inmóvil mientras el alimento se divide.", "Retraerse lateralmente para bloquear las trompas de Eustaquio nasofaringeas."],
+                correct: 0, exp: "Su cierre hermético 'tapa' la laringe enviando el bolo hacia el esófago dorsal."
+            },
+            {
+                id: 38, q: "38. La estructura base de la epiglotis, que le permite ser tan flexible y recuperar su forma original tras cada bocado como un 'muelle', es de naturaleza:",
+                options: ["Ósea pura y porosa.", "Cartílago hialino propenso a la calcificación.", "Cartílago de tipo elástico.", "Músculo liso esofágico exclusivamente."],
+                correct: 2, exp: "Es el único cartílago grande de la laringe compuesto enteramente de cartílago elástico."
+            },
+            {
+                id: 39, q: "39. El cierre pasivo de la epiglotis ocurre porque la laringe en bloque es tirada hacia arriba y adelante contra la base de la lengua durante la deglución. ¿Qué grupo muscular es el responsable primario de elevar la laringe?",
+                options: ["Los músculos escalenos inspiradores.", "Los músculos infrahioideos (esternotiroideo).", "Los músculos suprahioideos y tirohioideo.", "El músculo diafragma y traqueal."],
+                correct: 2, exp: "Al tragar, el hioides y la laringe suben por acción de los suprahioideos, 'aplastando' la epiglotis contra el bolo."
+            },
+            {
+                id: 40, q: "40. Además del mecanismo pasivo, el cierre epiglótico es reforzado de manera 'activa' (tirando de los bordes laterales de la epiglotis hacia los aritenoides) por la contracción muscular intrínseca del:",
+                options: ["Músculo cricotiroideo anterior.", "Músculo aritenoepiglótico (esfínter laringeo).", "Músculo constrictor superior faríngeo.", "Músculo vocal (tiroaritenoideo profundo)."],
+                correct: 1, exp: "Es un músculo del esfínter superior que estrecha el orificio y tira de la epiglotis hacia abajo."
+            },
+            {
+                id: 41, q: "41. Las características morfológicas del bronquio principal IZQUIERDO se diferencian marcadamente del derecho, siendo este:",
+                options: ["Más ancho, más verticalizado y de recorrido muy corto antes del hilio.", "Totalmente carente de anillos de cartílago desde su inicio.", "Más largo (5 cm aprox), de calibre más estrecho y de disposición más horizontal o angulada.", "Bífido ya desde la propia bifurcación traqueal."],
+                correct: 2, exp: "Debe sortear el gran volumen cardíaco izquierdo, por lo que su trayecto es largo y horizontalizado."
+            },
+            {
+                id: 42, q: "42. Por el contrario, el bronquio principal DERECHO, que atiende a un pulmón más voluminoso, se caracteriza topográficamente por:",
+                options: ["Ser más corto, ancho y seguir de forma casi directa y vertical el eje de la tráquea.", "Pasar por encima de la arteria subclavia transicionando a la espalda.", "Ser el más largo del cuerpo y muy sinuoso en forma de S.", "Drenar el lóbulo de la língula exclusivamente."],
+                correct: 0, exp: "Es casi una continuación recta del tubo traqueal original."
+            },
+            {
+                id: 43, q: "43. Debido a estas marcadas diferencias geométricas y de calibre, ¿cuál es la repercusión clínica más clásica si un niño se traga accidentalmente una canica o cuerpo extraño?",
+                options: ["El objeto flotará en la carina sin desviarse hasta toser y escupirlo.", "Caerá más fácilmente hacia el bronquio izquierdo, que es más ancho.", "El objeto caerá por pura gravedad y línea recta con mayor frecuencia hacia el interior del bronquio principal derecho.", "Atravesará la pared cartilaginosa hacia el esófago."],
+                correct: 2, exp: "Es 'más propenso a que objetos caigan en él' por ser ancho y vertical."
+            },
+            {
+                id: 44, q: "44. En su relación superior y dorsal, el bronquio principal IZQUIERDO queda abrazado y 'cabalgado' de anterior a posterior por un gran vaso sistémico. Hablamos de:",
+                options: ["La vena ácigos y su cayado.", "El cayado de la arteria aorta y la aorta descendente.", "La arteria vertebral troncal interna.", "El tronco venoso braquiocefálico derecho e izquierdo común."],
+                correct: 1, exp: "El gran cayado aórtico se monta y pasa por encima del bronquio izquierdo, y la aorta desciende por detrás de él."
+            },
+            {
+                id: 45, q: "45. La glándula mamaria presenta una irrigación muy rica y plexiforme. Según los datos aportados, ¿qué gran grupo arterial del tórax NO emite vasos que participen en la vascularización de la mama?",
+                options: ["Arteria torácica interna (mamaria interna).", "Arterias torácicas laterales (mamarias externas).", "Arterias bronquiales, exclusivas para el parénquima y vías aéreas.", "Arterias intercostales posteriores y perforantes cutáneas."],
+                correct: 2, exp: "Las arterias bronquiales irrigan el interior del pulmón, no tienen ramales que atraviesen el tórax hasta la glándula subcutánea anterior."
+            },
+            {
+                id: 46, q: "46. En la vascularización MEDIAL (interna) de la glándula mamaria, los vasos nutricios más importantes son ramas perforantes derivadas de:",
+                options: ["La arteria toracoacromial superior.", "La arteria torácica interna (procedente de la subclavia).", "El tronco tiroideo descendente.", "La arteria epigástrica inferior."],
+                correct: 1, exp: "Desciende detrás de los cartílagos y sus ramas perforan los espacios intercostales 2º a 4º hacia la mama."
+            },
+            {
+                id: 47, q: "47. Por su parte LATERAL y superior, la mama recibe flujo arterial de:",
+                options: ["Las arterias torácica lateral y ramas de la toracoacromial.", "Las arterias circunflejas humerales.", "Las venas basílicas intercostales.", "Las arterias lumbares costales."],
+                correct: 0, exp: "Estas arterias bajan por la cara lateral del tórax e irrigan los cuadrantes externos y cola de la mama."
+            },
+            {
+                id: 48, q: "48. El estroma profundo e inferior de la base mamaria cuenta con la vascularización subsidiaria aportada directamente por:",
+                options: ["Ramas puras de las arterias tiroideas inferiores.", "Ramas perforantes laterales de las arterias intercostales.", "La arteria vertebral.", "El ligamento redondo uterino."],
+                correct: 1, exp: "Las arterias intercostales discurren bajo las costillas y envían pequeñas arteriolas hacia los tejidos superficiales."
+            },
+            {
+                id: 49, q: "49. Tanto la tráquea como los bronquios extrapulmonares mantienen su luz abierta mediante:",
+                options: ["Anillos óseos fusionados.", "Anillos cartilaginosos hialinos completos (360º).", "Anillos cartilaginosos incompletos, en forma de letra 'C' o 'U', abiertos dorsalmente.", "Mallas de elastina pura."],
+                correct: 2, exp: "Son aros de cartílago hialino abiertos por la parte posterior."
+            },
+            {
+                id: 50, q: "50. Anatómicamente, el 'muro dorsal' de cierre del árbol bronquial está compuesto por:",
+                options: ["Epitelio descamativo.", "Fibras carnosas de músculo estriado.", "Banda inelástica ósea.", "Capas de tejido conectivo elástico y fibras de músculo liso."],
+                correct: 3, exp: "Esta pared blanda muscular cierra la 'C', permitiendo cierta flexibilidad de la luz."
+            },
+            {
+                id: 51, q: "51. Fisiológicamente, ¿qué función cumple el músculo liso bronquial de la pared posterior?",
+                options: ["Modifica el calibre interno (broncodilatación/broncoconstricción).", "Expulsa la linfa.", "Bombea sangre.", "Destruye cartílago."],
+                correct: 0, exp: "Es el responsable de la respuesta asmática, contrayéndose o relajándose según el estímulo."
+            },
+            {
+                id: 52, q: "52. Topográficamente, el hecho de que la cara posterior de la tráquea sea blanda permite que:",
+                options: ["El esófago se expanda hacia la vía aérea sin rozar anillos duros cuando pasa el bolo alimenticio.", "La columna vertebral articule libremente.", "La aorta pueda pulsar.", "Se adhieran los cartílagos tiroides."],
+                correct: 0, exp: "La falta de anillos atrás hace de 'lecho elástico' para el esófago subyacente."
+            },
+            {
+                id: 53, q: "53. En la anatomía externa del corazón, las orejuelas se definen como:",
+                options: ["Orificios valvulares.", "Vasos venosos colapsados.", "Prolongaciones saculares musculares y rugosas de las aurículas.", "Engrosamientos tendinosos."],
+                correct: 2, exp: "Son pequeños 'sacos' ciegos contráctiles anexos a las aurículas, como orejas."
+            },
+            {
+                id: 54, q: "54. ¿Cuál es el papel biomecánico de las orejuelas auriculares?",
+                options: ["Generar glóbulos rojos.", "Actuar como reservorio elástico que aumenta la capacidad de volumen auricular.", "Sintetizar bilis.", "Bloquear válvulas sigmoideas."],
+                correct: 1, exp: "Ayudan a acomodar picos de volumen venoso gracias a su elasticidad."
+            },
+            {
+                id: 55, q: "55. El interior de las orejuelas es trabeculado debido a la presencia masiva de:",
+                options: ["Anillos hialinos.", "Músculos pectíneos.", "Nódulos linfáticos.", "Hueso esponjoso."],
+                correct: 1, exp: "Su interior parece una esponja muscular por las columnas carnosas pectíneas."
+            },
+            {
+                id: 56, q: "56. Clínicamente, la arquitectura trabeculada de las orejuelas es peligrosa porque:",
+                options: ["Es la zona principal de estancamiento sanguíneo y formación de trombos en fibrilación.", "Suelen estallar en el estornudo.", "Acumulan oxígeno tóxico.", "Ocultan la válvula aórtica."],
+                correct: 0, exp: "Lugar de origen de coágulos que pueden causar ictus en pacientes con arritmias."
+            },
+            {
+                id: 57, q: "57. ¿Cuál es el papel del Nódulo Sinoauricular (Keith-Flack)?",
+                options: ["Nódulo linfático defensivo.", "Funciona como el 'marcapasos principal' originando el impulso eléctrico automático.", "Aislar eléctricamente ventrículos.", "Secretar ADH."],
+                correct: 1, exp: "Su despolarización marca el ritmo natural del latido cardíaco."
+            },
+            {
+                id: 58, q: "58. Topográficamente, el Nódulo Sinoauricular se aloja en:",
+                options: ["Tabique interventricular.", "Valva septal tricúspide.", "Aurícula derecha, en el extremo superior de la cresta terminal, junto a la Vena Cava Superior.", "Orejuela izquierda."],
+                correct: 2, exp: "Está en el surco terminal, vigilando la llegada de sangre sistémica."
+            },
+            {
+                id: 59, q: "59. La arteria del nódulo sinusal nace en un 60% de los casos de:",
+                options: ["Arteria pulmonar.", "Arteria coronaria derecha.", "Arteria circunfleja.", "Aorta torácica."],
+                correct: 1, exp: "Nace pronto de la coronaria derecha y rodea la base de la cava superior."
+            },
+            {
+                id: 60, q: "60. El fallo del NSA por isquemia de la coronaria derecha basal causa:",
+                options: ["Bradicardia severa, asumiendo el ritmo nódulos inferiores.", "Taquicardia ventricular.", "Parálisis cardíaca irreversible por falta de adrenalina.", "Parálisis gástrica."],
+                correct: 0, exp: "Toman el control células más lentas (ej. nódulo AV) al fallar el marcapasos primario."
+            },
+            {
+                id: 61, q: "61. ¿Qué nervio atraviesa descendiendo justo por DELANTE (ventral) del hilio pulmonar?",
+                options: ["Nervio esplácnico.", "Nervio vago (X).", "Nervio frénico.", "Cadena simpática."],
+                correct: 2, exp: "Se ancla a la cara lateral del pericardio y baja por la vertiente anterior."
+            },
+            {
+                id: 62, q: "62. ¿Qué nervio desciende por DETRÁS (dorsal) del hilio pulmonar y su pedículo?",
+                options: ["Nervio intercostal.", "Nervio laríngeo recurrente.", "Nervio frénico.", "Nervio vago (X)."],
+                correct: 3, exp: "Regla clínica: Frénico = anterior al hilio, Vago = posterior al hilio."
+            },
+            {
+                id: 63, q: "63. El nervio frénico viaja por el mediastino acompañado de:",
+                options: ["Vasos torácicos internos.", "Arterias bronquiales.", "Vasos pericardiofrénicos.", "Vena ácigos."],
+                correct: 2, exp: "Arteria y vena pericardiofrénicas bajan pegadas al nervio frénico."
+            },
+            {
+                id: 64, q: "64. ¿Qué vena cabalga sobre el bronquio principal DERECHO en un abordaje dorsal?",
+                options: ["Vena yugular.", "El cayado de la vena ácigos.", "Cayado de la aorta.", "Conducto torácico."],
+                correct: 1, exp: "La gran ácigos sube posterior y salta hacia delante sobre el hilio derecho para drenar en la cava superior."
+            },
+            {
+                id: 65, q: "65. ¿Qué estructura forma el límite o TECHO superior ciego de la bolsa omental?",
+                options: ["Orificio de Winslow.", "Meso del colon transverso.", "Ligamento gastrofrénico (suspensorio del estómago).", "Cara anterior del riñón izquierdo."],
+                correct: 2, exp: "Este amarre diafragmático cierra la bolsa omental por su polo superior."
+            },
+            {
+                id: 66, q: "66. La PARED ANTERIOR de la bolsa omental oculta está formada por:",
+                options: ["Colon descendente.", "Epiplón menor, cara posterior del estómago y ligamento gastrocólico.", "Peritoneo parietal posterior.", "Lóbulo derecho del hígado."],
+                correct: 1, exp: "El estómago y sus dos delantales (omento menor y mayor) tapan esta cavidad."
+            },
+            {
+                id: 67, q: "67. El 'suelo' de la bolsa omental que el cirujano levanta para ver el páncreas es:",
+                options: ["Epiplón menor.", "Ligamento suspensorio del ovario.", "Mesocolon transverso y colon transverso.", "Base de la sínfisis púbica."],
+                correct: 2, exp: "El piso es el tendal horizontal del colon y su meso."
+            },
+            {
+                id: 68, q: "68. ¿A través de qué orificio se comunica la bolsa omental con la gran cavidad peritoneal?",
+                options: ["Agujero rasgado posterior.", "Hiato aórtico.", "Foramen epiploico (Hiato de Winslow).", "Receso costodiafragmático."],
+                correct: 2, exp: "Está situado por detrás del ligamento hepatoduodenal (tríada portal)."
+            },
+            {
+                id: 69, q: "69. El Atlas (C1) destaca morfológicamente porque carece de:",
+                options: ["Agujeros transversos.", "Arco posterior.", "Cuerpo vertebral y apófisis espinosa verdadera.", "Superficies articulares."],
+                correct: 2, exp: "Es básicamente un anillo de hueso sin el 'tambor' central que tienen las demás vértebras."
+            },
+            {
+                id: 70, q: "70. La cara posterior del arco anterior del atlas aloja y pivota sobre:",
+                options: ["Arteria carótida.", "Diente del Axis (C2).", "Cóndilos occipitales.", "Cartílago tiroides."],
+                correct: 1, exp: "El diente se introduce en el anillo del atlas para permitir la rotación cefálica."
+            },
+            {
+                id: 71, q: "71. Las caras superiores de las masas laterales del atlas reciben a:",
+                options: ["Apófisis espinosa de C7.", "Los cóndilos del hueso occipital.", "Primera costilla.", "Silla turca."],
+                correct: 1, exp: "Actúan como cuencos para asentar la base del cráneo en la articulación atlantooccipital."
+            },
+            {
+                id: 72, q: "72. ¿Qué estructura se apoya en el surco del arco posterior del atlas?",
+                options: ["Arteria carótida externa.", "Vena yugular interna.", "La arteria vertebral y el nervio suboccipital.", "Nervio facial."],
+                correct: 2, exp: "La arteria vertebral se 'tumba' en este surco antes de perforar la membrana para entrar al cráneo."
+            },
+            {
+                id: 73, q: "73. La articulación atlantooccipital permite prioritariamente el movimiento de:",
+                options: ["Rotación pura (Negar).", "Flexión y extensión (Asentir).", "Circunducción 360º.", "Elevación vertical."],
+                correct: 1, exp: "Es una articulación bicondílea que funciona como una mecedora."
+            },
+            {
+                id: 74, q: "74. La articulación atlantooccipital pertenece a la categoría de:",
+                options: ["Sincondrosis.", "Sínfisis.", "Sinoviales condíleas (elipsoideas).", "Trocoides."],
+                correct: 2, exp: "Posee cápsula y líquido lubricante para el apoyo de los cóndilos craneales."
+            },
+            {
+                id: 75, q: "75. Las membranas que cierran el espacio entre el atlas y el hueso occipital son:",
+                options: ["Fascias cervicales.", "Membrana atlantooccipital anterior y posterior.", "Ligamento longitudinal.", "Aponeurosis epicraneal."],
+                correct: 1, exp: "Impiden que el contenido del conducto raquídeo asome por fuera del esqueleto."
+            },
+            {
+                id: 76, q: "76. La membrana atlantooccipital posterior es perforada por:",
+                options: ["Arteria temporal.", "Arteria carótida.", "Arteria vertebral.", "Vena yugular."],
+                correct: 2, exp: "La arteria vertebral debe traspasarla para entrar en el saco dural."
+            },
+            {
+                id: 77, q: "77. El CONTENIDO del triángulo suboccipital es:",
+                options: ["Nervio frénico.", "Glándula tiroidea.", "Arteria vertebral y nervio suboccipital (C1).", "Vena yugular interna."],
+                correct: 2, exp: "Alberga la curva final de la vertebral y el primer nervio espinal."
+            },
+            {
+                id: 78, q: "78. El límite MEDIAL del triángulo suboccipital es el músculo:",
+                options: ["Dorsal ancho.", "Recto posterior mayor de la cabeza.", "Escaleno anterior.", "Esternocleidomastoideo."],
+                correct: 1, exp: "Cierra el lado interno de esta región nucal profunda."
+            },
+            {
+                id: 79, q: "79. El límite SUPEROLATERAL del triángulo suboccipital es el músculo:",
+                options: ["Oblicuo externo.", "Transverso espinoso.", "Oblicuo superior de la cabeza.", "Recto lateral."],
+                correct: 2, exp: "Conecta la transversa de C1 con el hueso occipital."
+            },
+            {
+                id: 80, q: "80. El límite INFEROLATERAL (base) del triángulo suboccipital es el músculo:",
+                options: ["Oblicuo inferior de la cabeza.", "Ligamento nucal.", "Platisma.", "Cartílago hialino."],
+                correct: 0, exp: "Une la espinosa del Axis con la transversa del Atlas."
+            },
+            {
+                id: 81, q: "81. ¿Qué estructura acompaña a la Aorta a través del HIATO AÓRTICO (T12)?",
+                options: ["Vena Cava Inferior.", "Esófago.", "Conducto torácico linfático.", "Plexo braquial."],
+                correct: 2, exp: "Es la vía protegida y segura para el gran colector de quilo."
+            },
+            {
+                id: 82, q: "82. Además del esófago, el HIATO ESOFÁGICO (T10) contiene:",
+                options: ["Nervios esplácnicos.", "Los troncos de ambos Nervios Vagos.", "Solo el tubo muscular.", "Arteria epigástrica superior."],
+                correct: 1, exp: "Los vagos están íntimamente pegados al esófago en este punto."
+            },
+            {
+                id: 83, q: "83. ¿Qué nervio atraviesa el foramen de la Vena Cava Inferior (T8-T9)?",
+                options: ["Nervio femoral.", "Nervio frénico derecho.", "Tronco parasimpático.", "Trigémino."],
+                correct: 1, exp: "El frénico derecho cruza por el centro tendinoso junto a la vena."
+            },
+            {
+                id: 84, q: "84. ¿Qué vasos pasan por el TRÍGONO ESTERNOCOSTAL (Larrey/Morgagni)?",
+                options: ["Toracoacromiales.", "Epigástricos superficiales.", "Vasos epigástricos superiores.", "Vena porta."],
+                correct: 2, exp: "Son la continuación de los vasos torácicos internos hacia el abdomen."
+            },
+            {
+                id: 85, q: "85. Los pilares musculares del diafragma pertenecen a la porción:",
+                options: ["Ligamentosa posterior.", "Lumbar (L1 a L3).", "Costal flotante.", "Cervical media."],
+                correct: 1, exp: "Son el anclaje vertebral (cimiento posterior) del diafragma."
+            },
+            {
+                id: 86, q: "86. La porción COSTAL del diafragma se inserta en:",
+                options: ["Clavículas.", "De la 7ª a la 12ª costilla.", "Omóplato.", "Anillos traqueales."],
+                correct: 1, exp: "Se interdigita con el músculo transverso del abdomen."
+            },
+            {
+                id: 87, q: "87. La porción ESTERNAL del diafragma se fija en:",
+                options: ["Vértebras dorsales.", "Rectos abdominales.", "Cara posterior del apéndice xifoides.", "Ángulo de Louis."],
+                correct: 2, exp: "Es el anclaje anterior, el más pequeño del músculo."
+            },
+            {
+                id: 88, q: "88. La estructura central donde convergen todas las fibras del diafragma es:",
+                options: ["Fascia transversalis.", "Centro Tendinoso (Centro frénico).", "Sínfisis púbica.", "Psoas mayor."],
+                correct: 1, exp: "Es la aponeurosis central inelástica con forma de trébol."
+            },
+
+            {
+                id: 101, q: "1. El aporte arterial responsable de la erección del pene o clítoris proviene de:",
+                options: ["Arteria dorsal superficial.", "Arteria pudenda externa.", "Arteria profunda del pene/clítoris (pudenda interna).", "Arteria vesical inferior."],
+                correct: 2, exp: "Emite arterias helicinas que llenan los espacios lacunares cavernosos."
+            },
+            {
+                id: 102, q: "2. La vena dorsal PROFUNDA del pene drena mayoritariamente hacia:",
+                options: ["Vena safena magna.", "El plexo venoso prostático.", "Venas escrotales.", "Vena epigástrica."],
+                correct: 1, exp: "Atraviesa por debajo de la sínfisis del pubis hacia el plexo pélvico."
+            },
+            {
+                id: 103, q: "3. El paquete vasculonervioso dorsal del pene discurre por debajo de:",
+                options: ["Tejido esponjoso.", "Fascia de Dartos.", "Fascia profunda de Buck.", "Conducto inguinal."],
+                correct: 2, exp: "La resistente fascia de Buck atrapa el paquete contra la túnica albugínea."
+            },
+            {
+                id: 104, q: "4. El espacio retropúbico (de Retzius) se sitúa entre:",
+                options: ["Sínfisis del pubis y cara anterior de la vejiga.", "Recto y próstata.", "Ampollas deferentes.", "Útero y Douglas."],
+                correct: 0, exp: "Espacio graso extraperitoneal que permite la expansión vesical."
+            },
+            {
+                id: 105, q: "5. El conducto deferente pélvico cruza topográficamente:",
+                options: ["Bajo la uretra.", "Por delante y por encima del uréter.", "El vértice vesical.", "La vena ilíaca externa."],
+                correct: 1, exp: "Relación clásica: 'el agua (uréter) fluye bajo el puente (deferente)'."
+            },
+            {
+                id: 106, q: "6. Antes de entrar en la próstata, el deferente se ensancha formando:",
+                options: ["Utrículo.", "Colículo.", "La ampolla del conducto deferente.", "Vesícula seminal."],
+                correct: 2, exp: "Esta dilatación se une a la vesícula para formar el conducto eyaculador."
+            },
+            {
+                id: 107, q: "7. Dolor agudo en hombro derecho con movilidad conservada sugiere:",
+                options: ["Desgarro manguito.", "Dolor referido por litiasis biliar.", "Fractura clavícula.", "Artrosis."],
+                correct: 1, exp: "La vesícula biliar inflamada irrita el peritoneo diafragmático."
+            },
+            {
+                id: 108, q: "8. ¿Por qué una inflamación bajo el diafragma duele en el hombro?",
+                options: ["Nervio vago proyecta al plexo braquial.", "El nervio frénico comparte raíces C3-C5 con los supraclaviculares.", "Simpático lumbar cruza el omóplato.", "Nervio esplácnico inerva el hombro."],
+                correct: 1, exp: "Al coincidir en el asta dorsal medular, el cerebro confunde el origen del dolor."
+            },
+            {
+                id: 109, q: "9. Estructura que causa dolor referido en hombro IZQUIERDO:",
+                options: ["Apendicitis.", "Rotura o hemorragia del bazo (Signo de Kehr).", "Litiasis renal derecha.", "Obstrucción colédoco."],
+                correct: 1, exp: "La sangre irrita el diafragma izquierdo, transmitiéndose por el frénico izquierdo."
+            },
+            {
+                id: 110, q: "10. La aorta ascendente nace:",
+                options: ["Tras la aurícula izquierda.", "Anterior y a la derecha del tronco de la arteria pulmonar.", "Perforando ventrículo derecho.", "Tras la cava superior."],
+                correct: 1, exp: "Aorta y pulmonar se enroscan al salir del corazón."
+            },
+            {
+                id: 111, q: "11. El cayado de la aorta cabalga por encima de:",
+                options: ["Vena ácigos.", "Bronquio principal izquierdo y arteria pulmonar izquierda.", "Seno coronario.", "Venas pulmonares derechas."],
+                correct: 1, exp: "La aorta cabalga el pedículo izquierdo; la ácigos el derecho."
+            },
+            {
+                id: 112, q: "12. El cordón fibroso que une cayado y arteria pulmonar es:",
+                options: ["Ligamento de Marshall.", "Ligamento arterioso (ductus obliterado).", "Anillo fibroso.", "Cuerda tendinosa."],
+                correct: 1, exp: "Residuo de la circulación fetal que unía ambos vasos."
+            },
+            {
+                id: 113, q: "13. Actúa en el feto como válvula de derecha a izquierda:",
+                options: ["Septum Secundum.", "Almohadillas.", "Válvula de Eustaquio.", "Parte inferior flexible del Septum Primum."],
+                correct: 3, exp: "El Primum es la 'puerta batiente' del foramen oval."
+            },
+            {
+                id: 114, q: "14. La huella de la tabicación auricular en el adulto es:",
+                options: ["Cresta terminal.", "Nódulo AV.", "La fosa oval (y su limbo).", "Orejuela derecha."],
+                correct: 2, exp: "Depresión resultante del cierre de los dos tabiques embrionarios."
+            },
+            {
+                id: 115, q: "15. La cardiopatía congénita acianógena auricular más común es:",
+                options: ["Fallot.", "Transposición.", "Comunicación Interauricular (CIA).", "Comunicación interventricular."],
+                correct: 2, exp: "Ocurre habitualmente por defecto del tipo ostium secundum."
+            },
+            {
+                id: 116, q: "16. El ductus de Botal establece cortocircuito entre:",
+                options: ["Vena umbilical y cava.", "Aurículas.", "Arteria pulmonar izquierda y aorta torácica.", "Porta y hepática."],
+                correct: 2, exp: "Desvía sangre del ventrículo derecho hacia la aorta puenteando pulmones."
+            },
+            {
+                id: 117, q: "17. El Ductus Arterioso Persistente provoca:",
+                options: ["Sangre no oxigenada al cerebro.", "Escape de sangre aórtica a la pulmonar sobrecargando pulmones.", "Bloqueo cava superior.", "Atrofia auricular."],
+                correct: 1, exp: "La alta presión sistémica inunda la circulación pulmonar."
+            },
+            {
+                id: 118, q: "18. En el adulto sano, el conducto de Botal es el:",
+                options: ["Ligamento redondo.", "Venoso de Arancio.", "Ligamento arterioso.", "Tendón conjunto."],
+                correct: 2, exp: "Cordón fibroso remanente del cierre del conducto."
+            },
+            {
+                id: 119, q: "19. Arteria delNSA (ritmo cardíaco) nace de:",
+                options: ["Arteria pulmonar.", "Coronaria derecha (60%).", "Circunfleja.", "Aorta torácica."],
+                correct: 1, exp: "Rama precoz que rodea la base de la cava superior."
+            },
+            {
+                id: 120, q: "20. Rama que discurre por el margen agudo del corazón:",
+                options: ["Diagonal.", "Arteria marginal derecha.", "Vena parva.", "Pulmonar inferior."],
+                correct: 1, exp: "Baja por el borde libre del ventrículo derecho."
+            },
+            {
+                id: 121, q: "21. En dominancia derecha, la coronaria derecha da origen a:",
+                options: ["Izquierda accesoria.", "Arteria descendente posterior (interventricular posterior).", "Seno coronario.", "Tronco braquiocefálico."],
+                correct: 1, exp: "Determina la dominancia al regar la cara posterior septal."
+            },
+            {
+                id: 122, q: "22. La arteria laríngea superior nace de:",
+                options: ["Arteria tiroidea superior.", "Lingual.", "Tirocervical.", "Carótida interna."],
+                correct: 0, exp: "Rama inmediata de la primera colateral de la carótida externa."
+            },
+            {
+                id: 123, q: "23. Para entrar al vestíbulo laríngeo, la arteria perfora:",
+                options: ["Cricotiroideo.", "Membrana tirohioidea.", "Prevertebral.", "Cricotraqueal."],
+                correct: 1, exp: "Accede al interior laringeo junto al nervio homónimo."
+            },
+            {
+                id: 124, q: "24. Nervio que acompaña a la arteria laríngea superior:",
+                options: ["Recurrente.", "Ramo externo laríngeo sup.", "Ramo interno del nervio laríngeo superior.", "Glosofaríngeo."],
+                correct: 2, exp: "Provee la sensibilidad supraglótica y reflejo de tos."
+            },
+            {
+                id: 125, q: "25. Zona del hígado no cubierta por peritoneo:",
+                options: ["Lóbulo cuadrado.", "Área desnuda (pars affixa).", "Fosa vesicular.", "Epiplón menor."],
+                correct: 1, exp: "Cara posterior que descansa directamente contra el diafragma."
+            },
+            {
+                id: 126, q: "26. Límites del Área Desnuda hepática:",
+                options: ["Hojas del ligamento coronario y triangulares.", "Falciforme y redondo.", "Arancio e hilio.", "Porta y hepática."],
+                correct: 0, exp: "Repliegues peritoneales que enmarcan la zona fija."
+            },
+            {
+                id: 127, q: "27. Estructuras en contacto con el Área Desnuda:",
+                options: ["Estómago y bazo.", "Vena cava inferior, diafragma y suprarrenal derecha.", "Riñón izquierdo.", "Ventrículo izquierdo."],
+                correct: 1, exp: "Relación directa sin serosa interpuesta."
+            },
+            {
+                id: 128, q: "28. El receso costodiafragmático se forma donde:",
+                options: ["Pleura mediastínica pliega.", "Pleura parietal costal se continúa con la diafragmática.", "Pleura visceral envuelve.", "Fascia endotorácica une."],
+                correct: 1, exp: "Canalón inferior donde se encuentran pared torácica y diafragma."
+            },
+            {
+                id: 129, q: "29. El pulmón entra más en este receso durante:",
+                options: ["Espiración.", "Apnea.", "Inspiración profunda forzada.", "Neumotórax."],
+                correct: 2, exp: "El borde inferior pulmonar desciende en la expansión máxima."
+            },
+            {
+                id: 130, q: "30. Procedimiento seguro en el receso costodiafragmático:",
+                options: ["Toracotomía ápex.", "Punción lumbar.", "Toracocentesis (8º-10º espacio).", "Marcapasos."],
+                correct: 2, exp: "Lugar de acumulación de líquidos por gravedad."
+            },
+            {
+                id: 131, q: "31. Característica de la pleura VISCERAL:",
+                options: ["Reviste costillas.", "Adherida fundida al parénquima pulmonar y cisuras.", "Membrana de Sibson.", "Forma epiplón."],
+                correct: 1, exp: "Imposible de pelar sin dañar el tejido pulmonar."
+            },
+            {
+                id: 132, q: "32. Sensibilidad de la pleura visceral:",
+                options: ["Dolor agudo somático.", "Motores voluntarios.", "Carece de inervación somática dolorosa (autonómica).", "Dolor referido hombro."],
+                correct: 2, exp: "Cortes en el pulmón no duelen; duele el roce con la parietal."
+            },
+            {
+                id: 133, q: "33. En el hilio, la pleura visceral se refleja y forma:",
+                options: ["Desaparece.", "Pleura parietal mediastínica (manguito).", "Envoltura aorta.", "Anillos óseos."],
+                correct: 1, exp: "Transición entre hoja visceral y parietal en el pedículo."
+            },
+            {
+                id: 134, q: "34. Ligamento gastrofrénico se ancla en:",
+                options: ["Centro tendinoso.", "Pilares derechos.", "Cúpula diafragmática izquierda y pilar izquierdo.", "Apéndice xifoides."],
+                correct: 2, exp: "Fija el polo superior gástrico al diafragma."
+            },
+            {
+                id: 135, q: "35. Topográficamente, el ligamento gastrofrénico es:",
+                options: ["Puerta de Winslow.", "Suelo colon.", "Techo o receso superior ciego de la bolsa omental.", "Fondo rectovesical."],
+                correct: 2, exp: "Evita que la bolsa omental suba hacia el hiato."
+            },
+            {
+                id: 136, q: "36. Área desnuda del estómago contacta con:",
+                options: ["El diafragma sin serosa.", "Curvatura menor.", "Fosa vesicular.", "Trígono esternocostal."],
+                correct: 0, exp: "Zona del fundus exenta de peritoneo por la reflexión del ligamento."
+            },
+            {
+                id: 137, q: "37. El ángulo de Louis articula con:",
+                options: ["1er cartílago.", "Segundo cartílago costal.", "7º cartílago.", "Clavícula."],
+                correct: 1, exp: "Hito anatómico para contar costillas en vivo."
+            },
+            {
+                id: 138, q: "38. Plano transverso (T4-T5) señala:",
+                options: ["Entrada esófago.", "Bifurcación de la tráquea (carina).", "Desembocadura cava.", "Cúpulas diafragmáticas."],
+                correct: 1, exp: "Nivel donde la tráquea se divide en bronquios principales."
+            },
+            {
+                id: 139, q: "39. El plano del ángulo de Louis marca:",
+                options: ["Inicio y final del cayado aórtico.", "Bifurcación ilíacas.", "Base pericárdica.", "Cayado porta."],
+                correct: 0, exp: "La porción horizontal de la aorta empieza y termina en T4-T5."
+            },
+            {
+                id: 140, q: "40. Fallo TOTAL de fusión de conductos de Müller causa:",
+                options: ["Útero unicorne.", "Útero didelfo (doble).", "Ovarios poliquísticos.", "Agenesia vaginal."],
+                correct: 1, exp: "Dos cuerpos, dos cuellos y a veces dos vaginas."
+            },
+            {
+                id: 141, q: "41. Fusión externa con pared muscular interna compartiendo un cuello:",
+                options: ["Útero bicorne.", "Didelfo puro.", "Atresia cervical.", "Fístula mulleriana."],
+                correct: 0, exp: "Astas superiores separadas pero base unificada."
+            },
+            {
+                id: 142, q: "42. Hormona que destruye Müller en hombres:",
+                options: ["Testosterona.", "Estrógeno.", "Hormona Antimülleriana (AMH).", "Prolactina."],
+                correct: 2, exp: "Segregada por células de Sertoli fetales."
+            },
+            {
+                id: 143, q: "43. Conductos eyaculadores penetran la próstata por:",
+                options: ["Vértice.", "Cara anterior.", "Parte posterior de la base hacia abajo y adelante.", "Fuera de la cápsula."],
+                correct: 2, exp: "Inciden oblicuamente atravesando la masa glandular."
+            },
+            {
+                id: 144, q: "44. Eyaculadores desembocan en:",
+                options: ["Uretra membranosa.", "Conducto Cowper.", "Uretra prostática (colículo seminal).", "Fondo saco retropúbico."],
+                correct: 2, exp: "Se abren a los lados del utrículo prostático."
+            },
+            {
+                id: 145, q: "45. Eyaculador se forma por fusión de:",
+                options: ["Eferentes y red.", "Epidídimos.", "Ampolla del deferente y conducto de vesícula seminal.", "Uretra y uréter."],
+                correct: 2, exp: "Ocurre milímetros antes de entrar en la próstata."
+            },
+            {
+                id: 146, q: "46. Vértices del trígono vesical:",
+                options: ["Meato, glande, prepucio.", "2 orificios ureterales y 1 orificio uretral interno.", "Eyaculadores y utrículo.", "Cúpula, uraco, próstata."],
+                correct: 1, exp: "Dibuja el triángulo en la base de la vejiga."
+            },
+            {
+                id: 147, q: "47. Mucosa del trígono vesical es:",
+                options: ["Completamente lisa y adherida.", "Pilosa trabeculada.", "Flotante.", "Biliar."],
+                correct: 0, exp: "No forma pliegues al distenderse, a diferencia del resto."
+            },
+            {
+                id: 148, q: "48. Límite superior del trígono:",
+                options: ["Válvula Oddi.", "Pilar estriado.", "Pliegue interuretérico.", "Úvula vesical."],
+                correct: 2, exp: "Relieve visible en endoscopia que une los meatos ureterales."
+            },
+            {
+                id: 149, q: "49. Cuña fibrosa posterior del testículo:",
+                options: ["Gubernáculo.", "Mediastino testicular (Cuerpo de Highmore).", "Apéndice.", "Septo medial."],
+                correct: 1, exp: "Ensanchamiento de la túnica albugínea donde entran vasos."
+            },
+            {
+                id: 150, q: "50. Red en el mediastino testicular:",
+                options: ["Cordón espermático.", "Conducto eyaculador.", "Red testicular (rete testis).", "Glándulas intersticiales."],
+                correct: 2, exp: "Lugar donde drenan los túbulos seminíferos rectos."
+            },
+            {
+                id: 151, q: "51. Espermatozoides salen del mediastino al epidídimo por:",
+                options: ["Deferentes.", "Los 12 a 20 conductillos eferentes.", "Uraco.", "Vena cava."],
+                correct: 1, exp: "Saltan a la cabeza del epidídimo."
+            },
+            {
+                id: 152, q: "52. NO forma parte del mediastino:",
+                options: ["Saco pericárdico.", "Esófago.", "Pulmones y cavidades pleurales.", "Vena ácigos."],
+                correct: 2, exp: "El tórax se divide en mediastino (centro) y pulmones (lados)."
+            },
+            {
+                id: 153, q: "53. La grasa en el mediastino:",
+                options: ["Prohibida.", "SÍ forma parte estructural rellenando huecos.", "Espacio vacío.", "Restringida a pleura."],
+                correct: 1, exp: "Protege y amolda vasos y nervios dentro del espacio."
+            },
+            {
+                id: 154, q: "54. Elementos del mediastino MEDIO:",
+                options: ["Cadena simpática.", "Nervio frénico y vasos pericardiofrénicos.", "Cayado aorta.", "Intercostales."],
+                correct: 1, exp: "Discurren adosados a los laterales del pericardio."
+            },
+            {
+                id: 155, q: "55. Estructuras del colon que el recto NO tiene:",
+                options: ["Pliegues circulares.", "Tenias, haustras y apéndices epiploicos.", "Anillos hialinos.", "Esfínteres concéntricos."],
+                correct: 1, exp: "Desaparecen al llegar a la unión rectosigmoidea."
+            },
+            {
+                id: 156, q: "56. El colon sigmoideo es:",
+                options: ["Extraperitoneal.", "Intraperitoneal con mesocolon sigmoide.", "Diafragma pélvico.", "Retroperitoneal primario."],
+                correct: 1, exp: "Asa colgante libre dotada de gran movilidad."
+            },
+            {
+                id: 157, q: "57. El sigmoideo se vuelve RECTO a nivel de:",
+                options: ["C3.", "S3 (tercera sacra).", "T12.", "L5."],
+                correct: 1, exp: "Donde el intestino se pega a la concavidad sacra."
+            },
+            {
+                id: 158, q: "58. Área mamaria con terminaciones sensitivas fundamentales:",
+                options: ["Pliegue inframamario.", "Ligamento Cooper.", "Complejo areola-pezón.", "Espacio retromamario."],
+                correct: 2, exp: "Concentra gran cantidad de mecanorreceptores."
+            },
+            {
+                id: 159, q: "59. Estímulo de mecanorreceptores mamarios causa liberación de:",
+                options: ["Pectoral mayor.", "Oxitocina y Prolactina.", "Isquemia adrenal.", "Ovulación aguda."],
+                correct: 1, exp: "Reflejo neuroendocrino para la lactancia."
+            },
+            {
+                id: 160, q: "60. Sensibilidad del pezón (T4) viene de:",
+                options: ["4º a 6º nervio intercostal.", "Frénico.", "Ciático.", "Plexo celíaco."],
+                correct: 0, exp: "Ramos cutáneos anteriores y laterales del dermatoma T4."
+            },
+            {
+                id: 161, q: "61. Drenaje de la cola de Spence va primero a:",
+                options: ["Paraesternales.", "Inguinales.", "Ganglios axilares pectorales (anteriores).", "Celíacos."],
+                correct: 2, exp: "75% de la linfa vierte a los ganglios de la base axilar."
+            },
+            {
+                id: 162, q: "62. Para entrar a la axila, la cola de Spence:",
+                options: ["Perfora costillas.", "Atraviesa la fascia profunda.", "Sube por vaina carotídea.", "Baja a los rectos."],
+                correct: 1, exp: "Atraviesa un 'ojal' fascial para penetrar en el hueco axilar."
+            },
+            {
+                id: 163, q: "63. Linfa de la mama vierte finalmente en:",
+                options: ["Ángulo yugulosubclavio (Pirogoff).", "Seno transverso.", "Vena femoral.", "Cisterna del quilo."],
+                correct: 0, exp: "Unión de yugular interna y subclavia en la base del cuello."
+            },
+            {
+                id: 164, q: "64. Parte del pedículo hepático intrapancreática:",
+                options: ["Conducto colédoco.", "Hepática propia.", "Vena mesentérica.", "Wirsung."],
+                correct: 0, exp: "El colédoco viaja retroduodenal e ingresa en la cabeza pancreática."
+            },
+            {
+                id: 165, q: "65. Síntoma de tumor en cabeza de páncreas:",
+                options: ["Ictericia obstructiva.", "Sangrado intracraneal.", "Neumotórax.", "Apendicitis."],
+                correct: 0, exp: "Aplasta el colédoco bloqueando el flujo biliar."
+            },
+            {
+                id: 166, q: "66. Vena que se forma TRAS el cuello del páncreas:",
+                options: ["Linfático.", "Vena Porta Hepática.", "Cava inferior.", "Ácigos."],
+                correct: 1, exp: "Unión de vena esplénica y mesentérica superior."
+            },
+            {
+                id: 167, q: "67. Pancreatoduodenales superiores son ramas de:",
+                options: ["Esplénica.", "Mesentérica inferior.", "Gastroduodenal.", "Iliolumbar."],
+                correct: 2, exp: "Proceden de la arteria hepática común/tronco celíaco."
+            },
+            {
+                id: 168, q: "68. Pancreatoduodenales inferiores nacen de:",
+                options: ["Arteria mesentérica superior.", "Celíaco.", "Intercostales.", "Lumbares."],
+                correct: 0, exp: "Primera rama de la mesentérica superior para cerrar el circuito."
+            },
+            {
+                id: 169, q: "69. Importancia de las arcadas pancreatoduodenales:",
+                options: ["Impedir bilis tóxica.", "Vía anastomótica entre Tronco Celíaco y Mesentérica Superior.", "Drenar LCR.", "Irrigar suprarrenal."],
+                correct: 1, exp: "Bypass natural vital si falla uno de los troncos principales."
+            },
+            {
+                id: 170, q: "70. Papila duodenal mayor se sitúa en:",
+                options: ["1ª porción (bulbo).", "Segunda porción (descendente) posteromedial.", "Tercera porción.", "Cuarta porción."],
+                correct: 1, exp: "Pared interna del duodeno vertical."
+            },
+            {
+                id: 171, q: "71. Ensanchamiento común de colédoco y Wirsung:",
+                options: ["Válvula Kerckring.", "Ampolla de Vater.", "Meckel.", "Trígono Lieutaud."],
+                correct: 1, exp: "Cámara de mezcla previa al vertido intestinal."
+            },
+            {
+                id: 172, q: "72. Esfínter regulador de la papila mayor:",
+                options: ["Esfínter de Oddi.", "Treitz.", "Morgagni.", "Uretral liso."],
+                correct: 0, exp: "Relajado por la Colecistoquinina (CCK) durante la digestión."
+            },
+            {
+                id: 173, q: "73. Apoyo posterior del Área Desnuda hepática:",
+                options: ["Cuadrado lumbar.", "Transverso tórax.", "Porción vertical del diafragma (pilares).", "Recto anterior."],
+                correct: 2, exp: "El hígado descansa atrás contra la pared de asiento diafragmática."
+            },
+            {
+                id: 174, q: "74. Glándula que deja impresión en área desnuda:",
+                options: ["Bazo.", "Glándula suprarrenal derecha y polo renal.", "Vesícula seminal.", "Tiroides."],
+                correct: 1, exp: "Relación directa inferior e interna de la pars affixa."
+            },
+            {
+                id: 175, q: "75. Vaso que labra túnel en área desnuda hepática:",
+                options: ["Aorta.", "Vena Porta.", "Vena cava inferior.", "Conducto torácico."],
+                correct: 2, exp: "Recibe allí las venas suprahepáticas antes de entrar al corazón."
+            },
+
+            {
+                id: 201, q: "1. ¿Qué cara hepática recorre el ligamento falciforme?",
+                options: ["Cara visceral.", "Cara parietal (diafragmática).", "Hilio hepático.", "Borde posterior."],
+                correct: 1, exp: "Divide macroscópicamente al hígado en lóbulo derecho e izquierdo."
+            },
+            {
+                id: 202, q: "2. El borde libre del falciforme contiene:",
+                options: ["Colédoco.", "Hepática propia.", "Ligamento redondo (vena umbilical obliterada).", "Arancio."],
+                correct: 2, exp: "Cordón fibroso vestigial fetal."
+            },
+            {
+                id: 203, q: "3. El falciforme separa los recesos:",
+                options: ["Pericárdico/Pleural.", "Techo de bolsa omental.", "Riñón/Supramesocólico.", "Subfrénico derecho del izquierdo."],
+                correct: 3, exp: "Tabique peritoneal sagital que cae desde el diafragma."
+            },
+            {
+                id: 204, q: "4. Hemidiafragma izquierdo más bajo debido al:",
+                options: ["Pilar izquierdo.", "Ligamento triangular.", "Apoyo del corazón y pericardio.", "Fundus gástrico."],
+                correct: 2, exp: "El lóbulo izquierdo hepático es más delgado por este peso."
+            },
+            {
+                id: 205, q: "5. El ángulo esplénico (izquierdo) es:",
+                options: ["Superficial.", "Pélvico.", "Móvil.", "Más craneal y dorsal que el derecho."],
+                correct: 3, exp: "Más profundo y alto por la ausencia de hígado en ese lado."
+            },
+            {
+                id: 206, q: "6. El ángulo derecho es más bajo porque:",
+                options: ["Tenia omental.", "El hígado empuja el ángulo hepático hacia abajo.", "Fascia Toldt.", "Asas yeyunales."],
+                correct: 1, exp: "La gran masa del lóbulo derecho hepático impide su ascenso."
+            },
+            {
+                id: 207, q: "7. Ángulo esplénico fijado al diafragma por:",
+                options: ["Gastroesplénico.", "Ligamento frenicocólico izquierdo.", "Treitz.", "Esplenorrenal."],
+                correct: 1, exp: "Asegura la posición alta y posterior de la flexura izquierda."
+            },
+            {
+                id: 208, q: "8. El frenicocólico izquierdo forma el:",
+                options: ["Pared anterior bolsa.", "Suelo o nicho esplénico (bazo).", "Protección páncreas.", "Separación mesentérica."],
+                correct: 1, exp: "Hamaca peritoneal que sostiene el peso del bazo."
+            },
+            {
+                id: 209, q: "9. Función de cuerdas tendinosas en sístole:",
+                options: ["Abrir valvas.", "Conducir impulso.", "Mantener tensión impidiendo prolapso auricular.", "Dilatar orificio."],
+                correct: 2, exp: "Impiden que las valvas se den la vuelta hacia la aurícula."
+            },
+            {
+                id: 210, q: "10. Cuerdas tendinosas ancladas a:",
+                options: ["Trabéculas de 2º orden.", "Músculos pectíneos.", "Músculos papilares (1er orden).", "Banda moderadora."],
+                correct: 2, exp: "Los papilares tiran de las cuerdas para estabilizar valvas."
+            },
+            {
+                id: 211, q: "11. Rotura de cuerdas tendinosas causa:",
+                options: ["Estenosis.", "Insuficiencia valvular aguda (regurgitación).", "Cierre permanente.", "Soplo inocente."],
+                correct: 1, exp: "Al perder el amarre, la válvula no puede cerrar la presión ventricular."
+            },
+            {
+                id: 212, q: "12. Cuerdas tendinosas tienen reserva de elongación por:",
+                options: ["Cartílago hialino.", "Músculo estriado.", "Fibras de colágeno onduladas.", "Adipocitos."],
+                correct: 2, exp: "Absorben el impacto brusco de la sístole sin romperse."
+            }
+        ];
+
+        let questions = [];
+        let state = {};
+
+        function cloneQuestions(source) {
+            return source.map(q => ({
+                ...q,
+                options: [...q.options]
+            }));
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function prepareQuestions(list, shuffleQuestions = false) {
+            const prepared = cloneQuestions(list);
+
+            if (shuffleQuestions) {
+                shuffleArray(prepared);
+            }
+
+            prepared.forEach(q => {
+                const optionsWithMeta = q.options.map((text, idx) => ({
+                    text,
+                    isCorrect: idx === q.correct
+                }));
+                shuffleArray(optionsWithMeta);
+                q.shuffledOptions = optionsWithMeta;
+            });
+
+            return prepared;
+        }
+
+        function initQuiz(shuffle) {
+            questions = prepareQuestions(rawQuestions, shuffle);
+            state = {};
+            document.getElementById('init-overlay').classList.add('hidden');
+            document.getElementById('result-overlay').classList.add('hidden');
+            document.getElementById('main-content').scrollTop = 0;
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            const grid = document.getElementById('index-grid');
+
+            container.innerHTML = '';
+            grid.innerHTML = '';
+
+            questions.forEach((q, i) => {
+                const idx = document.createElement('div');
+                idx.className = 'index-item';
+                idx.id = `idx-${i}`;
+                idx.innerText = i + 1;
+                idx.onclick = () => {
+                    document.getElementById(`card-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+                grid.appendChild(idx);
+
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${i}`;
+
+                card.innerHTML = `
+                    <label class="mark-tab" for="chk-${i}">
+                        <input type="checkbox" id="chk-${i}" onclick="event.stopPropagation(); toggleMark(${i});">
+                        <span>Marcar</span>
+                    </label>
+                    <div class="question-text">${q.q}</div>
+                    <div class="options-container">
+                        ${q.shuffledOptions.map((opt, optIdx) => `
+                            <div class="option" id="opt-${i}-${optIdx}" onclick="handleAnswer(${i}, ${optIdx})">
+                                ${opt.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${i}">
+                        <strong>Explicación:</strong> ${q.exp}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qIdx, optIdx) {
+            if (state[qIdx]?.answered) return;
+
+            const question = questions[qIdx];
+            const selectedOpt = question.shuffledOptions[optIdx];
+            const isCorrect = selectedOpt.isCorrect;
+
+            if (!state[qIdx]) state[qIdx] = {};
+            state[qIdx].answered = true;
+            state[qIdx].correct = isCorrect;
+
+            const card = document.getElementById(`card-${qIdx}`);
+            const idxItem = document.getElementById(`idx-${qIdx}`);
+            const exp = document.getElementById(`exp-${qIdx}`);
+
+            if (isCorrect) {
+                document.getElementById(`opt-${qIdx}-${optIdx}`).classList.add('selected-correct');
+                card.classList.add('correct');
+                idxItem.classList.add('answered-correct');
+            } else {
+                document.getElementById(`opt-${qIdx}-${optIdx}`).classList.add('selected-wrong');
+                card.classList.add('wrong');
+                idxItem.classList.add('answered-wrong');
+
+                question.shuffledOptions.forEach((opt, idx) => {
+                    if (opt.isCorrect) {
+                        document.getElementById(`opt-${qIdx}-${idx}`).classList.add('show-correct');
+                    }
+                });
+            }
+
+            question.shuffledOptions.forEach((_, idx) => {
+                document.getElementById(`opt-${qIdx}-${idx}`).classList.add('disabled');
+            });
+
+            exp.style.display = 'block';
+        }
+
+        function toggleMark(i) {
+            if (!state[i]) state[i] = {};
+            state[i].marked = !state[i].marked;
+
+            const checkbox = document.getElementById(`chk-${i}`);
+            const idxItem = document.getElementById(`idx-${i}`);
+
+            checkbox.checked = state[i].marked;
+            idxItem.classList.toggle('is-marked', state[i].marked);
+        }
+
+        function finishSession() {
+            const total = questions.length;
+            let solved = 0;
+            let correct = 0;
+
+            questions.forEach((_, i) => {
+                if (state[i]?.answered) {
+                    solved++;
+                    if (state[i].correct) correct++;
+                }
+            });
+
+            const statsDiv = document.getElementById('final-stats');
+            statsDiv.innerHTML = `
+                <p style="font-size: 1.2rem">Has respondido <strong>${solved}</strong> de <strong>${total}</strong> preguntas.</p>
+                <p style="font-size: 1.5rem; color: var(--success)">Aciertos: ${correct}</p>
+                <p style="font-size: 1.5rem; color: var(--error)">Fallos: ${solved - correct}</p>
+            `;
+
+            document.getElementById('result-overlay').classList.remove('hidden');
+        }
+
+        function restart(mode) {
+            let newSet = [];
+
+            if (mode === 'all') {
+                newSet = cloneQuestions(rawQuestions);
+            } else {
+                questions.forEach((q, i) => {
+                    const isFailed = state[i]?.answered && !state[i]?.correct;
+                    const isMarked = !!state[i]?.marked;
+
+                    if (mode === 'failed' && isFailed) newSet.push({ ...q, options: [...q.options] });
+                    if (mode === 'marked' && isMarked) newSet.push({ ...q, options: [...q.options] });
+                    if (mode === 'both' && (isFailed || isMarked)) newSet.push({ ...q, options: [...q.options] });
+                });
+            }
+
+            if (newSet.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            questions = prepareQuestions(newSet, false);
+            state = {};
+            document.getElementById('result-overlay').classList.add('hidden');
+            document.getElementById('main-content').scrollTop = 0;
+            renderQuiz();
+        }
+    </script>
+</body>
+</html>

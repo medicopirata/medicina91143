@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Embriología</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; margin: 0; height: 100vh; background: #f4f7f6; color: #333; }
+        
+        /* Pantallas de superposición (Inicio y Fin) */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .modal-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; max-width: 500px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; }
+        .btn { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 6px; background: #3498db; color: white; font-size: 16px; transition: background 0.3s; width: 100%; max-width: 300px; }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-warning { background: #e67e22; }
+        .btn-warning:hover { background: #d35400; }
+
+        /* Estructura Principal */
+        #sidebar { width: 280px; background: #2c3e50; color: white; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        #sidebar h3 { text-align: center; margin-top: 0; border-bottom: 1px solid #34495e; padding-bottom: 15px; }
+        .index-btn { width: 100%; text-align: left; padding: 10px; background: #34495e; border: none; color: white; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; font-size: 14px; }
+        .index-btn:hover { background: #415b76; }
+        .index-btn.correct { border-left: 6px solid #2ecc71; background: #27ae6033; }
+        .index-btn.incorrect { border-left: 6px solid #e74c3c; background: #c0392b33; }
+        .index-btn .mark-indicator { color: #f1c40f; font-weight: bold; font-size: 16px; display: none; }
+        .index-btn.is-marked .mark-indicator { display: inline; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 30px; position: relative; scroll-behavior: smooth; }
+        .question-container { background: white; padding: 30px; margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 20px; }
+        .question-text { font-size: 18px; font-weight: 600; margin: 0; line-height: 1.5; color: #2c3e50; }
+        
+        .mark-btn { background: none; border: 2px solid #f1c40f; color: #f1c40f; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .mark-btn:hover { background: #fef9e7; }
+        .mark-btn.marked { background: #f1c40f; color: white; }
+
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn { width: 100%; text-align: left; padding: 15px; background: #f8f9f9; border: 2px solid #d5d8dc; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; color: #333; line-height: 1.4; }
+        .option-btn:hover:not(:disabled) { background: #ebedef; border-color: #bdc3c7; }
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background: #d5f5e3; border-color: #2ecc71; color: #1e8449; font-weight: bold; }
+        .option-btn.incorrect { background: #fadbd8; border-color: #e74c3c; color: #922b21; }
+
+        .explanation { margin-top: 20px; padding: 15px 20px; background: #e8f8f5; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; font-size: 15px; line-height: 1.5; color: #0e6251; }
+        .explanation strong { color: #117a65; }
+
+        .floating-finish { position: fixed; bottom: 30px; right: 30px; z-index: 100; }
+        .floating-finish button { box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 18px; padding: 15px 30px; border-radius: 30px; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <div class="modal-box">
+            <h2>Cuestionario de Embriología</h2>
+            <p>100 Preguntas extraídas de los bloques proporcionados.</p>
+            <p>¿Cómo deseas ordenar las preguntas para esta sesión?</p>
+            <button class="btn" onclick="startQuiz('all', false)">Orden Preestablecido</button>
+            <button class="btn" onclick="startQuiz('all', true)">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <div class="modal-box">
+            <h2>Resumen del Cuestionario</h2>
+            <p id="results-text" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></p>
+            
+            <button class="btn" onclick="startQuiz('all', false)">Repetir Cuestionario Completo (Original)</button>
+            <button class="btn" onclick="startQuiz('all', true)">Repetir Cuestionario Completo (Aleatorio)</button>
+            <button class="btn btn-warning" id="btn-retry-failed" onclick="startQuiz('failed', false)">Repetir Solo Falladas</button>
+            <button class="btn btn-warning" id="btn-retry-marked" onclick="startQuiz('marked', false)">Repetir Solo Marcadas</button>
+            <button class="btn btn-warning" id="btn-retry-both" onclick="startQuiz('both', false)">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-container"></div>
+    </div>
+    
+    <div id="main-content">
+        <div id="questions-container"></div>
+    </div>
+
+    <div class="floating-finish" id="finish-btn-container" style="display: none;">
+        <button class="btn btn-warning" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <script>
+        // Datos crudos literales
+        const rawText = `BLOQUE 1: Cronología, Cigoto y Conceptos Generales
+1. Según la profesora, ¿qué dato clínico se utiliza inicialmente para contabilizar las semanas de gestación? a) El día exacto de la fecundación. b) La fecha de la última regla (menstruación). c) El momento de la implantación en el útero. d) La primera ecografía. Respuesta correcta: b. Se comienza a contabilizar a partir de la fecha de la última menstruación.
+2. ¿Cuál es el desfase temporal aproximado entre la edad gestacional (clínica) y el inicio real del desarrollo embrionario? a) No hay desfase. b) Unos 5 días. c) Dos semanas. d) Un mes. Respuesta correcta: c. La fecundación ocurre en la mitad del ciclo, por lo que hay dos semanas de desfase respecto a la fecha de la última regla.
+3. ¿Cuál es el tamaño aproximado del cigoto (huevo fecundado) al inicio del desarrollo? a) 10 micras. b) 130 micras de diámetro. c) 1 milímetro. d) 500 micras de diámetro. Respuesta correcta: b. El cigoto tiene un tamaño aproximado de 130 micras de diámetro.
+4. ¿Qué peso estimado tiene el cigoto en el momento de la fecundación? a) 1 gramo. b) 10 millonésimas de gramo. c) 1 miligramo. d) 100 milésimas de gramo. Respuesta correcta: b. Se estima que el peso inicial es de unas 10 millonésimas de gramo.
+5. Desde la fecundación hasta el nacimiento, ¿cuánto se multiplica aproximadamente el peso del individuo? a) Por 10.000 veces. b) Por 1 millón de veces. c) Por 200 millones de veces. d) Por 500.000 veces. Respuesta correcta: c. El peso se multiplica por unos 200 millones de veces desde el cigoto hasta el nacimiento.
+6. ¿En qué estado se encuentra la mucosa uterina (endometrio) durante la primera semana del desarrollo embrionario? a) Fase menstrual. b) Fase proliferativa. c) Fase isquémica. d) Fase secretora. Respuesta correcta: d. El endometrio se encuentra en fase secretora, alcanzando mayor grosor y acumulación de secreciones.
+7. ¿Cuál es el objetivo principal de la fase secretora del endometrio? a) Provocar la descamación de la mucosa. b) Preparar las mejores condiciones por si hay fecundación para que se desarrolle la implantación. c) Facilitar el ascenso de los espermatozoides. d) Inhibir la producción de hormonas ováricas. Respuesta correcta: b. Prepara el endometrio para que presente las mejores condiciones para la implantación del cigoto.
+8. En la fase secretora del endometrio, ¿qué morfología adoptan las glándulas uterinas? a) Tubulares rectas y cortas. b) Atrofiadas y sin luz. c) Trayecto en zigzag o sinuoso, muy desarrolladas. d) Planas y escamosas. Respuesta correcta: c. Las glándulas se desarrollan completamente y adoptan un trayecto en zigzag o sinuoso.
+9. ¿Qué porcentaje aproximado de las fecundaciones NO da lugar al desarrollo de un individuo (abortos precoces)? a) 10%. b) 25%. c) 50%. d) 80%. Respuesta correcta: c. Se estima que aproximadamente un 50% de las fecundaciones no prosperan.
+10. ¿Cuál es la causa mayoritaria de que estas fecundaciones iniciales no prosperen? a) Traumatismos maternos. b) Alteraciones genéticas en las células embrionarias. c) Infecciones virales leves. d) Falta de capacitación espermática. Respuesta correcta: b. Las causas suelen ser mayoritariamente alteraciones genéticas del contenido de ADN.
+BLOQUE 2: La Primera Semana (Segmentación y Transporte)
+11. ¿Cómo se denomina al proceso de las primeras divisiones celulares del cigoto? a) Gastrulación. b) Neurulación. c) Segmentación. d) Apoptosis. Respuesta correcta: c. Las primeras divisiones celulares se conocen como segmentación.
+12. ¿Qué nombre reciben las células resultantes de las primeras divisiones del cigoto? a) Somitas. b) Blastómeras (o blastómeros). c) Gonocitos. d) Amnioblastos. Respuesta correcta: b. Las células iniciales reciben el nombre de blastómeras.
+13. Durante la segmentación, ¿qué ocurre con el tamaño global de la estructura embrionaria? a) Aumenta rápidamente al doble cada día. b) Disminuye a la mitad para poder entrar en el útero. c) Apenas aumenta de tamaño, conservando su tamaño global. d) Crece solo en longitud, no en diámetro. Respuesta correcta: c. Es característico que el tamaño global del cigoto apenas aumenta de tamaño.
+14. Según la profesora, ¿por qué las blastómeras son cada vez más pequeñas tras cada división? a) Porque pierden citoplasma hacia la cavidad uterina. b) Porque en su ciclo celular apenas existe periodo G1 y G2, no dándoles tiempo a crecer. c) Porque el ADN se condensa reduciendo el volumen total. d) Porque la zona pelúcida las comprime activamente. Respuesta correcta: b. En las interfases apenas existe el periodo G1 y G2, por lo que las células no aumentan de tamaño y son cada vez más pequeñas.
+15. ¿Qué estructura rodea al embrión durante todo el proceso de segmentación inicial impidiendo que aumente su tamaño? a) El sincitiotrofoblasto. b) La membrana o zona pelúcida. c) La corona radiada. d) La membrana de Heuser. Respuesta correcta: b. Durante las primeras divisiones, la estructura sigue rodeada por la membrana o zona pelúcida.
+16. Cuando el embrión alcanza aproximadamente las 16 células, ¿qué nombre recibe? a) Blastocisto. b) Gástrula. c) Mórula. d) Cigoto tardío. Respuesta correcta: c. Al tener unas 16 células, la estructura recibe el nombre de mórula.
+17. ¿A qué debe su nombre la "mórula"? a) A que se forma en la matriz. b) A que tiene un relieve en su superficie que recuerda a una mora. c) A su color oscuro al microscopio. d) A que las células mueren rápidamente. Respuesta correcta: b. Se le denomina mórula porque tiene un relieve que recuerda a una mora.
+18. ¿Qué evento marca la transición de mórula a blastocisto? a) La pérdida definitiva del núcleo celular. b) La penetración de líquido entre las células formando una cavidad única. c) La fijación a la trompa de Falopio. d) La aparición de la línea primitiva. Respuesta correcta: b. Va penetrando líquido entre las células formando espacios que confluyen en una cavidad única.
+19. ¿Alrededor de qué día del desarrollo suele estar formada la estructura del blastocisto? a) Día 2. b) Día 5. c) Día 10. d) Día 14. Respuesta correcta: b. Aproximadamente en el quinto día ya se forma la cavidad única y la estructura del blastocisto.
+20. La profesora hace especial hincapié en la terminología correcta de esta etapa (día 5). ¿Cuál es el término exacto? a) Blastocito. b) Blastocisto. c) Blastocele. d) Blastómero. Respuesta correcta: b. La profesora corrige específicamente: "va a recibir el nombre de blastocisto. Blastocisto, no blastocito".
+21. ¿Cómo se llama la cavidad llena de líquido en el interior del blastocisto? a) Celoma extraembrionario. b) Saco vitelino. c) Cavidad amniótica. d) Blastocele. Respuesta correcta: d. La cavidad central llena de líquido recibe el nombre de blastocele.
+22. ¿Qué es el trofoblasto en la fase de blastocisto? a) La masa de células internas. b) La capa de células periféricas que delimita la estructura. c) El líquido interior de la cavidad. d) El recubrimiento ovárico materno. Respuesta correcta: b. Las células periféricas que delimitan la estructura forman el trofoblasto.
+23. La profesora menciona tres términos sinónimos para referirse al acúmulo de células en el interior de uno de los polos del blastocisto. ¿Cuáles son? a) Yema embrionaria, embrioblasto o masa celular interna. b) Disco bilaminar, epiblasto o hipoblasto. c) Mórula, cigoto o blastómera. d) Polo embrionario, polo abembrionario o trofoblasto. Respuesta correcta: a. La profesora indica que se le denomina yema embrionaria, embrioblasto o masa celular interna.
+24. ¿Qué estructura futura deriva de las células del trofoblasto? a) El tubo neural. b) El disco embrionario trilaminar. c) La placenta (contribuyen a su formación). d) El sistema digestivo del feto. Respuesta correcta: c. Las células del trofoblasto van a contribuir a la formación de la placenta.
+25. ¿A qué estructuras darán lugar las células de la yema embrionaria (embrioblasto)? a) Únicamente al saco vitelino. b) A las vellosidades coriónicas maternas. c) Al disco embrionario y, posteriormente, a todas las estructuras orgánicas del individuo. d) Al endometrio materno. Respuesta correcta: c. Originaran el disco embrionario y a partir de ahí surgirán todas las estructuras orgánicas del individuo.
+26. ¿Cómo se denomina el extremo del blastocisto donde se localiza el embrioblasto? a) Polo animal. b) Polo abembrionario. c) Polo embrionario. d) Polo de fijación. Respuesta correcta: c. La zona donde está localizada la yema embrionaria se denomina polo embrionario.
+27. ¿Cómo se llama el extremo opuesto a donde se encuentra la masa celular interna? a) Polo abembrionario. b) Polo caudal. c) Polo cefálico. d) Polo trofoblástico. Respuesta correcta: a. El polo contrario se denomina abembrionario.
+28. ¿Qué nombre recibe el proceso por el cual el blastocisto sale o rompe la zona pelúcida? a) Gastrulación. b) Eclosión. c) Capacitación. d) Singamia. Respuesta correcta: b. El proceso en el que el blastocisto sale de la zona pelúcida se denomina eclosión.
+29. ¿Por qué es fundamental que el blastocisto pierda la zona pelúcida? a) Para que comience la meiosis. b) Para permitir que otro espermatozoide entre. c) Para poder ponerse en contacto con la mucosa uterina y que se desarrolle la implantación, y permitir su crecimiento. d) Para iniciar la diferenciación del sexo embrionario. Respuesta correcta: c. Necesita eliminarla para ponerse en contacto con la mucosa uterina, iniciar la implantación y permitir el crecimiento.
+30. Durante la primera semana, el cigoto viaja desde el tercio externo de la trompa hasta la cavidad uterina. ¿Qué factor local tubárico ayuda a empujar al embrión? a) La contracción exclusiva de las fimbrias ováricas. b) La presión sanguínea materna. c) La corriente de líquido generada por las células ciliares de la trompa. d) El movimiento autónomo del propio blastocisto. Respuesta correcta: c. Hay células ciliares que barren el líquido en dirección a la cavidad uterina, guiando al embrión.
+31. Además de los cilios, ¿qué otro elemento de la pared de la trompa favorece el transporte del embrión hacia el útero? a) Las glándulas sudoríparas. b) La capa de músculo liso, mediante sus movimientos o contracciones. c) El tejido óseo. d) El epitelio germinal. Respuesta correcta: b. En la pared de la trompa hay músculo liso cuyos movimientos favorecen el transporte hacia la cavidad uterina.
+32. ¿Hacia qué día del desarrollo se considera que el blastocisto llega a la cavidad uterina y contacta con el endometrio? a) Día 2. b) Día 4. c) Día 6 o 7 (finales de la primera semana). d) Día 14. Respuesta correcta: c. Normalmente al final de la primera semana (hacia el día 6 o 7) toma contacto con la mucosa e inicia la implantación.
+33. Cuando el blastocisto se adhiere a la mucosa uterina, ¿por qué parte u orientación lo hace obligatoriamente? a) Por el polo abembrionario. b) Por el polo embrionario (donde está la yema embrionaria). c) De forma lateral y aleatoria. d) Por la zona del blastocele. Respuesta correcta: b. El contacto siempre va a ser a nivel del polo embrionario con la mucosa uterina.
+34. Aunque la implantación se inicia al final de la primera semana, ¿cuándo se desarrolla y completa fundamentalmente este proceso? a) En la primera semana. b) En la segunda semana. c) En la tercera semana. d) En el segundo mes. Respuesta correcta: b. La implantación se desarrolla y completa fundamentalmente durante la segunda semana.
+35. Si un embrión no logra implantarse, ¿qué es lo más probable que ocurra al finalizar la segunda semana clínica (ciclo de la mujer)? a) La mujer desarrolla un embarazo ectópico. b) Se produce la menstruación sin que la mujer tenga sospecha de embarazo. c) El embrión se reabsorbe y se forma un quiste. d) Sube bruscamente la temperatura basal para forzar la implantación. Respuesta correcta: b. Si no se implanta, la mujer tendrá su menstruación normal al final del ciclo sin sospecha de embarazo.
+BLOQUE 3: La Segunda Semana (El Disco Bilaminar y la Implantación)
+36. A medida que el blastocisto se implanta en la segunda semana, el trofoblasto se diferencia en dos capas. ¿Cuáles son? a) Epiblasto e Hipoblasto. b) Sincitiotrofoblasto (externa) y Citotrofoblasto (interna). c) Somatopleura y Esplacnopleura. d) Ectodermo y Endodermo. Respuesta correcta: b. El trofoblasto se diferencia en sincitiotrofoblasto en el exterior y citotrofoblasto en el interior.
+37. ¿Qué característica celular define al sincitiotrofoblasto? a) Son células cúbicas con un núcleo central claro. b) Es una masa celular multinucleada resultante de la fusión de células. c) Son células planas que forman vasos sanguíneos. d) Son células ciliadas y móviles. Respuesta correcta: b. Es una capa externa, masa celular multinucleada originada porque las células se fusionan entre sí.
+38. ¿Qué capa de la estructura embrionaria es la responsable directa de "abrir una brecha" y erosionar el endometrio para permitir la entrada del embrión? a) El embrioblasto. b) El citotrofoblasto. c) El sincitiotrofoblasto. d) El amnios. Respuesta correcta: c. El sincitiotrofoblasto tiene capacidad erosiva, produciendo enzimas que abren una brecha en la mucosa.
+39. Además de producir enzimas erosivas, ¿qué otro efecto ejerce el sincitiotrofoblasto sobre las células del endometrio para hacer espacio? a) Induce su rápida proliferación mitótica. b) Induce apoptosis (muerte celular) en las células del endometrio. c) Las fusiona convirtiéndolas en masa multinucleada. d) Las transforma en hueso. Respuesta correcta: b. Parece ser que el sincitiotrofoblasto induce apoptosis en las células del endometrio para tener espacio para introducirse.
+40. ¿Qué estructura cierra inicialmente la "herida" o brecha en el epitelio endometrial por donde entró el blastocisto? a) Un tapón de fibrina. b) El propio polo abembrionario del embrión. c) Una cicatriz de colágeno. d) El saco vitelino primitivo. Respuesta correcta: a. Se cierra inicialmente con un tapón de fibrina en la herida, y luego el epitelio prolifera para cubrirlo.
+41. Simultáneamente a la implantación en la segunda semana, la yema embrionaria (embrioblasto) se diferencia formando: a) La mórula. b) El disco embrionario didérmico o bilaminar. c) El tubo neural. d) La línea primitiva. Respuesta correcta: b. La yema embrionaria se diferencia para formar el disco embrionario didérmico o bilaminar (dos hojas).
+42. ¿Cuáles son las dos capas que forman el disco embrionario bilaminar en la segunda semana? a) Ectodermo y Mesodermo. b) Citotrofoblasto y Sincitiotrofoblasto. c) Epiblasto e Hipoblasto. d) Endodermo y Ectodermo. Respuesta correcta: c. Se diferencian una capa superior llamada epiblasto y una inferior llamada hipoblasto.
+43. Morfológicamente, ¿cómo son las células de la capa del epiblasto? a) Células aplanadas. b) Células más altas (cilíndricas). c) Células multinucleadas sin límites definidos. d) Células ciliadas. Respuesta correcta: b. El epiblasto está compuesto por una capa superior de células más altas.
+44. Morfológicamente, ¿cómo son las células de la capa del hipoblasto? a) Células más altas o cilíndricas. b) Células musculares lisas. c) Células más o menos cúbicas. d) Células estrelladas. Respuesta correcta: c. El hipoblasto, en posición más inferior, tiene células más o menos cúbicas.
+45. En la segunda semana aparece una cavidad por encima del epiblasto. ¿Cómo se llama? a) Cavidad coriónica. b) Saco vitelino secundario. c) Cavidad amniótica. d) Blastocele. Respuesta correcta: c. Se desarrolla la cavidad amniótica sobre el epiblasto.
+46. ¿Qué capa celular constituye el "suelo" de la cavidad amniótica recién formada? a) El hipoblasto. b) El epiblasto. c) El citotrofoblasto. d) Los amnioblastos. Respuesta correcta: b. El epiblasto constituye el suelo de la cavidad amniótica.
+47. ¿Qué células forman el "techo" y las "paredes" de la cavidad amniótica? a) Los trofoblastos. b) Los amnioblastos. c) Las células endodérmicas. d) Las células del citotrofoblasto. Respuesta correcta: b. Las paredes y el techo están formados por los amnioblastos.
+48. ¿De dónde se originan aparentemente los amnioblastos que delimitan la cavidad amniótica? a) Del saco vitelino. b) Del citotrofoblasto de forma independiente. c) Parece ser que se originan a partir de las células del epiblasto. d) Del hipoblasto. Respuesta correcta: c. Según la profesora, "parece ser que se originan a partir de las células del epiblasto".
+49. La antigua cavidad del blastocele pasa a estar delimitada en su zona superior por el hipoblasto. ¿Qué límite la recubre por su parte inferior inicialmente? a) La línea primitiva. b) La membrana de Heuser. c) El celoma extraembrionario. d) El sincitiotrofoblasto. Respuesta correcta: b. Inicialmente está delimitada por unas células aplanadas que constituyen la membrana de Heuser.
+50. ¿Qué nombre recibe esta cavidad inferior cuando está delimitada por el hipoblasto arriba y la membrana de Heuser debajo? a) Cavidad amniótica primitiva. b) Saco vitelino secundario. c) Saco vitelino primario (o primitivo). d) Celoma intraembrionario. Respuesta correcta: c. Recibe el nombre de saco vitelino primario o primitivo (en algunos libros cavidad exocelómica).
+51. Durante esta segunda semana aparece un material difuso entre el citotrofoblasto (por fuera) y las cavidades internas (amnios y saco vitelino por dentro). ¿Cómo se denomina? a) Mesodermo embrionario. b) Mesénquima (o mesodermo) extraembrionario. c) Sincitiotrofoblasto profundo. d) Endodermo primitivo. Respuesta correcta: b. Es el mesénquima extraembrionario, un tejido con muchas sustancias intercelulares.
+52. A medida que avanza la segunda semana, ¿qué ocurre en el interior de este mesénquima extraembrionario? a) Se osifica y se vuelve rígido. b) Se atrofia y desaparece completamente. c) Van apareciendo espacios que confluyen para formar una cavidad mayor. d) Se fusiona con el endometrio directamente. Respuesta correcta: c. Van apareciendo espacios que confluyen hasta formar un espacio de mayor tamaño.
+53. ¿Cómo se denomina a esta nueva y gran cavidad que se forma al unirse los espacios dentro del mesénquima extraembrionario? a) Cavidad amniótica secundaria. b) Celoma extraembrionario o Cavidad coriónica. c) Saco vitelino definitivo. d) Saco pericárdico. Respuesta correcta: b. Se le denomina celoma extraembrionario o cavidad coriónica.
+54. ¿Qué ocurre con la membrana de Heuser que delimitaba el saco vitelino primario? a) Se engruesa y forma el cordón umbilical. b) Es sustituida por células de morfología más cúbica procedentes del hipoblasto. c) Se fusiona con el epiblasto. d) Estalla liberando líquido al celoma. Respuesta correcta: b. Es sustituida por células más cúbicas que proceden del hipoblasto y tapizan esa cavidad.
+55. Cuando el saco vitelino está completamente delimitado por estas nuevas células derivadas del hipoblasto, ¿cómo pasa a denominarse? a) Saco vitelino primario. b) Saco vitelino secundario o definitivo. c) Alantoides. d) Vesícula biliar primitiva. Respuesta correcta: b. Una vez delimitado completamente por estas células, pasa a denominarse saco vitelino secundario o definitivo.
+56. Durante la formación del saco vitelino secundario, se produce un "estrangulamiento" de la parte inferior del saco primario. ¿Qué remanente o estructura se forma a partir de este estrangulamiento? a) Quiste exocelómico. b) Pedículo de fijación. c) Vellosidad primaria. d) Nódulo primitivo. Respuesta correcta: a. Se forma un estrangulamiento que da lugar a lo que queda abajo, el quiste exocelómico.
+57. ¿Qué nombre recibe la capa de mesénquima extraembrionario que queda recubriendo por fuera a la cavidad amniótica y por dentro al citotrofoblasto? a) Esplacnopleura. b) Somatopleura. c) Endodermo. d) Decidua. Respuesta correcta: b. El mesénquima extraembrionario alrededor de la cavidad amniótica (y del trofoblasto) se denomina somatopleura.
+58. ¿Qué tres capas tisulares constituyen conjuntamente el "Corion" o pared coriónica? a) Epiblasto, Hipoblasto y Amnios. b) Citotrofoblasto, Sincitiotrofoblasto y Mesénquima extraembrionario (somatopleura). c) Saco vitelino, Citotrofoblasto y Ectodermo. d) Endometrio, Miometrio y Perimetrio. Respuesta correcta: b. Está constituido de dentro hacia afuera por el mesénquima extraembrionario, el citotrofoblasto y el sincitiotrofoblasto.
+59. Existe una única zona de mesénquima extraembrionario continuo que conecta la estructura de las cavidades y el disco embrionario con la pared externa del corion. ¿Cómo se llama? a) Pedículo de fijación. b) Línea primitiva. c) Quiste exocelómico. d) Membrana de Heuser. Respuesta correcta: a. Esta zona de fijación se denomina pedículo de fijación.
+60. ¿Cuál es el destino futuro del pedículo de fijación? a) Forma el saco vitelino. b) Se convierte en el tubo neural. c) Será la zona futura del cordón umbilical. d) Desaparece por apoptosis. Respuesta correcta: c. El pedículo de fijación es la zona precursora o futura del cordón umbilical.
+BLOQUE 4: Detalles Avanzados, Circulación y Hormonas en la Semana 2
+61. A medida que avanza la implantación, ¿qué estructura embrionaria se encuentra directamente en contacto con los capilares y glándulas maternas del endometrio? a) El epiblasto. b) El hipoblasto. c) El sincitiotrofoblasto. d) El saco vitelino. Respuesta correcta: c. El sincitiotrofoblasto, que es la capa externa, erosiona la mucosa encontrándose con vasos y glándulas.
+62. ¿Qué ocurre dentro del sincitiotrofoblasto que permite el inicio primitivo de la circulación uteroplacentaria? a) Se forman vasos sanguíneos embrionarios completos. b) Se forman espacios (lagunas) en los cuales entra sangre materna procedente de los vasos erosionados. c) El sincitiotrofoblasto segrega su propia sangre. d) Se fusiona con el corazón fetal temprano. Respuesta correcta: b. Se forman espacios en el sincitiotrofoblasto donde entra la sangre materna al erosionar los vasos del endometrio.
+63. Además de sangre, ¿qué otra sustancia materna penetra en los espacios del sincitiotrofoblasto para nutrir inicialmente al embrión? a) Bilis materna. b) Secreción de las glándulas endometriales que han sido erosionadas. c) Orina fetal. d) Líquido cefalorraquídeo. Respuesta correcta: b. Al contactar con las glándulas del endometrio, entra secreción que contribuye a la nutrición inicial.
+64. ¿Cómo se llaman las proyecciones celulares que comienzan a formarse en el trofoblasto indicando el inicio del desarrollo de la placenta? a) Vellosidades coriónicas (placentarias). b) Fimbrias tubáricas. c) Somitas extraembrionarios. d) Placas de Peyer. Respuesta correcta: a. Comienzan a formarse las vellosidades placentarias o coriónicas a partir de la proliferación del citotrofoblasto.
+65. ¿Qué hormona vital para mantener el embarazo comienza a producirse al final de la segunda semana? a) Testosterona. b) Hormona Luteinizante (LH). c) Gonadotropina coriónica humana (hCG). d) Oxitocina. Respuesta correcta: c. Al final de la segunda semana se van produciendo hormonas, fundamentalmente la gonadotropina coriónica (hCG).
+66. ¿Qué capa específica del embrión es la encargada principal de producir la Gonadotropina Coriónica (hCG)? a) El epiblasto. b) El sincitiotrofoblasto. c) El saco vitelino primario. d) El amnioblasto. Respuesta correcta: b. La profesora especifica que se va a producir en el sincitiotrofoblasto, aumentando gradualmente sus niveles.
+67. ¿Cuál es la función fisiológica fundamental de la hCG segregada por el embrión? a) Destruir el cuerpo lúteo ovárico para reiniciar el ciclo menstrual. b) Mantener la actividad del cuerpo amarillo (lúteo) para que siga produciendo progesterona y estrógenos. c) Estimular la contracción del músculo uterino. d) Inducir la formación del tubo neural fetal. Respuesta correcta: b. Su función es mantener el cuerpo amarillo para que siga produciendo las hormonas necesarias para la gestación.
+68. Si el sincitiotrofoblasto no produjera hCG en esta etapa, ¿qué ocurriría en el ovario de la madre? a) El cuerpo amarillo crecería desmesuradamente. b) Se produciría una ovulación múltiple de inmediato. c) El cuerpo amarillo disminuiría de tamaño (degeneraría), cayendo los niveles hormonales y provocando la regla. d) Los folículos se transformarían en hueso. Respuesta correcta: c. Si no hay embarazo (ni hCG), en la segunda mitad del ciclo el cuerpo amarillo disminuiría de tamaño y degeneraría.
+69. ¿En qué momento del desarrollo embrionario se considera que los test de embarazo (detección de hCG) empiezan a ser positivos de forma habitual? a) El día 1 tras la fecundación. b) Al final de la primera semana. c) Al final de la segunda semana o inicio de la tercera, coincidiendo con la falta de menstruación. d) En el quinto mes de embarazo. Respuesta correcta: c. Al final de la segunda semana/inicio de la tercera, los niveles de hCG hacen posible realizar los test de embarazo, coincidiendo con la falta de regla (amenorrea).
+70. ¿Cómo es el tejido endometrial materno que rodea al embrión recién implantado bajo el microscopio (fase secretora)? a) Un tejido sin células, con predominio de líquido acuoso. b) Una mucosa con glándulas en trayecto zigzagueante y secretoras, y alta vascularización. c) Una capa muscular estriada altamente contráctil. d) Un epitelio plano sin glándulas subyacentes. Respuesta correcta: b. Es una mucosa con glándulas de trayecto sinuoso o en zigzag, gran vascularización y presencia de secreciones.
+BLOQUE 5: Repaso Especial y "Trampas" o Pistas de Examen (Basado en el sistema de la asignatura y la insistencia terminológica de la profesora).
+71. SISTEMA DE EXAMEN (Recordatorio de la profesora): Si respondes 3 preguntas incorrectamente en el test de esta asignatura, ¿qué penalización se aplica? a) No hay penalización. b) Restan 0,25 puntos en total. c) Restan 1 pregunta correcta entera. d) Se suspende automáticamente el examen. Respuesta correcta: c. La profesora avisa el primer día que "cada 3 preguntas mal restan 1 bien".
+72. ¿Cuál es el destino de la membrana o zona pelúcida en el proceso de desarrollo? a) Se convierte en el sincitiotrofoblasto. b) Permanece hasta el segundo trimestre protegiendo al feto. c) Se elimina o "eclosiona" en la etapa de blastocisto (aprox. día 5) para permitir la implantación. d) Forma la placa neural. Respuesta correcta: c. Se elimina en el proceso de eclosión para que el blastocisto pueda implantarse.
+73. El disco "bilaminar" que caracteriza a la segunda semana se transforma más adelante en un disco "trilaminar". ¿En qué semana ocurre este nuevo cambio estructural? a) En la misma segunda semana. b) En la tercera semana (mediante la gastrulación). c) En el segundo mes. d) Justo antes del nacimiento. Respuesta correcta: b. El disco embrionario tridérmico o trilaminar se desarrolla en la tercera semana.
+74. Durante la primera semana, el embrión avanza por la trompa. ¿Qué sucede morfológicamente en el útero materno simultáneamente? a) Se desprende el endometrio (menstruación). b) El endometrio está en fase secretora, acumulando secreciones y engrosándose. c) El miometrio experimenta espasmos violentos. d) El cuello uterino se sella con hueso. Respuesta correcta: b. Simultáneamente, el útero materno está entrando y desarrollándose en la fase secretora.
+75. ¿Es correcto utilizar los términos "embrioblasto" y "yema embrionaria" indistintamente? a) No, la yema embrionaria es el tejido materno. b) Sí, ambos términos (junto con masa celular interna) se refieren a la misma agrupación celular dentro del blastocisto. c) No, el embrioblasto formará la placenta y la yema el feto. d) No, el embrioblasto aparece en la segunda semana y la yema en la tercera. Respuesta correcta: b. Sí, la profesora indica que yema embrionaria, embrioblasto o masa celular interna son distintos términos para la misma estructura.
+76. Si observamos un embrión de 16 células que mantiene su volumen idéntico al del cigoto original, ¿en qué etapa exacta estamos? a) Mórula. b) Blastocisto temprano. c) Gástrula. d) Neurula. Respuesta correcta: a. Una estructura de unas 16 células que mantiene el tamaño original por la segmentación es la mórula.
+77. ¿Cuál es el orden secuencial correcto de las estructuras durante la primera semana? a) Blastocisto -> Cigoto -> Mórula -> Blastómera. b) Cigoto -> Mórula -> Blastómera -> Blastocisto. c) Cigoto -> Blastómera -> Mórula -> Blastocisto. d) Blastómera -> Cigoto -> Blastocisto -> Mórula. Respuesta correcta: c. El cigoto se divide en blastómeras, a las 16 células es una mórula, y al formarse la cavidad (día 5) es un blastocisto.
+78. Si hay un fallo genético y el embrión de 5 días carece de las células del polo abembrionario (trofoblasto externo), ¿qué proceso futuro inmediato no podrá realizarse con normalidad? a) La formación del esmalte dental. b) La diferenciación del sexo cromosómico (ya establecido). c) La formación de la placenta y la invasión en la mucosa. d) La formación del cerebro primitivo. Respuesta correcta: c. Si carece de trofoblasto, no se podrá formar la placenta ni invadir la mucosa, ya que es la función de estas células.
+79. En un corte de un embrión a finales de la segunda semana se observa una cavidad cuyo "techo" es el epiblasto y su "suelo" es el hipoblasto. ¿Es correcta esta afirmación? a) Sí, describe exactamente el saco vitelino. b) Sí, describe el celoma intraembrionario. c) No, el epiblasto es el suelo de la cavidad amniótica, por lo que el disco embrionario está entre la cavidad amniótica (arriba) y el saco vitelino (abajo). d) No, epiblasto e hipoblasto nunca están en contacto directo. Respuesta correcta: c. El disco embrionario tiene el epiblasto arriba (suelo del amnios) y el hipoblasto abajo (techo del saco vitelino).
+80. ¿Qué hecho biológico de la mujer marca aproximadamente el final de la segunda semana embrionaria y el inicio de la tercera? a) La menopausia. b) La ovulación del siguiente ciclo. c) El momento en que teóricamente debería aparecer la siguiente regla (falta de regla o amenorrea). d) El final de la fase proliferativa endometrial. Respuesta correcta: c. Coincide con la fecha teórica de la siguiente regla, produciéndose amenorrea (falta de menstruación) si hay embarazo.
+81. ¿Dónde se encuentra localizada geográficamente en el útero la estructura embrionaria al terminar la segunda semana? a) Flotando libremente en la cavidad uterina. b) Totalmente incluida en el espesor de la mucosa uterina (endometrio). c) Atrapada en la fimbria tubárica. d) Adherida al cuello uterino (cérvix). Respuesta correcta: b. Al final de la segunda semana, el embrión está completamente incluido en el espesor de la mucosa uterina.
+82. ¿Qué estructura celular multinucleada carece de límites celulares definidos en su observación microscópica? a) Citotrofoblasto. b) Epiblasto. c) Sincitiotrofoblasto. d) Mesénquima extraembrionario. Respuesta correcta: c. El sincitiotrofoblasto es una masa celular multinucleada formada por la fusión de células del citotrofoblasto.
+83. Si el blastocisto entra en la cavidad uterina, pero el endometrio NO está en fase secretora debido a un desequilibrio hormonal, ¿cuál será la consecuencia más probable? a) La implantación ocurre más rápido. b) El embrión se implanta, pero en el miometrio. c) El embrión no encuentra las condiciones adecuadas, no se implanta y se produce un aborto precoz. d) El embrión retrocede a la trompa para esperar. Respuesta correcta: c. Si el endometrio no presenta las características necesarias, la implantación no se desarrolla y se produce un aborto, llegando la menstruación normalmente.
+84. ¿Qué nombre recibe la cavidad recién formada dentro de la mórula tras la entrada masiva de fluidos? a) Celoma. b) Blastocele. c) Amnios. d) Arquenterón. Respuesta correcta: b. La cavidad central que se forma recibe el nombre de blastocele.
+85. ¿Cuál es el origen de las células que tapizan secundariamente el saco vitelino, transformándolo de "primario" a "secundario"? a) Del trofoblasto. b) Del epiblasto. c) Del hipoblasto (células de morfología más cúbica). d) Del endometrio materno. Respuesta correcta: c. Son células de morfología más cúbica que proceden del hipoblasto y van tapizando el saco vitelino primitivo.
+86. La cavidad coriónica se ubica anatómicamente: a) Dentro del epiblasto. b) Entre el citotrofoblasto y el embrión propiamente dicho, formándose en el seno del mesénquima extraembrionario. c) Dentro de las lagunas del sincitiotrofoblasto. d) Entre la zona pelúcida y la corona radiada. Respuesta correcta: b. Se forma por la confluencia de espacios en el interior del mesénquima extraembrionario, que se sitúa interno al citotrofoblasto.
+87. ¿Qué función tiene el "tapón de fibrina" en el desarrollo temprano? a) Sella el cérvix uterino permanentemente. b) Cierra la pequeña herida o brecha en el epitelio de la mucosa endometrial por donde penetró el embrión. c) Impide la polispermia tras la fecundación. d) Bloquea el flujo de sangre en el cordón umbilical. Respuesta correcta: b. Se forma en la herida del epitelio tras la penetración de la estructura embrionaria para cerrarla temporalmente.
+88. ¿Qué tejido embrionario se asocia íntimamente a las glándulas endometriales maternas en la segunda semana para la nutrición por difusión? a) Los amnioblastos. b) El celoma. c) El hipoblasto. d) El sincitiotrofoblasto. Respuesta correcta: d. El sincitiotrofoblasto contacta con las glándulas del endometrio, permitiendo que su secreción nutra al embrión inicialmente.
+89. El pedículo de fijación suspende el embrión didérmico y sus dos cavidades anejas (amnios y saco vitelino) dentro de una gran cavidad esférica. ¿Cómo se llama esa gran cavidad? a) Cavidad amniótica. b) Cavidad coriónica (celoma extraembrionario). c) Saco vitelino secundario. d) Útero. Respuesta correcta: b. El pedículo suspende todas estas estructuras dentro de la cavidad coriónica o celoma extraembrionario.
+90. En relación a la viabilidad, si una mujer cree estar embarazada porque tiene un retraso de 3 días en su regla, ¿en qué semana de desarrollo embrionario se encuentra teóricamente su embrión? a) Principios de la primera semana. b) Final de la primera semana. c) Inicio de la tercera semana. d) Octava semana. Respuesta correcta: c. El retraso de la regla coincide con el final de la segunda semana clínica / inicio de la tercera del desarrollo embrionario.
+91. ¿Qué suceso biológico NO forma parte de los eventos normales de la primera semana del desarrollo? a) Segmentación. b) Aparición de la línea primitiva. c) Formación de la mórula. d) Eclosión del blastocisto. Respuesta correcta: b. La aparición de la línea primitiva pertenece a la tercera semana, durante la gastrulación.
+92. ¿Qué nombre recibe la hoja celular que se encuentra "por encima" en el disco bilaminar? a) Hipoblasto. b) Endodermo. c) Epiblasto. d) Citotrofoblasto. Respuesta correcta: c. La hoja superior o más externa del disco didérmico es el epiblasto.
+93. En el proceso de la implantación, ¿qué células experimentan repetidas divisiones mitóticas pero, en lugar de dividirse por completo, se fusionan creando un sincitio? a) Epiblastos. b) Hipoblastos. c) Células del citotrofoblasto. d) Células del mesénquima extraembrionario. Respuesta correcta: c. Las células del citotrofoblasto se dividen y muchas de ellas se fusionan formando el sincitiotrofoblasto.
+94. La estructura del blastocisto es muy vulnerable si el embrión carece de la enzima celular para disolver un recubrimiento específico en el día 5. ¿De qué recubrimiento hablamos? a) El tapón mucoso cervical. b) La zona o membrana pelúcida. c) El miometrio materno. d) El saco vitelino. Respuesta correcta: b. El blastocisto necesita romper (eclosión) la zona pelúcida para poder implantarse y crecer.
+95. El quiste exocelómico es un vestigio anatómico de: a) El tubo neural fallido. b) El estrangulamiento de la parte inferior del saco vitelino primario. c) Una glándula uterina destruida por el sincitiotrofoblasto. d) El blastocele original que no se llenó de líquido. Respuesta correcta: b. Proviene del proceso de delimitación del saco vitelino secundario, formándose por un estrangulamiento del saco primario.
+96. A la hora de cuantificar el periodo "embrionario" completo (del que la primera y segunda semana son parte), la profesora sitúa su límite final general en: a) La cuarta semana. b) La octava semana. c) La duodécima semana. d) El momento del parto. Respuesta correcta: b. El periodo embrionario abarca desde la fecundación hasta la octava semana de desarrollo.
+97. ¿Cuál es el principal estímulo para que el cuerpo lúteo no degenere al final del ciclo mensual en caso de fecundación? a) La bajada de la progesterona. b) La falta de ovulación en el mes siguiente. c) La presencia de la hormona gonadotropina coriónica (hCG) segregada por el embrión. d) La fricción mecánica del embrión implantándose. Respuesta correcta: c. La hormona hCG segregada por el sincitiotrofoblasto es la que rescata y mantiene activo al cuerpo amarillo.
+98. En la transición del primer al segundo mes, las tres capas tisulares llamadas conjuntamente "Corion" actúan como la barrera más externa fetal. Si el mesénquima extraembrionario es la capa más interna de este corion, ¿cuál es la más superficial (en contacto con la madre)? a) Citotrofoblasto. b) Somatopleura. c) Sincitiotrofoblasto. d) Endodermo. Respuesta correcta: c. De dentro hacia afuera el corion es: mesénquima extraembrionario, citotrofoblasto y, finalmente, sincitiotrofoblasto, que es el más invasivo y superficial.
+99. Si un embriólogo observa un embrión y constata la presencia de un Saco Vitelino Primario bien delimitado por la Membrana de Heuser, ¿en qué punto aproximado del desarrollo nos encontramos? a) Día 3 (Etapa de mórula). b) Inicio de la segunda semana. c) Finales de la tercera semana. d) Segundo mes de desarrollo. Respuesta correcta: b. La formación del saco vitelino primario con la membrana de Heuser ocurre en la segunda semana tras la implantación y formación del disco bilaminar.
+100. En resumen, al finalizar la "semana de los dos" (segunda semana), el embrión se caracteriza fundamentalmente por presentar: a) Un cigoto no segmentado en la trompa. b) Una mórula compacta sin cavidades internas flotando en el útero. c) Un disco embrionario de dos capas (didérmico), con dos cavidades principales adyacentes (amnios y saco vitelino secundario), todo englobado en la cavidad coriónica. d) Un feto con forma humana completa en miniatura. Respuesta correcta: c. Al final de la segunda semana el sistema consta del disco bilaminar (epiblasto e hipoblasto), la cavidad amniótica, el saco vitelino definitivo, la cavidad coriónica y el corion`;
+
+        let allQuestions = [];
+        let currentQuestions = [];
+        let userState = {}; // Guarda estado de falladas, respondidas, marcadas
+
+        // Procesar y parsear los datos crudos
+        function initData() {
+            let cleanText = rawText.replace(/\*\*/g, '').replace(/BLOQUE \d+:.*?\n/g, '');
+            cleanText = cleanText.replace(/\(Continúan variaciones.*?\n/g, '');
+            const blocks = cleanText.split(/\n(?=\d+\.\s)/);
+
+            blocks.forEach(block => {
+                block = block.trim();
+                if (!block) return;
+
+                const match = block.match(/^(\d+)\.\s*(.*?)\s+a\)\s*(.*?)\s+b\)\s*(.*?)\s+c\)\s*(.*?)\s+d\)\s*(.*?)\s+Respuesta correcta:\s*([a-d])\.\s*(.*)/is);
+                
+                if (match) {
+                    let id = parseInt(match[1]);
+                    allQuestions.push({
+                        originalId: id,
+                        q: match[2].trim(),
+                        options: [
+                            { text: match[3].trim(), correct: match[7].toLowerCase() === 'a', originalLetter: 'a' },
+                            { text: match[4].trim(), correct: match[7].toLowerCase() === 'b', originalLetter: 'b' },
+                            { text: match[5].trim(), correct: match[7].toLowerCase() === 'c', originalLetter: 'c' },
+                            { text: match[6].trim(), correct: match[7].toLowerCase() === 'd', originalLetter: 'd' }
+                        ],
+                        exp: match[8].trim()
+                    });
+                    userState[id] = { answered: false, failed: false, marked: false };
+                }
+            });
+        }
+
+        // Algoritmo de Fisher-Yates para mezclar arrays
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startQuiz(mode, isRandom) {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('finish-btn-container').style.display = 'block';
+
+            let pool = [];
+            if (mode === 'all') {
+                pool = [...allQuestions];
+            } else if (mode === 'failed') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed);
+            } else if (mode === 'marked') {
+                pool = allQuestions.filter(q => userState[q.originalId].marked);
+            } else if (mode === 'both') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed || userState[q.originalId].marked);
+            }
+
+            if (isRandom) {
+                shuffleArray(pool);
+            }
+
+            currentQuestions = pool;
+
+            // Resetear estado de "respondido" y mezclar opciones para esta sesión
+            currentQuestions.forEach(q => {
+                userState[q.originalId].answered = false;
+                userState[q.originalId].failed = false; // Se resetea el fallo para el nuevo intento
+                shuffleArray(q.options);
+            });
+
+            renderUI();
+            
+            // Scrollear arriba
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function renderUI() {
+            const indexContainer = document.getElementById('index-container');
+            const questionsContainer = document.getElementById('questions-container');
+            
+            indexContainer.innerHTML = '';
+            questionsContainer.innerHTML = '';
+
+            if (currentQuestions.length === 0) {
+                questionsContainer.innerHTML = '<h2>No hay preguntas en esta categoría.</h2>';
+                return;
+            }
+
+            currentQuestions.forEach((q, displayIndex) => {
+                let id = q.originalId;
+                let isMarked = userState[id].marked;
+                
+                // Botón del índice
+                const idxBtn = document.createElement('button');
+                idxBtn.className = `index-btn ${isMarked ? 'is-marked' : ''}`;
+                idxBtn.id = `idx-btn-${id}`;
+                idxBtn.innerHTML = `Pregunta ${id} <span class="mark-indicator">★</span>`;
+                idxBtn.onclick = () => document.getElementById(`q-container-${id}`).scrollIntoView({ behavior: 'smooth' });
+                indexContainer.appendChild(idxBtn);
+
+                // Contenedor de la pregunta
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-container';
+                qDiv.id = `q-container-${id}`;
+
+                // Header (Texto + Botón Marcar)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'question-header';
+                
+                const qText = document.createElement('h3');
+                qText.className = 'question-text';
+                qText.textContent = `${id}. ${q.q}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.id = `mark-btn-${id}`;
+                markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+                markBtn.onclick = () => toggleMark(id);
+
+                headerDiv.appendChild(qText);
+                headerDiv.appendChild(markBtn);
+                qDiv.appendChild(headerDiv);
+
+                // Opciones
+                const optsDiv = document.createElement('div');
+                optsDiv.className = 'options-list';
+                
+                q.options.forEach((opt, optIndex) => {
+                    const optBtn = document.createElement('button');
+                    optBtn.className = 'option-btn';
+                    optBtn.id = `opt-${id}-${optIndex}`;
+                    // Mantenemos el texto literal de la opción
+                    optBtn.textContent = opt.text;
+                    optBtn.onclick = () => handleAnswer(id, optIndex, opt.correct);
+                    optsDiv.appendChild(optBtn);
+                });
+                qDiv.appendChild(optsDiv);
+
+                // Explicación (oculta inicialmente)
+                const expDiv = document.createElement('div');
+                expDiv.className = 'explanation';
+                expDiv.id = `exp-${id}`;
+                expDiv.innerHTML = `<strong>Respuesta correcta:</strong> ${q.exp}`;
+                qDiv.appendChild(expDiv);
+
+                questionsContainer.appendChild(qDiv);
+            });
+        }
+
+        function handleAnswer(qId, optIndex, isCorrect) {
+            if (userState[qId].answered) return; // Evitar doble respuesta
+
+            userState[qId].answered = true;
+            userState[qId].failed = !isCorrect;
+
+            // Actualizar interfaz del índice
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Encontrar la pregunta actual para ver las opciones
+            const question = currentQuestions.find(q => q.originalId === qId);
+
+            // Actualizar botones de opciones
+            question.options.forEach((opt, i) => {
+                const btn = document.getElementById(`opt-${qId}-${i}`);
+                btn.disabled = true; // Deshabilitar todos
+                if (opt.correct) {
+                    btn.classList.add('correct');
+                } else if (i === optIndex && !isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            // Mostrar explicación
+            document.getElementById(`exp-${qId}`).style.display = 'block';
+        }
+
+        function toggleMark(qId) {
+            userState[qId].marked = !userState[qId].marked;
+            const isMarked = userState[qId].marked;
+            
+            const markBtn = document.getElementById(`mark-btn-${qId}`);
+            markBtn.classList.toggle('marked', isMarked);
+            markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.toggle('is-marked', isMarked);
+        }
+
+        function finishQuiz() {
+            let correctCount = 0;
+            let failedCount = 0;
+            let unanweredCount = 0;
+
+            currentQuestions.forEach(q => {
+                if (!userState[q.originalId].answered) {
+                    unanweredCount++;
+                } else if (userState[q.originalId].failed) {
+                    failedCount++;
+                } else {
+                    correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const resText = document.getElementById('results-text');
+            resText.innerHTML = `Aciertos: <span style="color:#2ecc71">${correctCount}</span> | 
+                                 Fallos: <span style="color:#e74c3c">${failedCount}</span> | 
+                                 Sin responder: <span style="color:#f39c12">${unanweredCount}</span><br>
+                                 Total en esta sesión: ${total}`;
+
+            // Habilitar/Deshabilitar botones de repetición según disponibilidad
+            const totalMarked = Object.values(userState).filter(st => st.marked).length;
+            const totalFailed = Object.values(userState).filter(st => st.failed).length;
+
+            document.getElementById('btn-retry-failed').disabled = totalFailed === 0;
+            document.getElementById('btn-retry-marked').disabled = totalMarked === 0;
+            document.getElementById('btn-retry-both').disabled = (totalFailed === 0 && totalMarked === 0);
+
+            document.getElementById('end-screen').style.display = 'flex';
+        }
+
+        // Inicializar datos al cargar
+        window.onload = () => {
+            initData();
+        };
+
+    </script>
+</body>
+</html>

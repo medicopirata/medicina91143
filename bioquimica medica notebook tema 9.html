@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Hormonas Pancreáticas, GI y Tiroideas</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--card-bg); padding: 2rem; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; width: 90%; text-align: center;
+        }
+        .modal-content h2 { margin-top: 0; color: var(--primary); }
+
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 10px 20px;
+            border-radius: 6px; cursor: pointer; font-size: 1rem; margin: 5px; transition: background 0.2s;
+        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* Layout Principal */
+        #sidebar {
+            width: var(--sidebar-width); background: var(--card-bg); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow-y: auto; padding: 1rem; box-sizing: border-box;
+        }
+        #sidebar h3 { margin-top: 0; text-align: center; font-size: 1.1rem; }
+
+        .index-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 8px;
+        }
+        .index-btn {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+            padding: 8px 0; text-align: center; text-decoration: none; color: var(--text);
+            font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+        }
+        .index-btn:hover { background: #e2e8f0; }
+        .index-btn.correct { background: #dcfce7; color: var(--correct); border-color: var(--correct); }
+        .index-btn.incorrect { background: #fee2e2; color: var(--incorrect); border-color: var(--incorrect); }
+        .index-btn.marked::after { content: " 📌"; font-size: 0.7rem; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 2rem; scroll-behavior: smooth; }
+        .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+
+        /* Preguntas */
+        .question-card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .question-title { font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1; }
+
+        .mark-btn {
+            background: transparent; border: 1px solid #cbd5e1; padding: 5px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 1rem; transition: background 0.2s;
+        }
+        .mark-btn.active { background: #fef08a; border-color: #eab308; color: #854d0e; }
+
+        .options-list { list-style: none; padding: 0; margin: 0; }
+        .option-item { margin-bottom: 0.5rem; }
+        .option-label {
+            display: flex; align-items: center; padding: 10px 15px; border: 1px solid var(--border);
+            border-radius: 6px; cursor: pointer; transition: background 0.2s;
+        }
+        .option-label:hover { background: var(--bg); }
+        .option-label input { margin-right: 10px; }
+        .option-label.correct-answer { background: #dcfce7; border-color: var(--correct); font-weight: bold; }
+        .option-label.incorrect-answer { background: #fee2e2; border-color: var(--incorrect); }
+        .option-label.disabled { pointer-events: none; opacity: 0.8; }
+
+        .feedback { margin-top: 1rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.95rem; }
+        .feedback.show { display: block; }
+        .feedback.success { background: #dcfce7; color: #166534; border-left: 4px solid var(--correct); }
+        .feedback.error { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--incorrect); }
+
+        .hidden { display: none !important; }
+        #finish-btn-container { text-align: center; margin-top: 2rem; padding-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Configuración del Cuestionario</h2>
+            <p>Se han cargado 60 preguntas. ¿Cómo deseas ordenar las preguntas para este intento?</p>
+            <button class="btn" onclick="startQuiz(false)">Orden Original</button>
+            <button class="btn btn-outline" onclick="startQuiz(true)">Mezclar Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Cuestionario Finalizado</h2>
+            <p id="results-text"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="retryQuiz('all')">Repetir todo completo</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed')" id="btn-retry-failed">Repetir solo falladas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('marked')" id="btn-retry-marked">Repetir solo marcadas</button>
+                <button class="btn btn-outline" onclick="retryQuiz('failed_marked')" id="btn-retry-both">Repetir falladas + marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div class="quiz-header">
+            <h1 style="margin: 0; font-size: 1.5rem;">Cuestionario: Sistema Endocrino</h1>
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+        <div id="questions-container"></div>
+        <div id="finish-btn-container">
+            <button class="btn" onclick="showEndScreen()">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        const dbQuestions = [
+            {
+                id: 1,
+                text: "A nivel anatómico y funcional, el páncreas tiene una doble función. ¿En qué consiste su función ENDOCRINA?",
+                options: [
+                    { text: "A) En la secreción de enzimas digestivas (como la lipasa y amilasa) hacia el conducto pancreático.", isCorrect: false },
+                    { text: "B) En la secreción de hormonas (como insulina y glucagón) directamente al torrente sanguíneo desde los Islotes de Langerhans.", isCorrect: true },
+                    { text: "C) En la producción y almacenamiento de bilis.", isCorrect: false },
+                    { text: "D) En la absorción de los ácidos grasos de cadena corta.", isCorrect: false }
+                ],
+                explanation: "La parte endocrina (Islotes de Langerhans) vierte hormonas a la sangre para el control metabólico, mientras que la exocrina (ácinos) secreta jugos digestivos al intestino."
+            },
+            {
+                id: 2,
+                text: "Dentro de los Islotes de Langerhans, ¿qué tipo de células son responsables de producir y secretar Insulina (siendo las más abundantes, un 60%)?",
+                options: [
+                    { text: "A) Células Alfa.", isCorrect: false },
+                    { text: "B) Células Delta.", isCorrect: false },
+                    { text: "C) Células F.", isCorrect: false },
+                    { text: "D) Células Beta.", isCorrect: true }
+                ],
+                explanation: "Las células beta producen insulina; las alfa, glucagón; las delta, somatostatina; y las F, el polipéptido pancreático."
+            },
+            {
+                id: 3,
+                text: "(¡Pista Profesora!) Durante la síntesis de insulina en el aparato de Golgi, la proinsulina se escinde para formar la insulina activa. ¿Qué subproducto se libera en la misma proporción y es muy útil en clínica para medir la producción de insulina endógena del paciente?",
+                options: [
+                    { text: "A) Preproinsulina.", isCorrect: false },
+                    { text: "B) Péptido C.", isCorrect: true },
+                    { text: "C) Glucagón.", isCorrect: false },
+                    { text: "D) Clatrina.", isCorrect: false }
+                ],
+                explanation: "El péptido C se escinde de la cadena de proinsulina y se libera a la sangre. Medir sus niveles permite saber cuánta insulina propia fabrica el páncreas, incluso si el paciente se inyecta insulina externa."
+            },
+            {
+                id: 4,
+                text: "(¡Pista Profesora!) A nivel intracelular, ¿cuál es la señal bioquímica exacta que provoca el CIERRE de los canales de Potasio (K+) en la célula beta pancreática para liberar insulina?",
+                options: [
+                    { text: "A) La unión directa de la glucosa al canal.", isCorrect: false },
+                    { text: "B) La elevación de la relación ATP/ADP producto de la glucólisis y el ciclo de Krebs.", isCorrect: true },
+                    { text: "C) La entrada masiva de calcio.", isCorrect: false },
+                    { text: "D) La fosforilación de la proteína quinasa A.", isCorrect: false }
+                ],
+                explanation: "La glucosa entra, se metaboliza y genera ATP. Este ATP es el que cierra el canal de potasio (canal K+ sensible a ATP), despolarizando la célula."
+            },
+            {
+                id: 5,
+                text: "Tras el cierre de los canales de potasio y la despolarización de la membrana en la célula beta, ¿qué ion ENTRA a la célula provocando la exocitosis final de los gránulos de insulina?",
+                options: [
+                    { text: "A) Sodio (Na+).", isCorrect: false },
+                    { text: "B) Cloro (Cl-).", isCorrect: false },
+                    { text: "C) Calcio (Ca2+).", isCorrect: true },
+                    { text: "D) Magnesio (Mg2+).", isCorrect: false }
+                ],
+                explanation: "La despolarización abre los canales de Calcio dependientes de voltaje, y este calcio promueve la liberación de las vesículas de insulina."
+            },
+            {
+                id: 6,
+                text: "A nivel celular, la Insulina ejerce su acción uniéndose a su receptor de membrana. ¿De qué tipo es este receptor?",
+                options: [
+                    { text: "A) Receptor acoplado a Proteína G (GPCR).", isCorrect: false },
+                    { text: "B) Receptor Tirosina Quinasa (se autofosforila y recluta al IRS-1).", isCorrect: true },
+                    { text: "C) Canal iónico dependiente de ligando.", isCorrect: false },
+                    { text: "D) Receptor nuclear.", isCorrect: false }
+                ],
+                explanation: "El receptor de insulina tiene subunidades alfa y beta; la beta tiene actividad tirosina quinasa que activa la vía del IRS-1, PI3-kinasa y Akt."
+            },
+            {
+                id: 7,
+                text: "Los transportadores de glucosa GLUT1 y GLUT3 están presentes en el cerebro y eritrocitos. ¿Qué característica fisiológica los define?",
+                options: [
+                    { text: "A) Son dependientes de la insulina.", isCorrect: false },
+                    { text: "B) Son INDEPENDIENTES de la insulina y tienen ALTA afinidad, asegurando la captación constante de glucosa por el cerebro.", isCorrect: true },
+                    { text: "C) Solo se activan cuando hay hiperglucemia extrema.", isCorrect: false },
+                    { text: "D) Son transportadores acoplados a sodio (SGLT).", isCorrect: false }
+                ],
+                explanation: "El cerebro no puede depender de la insulina para comer; necesita captar glucosa basal continuamente."
+            },
+            {
+                id: 8,
+                text: "(¡Pista Profesora!) ¿Qué transportador de glucosa, localizado en el músculo esquelético y el tejido adiposo, es DEPENDIENTE de la insulina para trasladarse a la membrana celular?",
+                options: [
+                    { text: "A) GLUT1.", isCorrect: false },
+                    { text: "B) GLUT2.", isCorrect: false },
+                    { text: "C) GLUT3.", isCorrect: false },
+                    { text: "D) GLUT4.", isCorrect: true }
+                ],
+                explanation: "En ausencia de insulina, el GLUT4 está en vesículas intracelulares. La cascada de la insulina ordena que se inserte en la membrana (\"traslocación\") para dejar entrar la glucosa."
+            },
+            {
+                id: 9,
+                text: "En el metabolismo hepático, la Insulina es una hormona eminentemente anabólica (\"de almacenamiento\"). ¿Qué procesos ESTIMULA?",
+                options: [
+                    { text: "A) Glucogenólisis y Gluconeogénesis.", isCorrect: false },
+                    { text: "B) Lipólisis y degradación de proteínas.", isCorrect: false },
+                    { text: "C) Glicólisis, síntesis de glucógeno (Glucogenogénesis) y lipogénesis.", isCorrect: true },
+                    { text: "D) Secreción de glucagón.", isCorrect: false }
+                ],
+                explanation: "La insulina busca retirar la glucosa de la sangre: la usa como energía (glicólisis) o la guarda como glucógeno y grasa (lipogénesis)."
+            },
+            {
+                id: 10,
+                text: "¿Qué hormona, sintetizada en las células Alfa de los islotes de Langerhans, se secreta en respuesta a la HIPOGLUCEMIA (niveles bajos de azúcar en sangre)?",
+                options: [
+                    { text: "A) Insulina.", isCorrect: false },
+                    { text: "B) Somatostatina.", isCorrect: false },
+                    { text: "C) Polipéptido pancreático.", isCorrect: false },
+                    { text: "D) Glucagón.", isCorrect: true }
+                ],
+                explanation: "Es la principal hormona hiperglucemiante, antagonista directa de la insulina."
+            },
+            {
+                id: 11,
+                text: "¿Qué efecto metabólico principal ejerce el Glucagón sobre el hígado?",
+                options: [
+                    { text: "A) Estimula la síntesis de glucógeno.", isCorrect: false },
+                    { text: "B) Induce la glucogenólisis (romper glucógeno) y la gluconeogénesis (crear glucosa nueva) para liberar glucosa a la sangre.", isCorrect: true },
+                    { text: "C) Fomenta la formación masiva de tejido adiposo.", isCorrect: false },
+                    { text: "D) Inhibe la lipólisis.", isCorrect: false }
+                ],
+                explanation: "El glucagón ordena al hígado que vierta sus reservas de energía al torrente sanguíneo."
+            },
+            {
+                id: 12,
+                text: "En la regulación enzimática, mientras que la Insulina suele desfosforilar enzimas para activarlas, hormonas de estrés como el Glucagón o la Epinefrina actúan a través del AMPc y la Proteína Quinasa A para:",
+                options: [
+                    { text: "A) FOSFORILAR enzimas clave (ej. activando la glucógeno fosforilasa e inactivando la glucógeno sintasa).", isCorrect: true },
+                    { text: "B) Destruir las enzimas lisosomales.", isCorrect: false },
+                    { text: "C) Bloquear los receptores de membrana.", isCorrect: false },
+                    { text: "D) Aumentar la síntesis de insulina.", isCorrect: false }
+                ],
+                explanation: "Las quinasas añaden grupos fosfato. Este mecanismo de fosforilación/desfosforilación funciona como un interruptor maestro."
+            },
+            {
+                id: 13,
+                text: "(¡Pista Profesora!) Clínicamente, ¿cuál es la causa primaria de la Diabetes Tipo 1 frente a la Tipo 2?",
+                options: [
+                    { text: "A) En la Tipo 1 hay resistencia a la insulina (fallan los receptores), y en la Tipo 2 falla el hígado.", isCorrect: false },
+                    { text: "B) En la Tipo 1 el páncreas NO produce insulina por pérdida de células beta; en la Tipo 2 se produce resistencia a la insulina (las células no responden adecuadamente al receptor).", isCorrect: true },
+                    { text: "C) La Tipo 1 es curable con dieta y la Tipo 2 requiere trasplante.", isCorrect: false },
+                    { text: "D) La Tipo 1 solo afecta a adultos mayores.", isCorrect: false }
+                ],
+                explanation: "Diferencia clásica recalcada. En la tipo 1 \"falla la fábrica\" (ausencia total); en la tipo 2 \"falla la cerradura\" (GLUT4 no se trasloca bien)."
+            },
+            {
+                id: 14,
+                text: "(¡Pista Profesora!) La Somatostatina se sintetiza en las células Delta. La profesora la compara con el \"director de orquesta\" o un \"freno\". ¿Cuál es su acción general?",
+                options: [
+                    { text: "A) Acelera masivamente el vaciado gástrico.", isCorrect: false },
+                    { text: "B) Ralentiza la digestión/absorción e inhibe tanto la secreción de insulina como de glucagón para evitar descompensaciones o \"picos\" bruscos.", isCorrect: true },
+                    { text: "C) Estimula la hormona del crecimiento.", isCorrect: false },
+                    { text: "D) Activa fuertemente la lipasa.", isCorrect: false }
+                ],
+                explanation: "\"Le tienes que frenar para que no corra más de la cuenta\". Modula todas las secreciones para que la absorción de nutrientes sea escalonada."
+            },
+            {
+                id: 15,
+                text: "El páncreas exocrino secreta al duodeno enzimas digestivas y una solución muy rica en un electrolito vital para neutralizar el pH del estómago. ¿Cuál es?",
+                options: [
+                    { text: "A) Ácido clorhídrico.", isCorrect: false },
+                    { text: "B) Bicarbonato (HCO3-).", isCorrect: true },
+                    { text: "C) Calcio.", isCorrect: false },
+                    { text: "D) Amoniaco.", isCorrect: false }
+                ],
+                explanation: "Las enzimas intestinales necesitan un pH alcalino (7.8), por lo que el bicarbonato neutraliza el quimo ácido."
+            },
+            {
+                id: 16,
+                text: "¿Qué hormona de la familia de las gastrointestinales (sintetizada en el antro gástrico) es la responsable de estimular la secreción de ácido clorhídrico (HCl) por las células parietales?",
+                options: [
+                    { text: "A) Secretina.", isCorrect: false },
+                    { text: "B) Colecistoquinina (CCK).", isCorrect: false },
+                    { text: "C) Gastrina.", isCorrect: true },
+                    { text: "D) Motilina.", isCorrect: false }
+                ],
+                explanation: "La Gastrina inicia la fase ácida de la digestión en el estómago."
+            },
+            {
+                id: 17,
+                text: "Si el pH en el duodeno cae por debajo de 4.5 debido al quimo ácido, las células S secretan SECRETINA. ¿Cuál es el principal efecto de la Secretina?",
+                options: [
+                    { text: "A) Estimular al estómago a producir más gastrina.", isCorrect: false },
+                    { text: "B) Estimular la liberación de agua y Bicarbonato desde los conductos pancreáticos para regular el pH.", isCorrect: true },
+                    { text: "C) Contraer fuertemente la vesícula biliar.", isCorrect: false },
+                    { text: "D) Inhibir a la Somatostatina.", isCorrect: false }
+                ],
+                explanation: "La secretina avisa al páncreas: \"viene ácido, mándame bicarbonato para neutralizarlo\"."
+            },
+            {
+                id: 18,
+                text: "¿Qué hormona gastrointestinal se secreta fundamentalmente en respuesta a grasas y proteínas, y ordena al páncreas liberar sus enzimas digestivas (zimógenos) y a la vesícula biliar contraerse?",
+                options: [
+                    { text: "A) Gastrina.", isCorrect: false },
+                    { text: "B) Colecistoquinina (CCK).", isCorrect: true },
+                    { text: "C) Insulina.", isCorrect: false },
+                    { text: "D) Somatostatina.", isCorrect: false }
+                ],
+                explanation: "La CCK orquesta la digestión de las grasas: aporta las tijeras (enzimas pancreáticas) y el detergente (bilis)."
+            },
+            {
+                id: 19,
+                text: "El tracto gastrointestinal secreta \"INCRETINAS\" como el GLP-1 y el GIP. ¿Qué importante función metabólica cumplen estas hormonas?",
+                options: [
+                    { text: "A) Destruyen la insulina circulante.", isCorrect: false },
+                    { text: "B) Promueven fuertemente la síntesis y secreción de insulina por el páncreas en respuesta a la comida (anticipándose a la hiperglucemia).", isCorrect: true },
+                    { text: "C) Disminuyen la saciedad.", isCorrect: false },
+                    { text: "D) Promueven la secreción de ácido estomacal.", isCorrect: false }
+                ],
+                explanation: "Las incretinas avisan al páncreas \"desde el intestino\" de que viene glucosa, preparando el terreno."
+            },
+            {
+                id: 20,
+                text: "¿Cómo se clasifica a la Ghrelina (Grelina), hormona producida mayoritariamente en el estómago?",
+                options: [
+                    { text: "A) Anorexigénica (causa saciedad).", isCorrect: false },
+                    { text: "B) Orexigénica (estimula el hambre y el apetito).", isCorrect: true },
+                    { text: "C) Enzima proteolítica.", isCorrect: false },
+                    { text: "D) Incretina.", isCorrect: false }
+                ],
+                explanation: "A diferencia de la CCK o el GLP-1 (que quitan el hambre), la Ghrelina \"hace rugir\" el estómago indicando necesidad de comer."
+            },
+            {
+                id: 21,
+                text: "(¡Pista Profesora!) Las hormonas tiroideas se regulan mediante el eje Hipotálamo-Hipófisis. ¿Qué hormona inicia la cascada liberándose desde el hipotálamo?",
+                options: [
+                    { text: "A) TSH (Tirotropina).", isCorrect: false },
+                    { text: "B) TRH (Tiroliberina o Tirotropin Releasing Hormone).", isCorrect: true },
+                    { text: "C) T3 y T4.", isCorrect: false },
+                    { text: "D) Cortisol.", isCorrect: false }
+                ],
+                explanation: "La profesora recalcó que la TRH (un tripéptido) es la que inicia la ruta hipotalámica actuando sobre la hipófisis."
+            },
+            {
+                id: 22,
+                text: "Una vez que la TRH actúa sobre la adenohipófisis, ¿qué hormona se libera hacia la sangre para estimular a la glándula tiroides?",
+                options: [
+                    { text: "A) Somatostatina.", isCorrect: false },
+                    { text: "B) ACTH.", isCorrect: false },
+                    { text: "C) TSH (Hormona Estimulante del Tiroides).", isCorrect: true },
+                    { text: "D) Prolactina.", isCorrect: false }
+                ],
+                explanation: "La TSH (glicoproteína de dos subunidades) es la directora de toda la síntesis tiroidea en la glándula periférica."
+            },
+            {
+                id: 23,
+                text: "¿Qué mecanismo utiliza el eje tiroideo para frenar su propia producción cuando hay niveles altos de T3 y T4 en la sangre?",
+                options: [
+                    { text: "A) Retroalimentación positiva sobre el hipotálamo.", isCorrect: false },
+                    { text: "B) Retroalimentación negativa (Feedback negativo), donde las T3 y T4 envían señales para inhibir la producción de TRH y TSH.", isCorrect: true },
+                    { text: "C) La destrucción enzimática masiva de la hipófisis.", isCorrect: false },
+                    { text: "D) La secreción de gastrina.", isCorrect: false }
+                ],
+                explanation: "La propia hormona frena a las glándulas superiores para mantener los niveles siempre en un rango basal óptimo."
+            },
+            {
+                id: 24,
+                text: "Dentro de la glándula tiroides existen unas estructuras esféricas llamadas folículos. ¿Cómo se llama el líquido viscoso del interior de estos folículos donde se ensamblan las hormonas?",
+                options: [
+                    { text: "A) Plasma.", isCorrect: false },
+                    { text: "B) Citosol.", isCorrect: false },
+                    { text: "C) Coloide.", isCorrect: true },
+                    { text: "D) Linfa.", isCorrect: false }
+                ],
+                explanation: "Las células foliculares rodean una cavidad central llena de coloide, que almacena la tiroglobulina."
+            },
+            {
+                id: 25,
+                text: "Además de los folículos, en el tiroides existen otras células llamadas Células C (o parafoliculares). ¿Qué hormona producen, la cual NO está en el eje del metabolismo basal sino en el control del calcio?",
+                options: [
+                    { text: "A) Parathormona.", isCorrect: false },
+                    { text: "B) Calcitonina.", isCorrect: true },
+                    { text: "C) Oxitocina.", isCorrect: false },
+                    { text: "D) Epinefrina.", isCorrect: false }
+                ],
+                explanation: "Las células C del tiroides producen calcitonina, que disminuye los niveles de calcio en sangre (se opone a la PTH)."
+            },
+            {
+                id: 26,
+                text: "La síntesis de hormonas tiroideas requiere una proteína gigantesca (aprox. 5000 aminoácidos) rica en residuos de Tirosina. ¿Cómo se llama esta proteína que actúa de \"andamio\" en el coloide?",
+                options: [
+                    { text: "A) Albúmina.", isCorrect: false },
+                    { text: "B) Globulina fijadora de tiroxina (TBG).", isCorrect: false },
+                    { text: "C) Tiroglobulina (Tg).", isCorrect: true },
+                    { text: "D) Pendrina.", isCorrect: false }
+                ],
+                explanation: "Contiene 115 residuos de tirosina, sobre los cuales se irán pegando los átomos de yodo."
+            },
+            {
+                id: 27,
+                text: "¿Qué micronutriente ESENCIAL debemos ingerir en la dieta (ej. sal marina, pescado) porque sin él es imposible sintetizar hormonas tiroideas?",
+                options: [
+                    { text: "A) Calcio.", isCorrect: false },
+                    { text: "B) Hierro.", isCorrect: false },
+                    { text: "C) Yodo.", isCorrect: true },
+                    { text: "D) Magnesio.", isCorrect: false }
+                ],
+                explanation: "El yodo es la piedra angular estructural de la T3 y T4."
+            },
+            {
+                id: 28,
+                text: "(¡Pista Profesora!) Para que el Yoduro (I-) circulante en la sangre ENTRE al interior de la célula folicular tiroidea, utiliza un transportador en la membrana basolateral. ¿Cómo se llama y cómo funciona?",
+                options: [
+                    { text: "A) Transportador NIS, mediante transporte activo secundario (simporte) introduciendo un yoduro acoplado a la entrada de 2 átomos de Sodio (Na+).", isCorrect: true },
+                    { text: "B) Canal de Calcio voltaje-dependiente.", isCorrect: false },
+                    { text: "C) GLUT4, dependiente de insulina.", isCorrect: false },
+                    { text: "D) Transportador MCT8.", isCorrect: false }
+                ],
+                explanation: "Explicado detalladamente en el audio: como va en contra de gradiente, aprovecha la \"fuerza\" del sodio."
+            },
+            {
+                id: 29,
+                text: "Para que el transporte del yodo por el NIS no se detenga, ¿qué mecanismo mantiene el gradiente de sodio a través de la membrana?",
+                options: [
+                    { text: "A) La TSH directamente.", isCorrect: false },
+                    { text: "B) La bomba Sodio-Potasio (Na+/K+ ATPasa).", isCorrect: true },
+                    { text: "C) La pendrina.", isCorrect: false },
+                    { text: "D) La glucólisis.", isCorrect: false }
+                ],
+                explanation: "Si la bomba no gasta ATP para sacar el sodio que entra, el sistema NIS se colapsa."
+            },
+            {
+                id: 30,
+                text: "Una vez en el citoplasma, el yoduro debe pasar al interior del coloide a través de la membrana apical. ¿Qué proteína de transporte (intercambiador cloruro/yoduro) realiza este paso?",
+                options: [
+                    { text: "A) NIS.", isCorrect: false },
+                    { text: "B) Tiroglobulina.", isCorrect: false },
+                    { text: "C) Pendrina.", isCorrect: true },
+                    { text: "D) Acuaporina.", isCorrect: false }
+                ],
+                explanation: "La pendrina se encarga de verter el yodo hacia la luz del folículo."
+            },
+            {
+                id: 31,
+                text: "En el coloide, el yoduro (I-) debe oxidarse a yodo (I2) y acoplarse a las tirosinas de la tiroglobulina. ¿Qué enzima cataliza TODO este proceso fundamental?",
+                options: [
+                    { text: "A) Desyodasa tipo 1.", isCorrect: false },
+                    { text: "B) Peroxidasa Tiroidea (TPO).", isCorrect: true },
+                    { text: "C) Pepsina.", isCorrect: false },
+                    { text: "D) Fosfolipasa C.", isCorrect: false }
+                ],
+                explanation: "La TPO (junto con peróxido de hidrógeno) es la encargada de la oxidación y organificación (yodación)."
+            },
+            {
+                id: 32,
+                text: "Si la TPO une UN átomo de yodo a un residuo de tirosina, se forma:",
+                options: [
+                    { text: "A) T3.", isCorrect: false },
+                    { text: "B) T4.", isCorrect: false },
+                    { text: "C) Monoyodotirosina (MIT).", isCorrect: true },
+                    { text: "D) Diyodotirosina (DIT).", isCorrect: false }
+                ],
+                explanation: "\"Mono\" significa uno. Si se le pegan dos, se forma \"Di\"-yodotirosina (DIT)."
+            },
+            {
+                id: 33,
+                text: "En la reacción de acoplamiento, si se unen dos moléculas de Diyodotirosina (DIT + DIT), el resultado es la formación de:",
+                options: [
+                    { text: "A) MIT.", isCorrect: false },
+                    { text: "B) T3 (Triyodotironina).", isCorrect: false },
+                    { text: "C) T4 (Tiroxina o Tetrayodotironina).", isCorrect: true },
+                    { text: "D) Tiroglobulina.", isCorrect: false }
+                ],
+                explanation: "Matemáticas simples: 2 yodos + 2 yodos forman la hormona de 4 yodos (T4)."
+            },
+            {
+                id: 34,
+                text: "Si en el acoplamiento se unen una MIT y una DIT (1 yodo + 2 yodos), obtenemos:",
+                options: [
+                    { text: "A) T4 (Tiroxina).", isCorrect: false },
+                    { text: "B) T3 (Triyodotironina).", isCorrect: true },
+                    { text: "C) T2.", isCorrect: false },
+                    { text: "D) DIT libre.", isCorrect: false }
+                ],
+                explanation: "El resultado es la hormona de 3 yodos (T3)."
+            },
+            {
+                id: 35,
+                text: "Una vez que la tiroglobulina está cargada con T3 y T4 en el coloide, ¿cómo se liberan estas hormonas finalmente hacia el torrente sanguíneo?",
+                options: [
+                    { text: "A) La tiroglobulina cruza la membrana y entra a la sangre intacta.", isCorrect: false },
+                    { text: "B) Se produce endocitosis de la tiroglobulina, las proteasas lisosomales la rompen liberando la T3 y T4 libres, que difunden a la sangre.", isCorrect: true },
+                    { text: "C) Se secretan a través del conducto linfático exclusivamente.", isCorrect: false },
+                    { text: "D) Salen por la bomba de sodio/potasio.", isCorrect: false }
+                ],
+                explanation: "La célula se \"traga\" la proteína enorme, la digiere, separa las hormonas y las escupe hacia la zona basal."
+            },
+            {
+                id: 36,
+                text: "La glándula tiroides secreta en su gran mayoría (aprox. 80-90%) T4 (Tiroxina). Sin embargo, ¿qué peculiaridad tiene la T4 respecto a su actividad biológica?",
+                options: [
+                    { text: "A) Es la única forma que interactúa con el ADN.", isCorrect: false },
+                    { text: "B) Es una \"prohormona\" menos activa y debe transformarse en los tejidos periféricos (como hígado o riñón) en T3, que es la forma verdaderamente ACTIVA.", isCorrect: true },
+                    { text: "C) Solo funciona en el cerebro.", isCorrect: false },
+                    { text: "D) No tiene ningún yodo en su estructura.", isCorrect: false }
+                ],
+                explanation: "La T4 actúa como un reservorio circulante; la bala real que acciona el receptor nuclear es la T3."
+            },
+            {
+                id: 37,
+                text: "¿Qué familia de enzimas se encarga de eliminar un átomo de yodo de la T4 para convertirla en la forma activa T3 (o en rT3 inactiva)?",
+                options: [
+                    { text: "A) Peroxidasas.", isCorrect: false },
+                    { text: "B) Quinasas.", isCorrect: false },
+                    { text: "C) Desyodasas (ej. D1, D2, D3).", isCorrect: true },
+                    { text: "D) Ligasas.", isCorrect: false }
+                ],
+                explanation: "\"Quitan yodo\" (desyodan). La D1 y D2 quitan un yodo externo para activar (formando T3)."
+            },
+            {
+                id: 38,
+                text: "¿Qué ocurre si la enzima que actúa sobre la T4 es la Desyodasa 3 (D3) quitando el yodo del anillo interno?",
+                options: [
+                    { text: "A) Se forma T3 super-activa.", isCorrect: false },
+                    { text: "B) Se forma T3 reversa (rT3), una forma INACTIVA utilizada como vía de degradación/regulación.", isCorrect: true },
+                    { text: "C) La T4 se destruye completamente en gas.", isCorrect: false },
+                    { text: "D) Se forma tiroglobulina.", isCorrect: false }
+                ],
+                explanation: "Es una vía alternativa para apagar la señal tiroidea cuando el cuerpo no la necesita."
+            },
+            {
+                id: 39,
+                text: "En el torrente sanguíneo, las hormonas tiroideas son muy liposolubles y no viajan libres en su mayoría. ¿A qué proteína plasmática específica viaja unido el ~70% de la T4?",
+                options: [
+                    { text: "A) Globulina fijadora de tiroxina (TBG).", isCorrect: true },
+                    { text: "B) Quilomicrones.", isCorrect: false },
+                    { text: "C) Insulina.", isCorrect: false },
+                    { text: "D) Hemoglobina.", isCorrect: false }
+                ],
+                explanation: "Van unidas fuertemente a la TBG, a la transtirretina o a la albúmina, lo que crea un almacén circulante prolongando su vida media."
+            },
+            {
+                id: 40,
+                text: "A pesar de ser liposolubles, ¿cómo entran fisiológicamente la T3 y la T4 al interior de las células diana (ej. astrocitos, neuronas)?",
+                options: [
+                    { text: "A) Entran rompiendo la membrana lipídica.", isCorrect: false },
+                    { text: "B) A través de transportadores de membrana específicos, como MCT8, MCT10 y OATP1C1.", isCorrect: true },
+                    { text: "C) Solo mediante endocitosis mediada por clatrina.", isCorrect: false },
+                    { text: "D) Por el transportador SGLT1 de glucosa.", isCorrect: false }
+                ],
+                explanation: "La profesora incidió en que no cruzan solas a la velocidad necesaria, requieren transportadores de membrana (MCT8 es clave en el cerebro)."
+            },
+            {
+                id: 41,
+                text: "Una vez dentro de la célula, la hormona T3 se dirige al núcleo. ¿Cómo funciona su \"Mecanismo de acción Genómico\"?",
+                options: [
+                    { text: "A) La hormona destruye directamente el ADN.", isCorrect: false },
+                    { text: "B) La hormona se une al receptor tiroideo (TR) nuclear, el cual actúa como factor de transcripción uniéndose a los elementos de respuesta (TRE) del ADN para modificar la expresión génica.", isCorrect: true },
+                    { text: "C) Activa el AMPc en el núcleo.", isCorrect: false },
+                    { text: "D) Frena totalmente la transcripción de proteínas.", isCorrect: false }
+                ],
+                explanation: "Al igual que las hormonas esteroideas, el complejo hormona-receptor regula los genes \"encendiendo\" o \"apagando\" la síntesis de ciertas proteínas."
+            },
+            {
+                id: 42,
+                text: "Las hormonas tiroideas también presentan \"Mecanismos NO genómicos\". ¿A qué se refieren?",
+                options: [
+                    { text: "A) A que se heredan de padres a hijos.", isCorrect: false },
+                    { text: "B) A acciones muy rápidas que no involucran el núcleo, sino que interactúan con receptores de membrana, canales iónicos (Ca2+, Na+) o vías de señalización intracelular (PI3K, MAPK).", isCorrect: true },
+                    { text: "C) A la unión exclusiva con los ribosomas.", isCorrect: false },
+                    { text: "D) A la modificación del grupo hemo de la sangre.", isCorrect: false }
+                ],
+                explanation: "Es la respuesta veloz (segundos/minutos) mediante mensajeros secundarios, típica de muchas hormonas peptídicas, pero que la tiroidea también posee."
+            },
+            {
+                id: 43,
+                text: "A nivel fisiológico, el principal efecto de las hormonas tiroideas en adultos es la Acción Calorigénica. Esto significa que:",
+                options: [
+                    { text: "A) Reducen drásticamente la temperatura corporal.", isCorrect: false },
+                    { text: "B) Aumentan el consumo de oxígeno (O2) en casi todos los tejidos metabólicamente activos y elevan la producción de calor (termogénesis).", isCorrect: true },
+                    { text: "C) Transforman la glucosa en sudor.", isCorrect: false },
+                    { text: "D) Frenan el ciclo de Krebs.", isCorrect: false }
+                ],
+                explanation: "Las hormonas tiroideas son el \"acelerador\" del cuerpo; a más hormona, más se quema."
+            },
+            {
+                id: 44,
+                text: "Respecto al metabolismo de los Hidratos de Carbono, las hormonas tiroideas son:",
+                options: [
+                    { text: "A) Hipoglucemiantes puras (bajan el azúcar).", isCorrect: false },
+                    { text: "B) Hiperglucemiantes indirectas, facilitando la glucogenólisis y gluconeogénesis para proveer de sustrato a un metabolismo acelerado.", isCorrect: true },
+                    { text: "C) Destructoras de glucosa.", isCorrect: false },
+                    { text: "D) Antagonistas totales de la GH.", isCorrect: false }
+                ],
+                explanation: "Como el cuerpo consume más energía, necesita extraer glucosa de donde sea."
+            },
+            {
+                id: 45,
+                text: "¿Qué efecto clásico tienen las hormonas tiroideas sobre el metabolismo de los lípidos (grasas)?",
+                options: [
+                    { text: "A) Fomentan masivamente el almacenamiento de grasa subcutánea.", isCorrect: false },
+                    { text: "B) Favorecen la lipólisis (degradación de grasas) y promueven la excreción biliar del colesterol, reduciendo así los niveles plasmáticos de este.", isCorrect: true },
+                    { text: "C) Aumentan los niveles de colesterol LDL en sangre.", isCorrect: false },
+                    { text: "D) Bloquean la acción de las lipasas.", isCorrect: false }
+                ],
+                explanation: "Esta es la razón por la que en el hipertiroidismo se pierde peso y el colesterol es bajo, mientras que en el hipotiroidismo sube el colesterol."
+            },
+            {
+                id: 46,
+                text: "En la etapa fetal y neonatal, la presencia de niveles adecuados de hormonas tiroideas es CRÍTICA e indispensable fundamentalmente para:",
+                options: [
+                    { text: "A) La formación del esqueleto óseo exclusivamente.", isCorrect: false },
+                    { text: "B) El desarrollo pulmonar.", isCorrect: false },
+                    { text: "C) El desarrollo del Sistema Nervioso Central (mielinización, sinaptogénesis) y el crecimiento lineal del cerebro y cuerpo.", isCorrect: true },
+                    { text: "D) La digestión de la leche materna.", isCorrect: false }
+                ],
+                explanation: "Su ausencia in utero o en la primera infancia causa un retraso mental grave e irreversible conocido como cretinismo."
+            },
+            {
+                id: 47,
+                text: "Un paciente acude a consulta por pérdida de peso constante (a pesar de tener mucha hambre), taquicardia, nerviosismo, intolerancia al calor y posible bocio o exoftalmos. Estos síntomas corresponden clínicamente a:",
+                options: [
+                    { text: "A) Hipotiroidismo.", isCorrect: false },
+                    { text: "B) Hipertiroidismo.", isCorrect: true },
+                    { text: "C) Diabetes Mellitus.", isCorrect: false },
+                    { text: "D) Síndrome de Zollinger-Ellison.", isCorrect: false }
+                ],
+                explanation: "El \"motor\" va revolucionado, típico del exceso de hormonas tiroideas (ej. Enfermedad de Graves)."
+            },
+            {
+                id: 48,
+                text: "Por el contrario, un paciente que presenta ganancia de peso, letargo/cansancio, ritmo cardíaco lento, intolerancia al frío, piel seca y estreñimiento sufre típicamente de:",
+                options: [
+                    { text: "A) Hipertiroidismo.", isCorrect: false },
+                    { text: "B) Hipotiroidismo.", isCorrect: true },
+                    { text: "C) Fenilcetonuria.", isCorrect: false },
+                    { text: "D) Exceso de Glucagón.", isCorrect: false }
+                ],
+                explanation: "Al fallar la hormona del metabolismo basal, todo el cuerpo se enlentece (ej. Tiroiditis de Hashimoto)."
+            },
+            {
+                id: 49,
+                text: "(¡Pista Profesora!) En la clase, la profesora explicó el proceso de síntesis de un aminoácido esencial que es el PRECURSOR OBLIGATORIO de la tirosina. ¿Cuál es?",
+                options: [
+                    { text: "A) Triptófano.", isCorrect: false },
+                    { text: "B) Fenilalanina.", isCorrect: true },
+                    { text: "C) Glutamato.", isCorrect: false },
+                    { text: "D) Metionina.", isCorrect: false }
+                ],
+                explanation: "\"La tirosina se sintetiza a partir de la fenilalanina. La fenilalanina es esencial, necesitamos obtenerla a partir de la dieta\", comentó en el audio."
+            },
+            {
+                id: 50,
+                text: "(¡Pista Profesora!) Si un recién nacido presenta un defecto genético y CARECE de la enzima \"Fenilalanina hidroxilasa\", ¿qué ocurrirá bioquímicamente?",
+                options: [
+                    { text: "A) Producirá un exceso letal de hormonas tiroideas.", isCorrect: false },
+                    { text: "B) No podrá convertir la Fenilalanina en Tirosina. La fenilalanina se acumulará de forma tóxica (Fenilcetonuria o PKU) y además habrá un déficit secundario de síntesis de hormonas tiroideas y melanina.", isCorrect: true },
+                    { text: "C) Tendrá diabetes neonatal.", isCorrect: false },
+                    { text: "D) No podrá absorber la lactosa.", isCorrect: false }
+                ],
+                explanation: "Explicado al final del audio: el bloqueo de la enzima produce acúmulos neurotóxicos y falta de producto final."
+            },
+            {
+                id: 51,
+                text: "(¡Pista Profesora!) ¿Qué método preventivo de cribado neonatal rutinario se emplea para detectar el hipotiroidismo congénito y la Fenilcetonuria (PKU) de forma precoz y evitar el daño cerebral?",
+                options: [
+                    { text: "A) Biopsia de tiroides.", isCorrect: false },
+                    { text: "B) Ecografía cerebral.", isCorrect: false },
+                    { text: "C) La \"Prueba del talón\" (extracción de gotas de sangre en papel en los primeros días de vida).", isCorrect: true },
+                    { text: "D) Medición de orina fetal.", isCorrect: false }
+                ],
+                explanation: "\"Es la prueba esta que ya sabéis, la prueba del talón en la que se miran una serie de posibles anomalías...\", indicó explícitamente la profesora."
+            },
+            {
+                id: 52,
+                text: "(¡Pista Profesora!) ¿Cuál es el tratamiento principal e inmediato para un bebé diagnosticado con Fenilcetonuria (PKU)?",
+                options: [
+                    { text: "A) Trasplante de hígado.", isCorrect: false },
+                    { text: "B) Inyecciones masivas de TRH.", isCorrect: false },
+                    { text: "C) Una dieta estrictamente controlada con restricción de proteínas de Alto Valor Biológico para evitar la ingesta excesiva de fenilalanina.", isCorrect: true },
+                    { text: "D) Administrar grandes dosis de yodo en la dieta.", isCorrect: false }
+                ],
+                explanation: "Al no poder degradar ese aminoácido, el tratamiento consiste en no dárselo en la dieta para que no se acumule en el cerebro."
+            },
+            {
+                id: 53,
+                text: "Si un paciente sufre una extirpación total de la hipófisis por un tumor, ¿qué cabría esperar en sus niveles de hormonas tiroideas (T3/T4)?",
+                options: [
+                    { text: "A) Estarían extremadamente altos por falta de freno.", isCorrect: false },
+                    { text: "B) Estarían muy bajos, desarrollando un hipotiroidismo secundario por falta de estimulación mediante la TSH.", isCorrect: true },
+                    { text: "C) Se mantendrían completamente normales porque el tiroides es autónomo.", isCorrect: false },
+                    { text: "D) El tiroides secretaría TRH en su lugar.", isCorrect: false }
+                ],
+                explanation: "Sin la TSH hipofisaria, la glándula tiroidea carece de la señal para captar yodo y fabricar T3/T4."
+            },
+            {
+                id: 54,
+                text: "En el mecanismo de despolarización de las células beta pancreáticas para liberar insulina, ¿qué papel juegan las sulfonilureas (un fármaco clásico para la diabetes tipo 2)?",
+                options: [
+                    { text: "A) Rompen la vesícula de insulina.", isCorrect: false },
+                    { text: "B) Se unen y BLOQUEAN el canal de potasio (K+) dependiente de ATP, provocando de manera artificial la despolarización y secreción de insulina.", isCorrect: true },
+                    { text: "C) Inhiben al glucagón.", isCorrect: false },
+                    { text: "D) Activan la bomba Na+/K+ ATPasa.", isCorrect: false }
+                ],
+                explanation: "Los esquemas del PDF muestran el receptor de sulfonilurea unido al canal de potasio; al bloquearlo imitan el efecto del ATP celular."
+            },
+            {
+                id: 55,
+                text: "El receptor de la insulina (Tirosina Quinasa), al fosforilar el sustrato IRS-1, activa una ruta muy importante mediada por la PI3-kinasa. ¿Cuál de las siguientes proteínas es un efector clave de esta ruta para permitir la entrada de glucosa?",
+                options: [
+                    { text: "A) Pepsina.", isCorrect: false },
+                    { text: "B) Akt (Proteína quinasa B).", isCorrect: true },
+                    { text: "C) AMPc.", isCorrect: false },
+                    { text: "D) Factor de transcripción RXR.", isCorrect: false }
+                ],
+                explanation: "La cascada clásica del PDF indica que PIP3 activa a PDK1 y esta a Akt, la cual media la traslocación de GLUT4."
+            },
+            {
+                id: 56,
+                text: "La Gastrina existe en múltiples formas moleculares circulantes (\"big gastrin\", \"little gastrin\"). ¿Dónde se sintetiza principalmente?",
+                options: [
+                    { text: "A) En los acinos del páncreas.", isCorrect: false },
+                    { text: "B) En las Células G del antro del estómago y el duodeno.", isCorrect: true },
+                    { text: "C) En el hipotálamo.", isCorrect: false },
+                    { text: "D) En la vesícula biliar.", isCorrect: false }
+                ],
+                explanation: "Las células enteroendocrinas tipo G son su fuente principal."
+            },
+            {
+                id: 57,
+                text: "¿Qué dos hormonas gastrointestinales actúan como el \"switch off\" o freno universal de las secreciones ácidas y enzimáticas?",
+                options: [
+                    { text: "A) Gastrina y Grelina.", isCorrect: false },
+                    { text: "B) Somatostatina y Péptido YY (PYY).", isCorrect: true },
+                    { text: "C) CCK y Motilina.", isCorrect: false },
+                    { text: "D) Insulina y Glucagón.", isCorrect: false }
+                ],
+                explanation: "Como se ve en la tabla 63-1, la Somatostatina (y PYY) inhiben masivamente la función gástrica y pancreática para ralentizar el proceso."
+            },
+            {
+                id: 58,
+                text: "A nivel embrionario, el tracto gastrointestinal expresa hormonas que pueden actuar no solo en la digestión, sino como:",
+                options: [
+                    { text: "A) Destructores de cartílago.", isCorrect: false },
+                    { text: "B) Neurotransmisores cerebrales y factores locales de crecimiento (ej. proliferación de la mucosa).", isCorrect: true },
+                    { text: "C) Hormonas esteroideas lipídicas.", isCorrect: false },
+                    { text: "D) Activadores únicos de los osteoclastos.", isCorrect: false }
+                ],
+                explanation: "El PDF destaca la gran variabilidad fenotípica de estos péptidos (ej. VIP, CCK), actuando como señales nerviosas o factores tróficos (crecimiento)."
+            },
+            {
+                id: 59,
+                text: "La acción del receptor de TSH sobre la célula folicular del tiroides implica la activación de:",
+                options: [
+                    { text: "A) Fosfolipasa C exclusivamente.", isCorrect: false },
+                    { text: "B) Adenilato ciclasa, aumentando los niveles de AMP cíclico intracelular.", isCorrect: true },
+                    { text: "C) Receptor tirosina quinasa dimérico.", isCorrect: false },
+                    { text: "D) Proteasa digestiva inespecífica.", isCorrect: false }
+                ],
+                explanation: "La TSH (vía proteína Gs) usa el mecanismo clásico del cAMP y la PKA para ordenar a la célula que hipertrofie y fabrique hormonas."
+            },
+            {
+                id: 60,
+                text: "Como visión metabólica global: Si un paciente se somete a un \"ayuno prolongado\", ¿cómo reaccionan sus ejes hormonales principales (páncreas y tiroides)?",
+                options: [
+                    { text: "A) Sube la insulina y suben las hormonas tiroideas T3/T4.", isCorrect: false },
+                    { text: "B) Baja la insulina (sube el glucagón para liberar glucosa) y el eje tiroideo disminuye su producción de hormonas para disminuir el metabolismo basal y \"ahorrar energía\".", isCorrect: true },
+                    { text: "C) El páncreas deja de secretar todas sus hormonas.", isCorrect: false },
+                    { text: "D) La TSH se dispara para quemar toda la grasa subcutánea.", isCorrect: false }
+                ],
+                explanation: "El cuerpo entra en \"modo supervivencia\": el glucagón intenta mantener la glucosa sanguínea y el tiroides baja sus revoluciones para no gastar inútilmente las calorías."
+            }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {};
+        let markedQuestions = new Set();
+
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        function startQuiz(randomizeOrder) {
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('end-modal').classList.add('hidden');
+            
+            currentQuestions = JSON.parse(JSON.stringify(dbQuestions));
+            if (randomizeOrder) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            markedQuestions.clear();
+            renderQuiz();
+        }
+
+        function retryQuiz(mode) {
+            document.getElementById('end-modal').classList.add('hidden');
+            let pool = [];
+            
+            if (mode === 'all') {
+                pool = [...dbQuestions];
+            } else if (mode === 'failed') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false);
+            } else if (mode === 'marked') {
+                pool = dbQuestions.filter(q => markedQuestions.has(q.id));
+            } else if (mode === 'failed_marked') {
+                pool = dbQuestions.filter(q => userAnswers[q.id] === false || markedQuestions.has(q.id));
+            }
+
+            if (pool.length === 0) {
+                alert("No hay preguntas en esta categoría para repetir.");
+                showEndScreen();
+                return;
+            }
+
+            const randomize = confirm("¿Quieres mezclar el orden de estas preguntas aleatoriamente para este intento?");
+            
+            currentQuestions = JSON.parse(JSON.stringify(pool));
+            if (randomize) {
+                currentQuestions = shuffleArray(currentQuestions);
+            }
+
+            userAnswers = {};
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('questions-container');
+            const indexGrid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            indexGrid.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const visualNumber = index + 1;
+                
+                const btn = document.createElement('a');
+                btn.href = `#q-${q.id}`;
+                btn.className = 'index-btn';
+                btn.id = `index-btn-${q.id}`;
+                btn.textContent = visualNumber;
+                if(markedQuestions.has(q.id)) btn.classList.add('marked');
+                indexGrid.appendChild(btn);
+
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                
+                const title = document.createElement('h3');
+                title.className = 'question-title';
+                title.textContent = `${visualNumber}. ${q.text}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+                markBtn.textContent = '📌 Marcar';
+                markBtn.onclick = () => toggleMark(q.id, markBtn);
+
+                header.appendChild(title);
+                header.appendChild(markBtn);
+                card.appendChild(header);
+
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'options-list';
+                optionsList.id = `options-${q.id}`;
+                
+                let shuffledOptions = shuffleArray([...q.options]);
+
+                shuffledOptions.forEach((opt, optIndex) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = `question-${q.id}`;
+                    input.value = opt.isCorrect;
+                    input.onchange = () => handleAnswer(q.id, input, opt, shuffledOptions, optionsList, q.explanation);
+                    
+                    label.appendChild(input);
+                    const spanText = document.createElement('span');
+                    spanText.textContent = opt.text; 
+                    label.appendChild(spanText);
+                    
+                    li.appendChild(label);
+                    optionsList.appendChild(li);
+                });
+
+                card.appendChild(optionsList);
+
+                const feedback = document.createElement('div');
+                feedback.id = `feedback-${q.id}`;
+                feedback.className = 'feedback';
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qId, selectedInput, selectedOption, allOptionsData, optionsListElement, explanation) {
+            const inputs = optionsListElement.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.disabled = true;
+                inp.parentElement.classList.add('disabled');
+            });
+
+            const isCorrect = selectedOption.isCorrect;
+            userAnswers[qId] = isCorrect;
+
+            const indexBtn = document.getElementById(`index-btn-${qId}`);
+            indexBtn.classList.remove('correct', 'incorrect');
+            indexBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            inputs.forEach(inp => {
+                if (inp.value === 'true') {
+                    inp.parentElement.classList.add('correct-answer');
+                } else if (inp === selectedInput && !isCorrect) {
+                    inp.parentElement.classList.add('incorrect-answer');
+                }
+            });
+
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            feedbackEl.classList.add('show');
+            
+            const safeExp = explanation.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            if (isCorrect) {
+                feedbackEl.classList.add('success');
+                feedbackEl.innerHTML = `<strong>¡Correcto!</strong><br><em>Explicación de clase: ${safeExp}</em>`;
+            } else {
+                feedbackEl.classList.add('error');
+                feedbackEl.innerHTML = `<strong>Incorrecto.</strong><br><em>Explicación de clase: ${safeExp}</em>`;
+            }
+        }
+
+        function toggleMark(qId, btnElement) {
+            if (markedQuestions.has(qId)) {
+                markedQuestions.delete(qId);
+                btnElement.classList.remove('active');
+                document.getElementById(`index-btn-${qId}`).classList.remove('marked');
+            } else {
+                markedQuestions.add(qId);
+                btnElement.classList.add('active');
+                document.getElementById(`index-btn-${qId}`).classList.add('marked');
+            }
+        }
+
+        function showEndScreen() {
+            let correctCount = 0;
+            let answeredCount = 0;
+            
+            currentQuestions.forEach(q => {
+                if (userAnswers[q.id] !== undefined) {
+                    answeredCount++;
+                    if (userAnswers[q.id] === true) correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const scoreText = `Has respondido ${answeredCount} de ${total} preguntas.<br><strong>Aciertos: ${correctCount}</strong>`;
+            
+            document.getElementById('results-text').innerHTML = scoreText;
+            
+            const hasFailed = currentQuestions.some(q => userAnswers[q.id] === false);
+            const hasMarked = markedQuestions.size > 0;
+            
+            document.getElementById('btn-retry-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-retry-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-retry-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            document.getElementById('end-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

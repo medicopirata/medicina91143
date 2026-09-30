@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Integral de Anatomía - 160 Preguntas</title>
+    <style>
+        :root {
+            --primary: #1a252f;
+            --secondary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+            --bg: #f8f9fa;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* BARRA LATERAL / ÍNDICE */
+        #sidebar {
+            width: 320px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        #sidebar h2 { font-size: 1.1rem; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px; }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 15px;
+        }
+
+        .index-item {
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ccc;
+            padding: 6px 0;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+
+        .index-item:hover { background: var(--accent); color: white; }
+        .index-item.active { border: 1px solid var(--accent); box-shadow: 0 0 5px var(--accent); }
+        .index-item.correct { background: var(--success) !important; color: white; }
+        .index-item.wrong { background: var(--error) !important; color: white; }
+        .index-item.marked { background: var(--warning) !important; color: black; font-weight: bold; }
+
+        /* CONTENIDO PRINCIPAL */
+        #main-content {
+            margin-left: 320px;
+            flex: 1;
+            padding: 40px;
+            max-width: 900px;
+            margin-right: auto;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-top: 4px solid var(--secondary);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #eee;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.3s;
+        }
+
+        .mark-btn.active { background: var(--warning); color: black; }
+
+        .question-header { font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; color: var(--primary); }
+
+        .options-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .option {
+            padding: 15px;
+            border: 2px solid #eaeeef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s all;
+            position: relative;
+        }
+
+        .option:hover:not(.locked) { border-color: var(--accent); background: #f0f7ff; }
+        .option.selected { border-color: var(--accent); background: #e1f0fa; }
+        .option.correct-ans { background: #d4edda; border-color: var(--success); color: #155724; font-weight: bold; }
+        .option.wrong-ans { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.locked { cursor: default; }
+
+        .explanation-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent);
+            display: none;
+            font-size: 0.95rem;
+            animation: fadeIn 0.4s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* MODALES */
+        #overlay {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        .btn-main { background: var(--accent); color: white; }
+        .btn-main:hover { background: #2980b9; }
+        .btn-finish { background: var(--error); color: white; position: fixed; bottom: 30px; right: 30px; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="modal" id="modal-start">
+            <h1>Examen de Anatomía</h1>
+            <p>Selecciona el modo de inicio:</p>
+            <button class="btn btn-main" onclick="initQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-main" onclick="initQuiz(true)">Orden Aleatorio (Mezclar)</button>
+        </div>
+
+        <div class="modal hidden" id="modal-results">
+            <h1>Resultados Finales</h1>
+            <p id="final-score" style="font-size: 1.5rem; font-weight: bold;"></p>
+            <div class="btn-group">
+                <button class="btn btn-main" onclick="restartQuiz('all')">Repetir Cuestionario Completo</button>
+                <button class="btn btn-main" style="background:#e67e22" onclick="restartQuiz('failed')">Repetir solo Falladas</button>
+                <button class="btn btn-main" style="background:var(--warning); color:black" onclick="restartQuiz('marked')">Repetir solo Marcadas</button>
+                <button class="btn btn-main" style="background:var(--secondary)" onclick="restartQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h2>ÍNDICE DE PREGUNTAS</h2>
+        <div class="index-grid" id="index-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-body"></div>
+        <button class="btn btn-finish" onclick="showResults()">Finalizar y Corregir</button>
+    </div>
+
+    <script>
+        // BASE DE DATOS DE PREGUNTAS (160 PREGUNTAS LITERALES)
+        const db = [
+            // BLOQUE 1: RAQUIS
+            { q: "1. Según se describe en la anatomía del raquis, ¿qué porción anatómica específica del disco intervertebral carece por completo de vascularización en el adulto y depende puramente de la difusión (imbibición) para nutrirse?", options: ["Las láminas periféricas del anillo fibroso.", "El núcleo pulposo.", "Los platillos o láminas terminales cartilaginosas.", "El ligamento longitudinal posterior."], correct: 1, exp: "El profesor hace hincapié en que, una vez que termina la osificación de las vértebras, el núcleo pulposo queda aislado, convirtiéndose en la mayor estructura anatómica del organismo carente de vascularización directa." },
+            { q: "2. Debido a su nula vascularización y a depender de la difusión, el núcleo pulposo sufre un proceso fisiológico progresivo con la edad que afecta enormemente a la biomecánica del raquis. ¿Cuál es la consecuencia directa de este hecho?", options: ["El núcleo pulposo se hipertrofia al generar su propia red arterial anastomótica.", "El núcleo pulposo se fusiona gradualmente con el ligamento amarillo.", "Pierde su capacidad hidrofílica (se deshidrata), disminuyendo sus proteoglicanos, lo que merma su capacidad de absorber fuerzas compresivas y reduce la flexibilidad del raquis.", "Se transforma en músculo estriado."], correct: 2, exp: "Al nutrirse tan precariamente, con la edad el núcleo pulposo pierde agua (pasa del 88% en el nacimiento a un 65% en la vejez) y los proteoglicanos se degradan." },
+            { q: "3. \"El binomio vascular-nervioso\". Al igual que ocurre con su falta de riego sanguíneo, la inervación del disco intervertebral no es homogénea. ¿Qué parte del disco es la ÚNICA que recibe terminaciones nerviosas (propiocepción y dolor) de los ramos espinales?", options: ["El núcleo pulposo en todo su espesor.", "Las láminas periféricas más superficiales del anillo fibroso.", "Únicamente la porción anterior, inervada por el nervio vago.", "El disco intervertebral carece totalmente de nervios en toda su estructura."], correct: 1, exp: "Trampa clásica. Mientras que el núcleo pulposo y las láminas internas son totalmente avasculares y carecen de nervios, la periferia del disco sí está inervada." },
+            { q: "4. El núcleo pulposo es una estructura avascular de consistencia gelatinosa. Desde el punto de vista embriológico, ¿de qué estructura primitiva es un vestigio directo?", options: ["De la notocorda.", "Del tubo neural.", "De los miotomas dorsales.", "Del arco aórtico."], correct: 0, exp: "Los restos del cordón macizo central de la notocorda quedan atrapados en el centro del disco, formando así el núcleo pulposo." },
+            
+            // CONCEPTO 1: ARTERIA VERTEBRAL
+            { q: "C1-1. La arteria vertebral es fundamental para la irrigación del encéfalo posterior. Anatómicamente, su origen principal se localiza como la primera rama ascendente de:", options: ["El arco aórtico directamente.", "La arteria carótida común.", "La arteria subclavia pre-escalénica.", "El tronco tirocervical anterior."], correct: 2, exp: "La arteria vertebral nace de la porción pre-escalénica (primera porción) de la arteria subclavia." },
+            { q: "C1-2. En su porción cervical o de ascenso, la arteria vertebral busca protegerse en el conducto óseo formado por los forámenes transversos. Lo habitual es que ingrese a este conducto a nivel de la vértebra:", options: ["C4.", "C5.", "C6.", "C7."], correct: 2, exp: "Como norma anatómica, la arteria vertebral omite el foramen transverso de C7 e ingresa al conducto raquídeo a partir de la vértebra C6." },
+            { q: "C1-3. Topográficamente, justo antes de ingresar en su primer foramen transverso, la arteria vertebral (porción prevertebral) asciende relacionándose directamente con la cara posterior del músculo:", options: ["Elevador de la escápula.", "Escaleno anterior.", "Esternocleidomastoideo.", "Escaleno posterior."], correct: 1, exp: "La arteria nace de la subclavia y sube hacia C6 pasando por detrás del músculo escaleno anterior." },
+            { q: "C1-4. Tras atravesar el foramen magno, ambas arterias vertebrales (derecha e izquierda) convergen en la cara anterior del puente (protuberancia) para formar:", options: ["La arteria basilar.", "La arteria cerebral media.", "La arteria comunicante anterior.", "El seno sagital superior."], correct: 0, exp: "Ambas vertebrales se fusionan en la línea media intracraneal para formar el tronco basilar." },
+
+            // CONCEPTO 2: VENA CAVA INFERIOR / HEPÁTICA
+            { q: "C2-5. El sistema venoso abdominal es complejo. ¿Cuál drena su contenido DIRECTAMENTE en la Vena Cava Inferior?", options: ["La vena gástrica izquierda.", "La vena mesentérica superior.", "La vena esplénica principal.", "Las venas suprahepáticas."], correct: 3, exp: "Las venas gástrica, mesentérica y esplénica forman el sistema Porta. Solo tras pasar el hígado, la sangre sale por las suprahepáticas a la Cava Inferior." },
+            { q: "C2-6. Las venas hepáticas vierten su sangre en la Vena Cava Inferior en un punto topográfico situado inmediatamente a nivel de:", options: ["El hiato aórtico (T12).", "El orificio del centro tendinoso del diafragma (T8).", "El hiato esofágico (T10).", "La bifurcación aórtica (L4)."], correct: 1, exp: "Drenan en la Cava Inferior inmediatamente antes de que atraviese el centro frénico (T8) para entrar al corazón." },
+            { q: "C2-7. Todas las siguientes venas son afluentes directos de la Cava Inferior, EXCEPTO:", options: ["Vena renal izquierda.", "Vena gonadal derecha.", "Vena mesentérica inferior.", "Venas lumbares medias."], correct: 2, exp: "La vena mesentérica inferior drena habitualmente en la vena esplénica (sistema Porta)." },
+            { q: "C2-8. En la clínica de la hipertensión portal, una importante anastomosis porto-cava natural ocurre a nivel de:", options: ["El plexo venoso submucoso del esófago inferior.", "La red vascular de la curvatura mayor gástrica.", "La confluencia de las venas ilíacas comunes.", "Las venas intercostales posteriores altas."], correct: 0, exp: "La vena gástrica izquierda (Porta) se anastomosa con las venas esofágicas (Cava Superior)." },
+
+            // CONCEPTO 3: GLANDE
+            { q: "C3-9. El glande del pene está constituido exclusivamente por la dilatación distal de:", options: ["Los cuerpos cavernosos.", "El cuerpo esponjoso.", "La túnica albugínea fibrosa.", "La fascia profunda de Buck."], correct: 1, exp: "Es el cuerpo esponjoso (que aloja la uretra) el que se expande para formar el glande." },
+            { q: "C3-10. En el espesor del glande, la uretra esponjosa presenta una dilatación característica denominada:", options: ["Colículo seminal.", "Seno prostático.", "Fosa navicular.", "Utrículo prostático."], correct: 2, exp: "La fosa navicular es el ensanchamiento final de la luz uretral dentro del glande." },
+            { q: "C3-11. El límite proximal prominente del glande, que sobresale sobre los cuerpos cavernosos, se denomina:", options: ["Rafe perineal medio.", "Cuerpo perineal tendinoso.", "Ligamento suspensorio.", "Corona del glande."], correct: 3, exp: "La corona del glande marca el reborde proximal de la estructura." },
+            { q: "C3-12. La inervación sensitiva somática del glande es vehiculizada por el nervio dorsal del pene, que es rama terminal del:", options: ["Pudendo (S2-S4).", "Genitofemoral (L1-L2).", "Ilioinguinal (L1).", "Obturador (L2-L4)."], correct: 0, exp: "La sensibilidad exquisita del glande la da el nervio pudendo." },
+
+            // CONCEPTO 4: TRIÁNGULO DE PETIT
+            { q: "C4-13. El límite ANTERIOR del triángulo lumbar inferior (de Petit) está formado por el borde posterior del músculo:", options: ["Dorsal ancho.", "Cuadrado lumbar.", "Oblicuo externo.", "Oblicuo interno."], correct: 2, exp: "El oblicuo externo forma el límite anterior, mientras que el dorsal ancho forma su límite posterior." },
+            { q: "C4-14. El límite POSTERIOR de este triángulo de Petit corresponde al borde anteroinferior del músculo:", options: ["Serrato posteroinferior.", "Dorsal ancho.", "Psoas mayor.", "Transverso del abdomen."], correct: 1, exp: "El músculo dorsal ancho, al ascender desde la cresta ilíaca, delimita por detrás este espacio." },
+            { q: "C4-15. La base del triángulo lumbar de Petit está constituida por:", options: ["La 12ª costilla.", "La cresta ilíaca.", "La espina ciática.", "El ligamento inguinal."], correct: 1, exp: "La cresta ilíaca cierra el triángulo por debajo." },
+            { q: "C4-16. El SUELO de este triángulo está formado por el músculo:", options: ["Psoas mayor.", "Cuadrado lumbar.", "Oblicuo interno.", "Fascia toracolumbar."], correct: 2, exp: "El suelo muscular está tapizado por las fibras del músculo oblicuo interno del abdomen." },
+
+            // CONCEPTO 5: ECM
+            { q: "C5-17. El borde posterior del esternocleidomastoideo marca la frontera ANTERIOR de:", options: ["El triángulo carotídeo.", "El triángulo cervical posterior (lateral).", "La región submandibular.", "El triángulo muscular anterior."], correct: 1, exp: "Dorsalmente al ECM se abre el triángulo cervical posterior u occipital." },
+            { q: "C5-18. El punto de Erb (emergencia sensitiva) corresponde a:", options: ["Plexo braquial.", "Nervio frénico.", "Nervio vago.", "Plexo cervical superficial."], correct: 3, exp: "Donde emergen ramos como el auricular magno, occipital menor, cervical transverso y supraclaviculares." },
+            { q: "C5-19. El borde posterior del ECM es cruzado superficialmente en diagonal por:", options: ["Vena yugular interna.", "Vena retromandibular.", "Vena yugular externa.", "Vena subclavia."], correct: 2, exp: "La yugular externa viaja por fuera al ECM, cruzándolo hacia atrás." },
+            { q: "C5-20. El suelo muscular del triángulo posterior está formado por:", options: ["Escalenos y elevador de la escápula.", "Músculos infrahioideos.", "Constrictor de la faringe.", "Trapecio superior."], correct: 0, exp: "Está tapizado por los escalenos y el elevador de la escápula." },
+
+            // CONCEPTO 6: ROTACIÓN
+            { q: "C6-21. El movimiento de ROTACIÓN pura (axial) alcanza su máxima amplitud a nivel de:", options: ["L4-L5.", "T4-T8.", "C0-C1.", "C1-C2 (Atlanto-axial)."], correct: 3, exp: "La articulación atlanto-axial es responsable de más del 50% de la rotación del cuello." },
+            { q: "C6-22. La articulación atlanto-axial media es mecánicamente:", options: ["Sincondrosis.", "Artrodia plana.", "Trocoide (en pivote).", "Condílea biaxial."], correct: 2, exp: "Cilindro (diente del axis) girando dentro de un anillo osteofibroso." },
+            { q: "C6-23. El eje óseo vertical sobre el cual pivota el Atlas (C1) es:", options: ["El diente (apófisis odontoides) del Axis.", "El tubérculo anterior del Atlas.", "La apófisis espinosa de C2.", "Las masas laterales del occipital."], correct: 0, exp: "El diente del axis actúa como el eje mecánico de rotación." },
+            { q: "C6-24. La rotación atlanto-axial está protegida y limitada por:", options: ["Ligamento longitudinal anterior.", "Ligamentos alares.", "Ligamento amarillo.", "Membrana tectoria."], correct: 1, exp: "Los ligamentos alares actúan como cuerdas de freno que limitan la rotación excesiva." },
+
+            // CONCEPTO 7: MOVIMIENTO LUMBAR
+            { q: "C7-25. La disposición anatómica de la columna lumbar favorece mayoritariamente:", options: ["Flexión y extensión.", "Rotación axial pura.", "Flexión lateral izquierda.", "Flexión lateral derecha."], correct: 0, exp: "Vértebras lumbares y discos gruesos están optimizados para la flexo-extensión." },
+            { q: "C7-26. La limitación de la ROTACIÓN lumbar se debe a:", options: ["Anchura de discos.", "Fusión de espinosas.", "Ligamento longitudinal.", "Orientación casi sagital de las carillas articulares."], correct: 3, exp: "Las apófisis articulares se encajan mirándose medial y lateralmente (plano sagital)." },
+            { q: "C7-27. ¿Qué músculo acentúa la lordosis lumbar (extensión) si sufre un espasmo?", options: ["Transverso del abdomen.", "Dorsal ancho.", "Psoas mayor.", "Recto del abdomen."], correct: 2, exp: "El psoas mayor tira de la columna hacia anterior y abajo." },
+            { q: "C7-28. Principal ligamento que frena la hiperextensión lumbar:", options: ["Ligamento amarillo.", "Ligamento longitudinal anterior.", "Ligamento interespinoso.", "Ligamento supraespinoso."], correct: 1, exp: "Es el único ligamento de la columna que limita la extensión." },
+
+            // CONCEPTO 8: TIROIDEA SUPERIOR
+            { q: "C8-29. La arteria Tiroidea Superior es la primera rama colateral de:", options: ["Cayado aórtico.", "Arteria subclavia.", "Arteria carótida externa.", "Arteria carótida interna."], correct: 2, exp: "Nace justo por encima de la bifurcación carotídea." },
+            { q: "C8-30. El origen de la tiroidea superior suele proyectarse a nivel de:", options: ["T1-T2.", "C1-C2.", "C3-C4.", "C7-T1."], correct: 2, exp: "Coincide con el nivel del borde superior del cartílago tiroides." },
+            { q: "C8-31. En su descenso, la arteria tiroidea superior se relaciona con el nervio:", options: ["Ramo externo del laríngeo superior.", "Nervio laríngeo recurrente.", "Nervio frénico.", "Cadena simpática."], correct: 0, exp: "Inerva al cricotiroideo y acompaña íntimamente a la arteria." },
+            { q: "C8-32. Arteria que perfora la membrana tirohioidea para vascularizar la laringe:", options: ["Faríngea ascendente.", "Laríngea superior.", "Cricotiroidea media.", "Cervical transversa."], correct: 1, exp: "Acompañada del ramo interno del nervio laríngeo superior." },
+
+            // CONCEPTO 9: COLON IZQUIERDO
+            { q: "C9-33. La irrigación del colon izquierdo depende íntegramente de:", options: ["Tronco celíaco.", "Arteria mesentérica superior.", "Arteria mesentérica inferior.", "Arterias ilíacas internas."], correct: 2, exp: "Responsable del territorio derivado del intestino posterior." },
+            { q: "C9-34. Primera rama colateral de la arteria mesentérica inferior:", options: ["Arteria ileocólica.", "Arteria rectal superior.", "Arteria sigmoidea.", "Arteria cólica izquierda."], correct: 3, exp: "Se dirige al flanco para vascularizar el colon descendente." },
+            { q: "C9-35. La anastomosis continua entre colon derecho e izquierdo se llama:", options: ["Tronco gastrocólico.", "Plexo profundo.", "Arteria marginal (Drummond) / Arco de Riolano.", "Arteria rectosigmoidea."], correct: 2, exp: "Asegura el flujo si se obstruye una de las arterias mesentéricas." },
+            { q: "C9-36. La vena mesentérica inferior desemboca habitualmente en:", options: ["Vena cava inferior.", "Vena porta hepática.", "Vena esplénica.", "Vena renal izquierda."], correct: 2, exp: "Luego se unirá a la mesentérica superior para formar la Porta." },
+
+            // CONCEPTO 10: HIATO DE WINSLOW
+            { q: "C10-37. Límite ANTERIOR del hiato de Winslow (contiene la tríada portal):", options: ["Vena cava inferior.", "Pedículo renal.", "Arteria mesentérica.", "Borde libre del epiplón menor."], correct: 3, exp: "El ligamento hepatoduodenal es el borde anterior y encapsula a la tríada portal." },
+            { q: "C10-38. Límite POSTERIOR del hiato de Winslow:", options: ["Arteria aorta.", "Vena cava inferior.", "Vena esplénica.", "Vena renal izquierda."], correct: 1, exp: "La VCI cubierta por peritoneo forma la pared dorsal estricta." },
+            { q: "C10-39. Límite SUPERIOR o techo del hiato de Winslow:", options: ["Lóbulo cuadrado.", "Lóbulo caudado (Spiegel).", "Lecho vesicular.", "Ligamento falciforme."], correct: 1, exp: "El lóbulo caudado cuelga superiormente conformando el techo." },
+            { q: "C10-40. Límite INFERIOR del hiato de Winslow:", options: ["Primera porción del duodeno.", "Cuerpo del páncreas.", "Colon transverso.", "Curvatura menor."], correct: 0, exp: "El bulbo duodenal marca el suelo del orificio." },
+
+            // CONCEPTO 11: HILIO HEPÁTICO
+            { q: "C11-41. Elemento situado más POSTERIOR en el hilio hepático:", options: ["Arteria hepática propia.", "Conducto colédoco.", "Vena porta hepática.", "Vena hepática media."], correct: 2, exp: "La vena porta es el tronco de mayor calibre y se sitúa posteriormente." },
+            { q: "C11-42. Elemento de la tríada situado en posición ANTEROLATERAL (derecha):", options: ["Vena porta.", "Arteria hepática.", "Arteria gástrica.", "Conducto colédoco."], correct: 3, exp: "La vía biliar está a la derecha y la arteria hepática a la izquierda." },
+            { q: "C11-43. La arteria hepática propia es rama directa de:", options: ["Tronco celíaco.", "Arteria mesentérica superior.", "Arteria hepática común.", "Arteria gastroduodenal."], correct: 2, exp: "Cuando la común emite la gastroduodenal, pasa a llamarse propia." },
+            { q: "C11-44. Las estructuras del hilio discurren en el interior de:", options: ["Ligamento falciforme.", "Ligamento coronario.", "Ligamento redondo.", "Ligamento hepatoduodenal."], correct: 3, exp: "Asciende encapsulado en el borde libre del epiplón menor." },
+
+            // CONCEPTO 1 (SET 2): HILIO PULMONAR
+            { q: "S2-C1-1. Estructura más ANTERIOR (ventral) en el pedículo pulmonar:", options: ["Bronquio principal.", "Vena pulmonar superior.", "Arteria pulmonar.", "Arteria bronquial."], correct: 1, exp: "Disposición habitual: Vena, Arteria, Bronquio (de anterior a posterior)." },
+            { q: "S2-C1-2. Nervio que cruza por DELANTE (ventral) del pedículo pulmonar derecho:", options: ["Vago.", "Laríngeo recurrente.", "Frénico.", "Esplácnico."], correct: 2, exp: "El frénico pasa anterior (adherido al pericardio), el vago pasa posterior." },
+            { q: "S2-C1-3. Estructura más accesible desde un abordaje estrictamente POSTERIOR:", options: ["Arteria pulmonar.", "Bronquio principal.", "Vena pulmonar inferior.", "Plexo cardíaco."], correct: 1, exp: "El bronquio principal es la estructura más dorsal del pedículo." },
+            { q: "S2-C1-4. Disposición de la vena pulmonar inferior respecto al bronquio:", options: ["Superior y posterior.", "Superior y anterior.", "Inferior y posterior.", "Inferior y anterior."], correct: 3, exp: "Las venas siempre buscan la posición más anterior y caudal." },
+
+            // CONCEPTO 2 (SET 2): TRÍGONO VESICAL
+            { q: "S2-C2-5. El trígono vesical deriva embrionariamente de:", options: ["Mesodermo de conductos mesonéfricos.", "Ectodermo del alantoides.", "Endodermo de la cloaca.", "Cresta neural."], correct: 0, exp: "Se forma por la incorporación de las porciones distales de los conductos de Wolff." },
+            { q: "S2-C2-6. Característica mucosa del trígono vesical:", options: ["Pliegues muy marcados.", "Idéntica al resto de vejiga.", "Completamente lisa y adherida.", "Carece de mucosa."], correct: 2, exp: "A diferencia del resto de la vejiga, el trígono es liso y fijo." },
+            { q: "S2-C2-7. Vértices del trígono vesical:", options: ["2 uretrales y 1 uraco.", "2 ureterales y 1 uretral interno.", "2 eyaculadores y fosa navicular.", "1 uréter y 1 uretra."], correct: 1, exp: "Formado por los dos uréteres arriba y el cuello de la vejiga abajo." },
+            { q: "S2-C2-8. El rodete que une ambos orificios ureterales se llama:", options: ["Detrusor.", "Esfínter interno.", "Pliegue interuretérico.", "Ligamento pubovesical."], correct: 2, exp: "Puente muscular visible en cistoscopia que conecta los uréteres." },
+
+            // CONCEPTO 3 (SET 2): SUBCLAVIA
+            { q: "S2-C3-9. ¿Cuál NO es rama directa de la subclavia?", options: ["Torácica interna.", "Tiroidea inferior.", "Tiroidea superior.", "Vertebral."], correct: 2, exp: "La tiroidea superior es rama de la Carótida Externa." },
+            { q: "S2-C3-10. Arterias del tronco tirocervical:", options: ["Tiroidea superior y lingual.", "Tiroidea inferior, cervical transversa y supraescapular.", "Cervical ascendente y facial.", "Intercostal suprema y vertebral."], correct: 1, exp: "Emite tiroidea inferior, supraescapular, cervical transversa y ascendente." },
+            { q: "S2-C3-11. Arteria que desciende a 1 cm del borde esternal nutriendo la mama:", options: ["Epigástrica superficial.", "Torácica lateral.", "Toracoacromial.", "Torácica interna (Mamaria)."], correct: 3, exp: "Nace de la cara inferior de la subclavia pre-escalénica." },
+            { q: "S2-C3-12. El punto donde nace la arteria vertebral respecto a los escalenos es:", options: ["Retro-escalénica.", "Pre-escalénica.", "Perforando el ECM.", "Escaleno medio."], correct: 1, exp: "Nace en el primer segmento de la subclavia, medial al escaleno anterior." },
+
+            // CONCEPTO 4 (SET 2): TRANSVERSO PERINÉ
+            { q: "S2-C4-13. El diafragma urogenital está formado por el músculo:", options: ["Transverso profundo del periné.", "Fascia de Scarpa.", "Elevador del ano.", "Fascia lata."], correct: 0, exp: "El transverso profundo queda encapsulado formando el diafragma urogenital." },
+            { q: "S2-C4-14. El centro tendinoso del periné es el punto de inserción de:", options: ["Cuerpo cavernoso.", "Ligamento anococcígeo.", "Transverso superficial del periné.", "Sínfisis del pubis."], correct: 2, exp: "Nódulo tendinoso central entre la uretra/vagina y el canal anal." },
+            { q: "S2-C4-15. Inervación de los músculos transversos del periné:", options: ["Obturador.", "Femoral profundo.", "Nervio pudendo (S2-S4).", "Genitofemoral."], correct: 2, exp: "El pudendo es el nervio principal motor y sensitivo del periné." },
+            { q: "S2-C4-16. Límite anatómico POSTERIOR que definen estos músculos:", options: ["Triángulo anal.", "Fosa isquioanal.", "Triángulo urogenital anterior.", "Conducto obturador."], correct: 2, exp: "Su recorrido traza la base posterior del triángulo urogenital." },
+
+            // CONCEPTO 5 (SET 2): TRÍGONO ESTERNOCOSTAL
+            { q: "S2-C5-17. El trígono esternocostal (Larrey/Morgagni) se sitúa entre:", options: ["Xifoides y porciones costales séptimas.", "Pilares del diafragma.", "11ª y 12ª costilla.", "Centro tendinoso y cava."], correct: 0, exp: "En la transición entre inserción esternal y arco costal." },
+            { q: "S2-C5-18. Por este hiato pasan los vasos:", options: ["Ácigos.", "Epigástricos superiores.", "Aorta.", "Intercostales."], correct: 1, exp: "Las mamarias internas entran al abdomen y cambian de nombre a epigástricas superiores." },
+            { q: "S2-C5-19. Patología asociada a este trígono:", options: ["Cáncer pulmón.", "Aneurismas.", "Hernias de Morgagni.", "Varices esofágicas."], correct: 2, exp: "Defecto de cierre que permite herniación hacia el mediastino anterior." },
+            { q: "S2-C5-20. Vía linfática para la linfa del:", options: ["Cisterna quilo.", "Ganglios inguinales.", "Hígado superior (hacia paraesternales).", "Axilares."], correct: 2, exp: "Linfáticos del hígado atraviesan el hiato para ascender por el tórax." },
+
+            // CONCEPTO 6 (SET 2): HIATO ESOFÁGICO
+            { q: "S2-C6-21. ¿Qué nervios atraviesan el hiato esofágico (T10)?", options: ["Cadena simpática.", "Esplácnicos mayores.", "Troncos vagos (Ant. y Post.).", "Frénico derecho."], correct: 2, exp: "Los vagos pasan adheridos a las paredes del esófago." },
+            { q: "S2-C6-22. Posición de los vagos tras la rotación del estómago:", options: ["Izquierdo post / Derecho ant.", "Izquierdo ant / Derecho post.", "Laterales.", "Fusionados."], correct: 1, exp: "El estómago rota 90°, el izquierdo se hace anterior y el derecho posterior." },
+            { q: "S2-C6-23. Vasos que acompañan al esófago en el hiato:", options: ["Ramas esofágicas de la gástrica izquierda.", "Vena porta.", "Conducto torácico.", "Vena cava inferior."], correct: 0, exp: "Vascularizan cardias y esófago distal, forman plexo porto-cava." },
+            { q: "S2-C6-24. ¿Por qué ocurre la hernia de hiato?", options: ["Es óseo.", "Es tendinoso.", "Es de naturaleza muscular pura (propenso a dilatarse).", "Es muy grande."], correct: 2, exp: "Lazada muscular (pilar derecho) que actúa de esfínter intermitente." },
+
+            // CONCEPTO 7 (SET 2): HIATOS MUSCULARES
+            { q: "S2-C7-25. Hiato formado exclusivamente por haces de músculo estriado:", options: ["Vena cava.", "Hiato aórtico.", "Hiato esofágico.", "Triángulo Larrey."], correct: 2, exp: "Conformado por fibras carnosas, principalmente del pilar derecho." },
+            { q: "S2-C7-26. Función mecánica del hiato esofágico muscular:", options: ["Mantener esófago abierto.", "Esfínter externo fisiológico (evita reflujo).", "Bombear sangre.", "Pasar el esternón."], correct: 1, exp: "Se contrae en inspiración para que el ácido no suba." },
+            { q: "S2-C7-27. ¿Por qué el hiato de la Aorta (T12) NO debe ser muscular?", options: ["Se colapsaría el flujo sanguíneo al inspirar.", "No necesita sangre.", "Conducto torácico ocupa todo.", "Aorta es fina."], correct: 0, exp: "Si fuera muscular, estrangularíamos el flujo al contraerse el diafragma." },
+            { q: "S2-C7-28. Los haces del hiato esofágico provienen del:", options: ["Porción esternal.", "Pilar principal derecho lumbar.", "Digitaciones costales.", "Músculo psoas."], correct: 1, exp: "La mayoría de la lazada procede del pilar lumbar derecho." },
+
+            // CONCEPTO 8 (SET 2): VENA CAVA INFERIOR
+            { q: "S2-C8-29. Ubicación del orificio de la Vena Cava Inferior (T8):", options: ["Pilares lumbares.", "Centro frénico o tendinoso.", "Trígono lumbocostal.", "Inserción xifoidea."], correct: 1, exp: "Situado en el folio derecho del centro tendinoso." },
+            { q: "S2-C8-30. Efecto de la inspiración sobre el hiato de la Vena Cava:", options: ["Estrangulamiento.", "Dilatación activa (succión de sangre).", "Ningún cambio.", "Inversión del flujo."], correct: 1, exp: "Al tensarse el centro tendinoso, el agujero se amplía facilitando el retorno." },
+            { q: "S2-C8-31. Si el orificio de la cava fuera muscular:", options: ["Gasto cardíaco +200%.", "Presión venosa baja.", "Se bloquearía el retorno al inspirar.", "Se ensancharía más."], correct: 2, exp: "La contracción cerraría la vena impidiendo que la sangre subiera." },
+            { q: "S2-C8-32. Nervio que atraviesa el hiato de la cava:", options: ["Esplácnico.", "Simpático.", "Frénico derecho.", "Vago posterior."], correct: 2, exp: "Atraviesa para inervar la cara inferior del diafragma." },
+
+            // CONCEPTO 9 (SET 2): ARTICULACIONES T1
+            { q: "S2-C9-33. Vértebra T1 (Atípica) presenta en su borde lateral:", options: ["Hemicarilla superior.", "Carilla completa (1ª costilla) y hemicarilla (2ª costilla).", "Dos hemicarillas idénticas.", "Ninguna carilla."], correct: 1, exp: "Acoge exclusiva la 1ª costilla arriba y comparte por abajo la 2ª." },
+            { q: "S2-C9-34. ¿Con cuántas costillas articula el CUERPO de T1 en total?", options: ["2 costillas.", "4 costillas.", "6 costillas.", "1 costilla."], correct: 1, exp: "Dos completas (1ªs) y dos hemicarillas (2ªs) = 4 en total." },
+            { q: "S2-C9-35. Las vértebras T10, T11 y T12 presentan:", options: ["3 costillas.", "Sin articulaciones.", "Carilla completa única (no comparten).", "Unión esternón."], correct: 2, exp: "Acogen costillas flotantes que solo se articulan con su propia vértebra." },
+            { q: "S2-C9-36. La 1ª costilla es importante porque:", options: ["Movimiento asa cubo.", "Anillo rígido protector del vértice pulmonar y subclavia.", "Rotación cuello.", "Gran menisco."], correct: 1, exp: "Extremadamente corto y rígido, anclaje de escalenos." },
+
+            // CONCEPTO 10 (SET 2): TENDÓN CONJUNTO
+            { q: "S2-C10-37. El Tendón Conjunto está formado por la fusión de:", options: ["Oblicuo mayor y Recto.", "Oblicuo menor y Transverso.", "Psoas y Cuadrado.", "Cremáster y Piramidal."], correct: 1, exp: "Fibras inferiores de oblicuo interno y transverso se fusionan medialmente." },
+            { q: "S2-C10-38. El Tendón Conjunto se inserta en:", options: ["EIAS.", "Trocánter menor.", "Espina y cresta del pubis.", "Ombligo."], correct: 2, exp: "Baja en curva anclándose en el pecten y el tubérculo." },
+            { q: "S2-C10-39. Su ausencia o debilidad predispone a:", options: ["Hernia crural.", "Hernia indirecta.", "Hernia inguinal DIRECTA (Triángulo Hesselbach).", "Diástasis."], correct: 2, exp: "Si el escudo cede, el intestino empuja la fascia transversalis." },
+            { q: "S2-C10-40. Estructura que NO forma el tendón conjunto:", options: ["Transverso.", "Oblicuo externo.", "Oblicuo interno.", "Ninguna."], correct: 1, exp: "El oblicuo externo forma el ligamento inguinal (suelo), no el tendón conjunto." },
+
+            // CONCEPTO 11 (SET 2): ARTERIA UTERINA
+            { q: "S2-C11-41. La arteria uterina alcanza el margen lateral del útero a nivel de:", options: ["Fondo.", "Istmo (unión cervicouterina).", "Orificio externo.", "Ovario."], correct: 1, exp: "Choca a la altura del cuello/istmo y se divide en ascendente y descendente." },
+            { q: "S2-C11-42. Relación de riesgo quirúrgico (cruza superior y anterior a):", options: ["Vena ilíaca.", "El uréter.", "Ligamento ancho.", "Nervio ciático."], correct: 1, exp: "\"El agua corre bajo el puente\": La arteria pasa por encima del uréter." },
+            { q: "S2-C11-43. La arteria uterina se anastomosa cerca del cuerno con:", options: ["Pudenda interna.", "Vaginal directa.", "Arteria ovárica (Aorta).", "Epigástrica."], correct: 2, exp: "Forman una gran arcada para garantizar el riego de anexo y útero." },
+            { q: "S2-C11-44. Origen de la arteria uterina:", options: ["Ilíaca externa.", "Ilíaca interna (tronco anterior).", "Aorta abdominal.", "Mesentérica inferior."], correct: 1, exp: "Procede del sistema ilíaco interno (hipogástrico)." },
+
+            // CONCEPTO 12 (SET 2): SOSTÉN ÚTERO
+            { q: "S2-C12-45. La arteria uterina viaja protegida por el:", options: ["Ligamento redondo.", "Ligamento Cardinal (Mackenrodt).", "Ligamento suspensorio.", "Ligamento uterosacro."], correct: 1, exp: "Condensación fascial crítica en la base del ligamento ancho." },
+            { q: "S2-C12-46. Porción del ligamento ancho por la que ascienden los vasos:", options: ["Mesosálpinx.", "Mesoovario.", "Mesometrio.", "Parametrio."], correct: 2, exp: "Parte ancha que fija el cuerpo del útero a la pared." },
+            { q: "S2-C12-47. Estructura perpendicular a la arteria uterina que va a los labios mayores:", options: ["Ligamento ancho.", "Ligamento redondo.", "Trompa Falopio.", "Ligamento cardinal."], correct: 1, exp: "El ligamento redondo tira del útero en anteversión." },
+            { q: "S2-C12-48. La firmeza del ligamento cardinal evita:", options: ["Mioma.", "Prolapso uterino.", "Ovarios poliquísticos.", "Cáncer."], correct: 1, exp: "Evita que el útero ceda y caiga por el hiato urogenital." },
+
+            // CONCEPTO 13 (SET 2): ERECCIÓN
+            { q: "S2-C13-49. Fibras parasimpáticas de la erección proceden de:", options: ["Vago.", "Simpático L1-L2.", "Nervios esplácnicos pélvicos (S2-S4).", "Femoral profundo."], correct: 2, exp: "Respuesta vasodilatadora de origen sacro (Nervios erectores)." },
+            { q: "S2-C13-50. Las fibras atraviesan el plexo:", options: ["Braquial.", "Hipogástrico inferior (Pélvico).", "Celíaco.", "Cadena simpática."], correct: 1, exp: "Mezcla simpático y parasimpático antes de ir al pene." },
+            { q: "S2-C13-51. Riesgo de disfunción eréctil en prostatectomía por:", options: ["Arteria femoral.", "Nervios cavernosos pegados a la cápsula prostática.", "Testosterona.", "Uretra."], correct: 1, exp: "Los nervios están adheridos a las caras laterales de la próstata." },
+            { q: "S2-C13-52. Fase expulsiva de la EYACULACIÓN mediada por:", options: ["Simpático (L1-L2).", "Sensitivo local.", "Pudendo.", "Parálisis suelo pélvico."], correct: 0, exp: "\"Parasimpático apunta, Simpático dispara\"." },
+
+            // CONCEPTO 14 (SET 2): PÁNCREAS
+            { q: "S2-C14-53. Vaso adherido a la cara posterior del cuerpo del páncreas:", options: ["Mesentérica superior.", "Vena porta.", "Vena esplénica.", "Vena cava inferior."], correct: 2, exp: "La vena esplénica labra un surco en la cara posterior pancreática." },
+            { q: "S2-C14-54. Evento vascular detrás del cuello del páncreas:", options: ["Bifurcación aórtica.", "Confluencia de Mesentérica Superior y Esplénica (Vena Porta).", "Arterias renales.", "Conducto torácico."], correct: 1, exp: "La formación de la Vena Porta es retro-pancreática." },
+            { q: "S2-C14-55. Órganos que sirven de apoyo posterior a cuerpo/cola del páncreas:", options: ["Colon ascendente.", "Hígado derecho.", "Riñón y glándula suprarrenal izquierdos.", "Estómago."], correct: 2, exp: "Se apoya en la celda renal izquierda antes de tocar el bazo." },
+            { q: "S2-C14-56. Hoja conectiva para separar páncreas de grandes vasos:", options: ["Fascia retroduodenal (Treitz).", "Fascia transversalis.", "Peritoneo diafragmático.", "Aponeurosis psoas."], correct: 0, exp: "Maniobra de Kocher utiliza este plano de clivaje avascular." },
+
+            // CONCEPTO 15 (SET 2): COLÉDOCO
+            { q: "S2-C15-57. Elemento del pedículo que atraviesa la cabeza del páncreas:", options: ["Vena porta.", "Arteria hepática.", "Conducto colédoco.", "Arteria gastroduodenal."], correct: 2, exp: "El colédoco discurre posterior al duodeno y se mete en el tejido pancreático." },
+            { q: "S2-C15-58. Clínica de tumor de cabeza de páncreas:", options: ["Diabetes.", "Ictericia obstructiva (tinte amarillo).", "Hemorragia.", "Parálisis intestinal."], correct: 1, exp: "Estrangulamiento de la vía biliar antes de volcar al intestino." },
+            { q: "S2-C15-59. El colédoco se une al conducto:", options: ["Cístico.", "Pancreático principal (Wirsung).", "Santorini.", "Mesentérico."], correct: 1, exp: "Confluyen en la Ampolla de Vater." },
+            { q: "S2-C15-60. Esfínter que regula el vaciado biliar:", options: ["Esfínter de Oddi.", "Válvula Kerckring.", "Pilórico.", "Arqueado."], correct: 0, exp: "Rodea el tramo final común del colédoco y Wirsung." },
+
+            // CONCEPTO 16 (SET 2): CORONARIAS
+            { q: "S2-C16-61. Rama terminal de la Coronaria Derecha (en dominancia derecha):", options: ["Circunfleja.", "Interventricular anterior.", "Interventricular posterior.", "Marginal obtusa."], correct: 2, exp: "Determina el sistema dominante que nutre el septo." },
+            { q: "S2-C16-62. Rama que recorre el margen agudo del corazón:", options: ["Rama marginal derecha.", "Rama nódulo sinusal.", "Rama diagonal.", "Septal superior."], correct: 0, exp: "Vasculariza gran parte de la pared libre del ventrículo derecho." },
+            { q: "S2-C16-63. Irrigación del Nódulo Sinusal (60% población):", options: ["Circunfleja.", "Porción inicial de Coronaria Derecha.", "Arteria pulmonar.", "Vena cava."], correct: 1, exp: "Rama para el nódulo nace pronto de la coronaria derecha." },
+            { q: "S2-C16-64. Parte del tabique que irriga la coronaria derecha:", options: ["Todo.", "2/3 anteriores.", "Tercio posterior e inferior.", "Ninguna."], correct: 2, exp: "La descendente anterior da los 2/3 anteriores; la derecha el tercio restante." },
+
+            // CONCEPTO 17 (SET 2): FOSA OVAL
+            { q: "S2-C17-65. ¿En qué cavidad está el limbo de la fosa oval?", options: ["Ventrículo izquierdo.", "Aurícula izquierda.", "Aurícula derecha.", "Seno coronario."], correct: 2, exp: "Se visualiza al abrir la cavidad receptora venosa." },
+            { q: "S2-C17-66. ¿En qué pared de la aurícula derecha está?", options: ["Pared libre.", "Pared septal interatrial.", "Valva tricúspide.", "Techo de la cava."], correct: 1, exp: "Tabique que separa aurícula derecha de la izquierda." },
+            { q: "S2-C17-67. El limbo corresponde al borde de:", options: ["Septum primum.", "Septum secundum.", "Conducto arterioso.", "Seno venoso."], correct: 1, exp: "El secundum forma la cortina gruesa; el primum la válvula delgada." },
+            { q: "S2-C17-68. Falla de fusión en el limbo tras nacer genera:", options: ["Tetralogía Fallot.", "Comunicación Interauricular (CIA).", "Fallo coronario.", "3 ventrículos."], correct: 1, exp: "Persistencia de un foramen oval permeable." },
+
+            // CONCEPTO 18 (SET 2): BAZO
+            { q: "S2-C18-69. Órganos que dejan impresiones en la cara visceral del bazo:", options: ["Estómago, Hígado, Duodeno.", "Estómago, Riñón izquierdo y Colon (flexura izquierda).", "Hígado, Colon, Vejiga.", "Páncreas, Riñón derecho, Recto."], correct: 1, exp: "Faceta gástrica, renal y cólica." },
+            { q: "S2-C18-70. Estructura glandular que roza el hilio esplénico:", options: ["Vesícula.", "Suprarrenal.", "Cola del páncreas.", "Lóbulo cuadrado."], correct: 2, exp: "La cola del páncreas viaja contenida por el ligamento esplenorrenal." },
+            { q: "S2-C18-71. Impresión más cóncava (anterior superior):", options: ["Riñón izquierdo.", "Fondo o curvatura mayor del Estómago.", "Colon transverso.", "Diafragma."], correct: 1, exp: "Faceta gástrica ligada al estómago por omentos." },
+            { q: "S2-C18-72. El bazo descansa sobre el ligamento frenocólico y el:", options: ["Ciego.", "Flexura cólica izquierda (ángulo esplénico).", "Flexura hepática.", "Yeyuno."], correct: 1, exp: "El ángulo izquierdo del colon frena su descenso caudal." },
+
+            // CONCEPTO 1 (SET 3): TRABÉCULA SEPTOMARGINAL
+            { q: "S3-C1-1. La trabécula septomarginal (banda moderadora) se localiza en:", options: ["Aurícula derecha.", "Ventrículo izquierdo.", "Ventrículo derecho.", "Seno coronario."], correct: 2, exp: "Columna carnosa exclusiva de la cámara de bombeo pulmonar." },
+            { q: "S3-C1-2. La trabécula septomarginal conecta:", options: ["Tricúspide con pulmonar.", "Tabique interventricular con base del músculo papilar anterior.", "Músculo papilar posterior con ápex.", "Pared libre con orejuela."], correct: 1, exp: "Evita sobredistensión y sirve de puente anatómico." },
+            { q: "S3-C1-3. Por el interior de la trabécula septomarginal transcurre:", options: ["Arteria descendente.", "Vena cardíaca magna.", "Rama derecha del Haz de His.", "Vago derecho."], correct: 2, exp: "Atajo eléctrico para el músculo papilar anterior." },
+            { q: "S3-C1-4. Consecuencia de seccionarla accidentalmente:", options: ["Infarto.", "Retraso en contracción del músculo papilar anterior (VD).", "Parálisis nódulo sinusal.", "Cierre mitral."], correct: 1, exp: "Se pierde la sincronía de la tensión valvular tricuspídea." },
+
+            // CONCEPTO 2 (SET 3): NÓDULO SINUSAL
+            { q: "S3-C2-5. Localización del Nódulo Sinusal (Keith-Flack):", options: ["Ventrículo derecho.", "Aurícula izquierda.", "Aurícula derecha.", "Tabique."], correct: 2, exp: "Marcapasos natural en el miocardio de la aurícula derecha." },
+            { q: "S3-C2-6. Punto exacto en anatomía de superficie:", options: ["Ápex.", "Surco coronario izquierdo.", "Unión de Vena Cava Superior con Aurícula Derecha.", "Triángulo de Koch."], correct: 2, exp: "Extremo superior del surco terminal." },
+            { q: "S3-C2-7. Arteria del nódulo sinusal nace en un 60% de:", options: ["Circunfleja.", "Interventricular anterior.", "Coronaria derecha.", "Pulmonar."], correct: 2, exp: "Rama precoz de la arteria coronaria derecha." },
+            { q: "S3-C2-8. Signo de isquemia en primeros cm de coronaria derecha:", options: ["Fibrilación ventricular.", "Bradicardia severa o fallo del marcapasos.", "Taquicardia.", "Bloqueo aórtico."], correct: 1, exp: "El nódulo sinusal pierde riego y no genera el ritmo adecuado." },
+
+            // CONCEPTO 3 (SET 3): CONO DE EYECCIÓN
+            { q: "S3-C3-9. El cono arterial o infundíbulo es el tracto de salida de:", options: ["Aurícula a ventrículo derecho.", "Ventrículo izquierdo a aorta.", "Ventrículo derecho a tronco pulmonar.", "Venas pulmonares a aurícula."], correct: 2, exp: "Embudo liso que dirige la sangre a la válvula pulmonar." },
+            { q: "S3-C3-10. Característica de la pared del cono de eyección:", options: ["Músculos papilares gigantes.", "Completamente lisa.", "Cartílago hialino.", "Fosa oval."], correct: 1, exp: "Favorece el flujo laminar sin turbulencias." },
+            { q: "S3-C3-11. Límite muscular que separa zona trabeculada de zona lisa:", options: ["Cresta supraventricular (espolón de Wolff).", "Tabique interauricular.", "Tricúspide.", "Trabécula septomarginal."], correct: 0, exp: "Relieve que desvía el flujo de sangre." },
+            { q: "S3-C3-12. El cono arterial deriva embrionariamente del:", options: ["Seno venoso.", "Bulbus cordis (Bulbo cardíaco).", "Endodermo.", "Crestas neurales."], correct: 1, exp: "Forma los tractos de salida lisos de ambos ventrículos." },
+
+            // CONCEPTO 4 (SET 3): LÍNGULA
+            { q: "S3-C4-13. La língula pertenece al pulmón izquierdo y al:", options: ["Lóbulo inferior.", "Segmento apical.", "Lóbulo superior.", "Bronquio intermedio."], correct: 2, exp: "Porción anteroinferior del lóbulo superior izquierdo." },
+            { q: "S3-C4-14. Homólogo de la língula en pulmón derecho:", options: ["Lóbulo superior.", "Lóbulo medio.", "Basal posterior.", "Vértice."], correct: 1, exp: "Asume la topografía equivalente al lóbulo medio que falta." },
+            { q: "S3-C4-15. La língula se apoya y desliza sobre:", options: ["Hígado.", "Vena Cava Superior.", "Saco pericárdico (sobre ventrículo izquierdo).", "Subclavia."], correct: 2, exp: "Envuelve la punta del corazón." },
+            { q: "S3-C4-16. Muesca encima de la língula:", options: ["Cisura oblicua.", "Escotadura cardíaca.", "Hilio.", "Receso."], correct: 1, exp: "Provocada por el desplazamiento del corazón a la izquierda." },
+
+            // CONCEPTO 5 (SET 3): ÁPEX PLEURAL
+            { q: "S3-C5-17. Espesamiento fascial que cuelga la cúpula pleural:", options: ["Transversalis.", "Membrana suprapleural (Fascia de Sibson).", "Ligamento pulmonar.", "Endotorácica."], correct: 1, exp: "Sostiene el vértice del pulmón a estructuras óseas." },
+            { q: "S3-C5-18. El ligamento suprapleural amarra la cúpula a:", options: ["Clavícula y esternón.", "Escápula y 2ª costilla.", "C7 y borde medial de 1ª costilla.", "Hioides y tiroides."], correct: 2, exp: "Séptima cervical y primer arco costal." },
+            { q: "S3-C5-19. Estructura con la que el ápex NO tiene anclaje directo:", options: ["1ª costilla.", "C7.", "Clavícula.", "Plexo braquial."], correct: 2, exp: "Pasa cerca pero no tiene ligamentos suspensorios hacia ella." },
+            { q: "S3-C5-20. Estructura en fosa suprarretropleural (detrás de membrana):", options: ["Laríngeo recurrente.", "Frénico.", "Ganglio estrellado (Simpático).", "Plexo celíaco."], correct: 2, exp: "Su tumor causa Síndrome de Horner." },
+
+            // CONCEPTO 6 (SET 3): GEN SRY
+            { q: "S3-C6-21. Gen maestro para el sexo masculino:", options: ["AMH.", "SRY (Sex-determining Region Y).", "WT1.", "HOX."], correct: 1, exp: "Interruptor genético que desvía el desarrollo a testículos." },
+            { q: "S3-C6-22. Localización del gen SRY:", options: ["Cromosoma X.", "Cromosoma 21.", "Brazo corto del cromosoma Y.", "ADN mitocondrial."], correct: 2, exp: "Portado en el cromosoma Y." },
+            { q: "S3-C6-23. Acción inicial de la proteína SRY:", options: ["Diferenciar células de Sertoli.", "Destruir conductos de Wolff.", "Formar útero.", "Generar estrógenos."], correct: 0, exp: "Organiza el testículo en desarrollo." },
+            { q: "S3-C6-24. Individuo 46,XX con translocación de SRY:", options: ["Femenino normal.", "Masculino (Varón XX).", "Agenesia.", "Hermafrodita."], correct: 1, exp: "Se forma tejido testicular al expresarse SRY." },
+
+            // CONCEPTO 7 (SET 3): ESTERNÓN / CARTÍLAGOS
+            { q: "S3-C7-25. Cartílagos con inserción directa en esternón:", options: ["5 pares.", "7 pares.", "10 pares.", "12 pares."], correct: 1, exp: "Corresponden a las 7 costillas verdaderas." },
+            { q: "S3-C7-26. Cartílago que articula en el Ángulo de Louis:", options: ["1º.", "2º.", "3º.", "7º."], correct: 1, exp: "Unión manubrio-cuerpo aloja al 2º cartílago." },
+            { q: "S3-C7-27. Articulación del 1er cartílago con manubrio:", options: ["Sinovial móvil.", "Sincondrosis rígida.", "Hueso puro.", "Menisco."], correct: 1, exp: "Unión sólida para estabilidad de cintura escapular." },
+            { q: "S3-C7-28. Cartílago que comparte inserción con la xifoides:", options: ["5º.", "6º.", "7º.", "Ninguno."], correct: 2, exp: "Entre borde inferior del cuerpo y base de la xifoides." },
+
+            // CONCEPTO 8 (SET 3): NERVIOS PEDÍCULO
+            { q: "S3-C8-29. Nervio que cruza por DELANTE del pedículo pulmonar:", options: ["Vago.", "Laríngeo recurrente.", "Frénico.", "Esplácnico."], correct: 2, exp: "Discurre apoyado en el pericardio." },
+            { q: "S3-C8-30. Nervio que cruza por DETRÁS (dorsal) al pedículo:", options: ["Frénico.", "Nervio vago.", "Accesorio.", "Hipogloso."], correct: 1, exp: "Busca el mediastino posterior hacia el esófago." },
+            { q: "S3-C8-31. Elemento linfático que NO forma parte del pedículo:", options: ["Conducto torácico.", "Ganglios traqueobronquiales.", "Linfáticos peribronquiales.", "Plexo subpleural."], correct: 0, exp: "Viaja pegado a columna y aorta." },
+            { q: "S3-C8-32. La Cadena Simpática se sitúa:", options: ["Anterior esternón.", "Intrapericárdica.", "Muy posterior (cabezas costales).", "Esofágica."], correct: 2, exp: "Posición paravertebral profunda." },
+
+            // CONCEPTO 10 (SET 3): SENO CORONARIO
+            { q: "S3-C10-37. El seno coronario drena en:", options: ["Ventrículo derecho.", "Vena Cava Inferior.", "Aurícula derecha.", "Aurícula izquierda."], correct: 2, exp: "Recibe sangre del propio miocardio." },
+            { q: "S3-C10-38. Válvula del seno coronario:", options: ["Eustaquio.", "Tricúspide.", "Tebesio.", "Mitral."], correct: 2, exp: "Impide reflujo durante contracción auricular." },
+            { q: "S3-C10-39. Límite del Triángulo de Koch:", options: ["Músculo pectíneo.", "Orificio del Seno Coronario.", "Fosa oval.", "Trabécula."], correct: 1, exp: "Junto con tendón de Todaro y valva septal tricúspide." },
+            { q: "S3-C10-40. Vena principal que conforma el seno coronario:", options: ["Cardíaca menor.", "Cardíaca media.", "Vena cardíaca magna (mayor).", "Pulmonar."], correct: 2, exp: "Recorre surco interventricular anterior e izquierdo." },
+
+            // CONCEPTO 11 (SET 3): MAMA
+            { q: "S3-C11-41. Drenaje linfático lateral (75% mama) va a:", options: ["Paraesternales.", "Ganglios axilares pectorales (anteriores).", "Inguinales.", "Frénicos."], correct: 1, exp: "Cuadrantes laterales y cola de Spence." },
+            { q: "S3-C11-42. Drenaje linfático medial va a:", options: ["Apicales.", "Inguinales.", "Ganglios paraesternales (Mamarios internos).", "Celíacos."], correct: 2, exp: "Vía crítica de diseminación retroesternal." },
+            { q: "S3-C11-43. Ganglios axilares pectorales se sitúan contra el:", options: ["Borde inferior del pectoral mayor.", "Subescapular.", "Dorsal ancho.", "Recto."], correct: 0, exp: "A lo largo del borde inferolateral." },
+            { q: "S3-C11-44. Inervación sensitiva de la mama:", options: ["Frénico.", "Intercostales 2º a 6º.", "Escápula.", "Torácico largo."], correct: 1, exp: "Ramos cutáneos anteriores y laterales." },
+
+            // CONCEPTO 12 (SET 3): YUGULAR
+            { q: "S3-C12-45. Unión de yugular interna y subclavia forma:", options: ["Vena Cava Superior.", "Tronco venoso braquiocefálico.", "Yugular externa.", "Ácigos."], correct: 1, exp: "Ángulo de Pirogoff." },
+            { q: "S3-C12-46. Vena yugular externa desemboca en:", options: ["Cava inferior.", "Facial.", "Vena subclavia.", "Seno sagital."], correct: 2, exp: "Tras cruzar el ECM." },
+            { q: "S3-C12-47. En el ángulo yugulosubclavio IZQUIERDO drena:", options: ["Colédoco.", "Conducto torácico.", "Gran vena linfática.", "Porta."], correct: 1, exp: "Recoge linfa del 75% del cuerpo." },
+            { q: "S3-C12-48. Diferencia entre braquiocefálico derecho e izquierdo:", options: ["Izquierdo es más largo y cruza horizontal.", "Derecho cruza aorta.", "Izquierdo drena aurícula izq.", "Sin diferencia."], correct: 0, exp: "El izquierdo cruza el mediastino superior hacia la derecha." },
+
+            // CONCEPTO 13 (SET 3): ESFÍNTERES URETRA
+            { q: "S3-C13-49. El esfínter uretral INTERNO es:", options: ["Estriado voluntario.", "Liso involuntario (vegetativo).", "Cartílago.", "Elevador ano."], correct: 1, exp: "Continuación de fibras del detrusor en cuello vesical." },
+            { q: "S3-C13-50. El esfínter uretral EXTERNO deriva de:", options: ["Detrusor.", "Glúteo.", "Músculo transverso profundo del periné.", "Ligamento umbilical."], correct: 2, exp: "Fibras circulares estriadas (voluntario)." },
+            { q: "S3-C13-51. Porción masculina rodeada por el esfínter externo:", options: ["Intramural.", "Prostática.", "Membranosa.", "Fosa navicular."], correct: 2, exp: "Segmento intermedio que atraviesa membrana perineal." },
+            { q: "S3-C13-52. Esfínter externo en uretra femenina rodea:", options: ["Toda la vejiga.", "Tercio medio del trayecto.", "Orificio interno.", "Labios mayores."], correct: 1, exp: "A su paso por el espacio perineal profundo." },
+
+            // CONCEPTO 14 (SET 3): COLÉDOCO
+            { q: "S3-C14-53. El colédoco se origina por la unión de:", options: ["Hepáticos der e izq.", "Hepático común y cístico.", "Wirsung y biliar.", "Porta y hepática."], correct: 1, exp: "Vía definitiva hacia el intestino." },
+            { q: "S3-C14-54. ¿Qué porción del páncreas atraviesa el colédoco?", options: ["Cola.", "Cuerpo.", "Cabeza.", "Unciforme."], correct: 2, exp: "Ingresa en tejido glandular de la cabeza." },
+            { q: "S3-C14-55. Dilatación terminal antes del duodeno:", options: ["Ampolla de Vater.", "Cisterna quilo.", "Válvula Kerckring.", "Seno Morgagni."], correct: 0, exp: "Donde confluye con el conducto de Wirsung." },
+            { q: "S3-C14-56. Esfínter hepatopancreático es de:", options: ["Piloro.", "Oddi.", "Ileo-cecal.", "Treitz."], correct: 1, exp: "Regula entrada de bilis al intestino." },
+
+            // CONCEPTO 15 (SET 3): VAGO / ESTÓMAGO
+            { q: "S3-C15-57. Orificio diafragmático que atraviesan los vagos:", options: ["Hiato aórtico.", "Cava.", "Hiato esofágico.", "Esternocostal."], correct: 2, exp: "Atraviesan junto al esófago en T10." },
+            { q: "S3-C15-58. Tras rotación gástrica, el vago IZQUIERDO queda en cara:", options: ["Posterior.", "Anterior.", "Lateral der.", "Separado."], correct: 1, exp: "Arrastrado por la cara izquierda primitiva que gira al frente." },
+            { q: "S3-C15-59. El vago DERECHO queda en cara:", options: ["Anterior.", "Posterior.", "Superior fondo.", "Curvatura mayor."], correct: 1, exp: "Se sitúa dorsalmente hacia el ganglio celíaco." },
+            { q: "S3-C15-60. Función vagal en estómago:", options: ["Aumenta FC.", "Inhibe peristaltismo.", "Estimula secreción ácida y favorece peristaltismo.", "Insulina."], correct: 2, exp: "Responsable de activar procesos digestivos." },
+
+            // CONCEPTO 16 (SET 3): ECOGRAFÍA RIÑÓN
+            { q: "S3-C16-61. Ventana acústica para ver riñón derecho:", options: ["Estómago.", "Bazo.", "Lóbulo derecho del Hígado.", "Colon."], correct: 2, exp: "Órgano macizo que descansa sobre el riñón." },
+            { q: "S3-C16-62. Marca morfológica en cara visceral del hígado:", options: ["Impresión gástrica.", "Faceta cólica.", "Impresión renal.", "Lóbulo caudado."], correct: 2, exp: "Huella anatómica directa del riñón." },
+            { q: "S3-C16-63. Receso para líquido libre entre hígado y riñón der:", options: ["Pericárdico.", "Saco de Morison (Hepatorrenal).", "Bolsa omental.", "Douglas."], correct: 1, exp: "Zona declive vital en ecografía FAST." },
+            { q: "S3-C16-64. Ventana acústica para riñón izquierdo:", options: ["Ciego.", "Bazo.", "Apéndice.", "Vejiga."], correct: 1, exp: "Cabalga el polo superior y lateral del riñón izq." },
+
+            // CONCEPTO 17 (SET 3): PERITONEO BAZO
+            { q: "S3-C17-65. Clasificación del bazo:", options: ["Extraperitoneal.", "Retroperitoneal primario.", "Completamente intraperitoneal (salvo hilio).", "Retroperitoneal secundario."], correct: 2, exp: "Órgano encapsulado envuelto en serosa." },
+            { q: "S3-C17-66. Pliegue que une bazo a pared posterior con vasos esplénicos:", options: ["Falciforme.", "Ligamento esplenorrenal.", "Mesoapéndice.", "Omento menor."], correct: 1, exp: "Envuelve entrada de arteria y vena esplénicas." },
+            { q: "S3-C17-67. Pliegue que une bazo a curvatura mayor gástrica:", options: ["Mesocolon.", "Gastrocólico.", "Ligamento gastroesplénico.", "Redondo."], correct: 2, exp: "Contiene vasos gástricos cortos." },
+            { q: "S3-C17-68. Riesgo de rotura esplénica causa:", options: ["Inmunidad.", "Hemoperitoneo masivo (sangrado libre).", "Descenso inguinal.", "Cáncer colon."], correct: 1, exp: "Globo de sangre frágil sin plano fascial que lo comprima." },
+
+            // CONCEPTO 18 (SET 3): LIGAMENTO SUSPENSORIO OVARIO
+            { q: "S3-C18-69. Vasos en ligamento infundibulopélvico:", options: ["Uterinos.", "Ováricos (gonadales).", "Epigástricos.", "Ilíacos."], correct: 1, exp: "Pliegue que envuelve arteria y vena ováricas." },
+            { q: "S3-C18-70. Origen de arteria ovárica:", options: ["Mesentérica inferior.", "Ilíaca interna.", "Cara anterior de Aorta (L2).", "Renal."], correct: 2, exp: "Origen embriológico alto, nacen de la aorta." },
+            { q: "S3-C18-71. Vena ovárica IZQUIERDA desemboca en:", options: ["Mesentérica superior.", "Porta.", "Vena renal izquierda.", "Ilíaca común."], correct: 2, exp: "Drena en ángulo recto en la renal izq (riesgo varices)." },
+            { q: "S3-C18-72. Vasos ováricos cruzan superficial e íntimamente a:", options: ["Uretra.", "Uréter.", "Conducto deferente.", "Nervio ciático."], correct: 1, exp: "Riesgo quirúrgico al entrar los vasos al anexo." },
+
+            // CONCEPTO 19 (SET 3): HERNIA CRURAL
+            { q: "S3-C19-73. Referencia que separa hernia inguinal de crural:", options: ["EIAS.", "Ligamento inguinal.", "Recto abdomen.", "Sínfisis."], correct: 1, exp: "Por encima es inguinal, por debajo es crural/femoral." },
+            { q: "S3-C19-74. Límite MEDIAL (cortante) del anillo crural:", options: ["Ligamento lacunar (Gimbernat).", "Iliofemoral.", "Vena femoral.", "Psoasilíaco."], correct: 0, exp: "Punto que suele estrangular la hernia crural." },
+            { q: "S3-C19-75. Límite LATERAL del anillo crural:", options: ["Uréter.", "Circunfleja.", "Vena femoral.", "Nervio femoral."], correct: 2, exp: "El saco baja empujando medialmente a la vena." },
+            { q: "S3-C19-76. Límite POSTERIOR (óseo) del orificio crural:", options: ["Ala ilion.", "Rama superior del pubis (pecten).", "Isquion.", "Trocánter."], correct: 1, exp: "Cresta pectínea forma el límite sólido." },
+
+            // CONCEPTO 20 (SET 3): HERNIA DIRECTA VS INDIRECTA
+            { q: "S3-C20-77. Vasos que separan hernia directa de indirecta:", options: ["Ilíacos externos.", "Vasos epigástricos inferiores.", "Testiculares.", "Pudendos."], correct: 1, exp: "Frontera quirúrgica en pared posterior de fosa inguinal." },
+            { q: "S3-C20-78. Hernia LATERAL a vasos epigástricos por anillo profundo:", options: ["Directa.", "Crural.", "Spiegel.", "Indirecta."], correct: 3, exp: "Sigue la vía natural que tomó el testículo al bajar." },
+            { q: "S3-C20-79. Hernia MEDIAL a vasos epigástricos rompiendo fascia:", options: ["Umbilical.", "Directa.", "Indirecta.", "Diástasis."], correct: 1, exp: "Empuja la fascia transversalis debilitada de forma directa." },
+            { q: "S3-C20-80. Zona de debilidad epicentro de hernias directas:", options: ["Triángulo de Hesselbach.", "Petit.", "Grynfelt.", "Scarpa."], correct: 0, exp: "Medial a vasos epigástricos e inferior a ligamento inguinal." },
+
+            // ÚLTIMO BLOQUE: VASOS EPIGÁSTRICOS SUPERIORES
+            { q: "U-1. Espacio desprovisto de músculo entre xifoides y cartílagos costales:", options: ["Bochdalek.", "Trígono esternocostal (Larrey/Morgagni).", "Anillo profundo.", "Centro frénico."], correct: 1, exp: "Aprovecha hendidura para saltar del tórax al abdomen." },
+            { q: "U-2. Relación de arteria epigástrica superior en abdomen:", options: ["Intraperitoneal.", "Subcutánea.", "Vaina del recto (cara posterior del músculo).", "12ª costilla."], correct: 2, exp: "Incorporada y protegida dentro de la vaina aponeurótica." },
+            { q: "U-3. Origen de la arteria epigástrica superior:", options: ["Aorta torácica.", "Continuación de torácica interna (mamaria).", "Tronco celíaco.", "Ilíaca externa."], correct: 1, exp: "Rama terminal de la mamaria interna al llegar al reborde costal." },
+            { q: "U-4. Patología del trígono esternocostal:", options: ["Hernias de Morgagni.", "Hesselbach.", "Reflujo.", "Línea alba."], correct: 0, exp: "Zona de debilidad diafragmática anterior." },
+
+            // CONCEPTO 1 (SET 4): TESTÍCULO
+            { q: "S4-C1-1. Espacio \"vacío\" entre láminas de la túnica vaginal:", options: ["Seno epidídimo.", "Cavidad de la túnica vaginal.", "Receso pampiniforme.", "Interfascial."], correct: 1, exp: "Si se llena de líquido da lugar al hidrocele." },
+            { q: "S4-C1-2. Cavidad superior de la que procede la túnica vaginal:", options: ["Conducto Wolff.", "Retroperitoneal.", "Cavidad peritoneal abdominal.", "Saco celómico."], correct: 2, exp: "Derivada del proceso vaginal del peritoneo." },
+            { q: "S4-C1-3. Cuña fibrosa posterior del parénquima testicular:", options: ["Mediastino testicular (Cuerpo Highmore).", "Tabique rafeal.", "Seno epidídimo.", "Conductillo."], correct: 0, exp: "Condensación por la que transcurre la rete testis." },
+            { q: "S4-C1-4. Zona del testículo que NO cubre la túnica vaginal:", options: ["Polo inferior.", "Cara anterior.", "Borde posterior e hilio vascular.", "Cara lateral."], correct: 2, exp: "Por allí ingresan los vasos y se adosa el epidídimo." },
+
+            // CONCEPTO 2 (SET 4): OVARIO
+            { q: "S4-C2-5. Envoltura del ovario adulto:", options: ["Doble aponeurosis.", "Sin peritoneo visceral (epitelio germinal cúbico).", "Túnica albugínea cartilaginosa.", "Sin tejido epitelial."], correct: 1, exp: "El peritoneo se detiene en la línea de Farre-Waldeyer." },
+            { q: "S4-C2-6. Pliegue que une hilio del ovario al ligamento ancho:", options: ["Mesosálpinx.", "Mesometrio.", "Uterosacro.", "Mesoovario."], correct: 3, exp: "Meso corto que une el ovario a la aleta posterior." },
+            { q: "S4-C2-7. Pliegue lateral que envuelve vasos ováricos:", options: ["Uteroovárico.", "Ligamento suspensorio (infundibulopélvico).", "Cardinal.", "Umbilical."], correct: 1, exp: "Desde el origen aórtico hasta la pelvis lateral." },
+            { q: "S4-C2-8. Nervio en el fondo de la fosa ovárica (dolor cara interna muslo):", options: ["Ciático.", "Pudendo.", "Nervio obturador.", "Femoral."], correct: 2, exp: "La inflamación ovárica puede irritarlo causando neuralgia obturatriz." },
+
+            // CONCEPTO 3 (SET 4): VERTEBRAL (REPETIDO/EXTENDIDO)
+            { q: "S4-C3-9. Vértebra por cuyo foramen transverso NO pasa la arteria vertebral:", options: ["C1.", "C6.", "C7.", "Surco C1."], correct: 2, exp: "Obvia C7; ingresa directamente en C6." },
+            { q: "S4-C3-10. Relación anterior de vertebral en porción prevertebral:", options: ["Músculo escaleno anterior.", "Parótida.", "Pilar diafragma.", "Medial al ECM."], correct: 0, exp: "Alojada entre largo del cuello y escaleno anterior." },
+            { q: "S4-C3-11. Estructura ósea con la que NO se relaciona en el Atlas:", options: ["Surco vertebral.", "Arco anterior y diente axis.", "Foramen magno.", "Atlantooccipital."], correct: 1, exp: "Pasa por arco posterior, lejos del diente." },
+            { q: "S4-C3-12. Membrana que perfora para entrar al cráneo:", options: ["Fascia alar.", "Ligamento nucal.", "Membrana atlantooccipital posterior y duramadre.", "Longitudinal anterior."], correct: 2, exp: "Abandona el arco posterior del atlas perforando esta barrera." },
+
+            // CONCEPTO 4 (SET 4): LARINGE
+            { q: "S4-C4-13. Origen de la arteria laríngea superior:", options: ["Tiroidea inferior.", "Subclavia.", "Arteria tiroidea superior.", "Faríngea."], correct: 2, exp: "Rama de la tiroidea superior (Carótida externa)." },
+            { q: "S4-C4-14. Membrana que perfora para entrar al vestíbulo laríngeo:", options: ["Cricoides.", "Membrana tirohioidea.", "Cricotiroideo.", "Paratiroides."], correct: 1, exp: "Une el asta mayor del tiroides con el hioides." },
+            { q: "S4-C4-15. Ramo nervioso que acompaña a la laríngea superior:", options: ["Externo laríngeo sup.", "Recurrente.", "Ramo interno del laríngeo superior.", "Glosofaríngeo."], correct: 2, exp: "Sensitivo puro para la supraglotis (reflejo tusígeno)." },
+            { q: "S4-C4-16. Drenaje venoso de laríngeas superiores:", options: ["Ácigos.", "Subclavia.", "Vena tiroidea superior (Tronco tirolinguofacial).", "Braquiocefálico."], correct: 2, exp: "Busca la yugular interna en segmento superior." },
+
+            // CONCEPTO 5 (SET 4): OREJUELA
+            { q: "S4-C5-17. Utilidad de zona avascular de orejuela izquierda:", options: ["Marcapasos.", "Incisiones/Catéteres sin riesgo sangrado.", "Contraste.", "Válvula aórtica."], correct: 1, exp: "El ciego distal tiene paredes finas y carece de troncos coronarios." },
+            { q: "S4-C5-18. Estructura que oculta la base de la orejuela izquierda:", options: ["Arteria circunfleja y vena cardíaca magna.", "Cava superior.", "Braquiocefálico.", "Marginal."], correct: 0, exp: "Tapa el inicio de la circunfleja en surco auriculoventricular." },
+            { q: "S4-C5-19. Rugosidades internas favorecen:", options: ["Rotura mitral.", "Trombos (estasis en FA).", "Infartos septo.", "Derrame."], correct: 1, exp: "Músculos pectíneos forman relieves intrincados." },
+            { q: "S4-C5-20. Embriológicamente la orejuela es:", options: ["Verdadera aurícula primitiva.", "Tronco arterioso.", "Septo secundum.", "Venas pulmonares."], correct: 0, exp: "Cámara trabeculada primitiva fetal." },
+
+            // CONCEPTO 6 (SET 4): EPIESPINALES
+            { q: "S4-C6-21. El ligamento supraespinoso (epiespinal) une:", options: ["Pedículos.", "Ápex (vértice) de apófisis espinosas.", "Cuerpos lumbares.", "Bases transversas."], correct: 1, exp: "Cuerda continua desde C7 hasta la cresta sacra." },
+            { q: "S4-C6-22. Ligamentos tensados al máximo en:", options: ["Inclinación.", "Hiperlordosis.", "Flexión profunda.", "Rotación."], correct: 2, exp: "Actúan frenando la separación de los arcos posteriores." },
+            { q: "S4-C6-23. Nombre del supraespinoso en región cervical:", options: ["Longitudinal.", "Ligamento nucal (septum nuchae).", "Fascia toracolumbar.", "Tectoria."], correct: 1, exp: "Tabique sagital hasta protuberancia occipital." },
+            { q: "S4-C6-24. Relación interespinosos y supraespinoso:", options: ["Planos ortogonales.", "Transversas.", "Fusionados (Interespinoso rellena, supraespinoso cose punta).", "Anterior médula."], correct: 2, exp: "Conforman un complejo ligamentoso continuo posterior." },
+
+            // CONCEPTO 8 (SET 4): LONGITUDINAL ANTERIOR
+            { q: "S4-C8-29. Ligamento longitudinal anterior frena la:", options: ["Rotación.", "Hiperextensión / Extensión violenta.", "Flexión.", "Inclinación."], correct: 1, exp: "Ubicado en cara anterior de cuerpos y discos." },
+            { q: "S4-C8-30. Morfología del longitudinal anterior:", options: ["Banda que se afina y expande lateralmente sobre cuerpos y discos.", "Perfora anillo.", "Canal medular.", "Solo espinosas."], correct: 0, exp: "Tapiza pilar anterior ensanchándose en discos." },
+            { q: "S4-C8-31. Posición del Longitudinal Posterior:", options: ["Transversas.", "Erector columna.", "DENTRO del canal medular (cara post cuerpos y discos).", "Aorta."], correct: 2, exp: "Freno para la flexión y prevención hernia posterior." },
+            { q: "S4-C8-32. Riesgo en fase de rebote (extensión) de latigazo cervical:", options: ["Ligamento amarillo.", "Interespinoso.", "Longitudinal Anterior y largo del cuello.", "Médula."], correct: 2, exp: "El estiramiento violento daña la cara anterior del raquis." },
+
+            // CONCEPTO 9 (SET 4): ERECTOR SPINAE
+            { q: "S4-C9-33. Fascículos del Erector de la Columna (lat a med):", options: ["Iliocostal, Longísimo y Espinoso.", "Semiespinoso, Multífido, Rotadores.", "Dorsal ancho, Trapecio, Romboides.", "Cuadrado, Psoas, Ilíaco."], correct: 0, exp: "Masa muscular tractora posterior del dorso." },
+            { q: "S4-C9-34. Origen de la masa del Erector de la Columna:", options: ["Cráneo.", "12 costillas.", "Sacro, espinosas lumbares y cresta ilíaca.", "Sínfisis."], correct: 2, exp: "Aponeurosis tendinosa compartida baja." },
+            { q: "S4-C9-35. Contracción BILATERAL del erector produce:", options: ["Flexión crunch.", "Extensión o erección (enderezamiento) del tronco.", "Asma.", "Desplazamiento cadera."], correct: 1, exp: "Endereza el tronco contra gravedad." },
+            { q: "S4-C9-36. Estuche fibroso del Erector:", options: ["Vaina rectos.", "Hojas posterior y media de fascia toracolumbar.", "Peritoneo.", "Pleural."], correct: 1, exp: "Encajonado en canaleja profunda vertebral." }
+        ];
+
+        let quizQuestions = [];
+        let state = {}; // { index: { selected, marked, correct } }
+
+        function initQuiz(shuffle) {
+            quizQuestions = [...db];
+            if (shuffle) quizQuestions.sort(() => Math.random() - 0.5);
+            
+            // Randomize options for each question
+            quizQuestions.forEach(item => {
+                let optionsData = item.options.map((text, i) => ({ text, isCorrect: i === item.correct }));
+                optionsData.sort(() => Math.random() - 0.5);
+                item.shuffledOptions = optionsData;
+            });
+
+            document.getElementById('overlay').classList.add('hidden');
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-body');
+            const grid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            grid.innerHTML = '';
+
+            quizQuestions.forEach((item, i) => {
+                // Sidebar item
+                const idxBtn = document.createElement('div');
+                idxBtn.className = 'index-item';
+                idxBtn.id = `idx-${i}`;
+                idxBtn.innerText = i + 1;
+                idxBtn.onclick = () => document.getElementById(`card-${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                grid.appendChild(idxBtn);
+
+                // Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${i}`;
+                card.innerHTML = `
+                    <button class="mark-btn" id="mark-${i}" onclick="toggleMark(${i})">
+                        <span>★</span> <span>Marcar</span>
+                    </button>
+                    <div class="question-header">${item.q}</div>
+                    <div class="options-list">
+                        ${item.shuffledOptions.map((opt, optIdx) => `
+                            <div class="option" id="q${i}-o${optIdx}" onclick="handleSelect(${i}, ${optIdx})">
+                                ${opt.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation-box" id="exp-${i}">
+                        <strong>Explicación:</strong> ${item.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function handleSelect(qIdx, optIdx) {
+            if (state[qIdx]?.selected !== undefined) return;
+
+            const question = quizQuestions[qIdx];
+            const isCorrect = question.shuffledOptions[optIdx].isCorrect;
+            state[qIdx] = { ...state[qIdx], selected: optIdx, correct: isCorrect };
+
+            const optEl = document.getElementById(`q${qIdx}-o${optIdx}`);
+            const idxEl = document.getElementById(`idx-${qIdx}`);
+            const expEl = document.getElementById(`exp-${qIdx}`);
+
+            if (isCorrect) {
+                optEl.classList.add('correct-ans');
+                idxEl.classList.add('correct');
+            } else {
+                optEl.classList.add('wrong-ans');
+                idxEl.classList.add('wrong');
+                // Show correct one
+                question.shuffledOptions.forEach((o, index) => {
+                    if (o.isCorrect) document.getElementById(`q${qIdx}-o${index}`).classList.add('correct-ans');
+                });
+            }
+
+            // Lock all options
+            question.shuffledOptions.forEach((_, index) => {
+                document.getElementById(`q${qIdx}-o${index}`).classList.add('locked');
+            });
+
+            expEl.style.display = 'block';
+        }
+
+        function toggleMark(i) {
+            if (!state[i]) state[i] = {};
+            state[i].marked = !state[i].marked;
+            document.getElementById(`mark-${i}`).classList.toggle('active');
+            document.getElementById(`idx-${i}`).classList.toggle('marked', state[i].marked);
+        }
+
+        function showResults() {
+            let score = 0;
+            const total = quizQuestions.length;
+            Object.values(state).forEach(s => { if (s.correct) score++; });
+
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('modal-start').classList.add('hidden');
+            document.getElementById('modal-results').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `Nota: ${score} / ${total} (${((score/total)*100).toFixed(1)}%)`;
+        }
+
+        function restartQuiz(mode) {
+            let nextSet = [];
+            if (mode === 'all') {
+                nextSet = db;
+            } else if (mode === 'failed') {
+                quizQuestions.forEach((q, i) => { if (state[i] && !state[i].correct) nextSet.push(q); });
+            } else if (mode === 'marked') {
+                quizQuestions.forEach((q, i) => { if (state[i]?.marked) nextSet.push(q); });
+            } else if (mode === 'failed_marked') {
+                quizQuestions.forEach((q, i) => { if (state[i] && (!state[i].correct || state[i].marked)) nextSet.push(q); });
+            }
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            // Reset
+            state = {};
+            quizQuestions = nextSet;
+            quizQuestions.forEach(item => {
+                let optionsData = item.options.map((text, i) => ({ text, isCorrect: i === item.correct }));
+                optionsData.sort(() => Math.random() - 0.5);
+                item.shuffledOptions = optionsData;
+            });
+
+            document.getElementById('overlay').classList.add('hidden');
+            renderQuiz();
+            window.scrollTo(0,0);
+        }
+    </script>
+</body>
+</html>

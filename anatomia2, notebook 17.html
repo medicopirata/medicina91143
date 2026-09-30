@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Anatomía: Abdomen y Pelvis</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --correct: #27ae60;
+            --incorrect: #e74c3c;
+            --bg: #fdfefe;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+        }
+
+        /* Configuración Inicial */
+        #setup-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        /* Barra Lateral */
+        #sidebar {
+            width: 70px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 8px;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 50%;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .index-item.answered { background: #d1e7dd; border-color: var(--correct); }
+        .index-item.marked { background: #fff3cd; border: 2px solid #ffc107; }
+
+        /* Área de Preguntas */
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            max-width: 800px;
+            margin: 0 auto 60px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .mark-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #6c757d;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 15px 20px;
+            border: 2px solid #f1f3f5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            line-height: 1.4;
+        }
+
+        .option:hover { background: #f8f9fa; border-color: #dee2e6; }
+        
+        .option.correct {
+            background: #d1e7dd !important;
+            border-color: var(--correct) !important;
+            color: #0f5132;
+        }
+
+        .option.incorrect {
+            background: #f8d7da !important;
+            border-color: var(--incorrect) !important;
+            color: #842029;
+        }
+
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: #e7f3ff;
+            border-left: 4px solid #0d6efd;
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        /* Controles y Resultados */
+        #floating-controls {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+        }
+
+        #results-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 2000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 600px) {
+            #sidebar { width: 50px; }
+            .results-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-overlay">
+        <div class="modal">
+            <h2>Configuración del Cuestionario</h2>
+            <p>Anatomía: Abdomen y Pelvis</p>
+            <button class="btn" onclick="initQuiz(false)">Orden de Lista</button>
+            <button class="btn" onclick="initQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <aside id="sidebar"></aside>
+
+    <main id="main-content">
+        <div id="quiz-container"></div>
+    </main>
+
+    <div id="floating-controls">
+        <button class="btn" style="background: #6c757d;" onclick="showFinalResults()">Finalizar y Revisar</button>
+    </div>
+
+    <div id="results-overlay">
+        <h1 id="score-title">Resultados</h1>
+        <div id="score-detail" style="font-size: 1.2rem; margin-bottom: 20px;"></div>
+        <div class="results-grid">
+            <button class="btn" onclick="restart('all')">Repetir Todo</button>
+            <button class="btn" onclick="restart('failed')">Repetir Falladas</button>
+            <button class="btn" onclick="restart('marked')">Repetir Marcadas</button>
+            <button class="btn" onclick="restart('both')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+<script>
+    const database = [
+        { id: 1, q: "1. El profesor inicia la clase preguntando por qué la \"posición lateral de seguridad\" en primeros auxilios se realiza sobre el decúbito lateral IZQUIERDO. La razón anatómica es:", opts: ["Para evitar la compresión de la vena cava inferior por el hígado.", "Para facilitar el vaciado gástrico a través del píloro.", "Para que el contenido gástrico se apoye sobre la curvatura mayor, evitando su alineación con el cardias y previniendo el reflujo y la broncoaspiración.", "Para relajar el hiato esofágico del diafragma."], ans: 2, exp: "Como explica el profesor, en decúbito izquierdo el contenido cae hacia la curvatura mayor, alejándose del cardias. En decúbito derecho, rebosaría hacia el esófago." },
+        { id: 2, q: "2. La vascularización arterial del estómago forma un círculo anastomótico en sus curvaturas. ¿De qué vaso nace directamente la Arteria Gastroepiploica Derecha?", opts: ["De la arteria mesentérica superior.", "Del tronco celíaco.", "De la arteria esplénica.", "De la arteria gastroduodenal."], ans: 3, exp: "La gastroduodenal (rama de la hepática común) desciende por detrás del duodeno y emite la gastroepiploica derecha hacia la curvatura mayor." },
+        { id: 3, q: "3. ¿Y de dónde procede la Arteria Gástrica Izquierda, encargada de irrigar la porción superior de la curvatura menor?", opts: ["Es rama directa del tronco celíaco.", "Es rama de la arteria esplénica.", "Procede de la arteria hepática propia.", "Nace de la arteria mesentérica superior."], ans: 0, exp: "Es una de las ramas primarias directas del tronco celíaco. La gástrica derecha procede de la hepática común/propia." },
+        { id: 4, q: "4. El profesor menciona una rama arterial muy constante que suele nacer de la gástrica izquierda, rodea el cardias y la porción distal del esófago, y es vital conocerla en el abordaje quirúrgico esofagogástrico. ¿Cómo se llama?", opts: ["Arteria gástrica posterior.", "Arteria coronario estomáquica.", "Arteria frénica inferior izquierda.", "Vasos gástricos cortos."], ans: 1, exp: "Lo repite y deletrea a petición de una alumna: es la arteria \"coronario estomáquica\", rama de la gástrica izquierda." },
+        { id: 5, q: "5. Drenaje venoso abdominal: El profesor advierte con énfasis que los vasos satélites del estómago NO drenan a la vena cava inferior (con una excepción). Toda la sangre del estómago se dirige hacia:", opts: ["El sistema de la vena Porta.", "El sistema Ácigos / Hemiácigos íntegramente.", "Las venas suprahepáticas.", "Las venas renales."], ans: 0, exp: "Lo recalca en las diapositivas (\"¡No retorna a la cava; va hacia el sistema porta!\")." },
+        { id: 6, q: "6. ¿Cuál es la única excepción venosa a nivel esofagogástrico que SÍ drena hacia el sistema de la vena Cava, creando un territorio de anastomosis portocava?", opts: ["La vena gastroepiploica izquierda.", "La vena gástrica derecha.", "La porción más craneal del esófago abdominal (junto a las frénicas inferiores).", "La vena prepilórica."], ans: 2, exp: "En la unión cardioesofágica, la sangre de la parte alta del esófago abdominal va a la cava (sistema sistémico), mientras la baja va a la porta (gástrica izquierda)." },
+        { id: 7, q: "7. Al hablar de cirugía laparoscópica pancreatoduodenal, el profesor destaca el riesgo de lesionar una confluencia venosa situada en el lado derecho que drena hacia la mesentérica superior. ¿Cómo se denomina este arco?", opts: ["Arco venoso de Treitz.", "Arco venoso de Henle.", "Tronco esplenomesentérico.", "Arco de Riolano."], ans: 1, exp: "El \"Arco venoso de Henle\" reúne sangre del marco duodenopancreático, la gastroepiploica derecha y el colon derecho, desembocando en la VMS. Su lesión causa hemorragias ocultas." },
+        { id: 8, q: "8. Por la rotación del estómago en el desarrollo, los nervios vagos cambian su posición topográfica. ¿Cómo queda situado el nervio Vago Izquierdo?", opts: ["En la cara posterior del esófago y estómago, formando el plexo celíaco.", "En la cara anterior del estómago, discurriendo por su curvatura menor.", "Abandona el estómago y se dirige íntegramente al hígado.", "Desciende junto a la curvatura mayor gástrica."], ans: 1, exp: "El vago izquierdo se hace anterior y discurre predominantemente por la curvatura menor del estómago. El derecho se hace posterior." },
+        { id: 9, q: "9. Conociendo la disposición del vago izquierdo, ¿por qué en la cirugía bariátrica (reducción de estómago en \"manga\") el cirujano corta la curvatura MAYOR y respeta escrupulosamente la curvatura MENOR?", opts: ["Porque la curvatura mayor no tiene irrigación sanguínea.", "Para no denervar el estómago, ya que al cortar la curvatura menor se seccionaría el nervio vago, alterando masivamente la motilidad y secreción gástrica.", "Porque la curvatura menor está fusionada a la aorta.", "Para eliminar el píloro."], ans: 1, exp: "El profesor explica que respetar la curvatura menor salva al vago izquierdo, conservando parte de la fisiología gástrica." },
+        { id: 10, q: "10. La cara posterior del estómago forma el límite ventral de una importante cavidad peritoneal. ¿Cómo se llama esta cavidad?", opts: ["Fondo de saco de Douglas.", "Transcavidad de los epiplones (Bolsa omental).", "Receso hepatorrenal de Morison.", "Espacio parietocólico derecho."], ans: 1, exp: "El estómago tapizado de peritoneo visceral forma la pared anterior de la bolsa omental." },
+        { id: 11, q: "11. El peritoneo visceral que recubre la cara posterior del estómago salta hacia el bazo para envolverlo. Este pliegue de reflexión se denomina:", opts: ["Ligamento esplenorrenal.", "Ligamento falciforme.", "Ligamento gastroesplénico (esplenogástrico).", "Ligamento pancreatoesplénico."], ans: 2, exp: "Une la curvatura mayor/cara posterior del estómago con el hilio del bazo." },
+        { id: 12, q: "12. En la bolsa omental (transcavidad de los epiplones), los fluidos que entran por el Hiato de Winslow quedan fácilmente estancados en ella cuando el paciente está acostado. ¿Por qué ocurre esto según el profesor?", opts: ["Porque el Hiato de Winslow tiene una válvula muscular que se cierra.", "Porque el Hiato de Winslow está situado en un \"escalón más alto\" que el fondo caudal de la bolsa omental.", "Porque el epiplón mayor absorbe el líquido solidificándolo.", "Porque la arteria mesentérica superior oblitera el hiato."], ans: 1, exp: "Explica gráficamente que el hiato está más craneal que el fondo de la bolsa. Si el líquido entra, no puede salir por pura gravedad, quedando \"coleccionado\" allí." },
+        { id: 13, q: "13. El Duodeno presenta 4 porciones. ¿Cuál de ellas mantiene una movilidad característica por ser INTRAPERITONEAL (como el estómago), a diferencia de las demás que son retroperitoneales?", opts: ["La primera porción (ampolla o bulbo duodenal).", "La segunda porción (descendente).", "La tercera porción (horizontal).", "La cuarta porción (ascendente)."], ans: 0, exp: "La primera porción comparte la envoltura del epiplón menor (ligamento hepatoduodenal) y es intraperitoneal." },
+        { id: 14, q: "14. Al observar la mucosa interna del duodeno a partir de su segunda porción, el profesor señala la presencia de pliegues transversales que no desaparecen al distender el órgano, llamados:", opts: ["Válvulas de Houston.", "Pliegues gástricos.", "Válvulas conniventes (pliegues circulares).", "Tenias duodenales."], ans: 2, exp: "Son pliegues estructurales (que incluyen la submucosa) que caracterizan al intestino delgado para aumentar la superficie de absorción." },
+        { id: 15, q: "15. En la pared medial de la segunda porción del duodeno desembocan conjuntamente el colédoco y el conducto pancreático principal. Ambos se reúnen en una dilatación denominada:", opts: ["Divertículo de Meckel.", "Ampolla de Vater.", "Cisura angularis.", "Receso subfrénico."], ans: 1, exp: "Es la dilatación común donde se mezclan bilis y jugo pancreático antes de salir a la luz duodenal." },
+        { id: 16, q: "16. ¿Cómo se denomina al relieve o \"montaña\" que forma esta ampolla al protruir hacia la luz interna de la mucosa duodenal?", opts: ["Carúncula menor.", "Papila duodenal mayor.", "Esfínter de Oddi.", "Válvula connivente gigante."], ans: 1, exp: "El profesor aclara: la ampolla es la estructura interna dilatada; la papila es el bulto o sobreelevación visible desde la luz del intestino." },
+        { id: 17, q: "17. La estructura muscular que rodea y controla la apertura de esta ampolla hacia el duodeno, cuya sección (esfinterotomía) alivia obstrucciones biliares, es el:", opts: ["Esfínter pilórico.", "Músculo de Treitz.", "Esfínter hepatopancreático (de Oddi).", "Válvula ileocecal."], ans: 2, exp: "El esfínter de Oddi regula el paso de las secreciones biliares y pancreáticas." },
+        { id: 18, q: "18. La Arteria Mesentérica Superior (AMS) tiene unas relaciones topográficas críticas al nacer de la aorta. Según el profesor, ¿qué gran vena cruza por delante de la aorta como un \"trolebús\", obligando a la AMS a pasar por encima de ella?", opts: ["La vena cava inferior.", "La vena porta.", "La vena renal izquierda.", "La vena esplénica."], ans: 2, exp: "Relación clave en clase: la vena renal izquierda atraviesa transversalmente de izquierda a derecha por delante de la aorta, pasando exactamente por detrás del origen de la AMS (pinza aortomesentérica)." },
+        { id: 19, q: "19. Tras sortear esa vena, la Arteria Mesentérica Superior debe buscar su acceso al intestino. ¿Por delante de qué porción del duodeno pasa la AMS (y la VMS) para entrar en la raíz del mesenterio?", opts: ["Por delante de la primera porción del duodeno.", "Por detrás de la segunda porción.", "Por encima y por delante de la tercera porción (horizontal) del duodeno.", "Por detrás de la cuarta porción."], ans: 2, exp: "Los vasos mesentéricos superiores emergen por debajo del cuello del páncreas y cruzan por delante de la 3ª porción duodenal." },
+        { id: 20, q: "20. El marco duodenal y el páncreas comparten un mismo compartimento delimitado por las inserciones de los mesos. ¿Qué estructura atraviesa transversalmente la 2ª porción del duodeno y la cabeza del páncreas, dividiendo el abdomen en compartimentos supramesocólico e inframesocólico?", opts: ["La raíz del mesenterio (del intestino delgado).", "La raíz del mesocolon transverso.", "El ligamento falciforme.", "El epiplón menor."], ans: 1, exp: "La inserción de la raíz del mesocolon transverso cruza horizontalmente estas estructuras, sirviendo de frontera topográfica." },
+        { id: 21, q: "21. La cuarta porción del duodeno (ascendente) finaliza de forma brusca con un giro hacia abajo y adelante, convirtiéndose en el yeyuno móvil. Este vértice se conoce como ángulo duodenoyeyunal. ¿Qué estructura lo fija superiormente?", opts: ["La fascia de Toldt.", "El ligamento redondo.", "El ligamento/músculo suspensorio del duodeno (de Treitz).", "El epiplón mayor."], ans: 2, exp: "El ligamento de Treitz ancla la flexura duodenoyeyunal al pilar derecho del diafragma." },
+        { id: 22, q: "22. Embriología: ¿De qué esbozo del intestino primitivo derivan el estómago, el hígado y el duodeno proximal?", opts: ["Intestino primitivo anterior.", "Intestino primitivo medio.", "Intestino primitivo posterior.", "Del alantoides directamente."], ans: 0, exp: "Las estructuras vascularizadas primariamente por el tronco celíaco derivan del intestino anterior." },
+        { id: 23, q: "23. Durante el desarrollo del intestino primitivo medio en la sexta semana, su gran elongación provoca que \"no quepa\" en el abdomen. ¿Qué evento anatómico se produce como consecuencia?", opts: ["Una herniación fisiológica hacia el interior del cordón umbilical.", "Un ascenso hacia la cavidad torácica.", "La fusión completa con el intestino posterior.", "La atresia temporal del duodeno."], ans: 0, exp: "El intestino medio sale temporalmente al pedículo vitelino/umbilical para rotar y luego regresar al abdomen hacia la 9ª-10ª semana." },
+        { id: 24, q: "24. El páncreas se forma por la fusión de un esbozo dorsal y un esbozo ventral. El esbozo ventral, ¿a partir de qué otra estructura germinal brota inicialmente?", opts: ["De la yema esplénica (bazo).", "De la yema hepática.", "Del mesogastrio dorsal puro.", "Del alantoides."], ans: 1, exp: "Como muestra la diapositiva, el esbozo ventral del páncreas y la vesícula biliar son evaginaciones de la yema hepática principal." },
+        { id: 25, q: "25. Tras el desarrollo embrionario, el páncreas y gran parte del duodeno quedan \"aplastados\" contra la pared abdominal posterior, perdiendo su meso libre original. ¿Qué nombre recibe la fascia de coalescencia que fija estas estructuras al retroperitoneo?", opts: ["Fascia de Toldt derecha.", "Fascia de Toldt izquierda.", "Fascia retroduodenal de Treitz.", "Ligamento esplenorrenal."], ans: 2, exp: "La fascia de Treitz une el complejo duodenopancreático al peritoneo parietal posterior." },
+        { id: 26, q: "26. De igual forma, el colon ascendente y el colon descendente se fijan secundariamente a la pared posterior perdiendo su movilidad. ¿Cómo se denominan estas fascias de adherencia colónicas?", opts: ["Fascias de Toldt.", "Fascias de Treitz.", "Ligamentos frenocólicos.", "Mesocolon sigmoideo."], ans: 0, exp: "Las fascias de Toldt (derecha e izquierda) \"pegan\" el colon ascendente y descendente al retroperitoneo." },
+        { id: 27, q: "27. En la cara visceral (inferior) del Hígado, podemos distinguir 4 lóbulos clásicos macroscópicos separados por surcos (en forma de \"H\"). ¿Cuáles son los dos lóbulos centrales?", opts: ["Derecho e Izquierdo.", "Caudado y Cuadrado.", "Anterior y Posterior.", "Cístico y Gástrico."], ans: 1, exp: "El lóbulo cuadrado está situado anteriormente (junto a la vesícula) y el lóbulo caudado (de Spiegel) está posterior (junto a la cava)." },
+        { id: 28, q: "28. La cara superior/posterior del Hígado presenta una extensa zona libre de peritoneo que contacta directamente con el diafragma. ¿Cómo se llama esta región delimitada por las hojas del ligamento coronario?", opts: ["Impresión esofágica.", "Área desnuda (Pars affixa).", "Fosa vesicular.", "Receso hepatorrenal."], ans: 1, exp: "El área desnuda es la porción del hígado firmemente adherida al diafragma sin serosa interpuesta." },
+        { id: 29, q: "29. En el feto, la vena umbilical transportaba sangre oxigenada desde la placenta. Tras el nacimiento, este vaso se oblitera y se transforma en un cordón fibroso contenido en el borde libre del ligamento falciforme. Se trata del:", opts: ["Ligamento venoso de Arancio.", "Uraco.", "Ligamento redondo del hígado.", "Conducto onfalomesentérico."], ans: 2, exp: "La vena umbilical obliterada se convierte en el ligamento redondo." },
+        { id: 30, q: "30. El bazo presenta en su cara visceral tres \"facetas\" o impresiones donde se amolda a los órganos vecinos. ¿Cuáles son estas tres facetas?", opts: ["Gástrica, Renal y Cólica.", "Hepática, Duodenal y Pancreática.", "Esofágica, Suprarrenal y Cardíaca.", "Yeyunal, Ileal y Pélvica."], ans: 0, exp: "El bazo se apoya por delante en el estómago (gástrica), por detrás en el riñón izquierdo (renal) y por debajo en el ángulo esplénico del colon (cólica)." },
+        { id: 31, q: "31. Macroscópicamente, el Intestino Grueso (Colon) es fácilmente distinguible del intestino delgado gracias a tres características estructurales exclusivas. ¿Cuáles son?", opts: ["Placas de Peyer, pliegues circulares y mesenterio continuo.", "Tenias colónicas (cintillas longitudinales), haustras (abollonaduras) y apéndices omentales/epiploicos.", "Ausencia de mucosa, válvulas de Houston y ámpula.", "Es completamente retroperitoneal en toda su extensión."], ans: 1, exp: "Las tenias, las haustras y las gotitas de grasa (apéndices epiploicos) son la seña de identidad del colon." },
+        { id: 32, q: "32. La unión entre el intestino delgado y el grueso se realiza en la válvula ileocecal. Según las imágenes de la disección, ¿qué forma adopta esta válvula en su visión interna hacia el ciego?", opts: ["Un esfínter muscular circular estriado.", "Una apertura transversal con dos labios unidos lateralmente por frenillos.", "Tres valvas sigmoideas en forma de nido de golondrina.", "Una espiral valvular continua."], ans: 1, exp: "Se describe anatómicamente como un ojal con un labio superior e inferior que se unen en los frenillos de la válvula." },
+        { id: 33, q: "33. A diferencia del yeyuno, ¿qué estructura linfática característica prolifera en la submucosa del íleon distal?", opts: ["Apéndices epiploicos.", "Válvulas conniventes masivas.", "Placas de Peyer (folículos linfoides agrupados).", "Glándulas de Brunner."], ans: 2, exp: "El íleon se especializa más en defensa inmunitaria, presentando las características Placas de Peyer." },
+        { id: 34, q: "34. La irrigación del colon obedece a su origen embriológico. ¿Qué vaso irriga todo el intestino medio (Ciego, apéndice, colon ascendente y los 2/3 derechos del colon transverso)?", opts: ["Arteria mesentérica inferior.", "Arteria mesentérica superior.", "Tronco celíaco.", "Arteria ilíaca interna."], ans: 1, exp: "La AMS es la arteria exclusiva de los derivados del intestino medio." },
+        { id: 35, q: "35. A partir del tercio izquierdo del colon transverso, el colon descendente, el sigma y el recto superior (derivados del intestino posterior), la irrigación corre a cargo de:", opts: ["Arteria mesentérica superior.", "Arteria esplénica.", "Arteria mesentérica inferior.", "Arteria pudenda interna."], ans: 2, exp: "La AMI nutre el territorio del intestino posterior embrionario." },
+        { id: 36, q: "36. En el interior de la ampolla rectal, la mucosa y submucosa se pliegan formando unas repisas transversales cuya función es soportar el peso de las heces. Su nombre es:", opts: ["Columnas de Morgagni.", "Válvulas conniventes.", "Válvulas rectales de Houston.", "Tenias rectales."], ans: 2, exp: "Las válvulas de Houston son pliegues transversales dentro del recto." },
+        { id: 37, q: "37. En la región del conducto anal, encontramos unas crestas mucosas longitudinales unidas en su base. Su congestión venosa da lugar a las hemorroides internas. Son las:", opts: ["Columnas y válvulas de Morgagni.", "Válvulas de Houston.", "Líneas anocutáneas.", "Fosas isquioanales."], ans: 0, exp: "Las columnas de Morgagni marcan la transición en el canal anal superior por encima de la línea pectínea." },
+        { id: 38, q: "38. La continencia fecal voluntaria depende de un fascículo muscular del músculo Elevador del Ano, que abraza la unión anorrectal formando una \"cincha\" que tira hacia el pubis, angulando el recto. ¿Qué músculo es?", opts: ["Músculo esfínter interno del ano.", "Músculo coccígeo.", "Músculo puborrectal.", "Músculo obturador interno."], ans: 2, exp: "El puborrectal es clave en el mantenimiento mecánico de la continencia al mantener el ángulo anorrectal cerrado." },
+        { id: 39, q: "39. El recto inferior y el canal anal tienen un aporte vascular propio de la pelvis. ¿De qué gran arteria pélvica nace directamente la Arteria Rectal Media?", opts: ["De la arteria mesentérica inferior.", "De la arteria ilíaca interna (hipogástrica).", "De la arteria pudenda interna.", "De la arteria femoral."], ans: 1, exp: "Mientras la superior viene de la AMI (abdomen), la rectal media es rama directa de la Ilíaca Interna. (La inferior vendrá de la pudenda interna)." },
+        { id: 40, q: "40. Inervación de la pelvis: El nervio vago (parasimpático) no llega a los órganos de la pelvis. ¿Qué nervios aportan el componente PARASIMPÁTICO a los plexos hipogástricos inferiores para el control de esfínteres, erección y vejiga?", opts: ["La cadena simpática sacra.", "Los nervios esplácnicos torácicos menores.", "Los nervios esplácnicos pélvicos (originados en S2-S4).", "El nervio ciático."], ans: 2, exp: "El parasimpático sacro (S2, S3, S4) asciende mediante los nervios esplácnicos pélvicos para inervar el intestino posterior distal y las vísceras pélvicas." }
+    ];
+
+    let currentSet = [];
+    let state = {
+        answeredCount: 0,
+        correctCount: 0,
+        markedIds: new Set(),
+        failedIds: new Set(),
+        doneIndices: new Set()
+    };
+
+    function initQuiz(shuffle) {
+        document.getElementById('setup-overlay').style.display = 'none';
+        currentSet = [...database];
+        if(shuffle) currentSet.sort(() => Math.random() - 0.5);
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        const container = document.getElementById('quiz-container');
+        const sidebar = document.getElementById('sidebar');
+        container.innerHTML = '';
+        sidebar.innerHTML = '';
+        state.doneIndices.clear();
+
+        currentSet.forEach((item, index) => {
+            // Sidebar item
+            const idxBtn = document.createElement('a');
+            idxBtn.className = `index-item ${state.markedIds.has(item.id) ? 'marked' : ''}`;
+            idxBtn.href = `#q-${index}`;
+            idxBtn.id = `side-${index}`;
+            idxBtn.innerText = index + 1;
+            sidebar.appendChild(idxBtn);
+
+            // Question Card
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${index}`;
+
+            // Shuffle options for this render
+            let options = item.opts.map((o, i) => ({ text: o, originalIndex: i }));
+            options.sort(() => Math.random() - 0.5);
+
+            card.innerHTML = `
+                <div class="question-header">
+                    <strong>Pregunta ${index + 1}</strong>
+                    <div class="mark-btn" onclick="toggleMark(${index}, ${item.id})">
+                        <input type="checkbox" ${state.markedIds.has(item.id) ? 'checked' : ''}> Marcada
+                    </div>
+                </div>
+                <p>${item.q}</p>
+                <div class="options-container" id="opts-${index}">
+                    ${options.map(opt => `
+                        <div class="option" onclick="handleSelect(${index}, ${opt.originalIndex}, ${item.ans}, this)">
+                            ${opt.text}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="explanation" id="exp-${index}">
+                    <strong>Respuesta Correcta:</strong> ${item.opts[item.ans]}<br><br>
+                    <strong>Explicación:</strong> ${item.exp}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function handleSelect(qIdx, selected, correct, element) {
+        if(state.doneIndices.has(qIdx)) return;
+        state.doneIndices.add(qIdx);
+
+        const isCorrect = selected === correct;
+        const itemId = currentSet[qIdx].id;
+
+        if(isCorrect) {
+            state.correctCount++;
+            element.classList.add('correct');
+        } else {
+            state.failedIds.add(itemId);
+            element.classList.add('incorrect');
+            // Show the correct one
+            const container = document.getElementById(`opts-${qIdx}`);
+            Array.from(container.children).forEach(child => {
+                if(child.innerText.trim() === currentSet[qIdx].opts[correct].trim()) {
+                    child.classList.add('correct');
+                }
+            });
+        }
+
+        // Lock all options
+        document.getElementById(`opts-${qIdx}`).querySelectorAll('.option').forEach(opt => opt.classList.add('disabled'));
+        // Show explanation
+        document.getElementById(`exp-${qIdx}`).style.display = 'block';
+        // Mark sidebar
+        document.getElementById(`side-${qIdx}`).classList.add('answered');
+        state.answeredCount++;
+    }
+
+    function toggleMark(qIdx, itemId) {
+        const sideItem = document.getElementById(`side-${qIdx}`);
+        if(state.markedIds.has(itemId)) {
+            state.markedIds.delete(itemId);
+            sideItem.classList.remove('marked');
+        } else {
+            state.markedIds.add(itemId);
+            sideItem.classList.add('marked');
+        }
+    }
+
+    function showFinalResults() {
+        const overlay = document.getElementById('results-overlay');
+        const detail = document.getElementById('score-detail');
+        detail.innerText = `Has acertado ${state.correctCount} de ${currentSet.length} preguntas.`;
+        overlay.style.display = 'flex';
+    }
+
+    function restart(mode) {
+        document.getElementById('results-overlay').style.display = 'none';
+        let nextData = [];
+
+        if(mode === 'all') {
+            nextData = [...database];
+            state.failedIds.clear();
+        } else if(mode === 'failed') {
+            nextData = database.filter(i => state.failedIds.has(i.id));
+        } else if(mode === 'marked') {
+            nextData = database.filter(i => state.markedIds.has(i.id));
+        } else if(mode === 'both') {
+            nextData = database.filter(i => state.failedIds.has(i.id) || state.markedIds.has(i.id));
+        }
+
+        if(nextData.length === 0) {
+            alert("No hay preguntas en esta categoría.");
+            document.getElementById('results-overlay').style.display = 'flex';
+            return;
+        }
+
+        state.correctCount = 0;
+        state.answeredCount = 0;
+        document.getElementById('setup-overlay').style.display = 'flex';
+        database.forEach((v, i) => {
+            if(nextData.find(nd => nd.id === v.id)) {
+                // Keep history if needed or reset
+            }
+        });
+    }
+</script>
+</body>
+</html>

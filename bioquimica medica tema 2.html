@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz de Bioquímica y Nutrición (50 Preguntas)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f7;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- PANTALLAS (Overlay) --- */
+        #start-screen, #results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        h2 { color: var(--primary); margin-bottom: 20px; }
+        p { font-size: 1.1em; color: #555; max-width: 600px; }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0,0,0,0.15); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--accent); color: white; }
+        .btn-danger { background-color: var(--error); color: white; }
+        .btn-warning { background-color: var(--warning); color: #333; }
+        .btn-info { background-color: #1abc9c; color: white; }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        #app-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navegación */
+        #sidebar {
+            width: 70px;
+            background-color: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 10px;
+            flex-shrink: 0;
+            scrollbar-width: thin;
+        }
+
+        .nav-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .nav-dot:hover { background-color: rgba(255,255,255,0.4); }
+        .nav-dot.active { border-color: white; transform: scale(1.15); font-weight: bold; }
+        .nav-dot.correct { background-color: var(--success); }
+        .nav-dot.wrong { background-color: var(--error); }
+        .nav-dot.marked { border-color: var(--warning); color: var(--warning); font-weight: bold; background-color: rgba(241, 196, 15, 0.2); }
+        .nav-dot.marked.correct { background-color: var(--success); border-color: var(--warning); color: white; }
+        .nav-dot.marked.wrong { background-color: var(--error); border-color: var(--warning); color: white; }
+
+        /* Área de Preguntas */
+        #main-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--accent);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.5;
+            width: 85%;
+        }
+
+        /* Checkbox de Marcar */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            user-select: none;
+        }
+        .mark-container input { display: none; }
+        .mark-icon { font-size: 1.5em; margin-right: 5px; transition: color 0.2s; }
+        .mark-container input:checked ~ .mark-icon { color: var(--warning); }
+        .mark-container input:checked ~ span { color: #d35400; font-weight: bold; }
+        .mark-icon::before { content: '☆'; }
+        .mark-container input:checked ~ .mark-icon::before { content: '★'; }
+
+        /* Opciones */
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: left;
+            font-size: 1em;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background-color: #f0f8ff; }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background-color: #f8d7da; border-color: var(--error); color: #721c24; }
+        
+        .option-btn.correct::after { content: '✓'; position: absolute; right: 15px; font-weight: bold; }
+        .option-btn.wrong::after { content: '✕'; position: absolute; right: 15px; font-weight: bold; }
+
+        /* Explicación */
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-left: 4px solid var(--success);
+            border-radius: 4px;
+            color: #2c3e50;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Botón Flotante Finalizar */
+        #finish-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Stats en Modal */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .stat-box { text-align: center; }
+        .stat-number { display: block; font-size: 2.5em; font-weight: bold; }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--error); }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Quiz de Bioquímica y Nutrición</h1>
+        <p>50 Preguntas | Selección Múltiple</p>
+        <p>Selecciona el modo de orden de las preguntas:</p>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="initQuiz('ordered')">Orden Numérico (1-50)</button>
+            <button class="btn-secondary" onclick="initQuiz('random')">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav id="sidebar">
+            </nav>
+        <main id="main-area">
+            </main>
+        <button id="finish-btn" class="btn-danger" onclick="showResults()">Finalizar Quiz</button>
+    </div>
+
+    <div id="results-modal" class="hidden">
+        <h2>Resultados</h2>
+        <div class="stats-row">
+            <div class="stat-box">
+                <span class="stat-number text-success" id="res-correct">0</span>
+                <span>Aciertos</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number text-danger" id="res-wrong">0</span>
+                <span>Fallos</span>
+            </div>
+        </div>
+        <p id="res-msg"></p>
+
+        <h3>Opciones de Reintento</h3>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="restartQuiz('all')">Repetir Completo</button>
+            <button class="btn-danger" id="btn-retry-failed" onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button class="btn-warning" id="btn-retry-marked" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-info" id="btn-retry-combo" onclick="restartQuiz('combo')">Falladas + Marcadas</button>
+        </div>
+        <br>
+        <button style="background:transparent; color:#777; border:1px solid #ccc; font-size:0.9em;" onclick="closeModal()">Volver a revisar respuestas</button>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS DE PREGUNTAS ---
+        // Se ha transcrito literalmente el contenido proporcionado
+        const dbQuestions = [
+            { id: 1, q: "¿Cuál de las siguientes afirmaciones define mejor a los micronutrientes?", options: ["Son compuestos que aportan la mayor parte de la energía (kcal) de la dieta.", "Se necesitan en grandes cantidades y tienen función estructural.", "Se necesitan en bajas concentraciones y son esenciales para el funcionamiento óptimo del metabolismo (ej. coenzimas).", "Son sintetizados siempre por el organismo, por lo que no son esenciales en la dieta."], ans: 2, exp: "Respuesta: C" },
+            { id: 2, q: "Respecto a la clasificación de las vitaminas, señale la opción correcta:", options: ["La vitamina D deriva del isopreno.", "Las vitaminas A, E y K son derivados del isopreno (diterpenos/tetraterpenos).", "La vitamina C es liposoluble.", "Todas las vitaminas del complejo B son liposolubles."], ans: 1, exp: "Respuesta: B. Nota: La D no deriva del isopreno, sino del colesterol." },
+            { id: 3, q: "¿Qué enfermedad carencial se asocia al déficit de Tiamina (B1), especialmente en alcohólicos crónicos? (Pista Audio)", options: ["Pelagra.", "Escorbuto.", "Síndrome de Wernicke-Korsakoff / Beriberi.", "Anemia perniciosa."], ans: 2, exp: "Respuesta: C." },
+            { id: 4, q: "La forma coenzimática activa de la Vitamina B1 (Tiamina) es:", options: ["FAD.", "NAD+.", "Tiamín pirofosfato (TPP).", "Fosfato de piridoxal (PLP)."], ans: 2, exp: "Respuesta: C." },
+            { id: 5, q: "La Pelagra, caracterizada por las \"3 D\" (Dermatitis, Diarrea, Demencia), es causada por la deficiencia de: (Pista Audio)", options: ["Vitamina B3 (Niacina).", "Vitamina B12 (Cobalamina).", "Vitamina C.", "Vitamina B2 (Riboflavina)."], ans: 0, exp: "Respuesta: A." },
+            { id: 6, q: "¿Qué vitamina es imprescindible suplementar antes y durante el embarazo para prevenir defectos del tubo neural (como espina bífida) en el feto? (Pista Audio)", options: ["Vitamina A.", "Ácido fólico (B9).", "Vitamina E.", "Vitamina K."], ans: 1, exp: "Respuesta: B." },
+            { id: 7, q: "El Fosfato de Piridoxal (PLP) es la coenzima derivada de la vitamina B6. ¿En qué tipo de reacciones participa principalmente?", options: ["Reacciones de óxido-reducción.", "Transferencia de grupos amino (transaminasas).", "Carboxilaciones.", "Transferencia de grupos metilo."], ans: 1, exp: "Respuesta: B." },
+            { id: 8, q: "La Biotina (Vit B8/H) actúa como coenzima transportando:", options: ["Grupos aldehídos.", "Electrones.", "Grupos carboxilo (CO2).", "Grupos acilo."], ans: 2, exp: "Respuesta: C." },
+            { id: 9, q: "¿Cuál es la causa bioquímica de la anemia perniciosa o megaloblástica por déficit de B12?", options: ["Falta de hierro.", "Falta de factor intrínseco gástrico necesario para su absorción, o dieta vegana estricta sin suplementación.", "Exceso de vitamina C.", "Defecto en la síntesis de colágeno."], ans: 1, exp: "Respuesta: B. Nota: El audio menciona la asociación con demencia también." },
+            { id: 10, q: "¿Cuál es la función bioquímica principal de la Vitamina C en la síntesis del colágeno? (Pista Audio)", options: ["Formar enlaces peptídicos.", "Actuar como cofactor en la hidroxilación de Prolina y Lisina.", "Transportar el colágeno fuera de la célula.", "Fosforilar la estructura de triple hélice."], ans: 1, exp: "Respuesta: B." },
+            { id: 11, q: "El escorbuto se caracteriza clínicamente por:", options: ["Ceguera nocturna.", "Hemorragias gingivales, fragilidad capilar y mala cicatrización.", "Raquitismo y huesos blandos.", "Dermatitis fotosensible."], ans: 1, exp: "Respuesta: B." },
+            { id: 12, q: "En el ciclo antioxidante, ¿qué molécula es necesaria para regenerar la Vitamina E oxidada (radical tocoferoxilo)? (Pista Audio - Ciclo importante)", options: ["Vitamina A.", "Vitamina K.", "Vitamina C (Ascorbato).", "Coenzima Q."], ans: 2, exp: "Respuesta: C." },
+            { id: 13, q: "¿Qué ocurre en la \"Reacción de Fenton\" si hay un exceso de Vitamina C y hierro libre? (Pista Audio - Pregunta de alto nivel)", options: ["La vitamina C actúa como antioxidante potente eliminando todo riesgo.", "La vitamina C reduce el Fe3+ a Fe2+, el cual reacciona con H2O2 generando radicales hidroxilo (efecto pro-oxidante).", "Se produce una precipitación de cálculos renales de hierro.", "Se inhibe la absorción de hierro."], ans: 1, exp: "Respuesta: B. La profesora explica que en talasemias o exceso de hierro, la Vit C puede ser dañina." },
+            { id: 14, q: "¿Cómo se absorbe el ácido deshidroascórbico (forma oxidada de la Vit C) en el enterocito?", options: ["Por difusión simple a través de lípidos.", "Mediante transportadores de glucosa (GLUT1 y GLUT3).", "Por el transportador SVCT1 acoplado a sodio.", "No se absorbe."], ans: 1, exp: "Respuesta: B. El ascorbato usa SVCT1, la forma oxidada usa GLUT." },
+            { id: 15, q: "¿Qué forma de la vitamina A es esencial para el ciclo de la visión (formación de rodopsina)?", options: ["Ácido retinoico.", "Retinol.", "11-cis-retinal.", "Beta-caroteno."], ans: 2, exp: "Respuesta: C." },
+            { id: 16, q: "El ácido retinoico actúa principalmente:", options: ["En la visión nocturna.", "Como hormona nuclear regulando la expresión génica y diferenciación celular.", "Como antioxidante en membrana.", "En la coagulación sanguínea."], ans: 1, exp: "Respuesta: B." },
+            { id: 17, q: "¿Qué proteína transporta el retinol en el plasma desde el hígado a los tejidos?", options: ["Albúmina exclusivamente.", "Proteína fijadora de retinol (RBP) unida a transtiretina.", "Transferrina.", "LDL."], ans: 1, exp: "Respuesta: B." },
+            { id: 18, q: "Los beta-carotenos (provitamina A de origen vegetal):", options: ["Son tóxicos en cualquier cantidad.", "Se rompen en el intestino por una dioxigenasa para dar retinal.", "Tienen mayor actividad biológica que el retinol animal.", "Son hidrosolubles."], ans: 1, exp: "Respuesta: B." },
+            { id: 19, q: "¿Cuál es el precursor en la piel que se transforma en previtamina D3 por acción de la luz UV? (Pista Audio)", options: ["Colesterol.", "7-dehidrocolesterol.", "Ergocalciferol.", "Calcitriol."], ans: 1, exp: "Respuesta: B." },
+            { id: 20, q: "Para ser biológicamente activa, la vitamina D3 debe sufrir dos hidroxilaciones. ¿Dónde ocurren y en qué orden? (Pista Audio)", options: ["1º en Riñón (posición 25) -> 2º en Hígado (posición 1).", "1º en Hígado (posición 25) -> 2º en Riñón (posición 1).", "Ambas ocurren en el hígado.", "Ambas ocurren en el riñón."], ans: 1, exp: "Respuesta: B." },
+            { id: 21, q: "La forma activa de la vitamina D se llama:", options: ["Colecalciferol.", "25-hidroxicolecalciferol (Calcidiol).", "1,25-dihidroxicolecalciferol (Calcitriol).", "Ergosterol."], ans: 2, exp: "Respuesta: C." },
+            { id: 22, q: "La principal función de la vitamina D activa (Calcitriol) es:", options: ["Aumentar la excreción renal de calcio.", "Inhibir la absorción intestinal de calcio.", "Mantener la homeostasis del calcio y fósforo (aumentando absorción intestinal y reabsorción renal).", "Coagulación sanguínea."], ans: 2, exp: "Respuesta: C." },
+            { id: 23, q: "El déficit de vitamina D en niños produce ______ y en adultos ______.", options: ["Escorbuto / Osteoporosis.", "Raquitismo / Osteomalacia.", "Beriberi / Pelagra.", "Ceguera / Xeroftalmia."], ans: 1, exp: "Respuesta: B." },
+            { id: 24, q: "¿Cuál es la principal función fisiológica de la Vitamina E (alfa-tocoferol)?", options: ["Síntesis de factores de coagulación.", "Antioxidante lipofílico que protege las membranas celulares de la peroxidación lipídica.", "Transporte de calcio.", "Coenzima del ciclo de Krebs."], ans: 1, exp: "Respuesta: B." },
+            { id: 25, q: "¿Qué efecto tiene la vitamina E sobre las lipoproteínas LDL? (Pista Audio)", options: ["Aumenta su síntesis.", "Impide u oxida su oxidación, reduciendo el riesgo de placa de ateroma.", "Las degrada rápidamente.", "No interacciona con ellas."], ans: 1, exp: "Respuesta: B." },
+            { id: 26, q: "La función bioquímica de la Vitamina K es actuar como cofactor para:", options: ["La hidroxilación de la prolina.", "La gamma-carboxilación de residuos de glutamato en factores de coagulación.", "La fosforilación de enzimas hepáticas.", "La reducción del hierro."], ans: 1, exp: "Respuesta: B." },
+            { id: 27, q: "¿Qué fármaco actúa como antagonista de la Vitamina K, inhibiendo su regeneración y actuando como anticoagulante? (Pista Audio)", options: ["Aspirina.", "Warfarina / Dicumarínicos.", "Heparina.", "Estatinas."], ans: 1, exp: "Respuesta: B." },
+            { id: 28, q: "¿Cuáles son los factores de coagulación dependientes de Vitamina K?", options: ["Solo el fibrinógeno.", "II (Protrombina), VII, IX y X.", "Solo el factor VIII (Hemofilia).", "Factores V y XII."], ans: 1, exp: "Respuesta: B." },
+            { id: 29, q: "¿Cuál es la proteína principal de almacenamiento de hierro en el hígado?", options: ["Transferrina.", "Ferritina.", "Ceruloplasmina.", "Albúmina."], ans: 1, exp: "Respuesta: B." },
+            { id: 30, q: "La enfermedad de Wilson se caracteriza por:", options: ["Acumulación tóxica de hierro (Hemocromatosis).", "Deficiencia de Ceruloplasmina y acumulación tóxica de Cobre en hígado y cerebro.", "Déficit de Zinc.", "Exceso de Magnesio."], ans: 1, exp: "Respuesta: B." },
+            { id: 31, q: "¿Qué mineral es esencial para la síntesis de hormonas tiroideas (T3 y T4)?", options: ["Calcio.", "Selenio.", "Yodo.", "Hierro."], ans: 2, exp: "Respuesta: C." },
+            { id: 32, q: "Los polifenoles (ej. resveratrol) se consideran: (Pista Audio)", options: ["Nutrientes energéticos esenciales.", "Compuestos \"no nutritivos\" con efectos beneficiosos antioxidantes y antiinflamatorios.", "Vitaminas del grupo B.", "Minerales traza."], ans: 1, exp: "Respuesta: B." },
+            { id: 33, q: "¿Qué mineral actúa como cofactor de enzimas antioxidantes como la Superóxido Dismutasa (SOD)?", options: ["Sodio y Potasio.", "Zinc, Cobre y Manganeso.", "Calcio y Fósforo.", "Yodo y Cloro."], ans: 1, exp: "Respuesta: B." },
+            { id: 34, q: "Respecto a la proteína Transferrina:", options: ["Almacena hierro en la médula ósea.", "Transporta hierro (Fe3+) en el plasma.", "Transporta Cobre.", "Es una proteína de coagulación."], ans: 1, exp: "Respuesta: B." },
+            { id: 35, q: "Un paciente presenta hemorragias frecuentes y tiempo de protrombina alargado. ¿Qué déficit vitamínico sospecharía?", options: ["Vitamina C.", "Vitamina K.", "Vitamina E.", "Vitamina B12."], ans: 1, exp: "Respuesta: B." },
+            { id: 36, q: "¿Qué efecto tiene la hormona paratiroidea (PTH) sobre el metabolismo del calcio?", options: ["Disminuye el calcio en sangre (hipocalcemiante).", "Estimula la resorción ósea (libera Ca del hueso) y activa la síntesis de Vit D renal.", "Inhibe a los osteoclastos.", "Aumenta la excreción renal de calcio."], ans: 1, exp: "Respuesta: B." },
+            { id: 37, q: "Un paciente alcohólico llega a urgencias con confusión, ataxia y oftalmoplejía (Sdr. Wernicke). El tratamiento inmediato debe incluir:", options: ["Glucosa sola.", "Tiamina (B1) parenteral.", "Vitamina C.", "Hierro."], ans: 1, exp: "Respuesta: B." },
+            { id: 38, q: "La anemia megaloblástica se diferencia de la anemia perniciosa en que:", options: ["La perniciosa es específicamente por falta de factor intrínseco (malabsorción de B12).", "La megaloblástica solo ocurre por falta de hierro.", "La perniciosa es por falta de ácido fólico.", "No hay diferencia, son sinónimos exactos."], ans: 0, exp: "Respuesta: A." },
+            { id: 39, q: "¿Por qué se dice que el exceso de vitaminas liposolubles es más peligroso que el de hidrosolubles?", options: ["Porque las hidrosolubles se acumulan en el tejido adiposo.", "Porque las liposolubles se acumulan en hígado y tejido graso, pudiendo alcanzar niveles tóxicos, mientras las hidrosolubles se excretan por orina.", "Porque las liposolubles destruyen el riñón.", "No es cierto, las hidrosolubles son más tóxicas."], ans: 1, exp: "Respuesta: B." },
+            { id: 40, q: "En el metabolismo del grupo hemo, la hemooxigenasa degrada el hemo produciendo:", options: ["Bilirrubina directa.", "Biliverdina, CO (monóxido de carbono) y Fe2+.", "Urobilina.", "Protoporfirina IX intacta."], ans: 1, exp: "Respuesta: B." },
+            { id: 41, q: "¿Qué proteína plasmática disminuye típicamente en procesos inflamatorios agudos (es un reactante de fase aguda negativo)?", options: ["Proteína C Reactiva (PCR).", "Haptoglobina.", "Albúmina.", "Ferritina."], ans: 2, exp: "Respuesta: C." },
+            { id: 42, q: "La función de la Haptoglobina es:", options: ["Transportar cobre.", "Unirse a la hemoglobina libre en plasma para evitar la pérdida de hierro renal.", "Transportar hormonas tiroideas.", "Coagulación."], ans: 1, exp: "Respuesta: B." },
+            { id: 43, q: "En la regulación de la síntesis del grupo hemo, la enzima clave (ALA sintasa) es inhibida por:", options: ["Hierro.", "El propio grupo Hemo (feedback negativo).", "Plomo (Pb) la activa.", "Vitamina C."], ans: 1, exp: "Respuesta: B." },
+            { id: 44, q: "El Plomo (Pb) produce anemia porque:", options: ["Secuestra el hierro.", "Inhibe enzimas clave de la síntesis del hemo como la ferroquelatasa y la ALA deshidratasa.", "Destruye la vitamina B12.", "Inhibe la absorción intestinal."], ans: 1, exp: "Respuesta: B." },
+            { id: 45, q: "¿Cuál es el papel del glutatión en relación con la vitamina C?", options: ["Oxida la vitamina C.", "Regenera la forma reducida de la vitamina C (ascorbato) a partir de la oxidada.", "Degrada la vitamina C.", "No interaccionan."], ans: 1, exp: "Respuesta: B." },
+            { id: 46, q: "Sobre la osteomalacia y el raquitismo:", options: ["Son causados por exceso de calcio.", "Se deben a una mineralización defectuosa de la matriz ósea, frecuentemente por déficit de Vitamina D.", "En el raquitismo hay exceso de Vitamina D.", "Son enfermedades autoinmunes."], ans: 1, exp: "Respuesta: B." },
+            { id: 47, q: "La Ceruloplasmina es una proteína con actividad:", options: ["Proteasa.", "Ferroxidasa (oxida Fe2+ a Fe3+ para que pueda unirse a transferrina).", "Hormonal.", "Estructural."], ans: 1, exp: "Respuesta: B." },
+            { id: 48, q: "¿Qué vitamina puede comportarse como un teratógeno (causar malformaciones fetales) si se consume en exceso durante el embarazo?", options: ["Vitamina C.", "Vitamina A (Retinoides).", "Vitamina B12.", "Vitamina E."], ans: 1, exp: "Respuesta: B." },
+            { id: 49, q: "Respecto a los radicales libres y el envejecimiento:", options: ["Los polifenoles aumentan el estrés oxidativo.", "La vitamina E protege la membrana celular del daño oxidativo (lipoperoxidación).", "El anión superóxido es beneficioso para el ADN.", "La mitocondria no produce radicales libres."], ans: 1, exp: "Respuesta: B." },
+            { id: 50, q: "¿Qué afirmación sobre el agua corporal es correcta según los apuntes?", options: ["Representa el 10% del peso en un recién nacido.", "Es imprescindible para las reacciones hidrolíticas y regulación térmica.", "La generada por el metabolismo (agua endógena) es suficiente para vivir.", "El tejido adiposo tiene más agua que el músculo."], ans: 1, exp: "Respuesta: B." }
+        ];
+
+        // --- ESTADO ---
+        let currentList = [];
+        let markedIds = new Set();
+        let failedIds = new Set();
+        let answeredIds = new Set(); // Para contar progreso
+        
+        // --- UTILIDADES ---
+        const shuffle = (array) => {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        };
+
+        // --- INICIALIZACIÓN ---
+        function initQuiz(mode, customList = null) {
+            // Reset UI
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('results-modal').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            const container = document.getElementById('main-area');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = "";
+            sidebar.innerHTML = "";
+            
+            // Determinar lista de preguntas
+            let sourceList = customList ? customList : [...dbQuestions];
+            
+            // Si es inicio fresco (no reintento parcial), limpiamos estados
+            if (!customList) {
+                markedIds.clear();
+                failedIds.clear();
+                answeredIds.clear();
+            }
+
+            // Preparar objetos de pregunta (clonar y mezclar opciones)
+            currentList = sourceList.map(q => {
+                let optionsObj = q.options.map((txt, idx) => ({ txt, isCorrect: idx === q.ans }));
+                return { ...q, shuffledOpts: shuffle(optionsObj) };
+            });
+
+            // Ordenar preguntas
+            if (mode === 'random') {
+                currentList = shuffle(currentList);
+            } else {
+                currentList.sort((a,b) => a.id - b.id);
+            }
+
+            // Renderizar
+            currentList.forEach((q, index) => {
+                // 1. Sidebar Dot
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.innerText = q.id;
+                dot.id = `dot-${q.id}`;
+                dot.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                if(markedIds.has(q.id)) dot.classList.add('marked');
+                sidebar.appendChild(dot);
+
+                // 2. Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${q.id}`;
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'q-header';
+                
+                const title = document.createElement('div');
+                title.className = 'q-title';
+                title.innerText = `${q.id}. ${q.q}`;
+
+                const markLabel = document.createElement('label');
+                markLabel.className = 'mark-container';
+                const markInput = document.createElement('input');
+                markInput.type = 'checkbox';
+                markInput.checked = markedIds.has(q.id);
+                markInput.onchange = (e) => toggleMark(q.id, e.target.checked);
+                
+                const markIcon = document.createElement('i');
+                markIcon.className = 'mark-icon';
+                const markText = document.createElement('span');
+                markText.innerText = "Revisar";
+
+                markLabel.append(markInput, markIcon, markText);
+                header.append(title, markLabel);
+
+                // Options
+                const optList = document.createElement('div');
+                optList.className = 'options-list';
+
+                q.shuffledOpts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt.txt;
+                    btn.onclick = () => handleAnswer(q, opt, btn, card);
+                    optList.appendChild(btn);
+                });
+
+                // Explanation
+                const expBox = document.createElement('div');
+                expBox.className = 'explanation';
+                expBox.innerHTML = `<strong>${q.exp}</strong>`;
+
+                card.append(header, optList, expBox);
+                container.appendChild(card);
+            });
+        }
+
+        // --- LÓGICA DE RESPUESTA ---
+        function handleAnswer(qObj, optObj, btnElem, cardElem) {
+            // Bloquear si ya se respondió
+            if (btnElem.disabled || cardElem.getAttribute('data-answered') === 'true') return;
+            
+            cardElem.setAttribute('data-answered', 'true');
+            answeredIds.add(qObj.id);
+            
+            const allBtns = cardElem.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true); // Bloquear todos
+
+            // Marcar visualmente
+            if (optObj.isCorrect) {
+                btnElem.classList.add('correct');
+                // Si estaba en failed, la quitamos al acertar? Normalmente sí en lógica de estudio.
+                if(failedIds.has(qObj.id)) failedIds.delete(qObj.id);
+            } else {
+                btnElem.classList.add('wrong');
+                failedIds.add(qObj.id);
+                // Mostrar cuál era la correcta
+                const correctBtnText = qObj.shuffledOpts.find(o => o.isCorrect).txt;
+                // Buscar el botón que tiene ese texto
+                allBtns.forEach(b => {
+                    if(b.innerText === correctBtnText) b.classList.add('correct');
+                });
+            }
+
+            // Actualizar Dot
+            const dot = document.getElementById(`dot-${qObj.id}`);
+            dot.classList.add(optObj.isCorrect ? 'correct' : 'wrong');
+            if (markedIds.has(qObj.id)) dot.classList.add('marked'); // Mantener borde amarillo
+
+            // Mostrar explicación
+            cardElem.querySelector('.explanation').style.display = 'block';
+        }
+
+        function toggleMark(id, isChecked) {
+            const dot = document.getElementById(`dot-${id}`);
+            if (isChecked) {
+                markedIds.add(id);
+                dot.classList.add('marked');
+            } else {
+                markedIds.delete(id);
+                dot.classList.remove('marked');
+            }
+        }
+
+        // --- FINALIZACIÓN ---
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const total = currentList.length;
+            
+            // Calcular aciertos en la sesión ACTUAL (de las preguntas mostradas)
+            let currentFails = 0;
+            let currentCorrect = 0;
+            
+            currentList.forEach(q => {
+               const card = document.getElementById(`card-${q.id}`);
+               if (card && card.getAttribute('data-answered') === 'true') {
+                   // Miramos si falló AHORA (buscando clase wrong en botones)
+                   if (card.querySelector('.option-btn.wrong')) currentFails++;
+                   else currentCorrect++;
+               }
+            });
+
+            document.getElementById('res-correct').innerText = currentCorrect;
+            document.getElementById('res-wrong').innerText = currentFails;
+            
+            const answeredCount = currentCorrect + currentFails;
+            document.getElementById('res-msg').innerText = `Has respondido ${answeredCount} de ${total} preguntas mostradas.`;
+
+            // Configurar botones de reintento
+            const btnFailed = document.getElementById('btn-retry-failed');
+            const btnMarked = document.getElementById('btn-retry-marked');
+            const btnCombo = document.getElementById('btn-retry-combo');
+
+            btnFailed.disabled = failedIds.size === 0;
+            btnMarked.disabled = markedIds.size === 0;
+            btnCombo.disabled = (failedIds.size === 0 && markedIds.size === 0);
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        function restartQuiz(mode) {
+            if (mode === 'all') {
+                // Reinicio total: ir a pantalla de inicio
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('results-modal').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+                return;
+            }
+
+            // Filtrar preguntas para modos parciales
+            let idsToFilter = new Set();
+            if (mode === 'failed') idsToFilter = failedIds;
+            else if (mode === 'marked') idsToFilter = markedIds;
+            else if (mode === 'combo') idsToFilter = new Set([...failedIds, ...markedIds]);
+
+            const filteredList = dbQuestions.filter(q => idsToFilter.has(q.id));
+            
+            if (filteredList.length === 0) {
+                alert("No hay preguntas en esta selección.");
+                return;
+            }
+
+            // Reiniciar con lista filtrada (siempre aleatorio en reintentos para no memorizar posición)
+            initQuiz('random', filteredList);
+        }
+
+    </script>
+</body>
+</html>

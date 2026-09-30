@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Bioquímica de Neurotransmisores</title>
+    <style>
+        :root {
+            --primary: #27ae60; /* Verde Bioquímica */
+            --secondary: #2ecc71;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: #333;
+            background-color: #f4f6f7;
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 320px;
+            background-color: var(--dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a252f;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            overflow-y: auto;
+            padding-right: 5px;
+            flex-grow: 1;
+            align-content: start;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 6px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #ecf0f1;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.1s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary); transform: scale(1.1); z-index: 2; }
+        .nav-btn.active { background-color: var(--secondary); border: 2px solid white; }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--danger); color: white; }
+        .nav-btn.marked { box-shadow: inset 0 0 0 2px var(--warning); }
+
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        /* Main Content */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .screen { display: none; max-width: 900px; margin: 0 auto; }
+        .screen.active { display: block; }
+
+        /* UI Elements */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.1s, box-shadow 0.2s;
+            min-width: 200px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--dark); color: white; }
+        .btn-exam { background-color: var(--warning); color: #2c3e50; }
+        .btn-action { background-color: #3498db; color: white; }
+        .btn-warning { background-color: var(--warning); color: #2c3e50; }
+
+        /* Question Styles */
+        .question-container {
+            background: white;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .question-text { font-size: 1.2em; font-weight: 600; color: #2c3e50; line-height: 1.4; text-align: left; }
+        
+        .mark-check {
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 28px;
+            transition: color 0.2s;
+            user-select: none;
+            margin-left: 15px;
+        }
+        .mark-check.marked { color: var(--warning); }
+        
+        .options-grid { display: grid; gap: 12px; }
+        .option {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+            text-align: left;
+        }
+        .option:hover:not(.disabled) { background-color: #e2e6ea; border-color: #adb5bd; }
+        .option.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
+        .option.disabled { cursor: default; pointer-events: none; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-radius: 8px;
+            display: none;
+            border-left: 5px solid var(--success);
+            text-align: left;
+        }
+        .feedback.error { background-color: #fdeaea; border-color: var(--danger); }
+
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3 id="sidebar-title">Preguntas</h3>
+        <div id="nav-grid"></div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--success)"></div> Bien</span>
+            <span><div class="dot" style="background:var(--danger)"></div> Mal</span>
+            <span><div class="dot" style="background:var(--warning)"></div> Marca</span>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="start-screen" class="screen active">
+            <div class="card">
+                <h1 style="color:var(--primary)">Bioquímica de Neurotransmisores</h1>
+                <h3 style="color:#7f8c8d">Síntesis y Degradación</h3>
+                <p>21 Preguntas disponibles</p>
+                <hr style="margin: 30px 0; opacity: 0.2">
+                
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <button class="btn btn-primary" onclick="startQuiz('ordered')">Modo Estudio (Ordenado)</button>
+                    <button class="btn btn-secondary" onclick="startQuiz('random')">Modo Estudio (Aleatorio)</button>
+                    <button class="btn btn-exam" onclick="startQuiz('exam20')">Examen Rápido (20 Preguntas)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="questions-list"></div>
+            <div id="controls">
+                <button class="btn btn-exam" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);" onclick="finishQuiz()">Finalizar Test</button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <div class="card">
+                <h2 style="color:var(--primary)">Resultados</h2>
+                <div id="score-display" style="font-size: 3em; font-weight:bold; color:var(--secondary); margin: 20px 0;"></div>
+                <div id="stats-display" style="color:#7f8c8d; font-size: 1.2em;"></div>
+                
+                <hr style="margin: 30px 0; opacity: 0.2">
+                <h3>Opciones de Repaso</h3>
+                <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+                    <button class="btn btn-danger" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn btn-warning" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-secondary" onclick="resetQuiz('failed_marked')">Falladas + Marcadas</button>
+                    <button class="btn btn-action" onclick="resetQuiz('all')">Repetir Todo</button>
+                </div>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Data Base (21 Questions) ---
+    const questionsDB = [
+        { id: 1, text: "Respecto a la coenzima tetrahidrobiopterina (BH4 o THB), señale la respuesta incorrecta:", options: ["Se sintetiza a partir de GTP", "Al oxidarse se convierte en dihidrobiopterina", "La primera enzima en su ruta biosintética es la ciclohidrolasa 1", "El último paso de su síntesis esta catalizado por la sepiapterina reductasa", "Es coenzima de las descarboxilasas de aminoácidos aromáticos"], correct: 4, explanation: "Es coenzima de las HIDROXILASAS (Fenilalanina, Tirosina y Triptófano hidroxilasas), no de las descarboxilasas (que usan fosfato de piridoxal)." },
+        { id: 2, text: "De las siguientes enzimas que participan en la síntesis de aminas biógenas, señale cual tiene como coenzima a la tetrahidrobiopterina (THB):", options: ["Dopamina β-hidroxilasa", "Triptófano hidroxilasa", "5-hidroxitriptófano descarboxilasa", "Feniletanolamina-N-metiltransferasa"], correct: 1, explanation: "La Triptófano hidroxilasa (y la Tirosina hidroxilasa) requieren BH4." },
+        { id: 3, text: "En la síntesis de catecolaminas, la enzima que cataliza el paso de L-DOPA a dopamina es:", options: ["Dopamina sintetasa", "Dopamina β-hidroxilasa", "Tirosina descarboxilasa", "DOPA descarboxilasa"], correct: 3, explanation: "La DOPA descarboxilasa (o descarboxilasa de aminoácidos aromáticos) convierte L-DOPA en Dopamina." },
+        { id: 4, text: "De los siguientes compuestos, señale el que NO es un producto de la degradación de las catecolaminas:", options: ["Metanefrina", "Ácido vanililmandelico", "Ácido homovanílico", "Ácido 5-hidroxindolacetico", "3-metoxi-4-hidroxifenilglicol"], correct: 3, explanation: "El Ácido 5-hidroxindolacético (5-HIAA) es producto de la degradación de la Serotonina, no de catecolaminas." },
+        { id: 5, text: "En la síntesis de catecolaminas, la enzima que cataliza el paso de Tirosina a L-DOPA es:", options: ["Tirosina Hidroxilasa", "L-DOPA descarboxilasa", "Tirosina Descarboxilasa", "L-DOPA sintetasa"], correct: 0, explanation: "Es el paso limitante de la velocidad en la síntesis de catecolaminas." },
+        { id: 6, text: "De lo siguientes compuestos señale cuál es el producto de la acción de la enzima GABA-α-cetoglutarato transaminasa (GABA-T):", options: ["Semialdehído succínico", "Succinato", "α-cetoglutarato", "Glutamina"], correct: 0, explanation: "El GABA se transamina a Semialdehído succínico." },
+        { id: 7, text: "Señale la enzima que participa en la degradación del GABA:", options: ["GABA hidroxilasa", "GABA-α-cetoglutarato transaminasa", "GABA oxidasa", "GABA succinato transaminasa", "GABA deshidrogenasa"], correct: 1, explanation: "La GABA-T es la enzima clave en el catabolismo del GABA." },
+        { id: 8, text: "Para la síntesis de glutamato, las neuronas glutamatérgicas usan preferentemente como sustrato:", options: ["Glutamina y α-cetoglutarato", "Glutamina y oxalacetato", "α-cetoglutarato y aspartato", "Glutamina y succinato"], correct: 0, explanation: "El glutamato se sintetiza a partir de glutamina (glutaminasa) o α-cetoglutarato (transaminación)." },
+        { id: 9, text: "Para la síntesis de glutamato, las neuronas glutamatérgicas usa preferentemente como sustrato:", options: ["Glutamina y oxalacetato", "Glutamina y α-cetoglutarato", "Glicina y glutamina", "Glutamina y succinato", "α-cetoglutarato y serina"], correct: 1, explanation: "(Pregunta similar a la anterior). La Glutamina y el α-cetoglutarato son los precursores principales." },
+        { id: 10, text: "En la síntesis de dopamina se requieren las siguientes enzimas:", options: ["L-DOPA descarboxilasa", "Tirosina descarboxilasa", "Fenilalanina deshidrogenasa", "Feniletanolamina descarboxilasa", "Tirosina deshidrogenasa"], correct: 0, explanation: "Aunque requiere Tirosina Hidroxilasa primero, de la lista, la L-DOPA descarboxilasa es la que forma Dopamina." },
+        { id: 11, text: "Señale cuál de los siguientes productos proceden de la degradación de la noradrenalina:", options: ["Ácido vanilmandélico", "Ácido homovanílico", "Metoxitiramina", "1 y 2 son ciertas", "Ninguna es correcta"], correct: 0, explanation: "El Ácido Vanilmandélico (VMA) es el metabolito final principal de la Noradrenalina/Adrenalina. El Homovanílico es de la Dopamina." },
+        { id: 12, text: "La enzima que cataliza la síntesis de Acetilcolina es la:", options: ["Acetilcolina descarboxilasa", "Acetilcolina sintetasa", "Acetilcolina hidroxilasa", "Acetilcolina transferasa"], correct: 3, explanation: "Colina Acetiltransferasa (ChAT)." },
+        { id: 13, text: "Una de las siguientes enzimas cataliza la degradación de acetilcolina, indique cual es:", options: ["Acetilcolinesterasa", "Acetilcolina transferasa", "Acetilcolina hidrolasa", "Acetilcolina descarboxilasa", "Acetilcolina hidroxilasa"], correct: 0, explanation: "La Acetilcolinesterasa (AChE) hidroliza la acetilcolina en la hendidura sináptica." },
+        { id: 14, text: "El aminoácido precursor para la síntesis de serotonina es:", options: ["Triptófano", "Tirosina", "Leucina", "Treonina", "Histidina"], correct: 0, explanation: "El Triptófano se hidroxila a 5-HTP y luego se descarboxila a Serotonina (5-HT)." },
+        { id: 15, text: "La degradación de la serotonina se lleva a cabo por un proceso de:", options: ["Desaminación oxidativa", "Descarboxilación oxidativa", "Oxidación", "Reducción", "Hidroxilación"], correct: 0, explanation: "Mediante la Monoaminooxidasa (MAO), que realiza una desaminación oxidativa." },
+        { id: 16, text: "Señala la respuesta INCORRECTA sobre el funcionamiento de la subunidad Gα de las proteínas G:", options: ["La subunidad Gαi inhibe a la fosfolipasa C (PCL)", "La subunidad Gαq permite un aumento de la concentración intracelular DAG y IP3", "La subunidad Gαs activa la adenilato ciclasa", "La subunidad Gαi permite la apertura de los canales de K+ y el cierre de los Ca2+", "La subunidad de Gαs permite un aumento intracelular de AMPc"], correct: 0, explanation: "La subunidad Gαi inhibe a la Adenilato Ciclasa (AC), no a la Fosfolipasa C (la Gq activa a la PLC)." },
+        { id: 17, text: "De las siguientes enzimas, señale cuál NO participa en la degradación de las aminas biógenas:", options: ["Monoamino oxidasa (MAO)", "Histamina-N metiltransferasa (HNMT)", "GABA-α-cetoglutarato transaminasa (GABA-T)", "Catecol-oxi-metiltransferasa (COMT)", "Diamino oxidasa (DAO)"], correct: 2, explanation: "La GABA-T degrada GABA (un aminoácido), las otras degradan monoaminas o histamina (aminas biógenas)." },
+        { id: 18, text: "La enzima que cataliza la degradación de la acetilcolina es la:", options: ["Acetilcolinoxigenasa", "Acetilmonoxidasa", "Acetilcolin-N-metiltransferasa", "Acetilcolindesaminasa", "Acetilcolinesterasa"], correct: 4, explanation: "AChE." },
+        { id: 19, text: "Respecto a la síntesis de aminoácidos que funcionan como neurotransmisores inhibitorios señale la relación correcta:", options: ["Glutamina-glicina", "α-cetoglutarato-Taurina", "Glicina-Taurina", "Serina-Glicina", "Cisteína-GABA"], correct: 3, explanation: "La Serina es el precursor de la Glicina (vía serina hidroximetiltransferasa)." },
+        { id: 20, text: "De los siguientes aminoácidos señale el que funciona como neurotransmisor excitatorio:", options: ["Glutamato", "Taurina", "Glicina", "GABA", "B-alanina"], correct: 0, explanation: "El Glutamato es el principal excitador del SNC." },
+        { id: 21, text: "Para la síntesis de glutamato, las neuronas glutamatérgicas usan preferentemente como sustrato:", options: ["Aspartato y glutamina", "Glutamina y oxalacetato", "Glutamina y succinato", "Glutamina y α-cetoglutarato", "α-cetoglutarato y aspartato"], correct: 3, explanation: "Glutamina (ciclo glutamato-glutamina) y α-cetoglutarato." }
+    ];
+
+    // --- Logic ---
+    let currentQuestions = [];
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentMode = 'ordered';
+
+    function startQuiz(mode) {
+        currentMode = mode;
+        userAnswers = {};
+        markedQuestions.clear();
+        
+        let indices = questionsDB.map((_, i) => i);
+        
+        if (mode === 'random') {
+            indices.sort(() => Math.random() - 0.5);
+        } else if (mode === 'exam20') {
+            indices.sort(() => Math.random() - 0.5);
+            indices = indices.slice(0, 20); // Select 20 random questions
+        }
+
+        loadQuestions(indices);
+        
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function loadQuestions(indices) {
+        currentQuestions = indices;
+        const container = document.getElementById('questions-list');
+        const navGrid = document.getElementById('nav-grid');
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        indices.forEach((qIndex, displayIndex) => {
+            const q = questionsDB[qIndex];
+            
+            // Randomize options map
+            let optionIndices = q.options.map((_, i) => i);
+            optionIndices.sort(() => Math.random() - 0.5);
+            
+            const div = document.createElement('div');
+            div.className = 'question-container';
+            div.id = `q-${qIndex}`;
+            div.innerHTML = `
+                <div class="question-header">
+                    <span class="question-text">${displayIndex}. ${q.text}</span>
+                    <span class="mark-check" onclick="toggleMark(${qIndex})" id="mark-${qIndex}" title="Marcar para revisar">★</span>
+                </div>
+                <div class="options-grid">
+                    ${optionIndices.map(optIdx => `
+                        <div class="option" onclick="selectAnswer(${qIndex}, ${optIdx}, this, ${q.correct})">
+                            ${q.options[optIdx]}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="feedback" id="feedback-${qIndex}"></div>
+            `;
+            container.appendChild(div);
+
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.innerText = displayIndex;
+            navBtn.id = `nav-${qIndex}`;
+            navBtn.onclick = () => {
+                document.getElementById(`q-${qIndex}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            navGrid.appendChild(navBtn);
+        });
+    }
+
+    function selectAnswer(qIndex, selectedOptIdx, optionElem, correctOptIdx) {
+        if (userAnswers[qIndex]) return; 
+
+        const isCorrect = selectedOptIdx === correctOptIdx;
+        userAnswers[qIndex] = { selectedOption: selectedOptIdx, isCorrect: isCorrect };
+
+        const parent = optionElem.parentNode;
+        const options = parent.getElementsByClassName('option');
+        
+        for(let opt of options) {
+            opt.classList.add('disabled');
+            if (opt.innerText.trim() === questionsDB[qIndex].options[correctOptIdx].trim()) {
+                opt.classList.add('correct');
+            }
+        }
+
+        if (!isCorrect) {
+            optionElem.classList.add('incorrect');
+        }
+
+        const feedbackEl = document.getElementById(`feedback-${qIndex}`);
+        feedbackEl.style.display = 'block';
+        feedbackEl.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Respuesta Incorrecta'}</strong><br>${questionsDB[qIndex].explanation || ''}`;
+        feedbackEl.classList.add(isCorrect ? 'success' : 'error');
+
+        document.getElementById(`nav-${qIndex}`).classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qIndex) {
+        if (markedQuestions.has(qIndex)) {
+            markedQuestions.delete(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.remove('marked');
+            document.getElementById(`nav-${qIndex}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.add('marked');
+            document.getElementById(`nav-${qIndex}`).classList.add('marked');
+        }
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = total > 0 ? ((correct / total) * 10).toFixed(1) : 0;
+
+        document.getElementById('score-display').innerText = `Nota: ${score} / 10`;
+        document.getElementById('stats-display').innerText = `Aciertos: ${correct} / ${total}`;
+
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+    }
+
+    function resetQuiz(criteria) {
+        let nextIndices = [];
+
+        if (criteria === 'all') {
+            startQuiz(currentMode);
+            return;
+        }
+
+        if (criteria === 'failed') {
+            nextIndices = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+        } else if (criteria === 'marked') {
+            nextIndices = Array.from(markedQuestions);
+        } else if (criteria === 'failed_marked') {
+            const failed = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+            const marked = Array.from(markedQuestions);
+            nextIndices = [...new Set([...failed, ...marked])];
+        }
+
+        if (nextIndices.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        userAnswers = {};
+        nextIndices.sort(() => Math.random() - 0.5);
+
+        loadQuestions(nextIndices);
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Tronco y Esplacnología</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f5f6fa;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: 280px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #1a252f;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        #sidebar-header {
+            padding: 15px;
+            background-color: #1a252f;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #question-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 columnas para botones pequeños */
+            gap: 4px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #bdc3c7;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { background-color: rgba(255,255,255,0.3); color: white; }
+        .nav-btn.active { border: 2px solid white; font-weight: bold; color: white; transform: scale(1.1); z-index: 2; }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--accent); color: white; }
+        .nav-btn.marked::after {
+            content: '★';
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            color: var(--warning);
+            font-size: 9px;
+            text-shadow: 0 0 2px black;
+        }
+
+        /* --- MAIN AREA --- */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #toolbar {
+            padding: 10px 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        #content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #quiz-card {
+            background: white;
+            max-width: 900px;
+            width: 100%;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+
+        .category-tag {
+            display: inline-block;
+            background-color: var(--secondary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        h2.question-text {
+            margin-top: 0;
+            color: var(--dark);
+            font-size: 1.3rem;
+            line-height: 1.5;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+
+        .option-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background-color: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .option-item:hover:not(.disabled) {
+            border-color: var(--secondary);
+            background-color: #f8f9fa;
+        }
+
+        .option-item.correct {
+            background-color: #d4edda;
+            border-color: var(--success);
+            color: #155724;
+        }
+
+        .option-item.wrong {
+            background-color: #f8d7da;
+            border-color: var(--accent);
+            color: #721c24;
+        }
+
+        .option-item.disabled { cursor: default; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+            display: none; /* Hidden by default */
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: #1a252f; }
+        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
+        .btn-outline:hover { background: var(--secondary); color: white; }
+        .btn-accent { background-color: var(--accent); color: white; }
+        .btn-accent:hover { background-color: #c0392b; }
+        .btn-mark { background-color: transparent; border: 1px solid var(--warning); color: var(--warning); }
+        .btn-mark.marked { background-color: var(--warning); color: white; }
+
+        /* --- SCREENS (Start/End) --- */
+        .full-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .hidden { display: none !important; }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px 0;
+        }
+
+        .cat-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .cat-checkbox:hover { background-color: #f0f0f0; }
+        .cat-checkbox input { margin-right: 10px; transform: scale(1.2); }
+
+        .stat-box {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 70px; flex-direction: row; border-right: none; border-bottom: 1px solid #ddd; }
+            #sidebar-header { display: none; }
+            #question-nav { display: flex; overflow-x: auto; padding: 10px; gap: 8px; }
+            .nav-btn { min-width: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="full-screen">
+        <h1 style="color: var(--primary);">Quiz Anatomía</h1>
+        <p>Selecciona los bloques temáticos que deseas estudiar:</p>
+        
+        <div style="margin-bottom: 10px;">
+            <button class="btn btn-outline" onclick="toggleAllCategories(true)">Marcar Todos</button>
+            <button class="btn btn-outline" onclick="toggleAllCategories(false)">Desmarcar Todos</button>
+        </div>
+
+        <div id="category-container" class="category-grid">
+            </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <p><strong>Modo de Orden:</strong></p>
+            <label style="margin-right: 15px;"><input type="radio" name="orderMode" value="ordered" checked> Orden Temático</label>
+            <label><input type="radio" name="orderMode" value="random"> Aleatorio (Mezclado)</label>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 30px; font-size: 1.2rem; padding: 10px 30px;" onclick="startQuiz()">COMENZAR TEST</button>
+    </div>
+
+    <div id="end-screen" class="full-screen hidden">
+        <h1 style="color: var(--primary);">Resultados</h1>
+        
+        <div class="stat-box">
+            <div class="stat-card">
+                <h3 style="color: var(--success); margin: 0;">Aciertos</h3>
+                <span id="final-correct" style="font-size: 2rem; font-weight: bold;">0</span>
+            </div>
+            <div class="stat-card">
+                <h3 style="color: var(--accent); margin: 0;">Fallos</h3>
+                <span id="final-wrong" style="font-size: 2rem; font-weight: bold;">0</span>
+            </div>
+            <div class="stat-card">
+                <h3 style="color: var(--warning); margin: 0;">Marcadas</h3>
+                <span id="final-marked" style="font-size: 2rem; font-weight: bold;">0</span>
+            </div>
+        </div>
+
+        <h3>¿Qué deseas hacer ahora?</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
+            <button class="btn btn-primary" onclick="restartQuiz('all')">Repetir Completo (Misma Selección)</button>
+            <button class="btn btn-accent" onclick="restartQuiz('failed')">Repetir Solo Falladas</button>
+            <button class="btn btn-mark" style="background: white;" onclick="restartQuiz('marked')">Repetir Solo Marcadas</button>
+            <button class="btn btn-outline" onclick="restartQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            <button class="btn btn-secondary" style="margin-top: 10px;" onclick="location.reload()">Volver al Inicio (Cambiar Temas)</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div id="sidebar-header">NAVEGACIÓN</div>
+        <div id="question-nav">
+            </div>
+    </div>
+
+    <div id="main">
+        <div id="toolbar">
+            <span id="progress-info" style="font-weight: bold;">Pregunta 1 de ?</span>
+            <div>
+                <button id="btn-mark" class="btn btn-mark" onclick="toggleMark()">☆ Marcar para revisar</button>
+                <button class="btn btn-accent" style="margin-left: 10px;" onclick="finishQuiz()">Finalizar</button>
+            </div>
+        </div>
+
+        <div id="content-area">
+            <div id="quiz-card">
+                <span id="q-category" class="category-tag">Categoria</span>
+                <h2 id="q-text" class="question-text">Cargando pregunta...</h2>
+                
+                <ul id="q-options" class="options-list">
+                    </ul>
+
+                <div id="q-explanation" class="explanation">
+                    <strong>Explicación / Corrección:</strong> <span id="expl-text"></span>
+                </div>
+
+                <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                    <button class="btn btn-outline" onclick="prevQuestion()">Anterior</button>
+                    <button class="btn btn-primary" onclick="nextQuestion()">Siguiente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- BASE DE DATOS UNIFICADA (Sin duplicados y con categorías) ---
+    // Se ha procesado la lista para asignar categorías y limpiar repeticiones.
+    
+    const questionsDB = [
+        // --- BLOQUE: VASCULARIZACIÓN ---
+        {
+            cat: "Vascularización",
+            q: "¿Cuál es la característica morfofuncional crítica de los plexos venosos vertebrales (de Batson) que tiene una implicación clínica directa en la oncología?",
+            opts: ["Tienen válvulas muy potentes.", "Drenan exclusivamente en la vena cava superior.", "Son avalvulares (carecen de válvulas), permitiendo el flujo bidireccional.", "No tienen comunicación con las venas pélvicas."],
+            ans: 2,
+            expl: "Al no tener válvulas, permiten el flujo retrógrado y la metástasis (ej. próstata a cerebro) sin pasar por pulmón."
+        },
+        {
+            cat: "Vascularización",
+            q: "Ante un aumento de la presión intraabdominal (tos, maniobra de Valsalva), ¿hacia dónde puede dirigirse la sangre en el plexo venoso vertebral?",
+            opts: ["Siempre hacia el corazón.", "Se bloquea en el hígado.", "Puede invertir su flujo y ascender desde la pelvis hacia el cráneo.", "Hacia las venas femorales."],
+            ans: 2,
+            expl: "La presión abdominal empuja la sangre hacia arriba por el sistema avalvular."
+        },
+        {
+            cat: "Vascularización",
+            q: "La arteria vertebral, rama de la subclavia, ingresa habitualmente en el foramen transverso de la vértebra:",
+            opts: ["C7.", "C6.", "C4.", "C1."],
+            ans: 1,
+            expl: "C7 tiene agujero pero la arteria vertebral suele saltárselo e ingresar en C6."
+        },
+        {
+            cat: "Vascularización",
+            q: "La gran arteria radicular magna o de Adamkiewicz es fundamental para la irrigación de:",
+            opts: ["La región cervical alta.", "Los dos tercios inferiores de la médula espinal (región toracolumbar).", "Exclusivamente la cola de caballo.", "Los cuerpos vertebrales lumbares."],
+            ans: 1,
+            expl: "Su lesión puede provocar paraplejia."
+        },
+        {
+            cat: "Vascularización",
+            q: "En la región torácica, las arterias intercostales posteriores proceden directamente de:",
+            opts: ["La arteria subclavia.", "La arteria torácica interna.", "La aorta torácica (descendente).", "El tronco braquiocefálico."],
+            ans: 2,
+            expl: "Son ramas parietales directas de la aorta torácica."
+        },
+        {
+            cat: "Vascularización",
+            q: "La arteria espinal anterior se forma por la unión de ramas de:",
+            opts: ["Las carótidas.", "Las dos arterias vertebrales.", "La aorta.", "Las intercostales."],
+            ans: 1,
+            expl: "Las vertebrales se unen para formar la espinal anterior y luego el tronco basilar."
+        },
+        {
+            cat: "Vascularización",
+            q: "El sistema de la vena ácigos drena principalmente:",
+            opts: ["Cabeza.", "Paredes torácicas y dorso.", "Miembros inferiores.", "Intestino."],
+            ans: 1,
+            expl: "Recoge la sangre de las venas intercostales posteriores."
+        },
+        {
+            cat: "Vascularización",
+            q: "La vena ácigos desemboca formando un cayado en:",
+            opts: ["Vena cava inferior.", "Vena cava superior.", "Vena renal.", "Subclavia."],
+            ans: 1,
+            expl: "Desemboca en la VCS justo antes de que esta entre en la aurícula."
+        },
+        {
+            cat: "Vascularización",
+            q: "La irrigación arterial de la columna sigue un patrón:",
+            opts: ["Longitudinal único.", "Segmentario (piso por piso).", "Exclusivamente venoso.", "Aleatorio."],
+            ans: 1,
+            expl: "Cada segmento vertebral recibe su propio aporte (arterias segmentarias)."
+        },
+        {
+            cat: "Vascularización",
+            q: "Las arterias bronquiales (nutricias del pulmón) son ramas de:",
+            opts: ["Arteria pulmonar.", "Aorta torácica descendente.", "Subclavia.", "Carótida."],
+            ans: 1,
+            expl: "Aportan sangre oxigenada al tejido pulmonar (no funcional)."
+        },
+
+        // --- BLOQUE: OSTEOLOGÍA Y RADIOLOGÍA ---
+        {
+            cat: "Osteología y Radiología",
+            q: "En una radiografía oblicua de la columna lumbar, la imagen del 'Perrito de Lachapelle' permite evaluar la integridad de:",
+            opts: ["El cuerpo vertebral.", "La apófisis espinosa.", "El istmo o pars interarticularis.", "El disco intervertebral."],
+            ans: 2,
+            expl: "Si el perrito tiene 'collar', indica espondilolisis."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "¿Cuál se considera el punto de menor resistencia de la vértebra ante un traumatismo y puerta de entrada quirúrgica (pediculectomía)?",
+            opts: ["La lámina.", "El pedículo.", "La apófisis transversa.", "El cuerpo vertebral posterior."],
+            ans: 1,
+            expl: "El pedículo es la zona de unión crítica."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "En la proyección radiológica AP de columna cervical, la imagen descrita como 'cara de gato' está formada por:",
+            opts: ["El atlas y el axis.", "El cuerpo vertebral (cara), los pedículos (ojos) y las apófisis unciformes (orejas/bigotes).", "La apófisis espinosa bífida.", "La articulación atlanto-occipital."],
+            ans: 1,
+            expl: "Imagen típica de las cervicales debido a los procesos unciformes."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "¿Qué estructura anatómica del sacro se utiliza como referencia clave en obstetricia para medir el diámetro conjugado verdadero?",
+            opts: ["El hiato sacro.", "El promontorio (borde anterosuperior de S1).", "La cresta sacra media.", "Los agujeros sacros anteriores."],
+            ans: 1,
+            expl: "Es el punto más prominente que estrecha la entrada pélvica."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Las vértebras cervicales típicas (C3-C6) se caracterizan por presentar en la cara superior de su cuerpo:",
+            opts: ["Fositas costales.", "Apófisis o procesos unciformes (semilunares).", "Apófisis mamilares.", "Un cuerpo muy voluminoso arriñonado."],
+            ans: 1,
+            expl: "Los uncus son exclusivos de las cervicales."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La función principal del cuerpo vertebral es:",
+            opts: ["Protección medular.", "Soporte estático de peso.", "Movilidad.", "Inserción muscular."],
+            ans: 1,
+            expl: "Es el pilar anterior de soporte."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La laminectomía consiste en:",
+            opts: ["Extirpar el disco.", "Cortar la lámina para acceder al canal medular.", "Fijar la columna.", "Romper el pedículo."],
+            ans: 1,
+            expl: "Se usa para descomprimir la médula."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "El Atlas (C1) se caracteriza por:",
+            opts: ["No tener cuerpo ni apófisis espinosa.", "Tener diente.", "Tener cuerpo grande.", "No tener agujero vertebral."],
+            ans: 0,
+            expl: "Está formado por masas laterales y arcos."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "El Axis (C2) se caracteriza por:",
+            opts: ["No tener cuerpo.", "La apófisis odontoides (diente).", "Carillas costales.", "Ser la más pequeña."],
+            ans: 1,
+            expl: "El diente actúa como pivote para la rotación de la cabeza."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La vértebra C7 se llama prominente porque:",
+            opts: ["Su cuerpo es gigante.", "Su apófisis espinosa es larga, no bífida y palpable.", "No tiene agujero.", "Articula con el cráneo."],
+            ans: 1,
+            expl: "Es la vértebra de transición cervicotorácica visible en la nuca."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Característica distintiva de las vértebras torácicas:",
+            opts: ["Agujeros transversos.", "Carillas costales en cuerpo y transversas.", "Espinosas bífidas.", "Cuerpos arriñonados."],
+            ans: 1,
+            expl: "Se articulan con las costillas."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La orientación de las espinosas torácicas es:",
+            opts: ["Horizontal.", "Muy oblicua hacia abajo (imbricadas).", "Hacia arriba.", "Bífida."],
+            ans: 1,
+            expl: "Se solapan como tejas para proteger el canal."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Característica distintiva de las vértebras lumbares:",
+            opts: ["Cuerpo pequeño.", "Cuerpo voluminoso y apófisis costiformes.", "Agujeros transversos.", "Carillas costales."],
+            ans: 1,
+            expl: "Cuerpo grande para el peso y transversas que parecen costillas."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Los tubérculos mamilares se encuentran en:",
+            opts: ["Cervicales.", "Apófisis articulares superiores de las lumbares.", "Sacro.", "Atlas."],
+            ans: 1,
+            expl: "Son restos de inserciones musculares potentes en la región lumbar."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La cresta sacra media se forma por fusión de:",
+            opts: ["Apófisis transversas.", "Apófisis espinosas sacras.", "Láminas.", "Cuerpos."],
+            ans: 1,
+            expl: "Es la línea central rugosa del dorso del sacro."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "El hiato sacro es:",
+            opts: ["Un defecto patológico.", "La apertura inferior del conducto sacro.", "Un agujero de entrada.", "La unión con L5."],
+            ans: 1,
+            expl: "Es el final del canal vertebral por falta de láminas en S5."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Diferencia sexual del sacro:",
+            opts: ["Mujer: más largo y estrecho.", "Mujer: más corto, ancho y menos curvo (más plano).", "Hombre: más plano.", "No hay diferencia."],
+            ans: 1,
+            expl: "Adaptación para el canal del parto."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La 'sacralización de L5' implica:",
+            opts: ["L5 desaparece.", "L5 se fusiona al sacro.", "Sacro tiene 4 vértebras.", "Fractura de L5."],
+            ans: 1,
+            expl: "Es una anomalía congénita frecuente."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "Si el perro de Lachapelle tiene collar (cuello roto), es:",
+            opts: ["Fractura espinosa.", "Espondilolisis (rotura istmo).", "Tumor.", "Hernia."],
+            ans: 1,
+            expl: "Rotura de la pars interarticularis."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "La espondilolistesis es:",
+            opts: ["Infección.", "Deslizamiento de una vértebra sobre otra.", "Fusión.", "Dolor."],
+            ans: 1,
+            expl: "Suele ocurrir tras una espondilolisis bilateral."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "El signo tecla piano (clavícula):",
+            opts: ["Fractura esternón.", "Luxación acromioclavicular.", "Hombro.", "Húmero."],
+            ans: 1,
+            expl: "La clavícula se levanta al romperse los ligamentos coracoclaviculares."
+        },
+        {
+            cat: "Osteología y Radiología",
+            q: "El agujero magno paso de:",
+            opts: ["Médula/arterias vertebrales.", "Carótidas.", "Facial.", "Yugulares."],
+            ans: 0,
+            expl: "Paso del bulbo raquídeo (transición a médula) y arterias vertebrales."
+        },
+
+        // --- BLOQUE: EMBRIOLOGÍA Y DESARROLLO ---
+        {
+            cat: "Embriología",
+            q: "Según la ley de la re-segmentación, una vértebra definitiva se forma por:",
+            opts: ["Un único esclerotoma primitivo.", "La fusión de la mitad caudal de un esclerotoma con la mitad craneal del siguiente.", "La osificación directa del tubo neural.", "La fusión de dos somitas completos."],
+            ans: 1,
+            expl: "Esto permite la alternancia con los miotomas y la salida de nervios."
+        },
+        {
+            cat: "Embriología",
+            q: "Esta re-segmentación embriológica explica por qué los nervios espinales emergen:",
+            opts: ["Perforando el cuerpo vertebral.", "A través de la lámina.", "A través del agujero de conjunción (entre dos vértebras).", "Por delante del cuerpo vertebral."],
+            ans: 2,
+            expl: "El nervio sale por el espacio que era el centro del esclerotoma original."
+        },
+        {
+            cat: "Embriología",
+            q: "El vestigio de la notocorda en el adulto se encuentra en:",
+            opts: ["El ligamento longitudinal anterior.", "El núcleo pulposo del disco intervertebral.", "La médula espinal.", "La apófisis odontoides."],
+            ans: 1,
+            expl: "Es el centro gelatinoso del disco."
+        },
+        {
+            cat: "Embriología",
+            q: "La espina bífida es consecuencia de un fallo en el cierre de:",
+            opts: ["El cuerpo vertebral (esclerotoma ventral).", "El arco neural posterior (láminas).", "Los pedículos.", "El disco intervertebral."],
+            ans: 1,
+            expl: "Las láminas no se fusionan, dejando expuesto el contenido."
+        },
+        {
+            cat: "Embriología",
+            q: "Las curvaturas secundarias (lordosis) de la columna aparecen:",
+            opts: ["Durante la vida fetal.", "Como adaptación muscular a la gravedad (sostén cefálico y bipedestación).", "Únicamente en la pubertad.", "Por degeneración de los discos."],
+            ans: 1,
+            expl: "Son adquiridas tras el nacimiento (cervical y lumbar)."
+        },
+        {
+            cat: "Embriología",
+            q: "Filogenéticamente, la curvatura primaria de la columna que compartimos con los primates es:",
+            opts: ["Lordosis lumbar.", "Lordosis cervical.", "Cifosis (concavidad ventral).", "Escoliosis."],
+            ans: 2,
+            expl: "Es la curvatura 'fetal' o en C."
+        },
+        {
+            cat: "Embriología",
+            q: "Las vértebras se originan embriológicamente a partir de:",
+            opts: ["El ectodermo.", "Los esclerotomas (mesodermo).", "El endodermo.", "La cresta neural."],
+            ans: 1,
+            expl: "Del mesodermo paraxial (somitas -> esclerotomas)."
+        },
+        {
+            cat: "Embriología",
+            q: "¿Qué estructura embrionaria rodea el tubo neural para formar el arco vertebral?",
+            opts: ["Esclerotoma ventral.", "Esclerotoma dorsal.", "Miotoma.", "Dermatoma."],
+            ans: 1,
+            expl: "El esclerotoma migra dorsalmente para cerrar el arco."
+        },
+
+        // --- BLOQUE: ARTROLOGÍA Y LIGAMENTOS ---
+        {
+            cat: "Artrología",
+            q: "¿Qué ligamento es fundamental para mantener el diente del axis en contacto con el arco anterior del atlas y evitar la compresión medular?",
+            opts: ["Ligamento alar.", "Ligamento transverso del atlas.", "Ligamento apical.", "Ligamento nucal."],
+            ans: 1,
+            expl: "Es el principal estabilizador atlanto-axoideo."
+        },
+        {
+            cat: "Artrología",
+            q: "El ligamento longitudinal posterior (LLP) se diferencia del anterior en que:",
+            opts: ["Es más ancho y fuerte.", "Limita la extensión.", "Se sitúa dentro del canal vertebral y presenta forma festoneada (dientes de sierra).", "Se adhiere fuertemente a la cara anterior de los cuerpos."],
+            ans: 2,
+            expl: "Va por detrás de los cuerpos, dentro del canal."
+        },
+        {
+            cat: "Artrología",
+            q: "La orientación verticalizada de las carillas articulares en la región torácica limita principalmente:",
+            opts: ["La rotación.", "La flexo-extensión y la lateralidad (para proteger las costillas/vísceras).", "La respiración.", "Ningún movimiento."],
+            ans: 1,
+            expl: "Están en plano frontal, impidiendo arquearse hacia atrás o adelante excesivamente."
+        },
+        {
+            cat: "Artrología",
+            q: "¿Qué componente del disco intervertebral es responsable de distribuir la presión hidrostática en todas las direcciones?",
+            opts: ["El anillo fibroso.", "El núcleo pulposo.", "La placa terminal cartilaginosa.", "El ligamento amarillo."],
+            ans: 1,
+            expl: "Actúa como un cojinete hidráulico."
+        },
+        {
+            cat: "Artrología",
+            q: "El ligamento amarillo (flavum) une:",
+            opts: ["Las apófisis espinosas.", "Los cuerpos vertebrales.", "Las láminas de vértebras adyacentes.", "Las apófisis transversas."],
+            ans: 2,
+            expl: "Cierra el canal por detrás y tiene mucha elastina."
+        },
+        {
+            cat: "Artrología",
+            q: "La articulación entre cuerpos vertebrales es tipo:",
+            opts: ["Sinovial.", "Sínfisis (cartilaginosa secundaria).", "Trocoide.", "Condílea."],
+            ans: 1,
+            expl: "Unión mediante fibrocartílago (disco)."
+        },
+        {
+            cat: "Artrología",
+            q: "Durante el día, el disco intervertebral:",
+            opts: ["Se hidrata.", "Se deshidrata y pierde altura.", "Se osifica.", "Se desplaza."],
+            ans: 1,
+            expl: "Pierde agua por la carga axial."
+        },
+        {
+            cat: "Artrología",
+            q: "El anillo fibroso se compone de:",
+            opts: ["Capas concéntricas de colágeno con fibras oblicuas alternas.", "Grasa.", "Líquido.", "Hueso."],
+            ans: 0,
+            expl: "Esta disposición soporta la torsión."
+        },
+        {
+            cat: "Artrología",
+            q: "La nutrición del disco en el adulto es:",
+            opts: ["Arterial directa.", "Avascular en el centro (difusión).", "Nerviosa.", "Venosa."],
+            ans: 1,
+            expl: "Se nutre por imbibición desde las plataformas vertebrales."
+        },
+        {
+            cat: "Artrología",
+            q: "La hernia discal suele ser:",
+            opts: ["Rotura del núcleo.", "Rotura del anillo y salida del núcleo (posterolateral).", "Fractura de cuerpo.", "Rotura de ligamento."],
+            ans: 1,
+            expl: "El núcleo migra hacia atrás y afuera, comprimiendo la raíz."
+        },
+        {
+            cat: "Artrología",
+            q: "El Ligamento Longitudinal Anterior (LLA) frena:",
+            opts: ["La flexión.", "La extensión.", "La rotación.", "La lateralidad."],
+            ans: 1,
+            expl: "Es el único que frena la extensión (hiperextensión)."
+        },
+        {
+            cat: "Artrología",
+            q: "El color del ligamento amarillo se debe a:",
+            opts: ["Grasa.", "Elastina.", "Colágeno.", "Sangre."],
+            ans: 1,
+            expl: "La elastina le permite estirarse en flexión y recuperar posición."
+        },
+        {
+            cat: "Artrología",
+            q: "El ligamento nucal es continuación de:",
+            opts: ["LLA.", "Ligamento supraespinoso.", "Ligamento amarillo.", "LLP."],
+            ans: 1,
+            expl: "Se ensancha en el cuello para inserción muscular."
+        },
+        {
+            cat: "Artrología",
+            q: "Las articulaciones cigapofisarias son de tipo:",
+            opts: ["Sínfisis.", "Sinovial (artrodia/trocoide).", "Fibrosa.", "Gonfosis."],
+            ans: 1,
+            expl: "Son articulaciones móviles con cápsula y sinovial."
+        },
+        {
+            cat: "Artrología",
+            q: "La articulación atlanto-occipital permite:",
+            opts: ["Rotación (NO).", "Flexo-extensión (SÍ/Asentimiento).", "Lateralidad pura.", "Circunducción."],
+            ans: 1,
+            expl: "Movimiento de decir 'Sí'."
+        },
+        {
+            cat: "Artrología",
+            q: "La articulación atlanto-axoidea media es:",
+            opts: ["Condílea.", "Trocoide (pivote).", "Silla de montar.", "Plana."],
+            ans: 1,
+            expl: "Permite la rotación de la cabeza (decir 'No')."
+        },
+        {
+            cat: "Artrología",
+            q: "En Síndrome de Down, la laxitud del transverso causa:",
+            opts: ["Rigidez.", "Inestabilidad atlanto-axoidea (riesgo medular).", "Fusión.", "Escoliosis."],
+            ans: 1,
+            expl: "El diente puede comprimir la médula."
+        },
+        {
+            cat: "Artrología",
+            q: "Los ligamentos alares limitan:",
+            opts: ["La flexión.", "La rotación de la cabeza.", "La extensión.", "La lateralidad."],
+            ans: 1,
+            expl: "Frenan el exceso de giro del diente."
+        },
+        {
+            cat: "Artrología",
+            q: "La articulación sacroilíaca es:",
+            opts: ["Móvil.", "Sinovial anterior y sindesmosis posterior.", "Cartilaginosa pura.", "Inexistente."],
+            ans: 1,
+            expl: "Es una articulación compleja mixta."
+        },
+        {
+            cat: "Artrología",
+            q: "La nutación del sacro consiste en:",
+            opts: ["El sacro sube.", "El promontorio bascula hacia delante (aumenta diámetro inferior).", "El promontorio va hacia atrás.", "Rotación."],
+            ans: 1,
+            expl: "Movimiento del parto para abrir la salida."
+        },
+        {
+            cat: "Artrología",
+            q: "El ligamento iliolumbar une:",
+            opts: ["L5 con cresta ilíaca.", "Sacro con isquion.", "L1 con L2.", "Fémur con pelvis."],
+            ans: 0,
+            expl: "Estabiliza la charnela lumbosacra."
+        },
+        {
+            cat: "Artrología",
+            q: "El ligamento que se opone a la hernia discal directa posterior es:",
+            opts: ["El amarillo.", "El ligamento longitudinal posterior (aunque es estrecho).", "El nucal.", "El intertransverso."],
+            ans: 1,
+            expl: "Al ser estrecho, las hernias suelen salir por los lados (posterolaterales)."
+        },
+        {
+            cat: "Artrología",
+            q: "Las articulaciones de Luschka (uncovertebrales) están en:",
+            opts: ["Lumbares.", "Cervicales (C3-C7).", "Torácicas.", "Sacro."],
+            ans: 1,
+            expl: "En los bordes laterales de los cuerpos cervicales."
+        },
+        {
+            cat: "Artrología",
+            q: "Osteofitos en Luschka comprimen:",
+            opts: ["Médula.", "Nervio espinal o arteria vertebral.", "Esófago.", "Carótida."],
+            ans: 1,
+            expl: "Estrechamiento del agujero de conjunción."
+        },
+        {
+            cat: "Artrología",
+            q: "Membrana tectoria continúa:",
+            opts: ["Amarillo.", "LLP.", "Nucal.", "Cruzado."],
+            ans: 1,
+            expl: "Es la extensión superior del Ligamento Longitudinal Posterior."
+        },
+        {
+            cat: "Artrología",
+            q: "Ligamento apical del diente une:",
+            opts: ["Diente-atlas.", "Vértice diente - foramen magno.", "Diente-axis.", "Atlas-occipital."],
+            ans: 1,
+            expl: "Vestigio de la notocorda."
+        },
+        {
+            cat: "Artrología",
+            q: "Ligamento radiado refuerza:",
+            opts: ["Amarillo.", "Costovertebrales.", "Nucal.", "Inguinal."],
+            ans: 1,
+            expl: "En la cabeza de la costilla."
+        },
+
+        // --- BLOQUE: ESPACIOS Y NEUROANATOMÍA ---
+        {
+            cat: "Neuroanatomía",
+            q: "¿Qué elementos delimitan el agujero de conjunción (foramen intervertebral)?",
+            opts: ["Solo los cuerpos vertebrales.", "Pedículos (arriba/abajo), cuerpo/disco (anterior), articulares/lig. amarillo (posterior).", "Láminas y espinosas.", "Costillas y esternón."],
+            ans: 1,
+            expl: "Límites clave para entender la compresión radicular."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "¿A qué nivel vertebral termina habitualmente la médula espinal en el adulto?",
+            opts: ["L5-S1.", "L1-L2.", "T12.", "S2."],
+            ans: 1,
+            expl: "Cono medular."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El espacio epidural contiene:",
+            opts: ["Líquido cefalorraquídeo.", "Grasa y plexos venosos internos.", "La médula espinal directa.", "Solamente arterias."],
+            ans: 1,
+            expl: "Espacio virtual fuera de la duramadre."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "¿Qué estructura nerviosa inerva la cara externa del anillo fibroso y es responsable del dolor discogénico profundo?",
+            opts: ["La rama anterior del nervio espinal.", "El nervio sinuvertebral (de Luschka) o recurrente meníngeo.", "El nervio vago.", "La cadena simpática exclusivamente."],
+            ans: 1,
+            expl: "Nervio que reingresa al canal."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "En una punción lumbar para extraer LCR, ¿qué ligamento es el último en ser atravesado antes de llegar a la duramadre?",
+            opts: ["Supraespinoso.", "Interespinoso.", "Amarillo.", "Longitudinal posterior."],
+            ans: 2,
+            expl: "El ligamento amarillo es la última resistencia 'dura' antes del espacio epidural."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El nervio sinuvertebral (Luschka) inerva:",
+            opts: ["Piel.", "Estructuras del canal (LLP, dura, disco externo).", "Músculos rectos.", "Cara anterior cuerpo."],
+            ans: 1,
+            expl: "Es el responsable del dolor de espalda profundo."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "Por el agujero de conjunción pasan:",
+            opts: ["Solo nervio.", "Nervio espinal, arteria, venas, meninges.", "Solo arteria.", "Médula."],
+            ans: 1,
+            expl: "Es un paquete vasculonervioso complejo."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El drenaje venoso del cuerpo vertebral sale por:",
+            opts: ["Delante.", "Orificio posterior (vena basivertebral) al plexo interno.", "No drena.", "Disco."],
+            ans: 1,
+            expl: "Drena hacia el plexo de Batson."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "La inervación de las facetas articulares depende de:",
+            opts: ["Ramo anterior.", "Ramo posterior (dorsal) del nervio espinal.", "Simpático.", "Vago."],
+            ans: 1,
+            expl: "Por eso se hacen rizólisis del ramo dorsal para el dolor facetario."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El nervio espinal C8 sale entre:",
+            opts: ["C6-C7.", "C7 y T1.", "T1-T2.", "No existe."],
+            ans: 1,
+            expl: "Hay 8 nervios cervicales pero 7 vértebras."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "Por debajo de L2, el canal contiene:",
+            opts: ["Médula.", "Cola de caballo (Cauda equina).", "Grasa solo.", "Nada."],
+            ans: 1,
+            expl: "Raíces nerviosas flotando en LCR."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "La punción lumbar se realiza en:",
+            opts: ["T12-L1.", "L3-L4 o L4-L5.", "Sacro.", "Tórax."],
+            ans: 1,
+            expl: "Para evitar pinchar la médula que acaba en L1-L2."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "La meninge pegada a la médula es:",
+            opts: ["Dura.", "Aracnoides.", "Piamadre.", "Ligamento dentado."],
+            ans: 2,
+            expl: "Es la capa más íntima."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El espacio subaracnoideo contiene:",
+            opts: ["Grasa.", "Líquido Cefalorraquídeo (LCR).", "Sangre.", "Aire."],
+            ans: 1,
+            expl: "Entre aracnoides y piamadre."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El filum terminale es:",
+            opts: ["Un nervio.", "Prolongación de piamadre/duramadre que ancla la médula al cóccix.", "Una arteria.", "Un músculo."],
+            ans: 1,
+            expl: "Elemento de fijación longitudinal."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El saco dural termina a nivel de:",
+            opts: ["L2.", "S2.", "Cóccix.", "L5."],
+            ans: 1,
+            expl: "Más abajo de donde termina la médula."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "En una hernia L4-L5 posterolateral se afecta la raíz:",
+            opts: ["L4.", "L5 (transeúnte).", "S1.", "L3."],
+            ans: 1,
+            expl: "Afecta a la raíz que va a salir por el agujero inferior (L5)."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El nervio espinal es:",
+            opts: ["Motor.", "Sensitivo.", "Mixto.", "Vegetativo puro."],
+            ans: 2,
+            expl: "Lleva fibras motoras y sensitivas."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "Los ramos comunicantes conectan el nervio espinal con:",
+            opts: ["Músculos.", "Cadena simpática paravertebral.", "Piel.", "Hueso."],
+            ans: 1,
+            expl: "Conexión con el sistema vegetativo simpático."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El ganglio de la raíz dorsal contiene:",
+            opts: ["Somas motores.", "Somas sensitivos.", "Sinapsis.", "LCR."],
+            ans: 1,
+            expl: "Cuerpos de las neuronas sensitivas."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El sistema nervioso central (médula) carece de:",
+            opts: ["Arterias.", "Venas internas.", "Neuronas.", "Glía."],
+            ans: 1,
+            expl: "El drenaje venoso es periférico hacia el plexo, no hay venas grandes dentro."
+        },
+        {
+            cat: "Neuroanatomía",
+            q: "El líquido cefalorraquídeo se reabsorbe en:",
+            opts: ["Riñón.", "Vellosidades aracnoideas (senos venosos).", "Hígado.", "Plexo de Batson."],
+            ans: 1,
+            expl: "Pasa a la sangre venosa en el cráneo."
+        },
+
+        // --- BLOQUE: TÓRAX Y RESPIRACIÓN ---
+        {
+            cat: "Tórax y Respiración",
+            q: "El orificio torácico superior lo limitan:",
+            opts: ["Clavículas.", "T1, 1ª costilla, manubrio.", "Diafragma.", "C7."],
+            ans: 1,
+            expl: "Entrada anatómica al tórax."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "La costilla típica articula con:",
+            opts: ["Su vértebra.", "Su vértebra y la superior (dos hemicarillas).", "Esternón directo.", "Espinosas."],
+            ans: 1,
+            expl: "Cabeza costal encaja entre dos cuerpos."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Costillas atípicas (1, 11, 12) articulan con:",
+            opts: ["No tienen cabeza.", "Una sola vértebra (carilla completa).", "Cartílago.", "Fusionadas."],
+            ans: 1,
+            expl: "No comparten articulación con la vértebra superior."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Movimiento costillas superiores:",
+            opts: ["Asa de cubo.", "Brazo de bomba (anteroposterior).", "Rotación.", "No mueven."],
+            ans: 1,
+            expl: "Elevan el esternón hacia delante."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Movimiento costillas inferiores:",
+            opts: ["Brazo de bomba.", "Asa de cubo (transversal).", "Flexión.", "Deslizamiento."],
+            ans: 1,
+            expl: "Aumentan el diámetro lateral."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "La 2ª costilla articula en:",
+            opts: ["Manubrio.", "Ángulo de Louis (unión manubrio-cuerpo).", "Cuerpo.", "Xifoides."],
+            ans: 1,
+            expl: "Referencia para contar costillas."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Costillas flotantes:",
+            opts: ["8-10.", "11-12.", "1-2.", "Todas falsas."],
+            ans: 1,
+            expl: "No llegan al esternón ni al arco costal."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Músculo principal inspiración:",
+            opts: ["Intercostal interno.", "Diafragma.", "Escalenos.", "Pectoral."],
+            ans: 1,
+            expl: "Motor principal de la respiración."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Hiato aórtico diafragma:",
+            opts: ["T8.", "T10.", "T12.", "L2."],
+            ans: 2,
+            expl: "Es el orificio más posterior e inferior."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Hiato esofágico diafragma:",
+            opts: ["Esófago y vagos.", "Aorta.", "Cava.", "Conducto torácico."],
+            ans: 0,
+            expl: "Nivel T10."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Cava inferior atraviesa diafragma por:",
+            opts: ["Hiato aórtico.", "Centro frénico (T8).", "Pilares.", "No atraviesa."],
+            ans: 1,
+            expl: "Orificio en el tendón central."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Inervación motora diafragma:",
+            opts: ["Intercostales.", "Frénico (C3-C5).", "Vago.", "Solar."],
+            ans: 1,
+            expl: "Nervio cervical que baja al tórax."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Dolor referido diafragma:",
+            opts: ["Ombligo.", "Hombro.", "Espalda baja.", "Pierna."],
+            ans: 1,
+            expl: "Por compartir raíces C3-C4 con la piel del hombro."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Paquete vasculonervioso intercostal va:",
+            opts: ["Borde superior costilla.", "Surco costal (borde inferior).", "Superficial.", "Centro."],
+            ans: 1,
+            expl: "Protegido por el borde inferior de la costilla."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Toracocentesis se hace:",
+            opts: ["Borde inferior costilla.", "Borde superior de la costilla inferior.", "Esternón.", "Columna."],
+            ans: 1,
+            expl: "Para evitar dañar el paquete VAN."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Tráquea bifurca en:",
+            opts: ["C6.", "T4-T5.", "T10.", "L1."],
+            ans: 1,
+            expl: "Ángulo de Louis / Carina."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Bronquio derecho es:",
+            opts: ["Largo.", "Corto, ancho, vertical.", "Igual.", "No existe."],
+            ans: 1,
+            expl: "Favorece aspiración cuerpos extraños."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Pulmón derecho tiene:",
+            opts: ["2 lóbulos.", "3 lóbulos.", "1 lóbulo.", "4."],
+            ans: 1,
+            expl: "Superior, medio e inferior."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Pleura visceral:",
+            opts: ["Pared.", "Pegada al pulmón.", "Fascia.", "Pericardio."],
+            ans: 1,
+            expl: "Inseparable del parénquima."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Receso costodiafragmático:",
+            opts: ["Aire.", "Líquido (derrame).", "Hígado.", "Nada."],
+            ans: 1,
+            expl: "Zona declive donde se acumula líquido pleural."
+        },
+        {
+            cat: "Tórax y Respiración",
+            q: "Vascularización funcional pulmón:",
+            opts: ["Bronquiales.", "Pulmonares.", "Aorta.", "Cavas."],
+            ans: 1,
+            expl: "Hematosis (intercambio gases)."
+        },
+        
+        // --- BLOQUE: CORAZÓN Y ESPLACNOLOGÍA ---
+        {
+            cat: "Corazón y Esplacnología",
+            q: "El nervio laríngeo recurrente izquierdo rodea:",
+            opts: ["La arteria subclavia derecha.", "El cayado de la aorta.", "El tronco braquiocefálico.", "El bronquio principal izquierdo."],
+            ans: 1,
+            expl: "Baja al tórax y sube a la laringe."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "¿Qué músculo de la laringe es el único capaz de abducir (abrir) las cuerdas vocales?",
+            opts: ["Cricotiroideo.", "Tiroaritenoideo.", "Cricoaritenoideo posterior.", "Aritenoideo transverso."],
+            ans: 2,
+            expl: "Vital para respirar."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "El conducto torácico atraviesa el diafragma a través del:",
+            opts: ["Hiato esofágico (T10).", "Orificio de la vena cava (T8).", "Hiato aórtico (T12).", "Triángulo esternocostal."],
+            ans: 2,
+            expl: "Acompaña a la aorta y la vena ácigos."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "En la auscultación cardíaca, el foco mitral se localiza típicamente en:",
+            opts: ["2º espacio intercostal derecho.", "2º espacio intercostal izquierdo.", "5º espacio intercostal izquierdo, línea medioclavicular (ápex).", "Apéndice xifoides."],
+            ans: 2,
+            expl: "Coincide con la punta del corazón."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "El triángulo de Koch en la aurícula derecha contiene:",
+            opts: ["El nodo sinusal.", "El nodo auriculoventricular (de Aschoff-Tawara).", "La desembocadura de la vena cava superior.","Los músculos pectíneos."],
+            ans: 1,
+            expl: "Referencia para el sistema de conducción."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Corazón situado en:",
+            opts: ["Mediastino superior.", "Mediastino medio.", "Posterior.", "Pleura."],
+            ans: 1,
+            expl: "Dentro del saco pericárdico."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Ápex cardíaco:",
+            opts: ["Derecha.", "Izquierda, 5º espacio intercostal.", "Arriba.", "Esternón."],
+            ans: 1,
+            expl: "Punta del VI."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Cara anterior corazón:",
+            opts: ["AI.", "Ventrículo derecho.", "VI.", "Aorta."],
+            ans: 1,
+            expl: "Mayor parte de la cara esternocostal."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Válvula tricúspide:",
+            opts: ["AI-VI.", "AD-VD.", "VD-Pulmonar.", "VI-Aorta."],
+            ans: 1,
+            expl: "Auriculoventricular derecha."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Arteria coronaria derecha irriga:",
+            opts: ["VI.", "VD, cara inferior, nodo sinusal.", "AI.", "Tabique anterior."],
+            ans: 1,
+            expl: "Domina el sistema de conducción y cara inferior."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Descendente anterior es rama de:",
+            opts: ["Coronaria derecha.", "Coronaria izquierda.", "Aorta.", "Circunfleja."],
+            ans: 1,
+            expl: "Rama principal interventricular."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Seno coronario drena en:",
+            opts: ["Cava.", "Aurícula derecha.", "AI.", "VD."],
+            ans: 1,
+            expl: "Retorno venoso del propio corazón."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Conducto torácico desemboca en:",
+            opts: ["Cava superior.", "Ángulo yugulosubclavio izquierdo.", "Aurícula.", "Ácigos."],
+            ans: 1,
+            expl: "Drena la linfa sistémica."
+        },
+        {
+            cat: "Corazón y Esplacnología",
+            q: "Cisterna de Pecquet está en:",
+            opts: ["Cuello.", "Abdomen (L1-L2).", "Tórax.", "Pelvis."],
+            ans: 1,
+            expl: "Inicio dilatado del conducto torácico."
+        },
+
+        // --- BLOQUE: ABDOMEN Y PELVIS (Selección Esplacnología) ---
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La triada portal contiene:",
+            opts: ["Cava, aorta, conducto.", "Vena porta, arteria hepática propia y conducto colédoco.", "Suprahepática, gástrica, cístico.", "Vago, ácigos."],
+            ans: 1,
+            expl: "Elementos del hilio hepático."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "El punto de McBurney se localiza en:",
+            opts: ["Hipocondrio derecho.", "Unión tercio externo con dos tercios internos línea espina-ombligo (fosa iliaca derecha).", "Izquierda.", "Mesogastrio."],
+            ans: 1,
+            expl: "Signo de apendicitis."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La fascia que rodea la grasa perirrenal se llama:",
+            opts: ["Camper.", "Fascia renal (de Gerota).", "Transversalis.", "Toldt."],
+            ans: 1,
+            expl: "Envuelve al riñón y suprarrenal."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La arteria mesentérica superior irriga:",
+            opts: ["Estómago.", "Intestino delgado y grueso hasta tercio distal del transverso.", "Descendente y recto.", "Riñones."],
+            ans: 1,
+            expl: "Intestino medio."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La vena gonadal izquierda drena habitualmente en:",
+            opts: ["Cava inferior.", "Vena renal izquierda.", "Suprahepática.", "Ilíaca."],
+            ans: 1,
+            expl: "A diferencia de la derecha que va a la Cava."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "El límite entre drenaje portal (hemorroides internas) y cava (externas) es:",
+            opts: ["Línea blanca.", "Línea pectínea.", "Margen anal.", "Válvulas Houston."],
+            ans: 1,
+            expl: "Importante en hipertensión portal."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La próstata se sitúa:",
+            opts: ["Encima vejiga.", "Inferior a vejiga, rodeando uretra.", "Detrás recto.", "Periné."],
+            ans: 1,
+            expl: "Bajo la vejiga, atravesada por la uretra."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "En el tacto rectal en el hombre se palpa anteriormente:",
+            opts: ["Sacro.", "Próstata y vesículas seminales.", "Uréter.", "Vejiga."],
+            ans: 1,
+            expl: "Exploración prostática."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La uretra que atraviesa el diafragma urogenital es:",
+            opts: ["Prostática.", "Membranosa.", "Esponjosa.", "Preprostática."],
+            ans: 1,
+            expl: "Porción más fija y corta."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "El principal flexor de cadera que se origina en la columna lumbar es:",
+            opts: ["Cuadrado lumbar.", "Psoas mayor.", "Dorsal ancho.", "Erector."],
+            ans: 1,
+            expl: "Se une al ilíaco."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "La arteria uterina es rama de:",
+            opts: ["Aorta.", "Ilíaca interna (hipogástrica).", "Ilíaca externa.", "Ovárica."],
+            ans: 1,
+            expl: "Principal irrigación del útero."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "El fondo de saco de Douglas es importante porque:",
+            opts: ["Es el punto más alto.", "Es el punto más declive del peritoneo (líquido libre).", "No tiene peritoneo.", "Contiene ovarios."],
+            ans: 1,
+            expl: "Rectouterino."
+        },
+        {
+            cat: "Abdomen y Pelvis",
+            q: "El conducto inguinal contiene en el hombre:",
+            opts: ["Ligamento redondo.", "Cordón espermático.", "Uréter.", "Vena femoral."],
+            ans: 1,
+            expl: "Paso del testículo al escroto."
+        },
+
+        // --- BLOQUE: GENERALIDADES Y CLÍNICA ---
+        {
+            cat: "Generalidades",
+            q: "Según la normativa de la cátedra, ¿cuál es el porcentaje de aciertos necesario para aprobar el examen teórico?",
+            opts: ["50%", "60%", "65%", "70%"],
+            ans: 2,
+            expl: "Dato administrativo clave."
+        },
+        {
+            cat: "Generalidades",
+            q: "El profesor Prada se refiere a la ecografía en la práctica clínica actual como:",
+            opts: ["Una técnica obsoleta.", "El quinto pilar del diagnóstico físico.", "Una técnica exclusiva de radiólogos.", "Útil solo para hueso."],
+            ans: 1,
+            expl: "Junto a inspección, palpación, percusión y auscultación."
+        },
+        {
+            cat: "Generalidades",
+            q: "La escoliosis fisiológica suele ser:",
+            opts: ["Izquierda.", "Derecha (aorta/diestros).", "Lumbar.", "No existe."],
+            ans: 1,
+            expl: "Leve desviación dorsal derecha."
+        },
+        {
+            cat: "Generalidades",
+            q: "El plano transverso de Louis (T4-T5) marca:",
+            opts: ["Xifoides.", "Ángulo esternal, bifurcación tráquea, inicio cayado aorta.", "Ombligo.", "Clavícula."],
+            ans: 1,
+            expl: "Plano anatómico fundamental."
+        },
+        {
+            cat: "Generalidades",
+            q: "Para contar vértebras se usa:",
+            opts: ["C1.", "C7 (Prominente).", "L5.", "Cóccix."],
+            ans: 1,
+            expl: "Referencia palpable."
+        },
+        {
+            cat: "Generalidades",
+            q: "La línea supracrestal (crestas ilíacas) pasa por:",
+            opts: ["L1.", "L4-L5.", "S1.", "T12."],
+            ans: 1,
+            expl: "Referencia para la punción lumbar."
+        },
+        {
+            cat: "Generalidades",
+            q: "La rectificación cervical causa:",
+            opts: ["Mejoría.", "Compresión vascular (mareos).", "Cifosis.", "Lordosis."],
+            ans: 1,
+            expl: "Pérdida de la curva fisiológica."
+        },
+        {
+            cat: "Generalidades",
+            q: "Músculos autóctonos del dorso inervados por:",
+            opts: ["Ramos anteriores.", "Ramos posteriores.", "Plexo braquial.", "Frénico."],
+            ans: 1,
+            expl: "Músculos epiaxiales verdaderos."
+        }
+    ];
+
+    // --- LÓGICA DEL APP ---
+    
+    let currentQuiz = [];
+    let currentIndex = 0;
+    let userAnswers = []; // { id: index_in_db, correct: bool, marked: bool }
+
+    // Init Categories
+    function renderCategories() {
+        const cats = [...new Set(questionsDB.map(q => q.cat))];
+        const container = document.getElementById('category-container');
+        container.innerHTML = '';
+
+        cats.forEach(cat => {
+            const label = document.createElement('label');
+            label.className = 'cat-checkbox';
+            label.innerHTML = `<input type="checkbox" value="${cat}" checked> ${cat}`;
+            container.appendChild(label);
+        });
+    }
+
+    function toggleAllCategories(checked) {
+        document.querySelectorAll('#category-container input').forEach(cb => cb.checked = checked);
+    }
+
+    function startQuiz() {
+        // Filter questions
+        const selectedCats = Array.from(document.querySelectorAll('#category-container input:checked')).map(cb => cb.value);
+        
+        if (selectedCats.length === 0) {
+            alert("Selecciona al menos una categoría.");
+            return;
+        }
+
+        const mode = document.querySelector('input[name="orderMode"]:checked').value;
+        
+        // Build quiz list (indices from DB)
+        currentQuiz = questionsDB
+            .map((q, index) => ({...q, originalIndex: index})) // keep track of original index
+            .filter(q => selectedCats.includes(q.cat));
+
+        if (mode === 'random') {
+            currentQuiz = shuffleArray(currentQuiz);
+        }
+
+        // Initialize user state
+        userAnswers = currentQuiz.map(q => ({
+            dbIndex: q.originalIndex,
+            status: null, // null, 'correct', 'wrong'
+            marked: false
+        }));
+
+        if (currentQuiz.length === 0) {
+            alert("No hay preguntas en esas categorías.");
+            return;
+        }
+
+        // UI Switch
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+        currentIndex = 0;
+        renderSidebar();
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const qData = currentQuiz[currentIndex];
+        const uData = userAnswers[currentIndex];
+
+        // Header Info
+        document.getElementById('progress-info').innerText = `Pregunta ${currentIndex + 1} de ${currentQuiz.length}`;
+        document.getElementById('q-category').innerText = qData.cat;
+        document.getElementById('q-text').innerText = qData.q;
+        
+        // Mark Button
+        const markBtn = document.getElementById('btn-mark');
+        markBtn.className = uData.marked ? "btn btn-mark marked" : "btn btn-mark";
+        markBtn.innerText = uData.marked ? "★ Marcada" : "☆ Marcar";
+
+        // Options
+        const list = document.getElementById('q-options');
+        list.innerHTML = '';
+        
+        // Shuffle options for display but map back to correct answer logic
+        // We need to know which text is the correct one, since indices change if we shuffle options
+        // BUT, simple approach: Don't shuffle options text inside the question object to keep logic simple, 
+        // OR map them. Let's keep options order fixed as provided in data to avoid "Option A is now Option C" confusion if referenced in class.
+        // The Prompt asked to "ordenar respuestas diferente", so let's shuffle options.
+        
+        let displayOptions = qData.opts.map((text, i) => ({ text, isCorrect: i === qData.ans }));
+        // Deterministic shuffle based on question index to keep it consistent during navigation? No, random is fine.
+        // Actually, let's shuffle only if not answered yet. But if we navigate back, we want same order.
+        // For simplicity in this vanilla JS, let's keep options static order or shuffle once. 
+        // Let's shuffle every time we load IF it's not answered. If answered, keep structure? 
+        // To save state complexly, I will just shuffle once at start... but I didn't save shuffled options.
+        // OK, I will just render them in order for now to ensure stability, or shuffle and map.
+        // Let's Shuffle and simple map.
+        
+        // We need a seed-able shuffle or save the order. Let's just save the order in the userAnswers object if not exists.
+        if (!uData.order) {
+            uData.order = displayOptions.map((_, i) => i);
+            shuffleArray(uData.order);
+        }
+
+        uData.order.forEach(originalIndex => {
+            const opt = displayOptions[originalIndex];
+            const li = document.createElement('li');
+            li.className = 'option-item';
+            li.innerText = opt.text;
+
+            if (uData.status !== null) {
+                li.classList.add('disabled');
+                if (opt.isCorrect) li.classList.add('correct');
+                if (!opt.isCorrect && uData.selectedOptIndex === originalIndex) li.classList.add('wrong');
+            } else {
+                li.onclick = () => handleAnswer(originalIndex, opt.isCorrect);
+            }
+            list.appendChild(li);
+        });
+
+        // Explanation
+        const explDiv = document.getElementById('q-explanation');
+        document.getElementById('expl-text').innerText = qData.expl;
+        explDiv.style.display = uData.status !== null ? 'block' : 'none';
+
+        // Update Sidebar
+        updateSidebar();
+    }
+
+    function handleAnswer(originalIndex, isCorrect) {
+        const uData = userAnswers[currentIndex];
+        uData.status = isCorrect ? 'correct' : 'wrong';
+        uData.selectedOptIndex = originalIndex;
+        
+        loadQuestion(); // Re-render to show colors and explanation
+        updateSidebar();
+    }
+
+    function toggleMark() {
+        userAnswers[currentIndex].marked = !userAnswers[currentIndex].marked;
+        loadQuestion();
+    }
+
+    function nextQuestion() {
+        if (currentIndex < currentQuiz.length - 1) {
+            currentIndex++;
+            loadQuestion();
+        }
+    }
+
+    function prevQuestion() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            loadQuestion();
+        }
+    }
+
+    function renderSidebar() {
+        const nav = document.getElementById('question-nav');
+        nav.innerHTML = '';
+        userAnswers.forEach((u, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            if (i === currentIndex) btn.classList.add('active');
+            if (u.status === 'correct') btn.classList.add('correct');
+            if (u.status === 'wrong') btn.classList.add('incorrect');
+            if (u.marked) btn.classList.add('marked');
+            btn.innerText = i + 1;
+            btn.onclick = () => { currentIndex = i; loadQuestion(); };
+            nav.appendChild(btn);
+        });
+    }
+
+    function updateSidebar() {
+        // Could optimize by just updating current class, but full render is fast enough
+        renderSidebar();
+    }
+
+    function finishQuiz() {
+        const correct = userAnswers.filter(u => u.status === 'correct').length;
+        const wrong = userAnswers.filter(u => u.status === 'wrong').length;
+        const marked = userAnswers.filter(u => u.marked).length;
+
+        document.getElementById('final-correct').innerText = correct;
+        document.getElementById('final-wrong').innerText = wrong;
+        document.getElementById('final-marked').innerText = marked;
+
+        document.getElementById('end-screen').classList.remove('hidden');
+    }
+
+    function restartQuiz(mode) {
+        let subset = [];
+        
+        if (mode === 'all') {
+            subset = currentQuiz; // Keep same questions
+            // Reset status
+            userAnswers.forEach(u => { u.status = null; u.selectedOptIndex = null; }); // Keep marks? usually yes.
+        } else {
+            // Filter indices based on current userAnswers
+            let indicesToKeep = [];
+            userAnswers.forEach((u, i) => {
+                if (mode === 'failed' && u.status === 'wrong') indicesToKeep.push(i);
+                else if (mode === 'marked' && u.marked) indicesToKeep.push(i);
+                else if (mode === 'failed_marked' && (u.status === 'wrong' || u.marked)) indicesToKeep.push(i);
+            });
+
+            if (indicesToKeep.length === 0) {
+                alert("No hay preguntas con ese criterio.");
+                return;
+            }
+
+            // Create new subset
+            const newQuiz = indicesToKeep.map(i => currentQuiz[i]);
+            const newAnswers = indicesToKeep.map(i => ({
+                dbIndex: userAnswers[i].dbIndex,
+                status: null,
+                marked: userAnswers[i].marked, // Keep mark status
+                order: null // Re-shuffle options
+            }));
+            
+            currentQuiz = newQuiz;
+            userAnswers = newAnswers;
+        }
+
+        document.getElementById('end-screen').classList.add('hidden');
+        currentIndex = 0;
+        loadQuestion();
+    }
+
+    // Utils
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // Start
+    renderCategories();
+
+</script>
+</body>
+</html>

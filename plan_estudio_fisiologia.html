@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan de Estudio · Megaexamen Fisiología</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg: #0f1424;
+  --bg2: #161b32;
+  --panel: #1c2240;
+  --panel2: #252b4a;
+  --border: #2d3458;
+  --text: #e9ebff;
+  --text2: #9aa0c8;
+  --text3: #6b7095;
+  --accent: #8b5cf6;
+  --accent2: #a78bfa;
+  --accent3: #c4b5fd;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --done: #10b981;
+  --radius: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,.25);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+button { font: inherit; cursor: pointer; }
+a { color: var(--accent2); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Layout */
+.app { display: grid; grid-template-columns: 320px 1fr; grid-template-rows: 1fr 90px; height: 100vh; }
+aside.sidebar {
+  grid-row: 1 / 3;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 12px;
+}
+main.main {
+  grid-column: 2;
+  overflow-y: auto;
+  padding: 24px 32px 24px 32px;
+  background: linear-gradient(180deg, var(--bg) 0%, #0c1024 100%);
+}
+.timerbar {
+  grid-column: 2;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  box-shadow: var(--shadow);
+}
+
+/* Sidebar */
+.sb-header {
+  padding: 8px 8px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sb-title {
+  font-size: 14px; font-weight: 700; color: var(--accent2); letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.sb-subtitle { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.sb-progress { margin-top: 12px; }
+.sb-progress-label {
+  display: flex; justify-content: space-between; font-size: 11px;
+  color: var(--text3); margin-bottom: 4px;
+}
+.progress-bar {
+  height: 6px; background: var(--border); border-radius: 4px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width .3s;
+}
+
+.sb-section { margin-bottom: 16px; }
+.sb-section-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text3); padding: 8px 8px 4px; font-weight: 700;
+}
+.sb-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 6px;
+  font-size: 13px; color: var(--text2);
+  transition: all .15s; cursor: pointer;
+  border: 1px solid transparent;
+}
+.sb-link:hover { background: var(--panel); color: var(--text); }
+.sb-link.active {
+  background: var(--panel); color: var(--accent2);
+  border-color: var(--accent);
+}
+.sb-link .ico { width: 18px; text-align: center; flex: 0 0 auto; }
+.sb-fase { margin-bottom: 6px; }
+.sb-fase-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  cursor: pointer; user-select: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.sb-fase-head:hover { border-color: var(--accent); }
+.sb-fase-head .progressMini {
+  margin-left: auto; font-size: 10px; color: var(--text3); font-weight: 500;
+}
+.sb-fase-days {
+  padding: 6px 0 4px 8px;
+}
+.sb-fase.collapsed .sb-fase-days { display: none; }
+.sb-day {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 5px;
+  font-size: 12px; color: var(--text2);
+  cursor: pointer; transition: all .15s;
+}
+.sb-day:hover { background: var(--panel2); color: var(--text); }
+.sb-day.active { background: var(--panel2); color: var(--accent2); font-weight: 600; }
+.sb-day.done { color: var(--done); }
+.sb-day.done::before { content: '✓ '; font-weight: 700; }
+.sb-day .pct {
+  margin-left: auto; font-size: 10px; color: var(--text3); font-weight: 500;
+}
+
+/* Main content */
+.crumb { font-size: 11px; color: var(--text3); margin-bottom: 8px; letter-spacing: .03em; text-transform: uppercase; }
+h1.maintitle {
+  font-size: 24px; color: var(--accent2); margin-bottom: 8px; letter-spacing: -.01em;
+}
+.lead { color: var(--text2); margin-bottom: 24px; font-size: 15px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+}
+.card-label { font-size: 10px; text-transform: uppercase; color: var(--text3); letter-spacing: .08em; }
+.card-num { font-size: 28px; font-weight: 700; color: var(--accent2); margin: 6px 0; }
+.card-foot { font-size: 11px; color: var(--text3); }
+
+.section { margin-top: 32px; }
+.section-title {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--accent2); font-weight: 700; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.fase-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+  transition: all .15s; cursor: pointer;
+}
+.fase-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.fase-card-head { display: flex; align-items: center; gap: 12px; }
+.fase-card-icon {
+  width: 40px; height: 40px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; background: var(--panel2);
+}
+.fase-card-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.fase-card-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.fase-card-bar { margin-top: 12px; }
+
+/* Day view */
+.day-head { margin-bottom: 18px; }
+.day-title { font-size: 22px; color: var(--accent2); }
+.day-tema { font-size: 16px; color: var(--text); margin-top: 4px; }
+.day-meta { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+.session {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+  position: relative;
+  transition: all .15s;
+}
+.session.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
+.session.done { background: linear-gradient(180deg, var(--panel) 0%, rgba(16,185,129,.08) 100%); }
+.session-head { display: flex; align-items: center; gap: 12px; }
+.session-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--panel2); color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+  flex: 0 0 auto;
+}
+.session.done .session-num { background: var(--done); color: white; }
+.session.active .session-num { background: var(--accent); color: white; }
+.session-info { flex: 1; }
+.session-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.session-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.session-actions { display: flex; gap: 6px; }
+.btn {
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 12px; font-size: 12px; font-weight: 500;
+  transition: all .15s;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent2); }
+.btn.success { background: var(--success); color: #042c1c; border-color: var(--success); }
+.btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn:disabled { opacity: .4; cursor: default; }
+
+.session-body {
+  margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
+  display: none;
+}
+.session.open .session-body { display: block; }
+
+.instrucciones {
+  background: rgba(139,92,246,.08); border-left: 3px solid var(--accent);
+  padding: 12px 14px; border-radius: 4px; font-size: 13px; line-height: 1.6;
+  color: var(--text); margin-bottom: 12px;
+}
+
+/* Esquemas-resumen */
+.esquema {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px 22px; margin-top: 16px;
+  font-size: 13.5px; line-height: 1.65; color: var(--text);
+}
+.esquema h3 { color: var(--accent2); margin: 16px 0 8px; font-size: 15px; }
+.esquema h3:first-child { margin-top: 0; }
+.esquema h4 { color: var(--accent3); margin: 12px 0 6px; font-size: 13.5px; }
+.esquema p { margin: 6px 0; }
+.esquema ul, .esquema ol { padding-left: 22px; margin: 6px 0; }
+.esquema li { margin: 3px 0; }
+.esquema strong { color: var(--accent3); }
+.esquema em { color: var(--warning); font-style: normal; font-weight: 500; }
+.esquema code {
+  font-family: "SF Mono", Menlo, monospace; background: var(--bg2);
+  padding: 1px 5px; border-radius: 3px; font-size: 12px;
+}
+.esquema table {
+  width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12.5px;
+}
+.esquema th, .esquema td {
+  border: 1px solid var(--border); padding: 6px 9px; text-align: left;
+}
+.esquema th { background: var(--panel); color: var(--accent2); }
+.esquema tr:nth-child(even) td { background: rgba(139,92,246,.04); }
+
+/* Mnemónicos */
+.mnemo-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;
+}
+.mnemo {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+}
+.mnemo-num {
+  display: inline-block; background: var(--accent); color: white;
+  font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  margin-bottom: 8px;
+}
+.mnemo-text { font-size: 13px; color: var(--text); }
+.mnemo-text strong { color: var(--warning); }
+
+/* Timer bar */
+.timer-info { flex: 1; }
+.timer-session-name { font-size: 12px; color: var(--text3); }
+.timer-session-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.timer-display {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 32px; font-weight: 700; color: var(--accent2);
+  letter-spacing: -.02em;
+  min-width: 110px; text-align: center;
+}
+.timer-display.ending { color: var(--warning); animation: pulse 1s infinite; }
+.timer-display.over { color: var(--danger); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+.timer-controls { display: flex; gap: 8px; }
+.timer-btn {
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  transition: all .15s;
+}
+.timer-btn:hover { border-color: var(--accent); background: var(--panel); }
+.timer-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.timer-btn.primary:hover { background: var(--accent2); }
+
+/* Empty state */
+.empty {
+  text-align: center; padding: 48px 24px; color: var(--text3);
+}
+.empty .ico { font-size: 48px; opacity: .5; margin-bottom: 16px; }
+
+/* Switches/chips */
+.chip {
+  display: inline-block; font-size: 10px; padding: 2px 8px;
+  border-radius: 12px; background: var(--panel2); color: var(--text2);
+  margin-right: 4px; border: 1px solid var(--border);
+}
+.chip.lectura { background: rgba(139,92,246,.15); color: var(--accent3); border-color: var(--accent); }
+.chip.preguntas { background: rgba(96,165,250,.15); color: var(--info); border-color: var(--info); }
+.chip.simulacro { background: rgba(251,191,36,.15); color: var(--warning); border-color: var(--warning); }
+.chip.repaso { background: rgba(52,211,153,.15); color: var(--success); border-color: var(--success); }
+
+/* Sync indicator + auth */
+.auth-status {
+  font-size: 11px; padding: 8px 10px; border-radius: 6px;
+  background: var(--panel); border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  cursor: pointer;
+}
+.auth-status:hover { border-color: var(--accent); }
+.auth-status .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.auth-status.online .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.auth-status.offline .dot { background: var(--text3); }
+.auth-status.syncing .dot { background: var(--warning); animation: pulse 1s infinite; }
+.auth-status.error .dot { background: var(--danger); }
+.auth-status .info { flex: 1; }
+.auth-status .info .uid { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  display: none; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal.show { display: flex; }
+.modal-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; max-width: 400px; width: 92%;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.modal-box h3 { color: var(--accent2); margin-bottom: 8px; }
+.modal-box p { color: var(--text2); font-size: 12px; margin-bottom: 16px; }
+.modal-box input {
+  width: 100%; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg2);
+  color: var(--text); font-size: 14px; margin-bottom: 10px;
+  box-sizing: border-box;
+}
+.modal-box input:focus { outline: none; border-color: var(--accent); }
+.modal-actions { display: flex; gap: 8px; margin-top: 8px; }
+.modal-actions .btn { flex: 1; padding: 10px; }
+.modal-error { color: var(--danger); font-size: 12px; min-height: 16px; margin: 4px 0 8px; }
+.modal-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.modal-tab {
+  flex: 1; padding: 10px; cursor: pointer; text-align: center;
+  font-size: 13px; color: var(--text3); border-bottom: 2px solid transparent;
+}
+.modal-tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+/* Responsive minimal */
+@media (max-width: 880px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr 90px; }
+  aside.sidebar { grid-row: auto; max-height: 200px; }
+  main.main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main"></main>
+  <div class="timerbar" id="timerbar"></div>
+</div>
+
+<div class="modal" id="authModal">
+  <div class="modal-box">
+    <h3>🔐 Sincronizar progreso</h3>
+    <p>Inicia sesión para que tu progreso se mantenga sincronizado entre ordenador, tablet y móvil. Misma cuenta que tu plataforma de bioquímica.</p>
+    <div class="modal-tabs">
+      <div class="modal-tab active" data-tab="login" onclick="switchAuthTab('login')">Iniciar sesión</div>
+      <div class="modal-tab" data-tab="register" onclick="switchAuthTab('register')">Crear cuenta</div>
+    </div>
+    <input type="email" id="authEmail" placeholder="email" autocomplete="email">
+    <input type="password" id="authPass" placeholder="contraseña" autocomplete="current-password">
+    <div class="modal-error" id="authError"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAuthModal()">Cancelar</button>
+      <button class="btn primary" id="authSubmit" onclick="authSubmit()">Iniciar sesión</button>
+    </div>
+    <p style="margin-top:14px;text-align:center"><a href="#" onclick="forgotPassword(event)" style="color:var(--text3);font-size:11px">¿Olvidaste tu contraseña?</a></p>
+  </div>
+</div>
+
+<script>
+/* ======================================================================
+   PLAN DE ESTUDIO — DATOS
+   ====================================================================== */
+
+const PLAN = {
+  fases: [
+    {
+      id: 1, nombre: 'Construcción', icon: '🏗️',
+      sub: 'Días T-21 → T-15 · Construyo los bloques fisiológicos',
+      dias: [
+        { id: 'T-21', tema: 'Bloque celular: transporte + señalización', esq: 'celular',
+          sesiones: [
+            { t: 'Lectura del esquema-resumen', d: 15, tipo: 'lectura', esq: 'celular',
+              ins: 'Lee con atención. Apunta los tipos de transporte y los segundos mensajeros.' },
+            { t: 'Preguntas del bloque (T01 + T03)', d: 60, tipo: 'preguntas',
+              ins: 'Plataforma → Estudiar tema → "Tema 6", "Tema 7" o equivalentes a transporte y señalización.' },
+            { t: 'Simulacro 50 preguntas Megaexamen', d: 60, tipo: 'simulacro',
+              ins: 'Megaexamen "🎯 3" con límite 50.' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-20', tema: 'Bloque eléctrico: potencial de membrana + propiedades pasivas + PA', esq: 'electrico',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 15, tipo: 'lectura', esq: 'electrico',
+              ins: 'Memoriza ecuaciones de Nernst y Goldman, fases del PA.' },
+            { t: 'Preguntas del bloque (T04 + T05 + T06)', d: 70, tipo: 'preguntas' },
+            { t: 'Simulacro 50', d: 60, tipo: 'simulacro' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-19', tema: 'Bloque sináptico: NT + transmisión + plasticidad', esq: 'sinaptico',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 15, tipo: 'lectura', esq: 'sinaptico' },
+            { t: 'Preguntas del bloque (T07 + T08 + T11)', d: 70, tipo: 'preguntas' },
+            { t: 'Simulacro 50', d: 60, tipo: 'simulacro' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-18', tema: 'Bloque muscular: contracción muscular', esq: 'muscular',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 15, tipo: 'lectura', esq: 'muscular',
+              ins: 'Sarcómero, ciclo de puentes cruzados, acoplamiento E-C.' },
+            { t: 'Preguntas del bloque (T09)', d: 60, tipo: 'preguntas' },
+            { t: 'Simulacro 50', d: 60, tipo: 'simulacro' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-17', tema: 'Bloque sangre: hematopoyesis + coagulación', esq: 'sangre',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 15, tipo: 'lectura', esq: 'sangre',
+              ins: 'Eritrocitos, plaquetas, vías de coagulación.' },
+            { t: 'Preguntas del bloque (T02 + Tema 30 hemostasia)', d: 60, tipo: 'preguntas' },
+            { t: 'Simulacro 50', d: 60, tipo: 'simulacro' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-16', tema: 'Bloque sensitivo-motor: receptores sensoriales + reflejos + control motor', esq: 'sensimotor',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 15, tipo: 'lectura', esq: 'sensimotor' },
+            { t: 'Preguntas del bloque (T10 + T15)', d: 60, tipo: 'preguntas' },
+            { t: 'Simulacro 50', d: 60, tipo: 'simulacro' },
+            { t: 'Repaso falladas', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-15', tema: 'Día de repaso · síntesis transversal', esq: null,
+          sesiones: [
+            { t: 'Releer los 6 esquemas anteriores en cadena', d: 50, tipo: 'lectura', esq: 'all6_celular',
+              ins: 'Una pasada rápida. Marca los conceptos que NO te suenen.' },
+            { t: 'Modo "Solo marcadas" + "Solo falladas"', d: 90, tipo: 'repaso' },
+            { t: 'Mini-test 30 preguntas mezcladas', d: 30, tipo: 'simulacro' },
+            { t: 'Tabla mental: 6 bloques × 5 datos clave', d: 15, tipo: 'lectura',
+              ins: 'A folio: por cada bloque escribe 5 datos memorísticos clave. Lo que falle = repaso de mañana.' },
+          ]
+        },
+      ]
+    },
+    {
+      id: 2, nombre: 'Entrenamiento', icon: '⚙️',
+      sub: 'Días T-14 → T-7 · Profundizo los bloques sistémicos',
+      dias: [
+        { id: 'T-14', tema: 'Bloque cardiovascular y respiratorio', esq: 'cardiorrespiratorio',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 20, tipo: 'lectura', esq: 'cardiorrespiratorio',
+              ins: 'Curva PV cardíaca, ciclo cardíaco, mecánica respiratoria, transporte gases.' },
+            { t: 'Preguntas del bloque (T12)', d: 70, tipo: 'preguntas' },
+            { t: 'Simulacro 100 preguntas Megaexamen', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis fallos: D/L/O', d: 30, tipo: 'repaso',
+              ins: 'D=desconocía, L=mal leída, O=olvido. Si L≥40%, baja velocidad.' },
+          ]
+        },
+        { id: 'T-13', tema: 'Bloque renal y digestivo', esq: 'renal_digestivo',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 20, tipo: 'lectura', esq: 'renal_digestivo' },
+            { t: 'Preguntas del bloque (T13)', d: 70, tipo: 'preguntas' },
+            { t: 'Simulacro 100', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis de fallos', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-12', tema: 'Bloque endocrino', esq: 'endocrino',
+          sesiones: [
+            { t: 'Lectura del esquema', d: 20, tipo: 'lectura', esq: 'endocrino',
+              ins: 'Ejes hormonales, retroalimentación, mecanismos de acción.' },
+            { t: 'Preguntas del bloque (T14)', d: 60, tipo: 'preguntas' },
+            { t: 'Simulacro 100', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis fallos', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-11', tema: 'Repaso eléctrico + sináptico (los más densos)', esq: ['electrico','sinaptico'],
+          sesiones: [
+            { t: 'Lectura combinada', d: 25, tipo: 'lectura', esq: 'electrico_sinaptico' },
+            { t: 'Modo "Solo falladas" sobre T04-T08', d: 70, tipo: 'repaso' },
+            { t: 'Simulacro 100', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis fallos', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-10', tema: 'Repaso celular + muscular', esq: ['celular','muscular'],
+          sesiones: [
+            { t: 'Lectura combinada', d: 25, tipo: 'lectura', esq: 'celular_muscular' },
+            { t: 'Modo "Solo falladas" sobre T01, T03, T09', d: 70, tipo: 'repaso' },
+            { t: 'Simulacro 100', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis fallos', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-9', tema: 'Repaso sangre + sensitivo-motor', esq: ['sangre','sensimotor'],
+          sesiones: [
+            { t: 'Lectura combinada', d: 25, tipo: 'lectura', esq: 'sangre_sensimotor' },
+            { t: 'Modo "Solo falladas" sobre T02, T10, T15', d: 70, tipo: 'repaso' },
+            { t: 'Simulacro 100', d: 60, tipo: 'simulacro' },
+            { t: 'Análisis fallos', d: 30, tipo: 'repaso' },
+          ]
+        },
+        { id: 'T-8', tema: 'Repaso transversal · 200 falladas', esq: null,
+          sesiones: [
+            { t: 'Modo "Solo falladas" en megaexamen', d: 120, tipo: 'repaso',
+              ins: 'Sin filtros. Limpia las preguntas que has fallado al menos 1 vez.' },
+            { t: 'Releer esquemas marcados', d: 30, tipo: 'lectura', esq: 'all',
+              ins: 'Solo los que dejaste como "para volver".' },
+            { t: 'Mini-simulacro 50 mezcladas', d: 30, tipo: 'simulacro' },
+          ]
+        },
+        { id: 'T-7', tema: 'Pistas del profesor (cuestionario "⭐ 0")',
+          sesiones: [
+            { t: 'Cuestionario "⭐ 0 — Seguras del profesor (Fisio)" entero', d: 60, tipo: 'simulacro',
+              ins: 'Aproximadamente 22 preguntas marcadas explícitamente por el profesor. Suelen caer.' },
+            { t: 'Releer esquemas con peor desempeño', d: 30, tipo: 'lectura', esq: 'all' },
+            { t: 'Repaso falladas del ⭐ 0', d: 30, tipo: 'repaso' },
+          ]
+        },
+      ]
+    },
+    {
+      id: 3, nombre: 'Simulacros', icon: '🎯',
+      sub: 'Días T-6 → T-2 · Condiciones de examen real',
+      dias: [
+        { id: 'T-6', tema: 'Examen Compuesto · 1ª mitad (~100 preguntas)',
+          sesiones: [
+            { t: 'Cuestionario "📘 1" · 100 preguntas cronometradas', d: 70, tipo: 'simulacro',
+              ins: 'Sin pausas. Cronometrado. Apunta el % al final.' },
+            { t: 'Corrección y análisis', d: 30, tipo: 'repaso' },
+            { t: 'Cuestionario "🔁 2 — REPETIDAS" · primera mitad', d: 30, tipo: 'simulacro' },
+          ]
+        },
+        { id: 'T-5', tema: 'Examen Compuesto · 2ª mitad',
+          sesiones: [
+            { t: 'Cuestionario "📘 1" · resto', d: 70, tipo: 'simulacro' },
+            { t: 'Corrección', d: 30, tipo: 'repaso' },
+            { t: '"🔁 2 REPETIDAS" · segunda mitad', d: 30, tipo: 'simulacro' },
+          ]
+        },
+        { id: 'T-4', tema: '"🔁 2 — REPETIDAS" entero',
+          sesiones: [
+            { t: 'Cuestionario "🔁 2" · ~48 preguntas cronometradas', d: 35, tipo: 'simulacro',
+              ins: 'Las que casi seguro caen.' },
+            { t: 'Corrección detallada', d: 30, tipo: 'repaso' },
+            { t: 'Releer esquemas que falles', d: 30, tipo: 'lectura', esq: 'all' },
+          ]
+        },
+        { id: 'T-3', tema: 'Top falladas + repaso mnemónicos',
+          sesiones: [
+            { t: 'Modo "Solo falladas" · top 60', d: 60, tipo: 'repaso' },
+            { t: 'Modo "Solo difíciles"', d: 50, tipo: 'repaso' },
+            { t: 'Repasar todos los mnemónicos', d: 30, tipo: 'lectura', esq: 'mnemo' },
+          ]
+        },
+        { id: 'T-2', tema: 'Megaexamen "🎯 3" en bloques',
+          sesiones: [
+            { t: 'Bloque 1 · 250 preguntas mezcladas', d: 90, tipo: 'simulacro' },
+            { t: 'Bloque 2 · 250 preguntas', d: 90, tipo: 'simulacro' },
+            { t: 'Repaso final + reglas de oro', d: 30, tipo: 'lectura', esq: 'reglas' },
+          ]
+        },
+      ]
+    },
+    {
+      id: 4, nombre: 'Víspera', icon: '🌙',
+      sub: 'Día T-1 · Hoy se consolida, no se aprende',
+      dias: [
+        { id: 'T-1', tema: 'Consolidación tranquila',
+          sesiones: [
+            { t: 'Relectura calmada de los 9 esquemas-resumen', d: 90, tipo: 'lectura', esq: 'all' },
+            { t: 'Repaso rápido de mnemónicos', d: 30, tipo: 'lectura', esq: 'mnemo' },
+            { t: 'Cena ligera, sin pantalla 1 h antes', d: 0, tipo: 'lectura',
+              ins: 'Cena pronto. A la cama temprano.' },
+          ]
+        },
+      ]
+    },
+    {
+      id: 5, nombre: 'Examen', icon: '🎓',
+      sub: 'Día 0 · Día del examen',
+      dias: [
+        { id: 'T-0', tema: 'Día del examen',
+          sesiones: [
+            { t: 'Desayuno: proteína + algo de glucosa', d: 0, tipo: 'lectura',
+              ins: 'Huevo + tostada con miel. Café moderado. Hidrátate.' },
+            { t: 'Llega 30 min antes', d: 0, tipo: 'lectura' },
+            { t: 'Lee TODA la pregunta antes que las opciones', d: 0, tipo: 'lectura' },
+            { t: 'Si dudas: marca primera intuición, sigue, vuelve al final', d: 0, tipo: 'lectura' },
+          ]
+        },
+      ]
+    },
+  ],
+
+  reglas: [
+    'Antes de leer la explicación, intenta responder y di EN VOZ ALTA por qué.',
+    'Marca con 🔖 todas las que falles, aunque sea por descuido.',
+    'Nunca relees apuntes pasivamente: si lees, escribe un esquema o una pregunta.',
+    'Cada sesión empieza con 10 preguntas falladas del día anterior.',
+    'Mezcla siempre las opciones (☑ Mezclar opciones ya activado).',
+    'No pases más de 90 s/pregunta: si no la sabes, falla y aprende de la explicación.',
+    'Acaba CADA sesión con un mini-resumen escrito de 5 líneas.',
+    'Duerme ≥7 h. Sin sueño no hay memoria a largo plazo.',
+  ],
+
+  mnemonicos: [
+    { c: 'Datos básicos', t: '<strong>Osmolaridad plasma normal</strong> ≈ 280-300 mOsm/L. <strong>Tonicidad</strong> = solo solutos no permeables.' },
+    { c: 'Datos básicos', t: '<strong>Hematocrito</strong>: H 42-50%, M 36-46%. <strong>Hb</strong>: H 14-18 g/dL, M 12-16 g/dL.' },
+    { c: 'Datos básicos', t: '<strong>Potencial de reposo</strong>: -70 mV (neurona típica). <strong>Umbral PA</strong>: -55 mV. <strong>Pico PA</strong>: +30 mV.' },
+    { c: 'Datos básicos', t: '<strong>K+ intra/extra</strong>: 140 / 4 mM. <strong>Na+</strong>: 14 / 145 mM. <strong>Ca²⁺</strong>: 0,0001 / 1 mM.' },
+    { c: 'Datos básicos', t: '<strong>pH plasma</strong>: 7,35-7,45. <strong>HCO3-</strong>: 22-26 mEq/L. <strong>pCO2</strong>: 35-45 mmHg.' },
+    { c: 'Secuencias', t: '<strong>Fases del PA</strong>: 1. Despol. (Na+ in) → 2. Pico (+30 mV) → 3. Repol. (K+ out) → 4. Hiperpol. (K+ persiste) → 5. Reposo (-70 mV).' },
+    { c: 'Secuencias', t: '<strong>Cascada coagulación común</strong>: Factor X → trombina (II) → fibrina (I).' },
+    { c: 'Secuencias', t: '<strong>Vía intrínseca</strong>: XII → XI → IX → X. <strong>Extrínseca</strong>: III + VII → X.' },
+    { c: 'Secuencias', t: '<strong>Acoplamiento E-C muscular</strong>: PA en sarcolema → túbulo T → DHPR → RyR (sarcoplásmico) → Ca²⁺ → troponina C → tropomiosina se mueve → puentes cruzados.' },
+    { c: 'Secuencias', t: '<strong>Síntesis catecolaminas</strong>: Tirosina → L-DOPA → Dopamina → Noradrenalina → Adrenalina.' },
+    { c: 'Conceptos', t: '<strong>Bomba Na+/K+</strong>: 3 Na+ fuera, 2 K+ dentro, 1 ATP.  Es electrogénica (-70 mV).' },
+    { c: 'Conceptos', t: '<strong>Difusión simple</strong> = sin proteína, sin energía, no saturable. <strong>Difusión facilitada</strong> = con proteína, sin energía, saturable.' },
+    { c: 'Conceptos', t: '<strong>Hipotónica</strong> → célula hincha (lisis). <strong>Hipertónica</strong> → célula crenación.' },
+    { c: 'Conceptos', t: '<strong>Tipos de transporte</strong>: simple, facilitado (canales/permeasas), activo primario (ATPasa), activo secundario (cotransporte/antiporte).' },
+    { c: 'Conceptos', t: '<strong>Receptores</strong>: ionotrópicos (rápidos, ms) vs metabotrópicos (lentos, s, GPCR).' },
+    { c: 'Conceptos', t: '<strong>GPCR Gs</strong> → ↑AMPc; <strong>Gi</strong> → ↓AMPc; <strong>Gq</strong> → IP3/DAG (↑Ca²⁺ y PKC).' },
+    { c: 'Conceptos', t: '<strong>NT excitatorios</strong>: glutamato, ACh nicotínico. <strong>NT inhibitorios</strong>: GABA, glicina.' },
+    { c: 'Conceptos', t: '<strong>EPSP</strong>: despolarización postsináptica (Na+/Ca²⁺ entran). <strong>IPSP</strong>: hiperpolarización (Cl- entra o K+ sale).' },
+    { c: 'Conceptos', t: '<strong>LTP</strong>: NMDA + ↑Ca²⁺ → CAMKII → ↑receptores AMPA. <strong>LTD</strong>: Ca²⁺ moderado → fosfatasas → menos AMPA.' },
+    { c: 'Conceptos', t: '<strong>Petequias</strong> = problema PLAQUETARIO. <strong>Hematomas profundos</strong> = problema de FACTORES (vit K, hemofilia).' },
+    { c: 'Trampas', t: '<strong>EPO</strong> se sintetiza en RIÑÓN (intersticio peritubular), no en hígado. Estímulo: hipoxia (HIF-1α).' },
+    { c: 'Trampas', t: '<strong>Antitrombina</strong> NO es enzima — es un INHIBIDOR (serpina). La heparina aumenta su afinidad.' },
+    { c: 'Trampas', t: '<strong>Eritrocitos</strong>: SIN núcleo, SIN mitocondrias → solo glucólisis anaerobia. Vida media ~120 días.' },
+    { c: 'Trampas', t: '<strong>Macrófagos, dendríticas, linfocitos B</strong> = CPA profesionales. Neutrófilos NO son CPA típicos.' },
+    { c: 'Trampas', t: '<strong>Mielinización</strong> = conducción saltatoria (más rápida). Bloquea Na+ excepto en nodos de Ranvier.' },
+    { c: 'Trampas', t: '<strong>Tóxina del cólera</strong>: bloquea GTPasa de Gαs → AMPc altísimo → diarrea masiva. <strong>Tóxina pertussis</strong>: bloquea Gαi.' },
+    { c: 'Trampas', t: '<strong>Acetilcolinesterasa</strong> degrada ACh en la hendidura. Inhibirla = más ACh (tratamiento miastenia: piridostigmina).' },
+    { c: 'Trampas', t: '<strong>Curasem</strong>: bloquea receptor nicotínico → parálisis flácida.' },
+    { c: 'Trampas', t: '<strong>Periodo refractario absoluto</strong>: canales Na+ inactivados, NO hay PA aunque sumes estímulos. Es la base de la unidireccionalidad del PA.' },
+    { c: 'Trampas', t: '<strong>Surfactante pulmonar</strong> (DPPC): producido por neumocitos tipo II. Reduce tensión superficial, evita colapso alveolar.' },
+  ],
+};
+
+/* ---- ESQUEMAS-RESUMEN (los 9 bloques + auxiliares) ---- */
+const ESQUEMAS = {
+  celular: `
+<h3>🧬 Bloque 1 — Transporte y señalización celular</h3>
+<h4>Tipos de transporte de membrana</h4>
+<ul>
+<li><strong>Difusión simple</strong>: sin proteína, sin energía. A favor de gradiente. Lipofilia importante. NO saturable.</li>
+<li><strong>Difusión facilitada</strong>: con proteína (canal o permeasa). Sin energía. A favor de gradiente. SATURABLE.</li>
+<li><strong>Transporte activo primario</strong>: hidroliza ATP directamente. Contra gradiente. Ejemplo: <em>Na+/K+ ATPasa</em> (3 Na+ fuera, 2 K+ dentro).</li>
+<li><strong>Transporte activo secundario</strong>: usa el gradiente de otro ión (típicamente Na+). NO hidroliza ATP. Ejemplo: SGLT-1 (Na+/glucosa).</li>
+<li><strong>Endocitosis</strong> (mediada por receptor con clatrina, pinocitosis, fagocitosis) y <strong>exocitosis</strong> (constitutiva o regulada por Ca²⁺).</li>
+</ul>
+<h4>Osmolaridad y tonicidad</h4>
+<table>
+<tr><th>Concepto</th><th>Definición</th></tr>
+<tr><td>Osmolaridad</td><td>Concentración total de partículas osmóticamente activas (mOsm/L)</td></tr>
+<tr><td>Tonicidad</td><td>Solo cuenta solutos NO PERMEABLES (efecto neto sobre el volumen celular)</td></tr>
+</table>
+<p><strong>Hipotónica</strong> → entra agua → célula hincha (lisis). <strong>Hipertónica</strong> → sale agua → crenación. <strong>Isotónica</strong> → equilibrio.</p>
+<p>La <strong>urea</strong> y el <strong>benceno</strong> son permeables: cuentan en osmolaridad pero NO en tonicidad.</p>
+<h4>Señalización celular</h4>
+<ul>
+<li><strong>Endocrina</strong>: hormona viaja por sangre. <strong>Paracrina</strong>: célula vecina. <strong>Autocrina</strong>: misma célula.</li>
+<li><strong>Receptores ionotrópicos</strong>: canal iónico. Respuesta en milisegundos.</li>
+<li><strong>Receptores metabotrópicos</strong>: GPCR (7-TM) o tirosin-quinasa. Respuesta en segundos.</li>
+</ul>
+<h4>GPCR y vías de señalización</h4>
+<table>
+<tr><th>Subunidad Gα</th><th>Efecto</th><th>Ejemplo</th></tr>
+<tr><td><strong>Gs</strong></td><td>Activa adenilato ciclasa → ↑AMPc → PKA</td><td>β-adrenérgico, glucagón</td></tr>
+<tr><td><strong>Gi</strong></td><td>Inhibe adenilato ciclasa → ↓AMPc</td><td>α2-adrenérgico, M2</td></tr>
+<tr><td><strong>Gq</strong></td><td>Activa fosfolipasa C → IP3 + DAG → ↑Ca²⁺ y PKC</td><td>α1-adrenérgico, M1, M3</td></tr>
+</table>
+<p><strong>Tóxina del cólera</strong>: ribosila ADP la Gαs → bloquea su GTPasa → AMPc altísimo → diarrea. <strong>Tóxina pertussis</strong>: bloquea Gαi.</p>
+<h4>Receptores tirosin-quinasa (RTK)</h4>
+<p>Insulina, EGF, VEGF, PDGF, FGF. Mecanismo: ligando → dimerización → autofosforilación de Tyr → reclutan SH2 → cascada Ras/MAPK, PI3K/Akt.</p>
+<h4>Eicosanoides</h4>
+<p>Derivados del <strong>ácido araquidónico</strong>: prostaglandinas (PGI2 vasodilatadora), tromboxanos (TXA2 vasoconstrictor, proagregante), leucotrienos. Señalización paracrina/autocrina.</p>
+`,
+
+  electrico: `
+<h3>⚡ Bloque 2 — Potencial de membrana y propagación</h3>
+<h4>Potencial de membrana de reposo</h4>
+<p><strong>Em</strong> ≈ -70 mV en neuronas. Determinado por:</p>
+<ul>
+<li><strong>Gradientes iónicos</strong> mantenidos por la Na+/K+ ATPasa.</li>
+<li><strong>Permeabilidades</strong>: en reposo, P(K+) >>> P(Na+) → Em cerca de E(K+).</li>
+<li><strong>Ecuación de Nernst</strong>: E_ion = (61/z) · log([fuera]/[dentro]) a 37°C.</li>
+<li><strong>Ecuación de Goldman</strong>: integra varios iones con sus permeabilidades.</li>
+</ul>
+<h4>E de equilibrio típicos</h4>
+<table>
+<tr><th>Ión</th><th>[fuera]</th><th>[dentro]</th><th>E (mV)</th></tr>
+<tr><td>K+</td><td>4 mM</td><td>140 mM</td><td>-94</td></tr>
+<tr><td>Na+</td><td>145 mM</td><td>14 mM</td><td>+62</td></tr>
+<tr><td>Ca²⁺</td><td>1 mM</td><td>0,0001 mM</td><td>+123</td></tr>
+<tr><td>Cl-</td><td>110 mM</td><td>10 mM</td><td>-65</td></tr>
+</table>
+<h4>Propiedades pasivas (cable)</h4>
+<ul>
+<li><strong>Constante de espacio (λ)</strong>: distancia que recorre la despolarización antes de caer a 1/e (37%). Mayor en axones gruesos y mielinizados.</li>
+<li><strong>Constante de tiempo (τ)</strong>: τ = R·C. Tiempo en que el voltaje cambia el 63%. Menor τ = respuesta más rápida.</li>
+<li><strong>Resistencia</strong>: ↑con menor diámetro. <strong>Capacitancia</strong>: ↓con mielina.</li>
+</ul>
+<h4>Potencial de acción (PA)</h4>
+<ol>
+<li><strong>Estímulo</strong> alcanza el umbral (~-55 mV).</li>
+<li><strong>Apertura masiva canales Na+</strong> dependientes de voltaje → entrada Na+ → <strong>despolarización rápida</strong> hacia E(Na+) (+30 mV).</li>
+<li><strong>Inactivación de Na+</strong> (compuerta de inactivación cierra) + <strong>apertura tardía de K+</strong> dep. voltaje.</li>
+<li><strong>Repolarización</strong>: salida de K+.</li>
+<li><strong>Hiperpolarización</strong> transitoria (canales K+ aún abiertos).</li>
+<li>Vuelta al reposo cuando se cierran los K+.</li>
+</ol>
+<p><strong>Periodos refractarios</strong>:</p>
+<ul>
+<li><strong>Absoluto</strong>: canales Na+ inactivados → imposible nuevo PA aunque sumes estímulo. Asegura unidireccionalidad.</li>
+<li><strong>Relativo</strong>: K+ aún abiertos → necesitas mayor estímulo.</li>
+</ul>
+<h4>Propagación</h4>
+<ul>
+<li><strong>Continua</strong>: en axones amielínicos, lenta.</li>
+<li><strong>Saltatoria</strong>: en mielinizados, mucho más rápida. Solo se generan PA en los <strong>nodos de Ranvier</strong>.</li>
+<li>La mielina (oligodendrocitos en SNC, células de Schwann en SNP) aumenta R y baja C → λ aumenta, propagación más eficiente.</li>
+</ul>
+`,
+
+  sinaptico: `
+<h3>🔗 Bloque 3 — Transmisión sináptica y plasticidad</h3>
+<h4>Sinapsis química — pasos</h4>
+<ol>
+<li>PA llega al terminal presináptico → abre canales <strong>Ca²⁺ dependientes de voltaje</strong>.</li>
+<li>Ca²⁺ entra → fusión de vesículas con SNAREs (sinaptobrevina + sintaxina + SNAP-25).</li>
+<li>Liberación cuántica de NT a la hendidura.</li>
+<li>NT se une a receptor postsináptico → respuesta (rápida si ionotrópica, lenta si metabotrópica).</li>
+<li>Terminación: recaptación (transportadores), degradación enzimática, difusión.</li>
+</ol>
+<h4>Neurotransmisores principales</h4>
+<table>
+<tr><th>NT</th><th>Síntesis</th><th>Receptores</th><th>Efecto</th></tr>
+<tr><td>Glutamato</td><td>α-cetoglutarato + glutamina</td><td>AMPA, NMDA, kainato (iono); mGluR (meta)</td><td>Excitatorio principal</td></tr>
+<tr><td>GABA</td><td>Glutamato → GAD (PLP)</td><td>GABA-A (canal Cl-), GABA-B (Gi)</td><td>Inhibitorio</td></tr>
+<tr><td>Glicina</td><td>Serina (SHMT)</td><td>Canal Cl-</td><td>Inhibitorio (médula)</td></tr>
+<tr><td>ACh</td><td>Colina + Acetil-CoA (ChAT)</td><td>Nicotínico (iono), muscarínico (GPCR)</td><td>Mixto</td></tr>
+<tr><td>Catecolaminas</td><td>Tirosina → L-DOPA → DA → NA → A</td><td>α y β adrenérgicos (GPCR)</td><td>Modulador</td></tr>
+<tr><td>Serotonina</td><td>Triptófano → 5-HTP → 5-HT</td><td>5-HT1-7 (mayoría GPCR)</td><td>Modulador</td></tr>
+</table>
+<h4>Receptores excitatorios postsinápticos</h4>
+<ul>
+<li><strong>AMPA</strong>: rápidos, permeables a Na+/K+. Median EPSP rápido.</li>
+<li><strong>NMDA</strong>: lentos, permeables también a Ca²⁺. <em>Bloqueados por Mg²⁺</em> en reposo: necesitan despolarización + glutamato (coincidencia). Detector molecular = base de LTP.</li>
+<li><strong>Kainato</strong>: poco frecuentes.</li>
+</ul>
+<h4>Integración sináptica</h4>
+<ul>
+<li><strong>Sumación temporal</strong>: dos EPSPs en el mismo lugar y rápido suman.</li>
+<li><strong>Sumación espacial</strong>: EPSPs en distintos lugares se integran en el cono axónico.</li>
+<li><strong>EPSP</strong>: despolarización (Na+/Ca²⁺ entran). <strong>IPSP</strong>: hiperpolarización (Cl- entra o K+ sale).</li>
+</ul>
+<h4>Plasticidad sináptica</h4>
+<ul>
+<li><strong>LTP (long-term potentiation)</strong>: estimulación de alta frecuencia → ↑Ca²⁺ vía NMDA → activa CaMKII → fosforila e inserta más AMPA → mayor respuesta. Base molecular del aprendizaje y memoria.</li>
+<li><strong>LTD (long-term depression)</strong>: estimulación de baja frecuencia → ↑Ca²⁺ moderado → fosfatasas → menos AMPA en membrana.</li>
+<li><strong>Hipocampo CA1</strong>: lugar paradigma de LTP NMDA-dependiente.</li>
+</ul>
+<h4>Unión neuromuscular</h4>
+<ul>
+<li>NT: ACh. Receptor: <strong>nicotínico tipo muscular</strong> (canal catiónico).</li>
+<li><strong>Curare</strong>: bloquea receptor → parálisis flácida.</li>
+<li><strong>Miastenia gravis</strong>: anticuerpos contra el receptor nicotínico → debilidad. Tto: <em>piridostigmina</em> (inhibidor de AChE).</li>
+<li><strong>Tóxina botulínica</strong>: bloquea SNAREs presinápticos → no liberación ACh → parálisis.</li>
+</ul>
+`,
+
+  muscular: `
+<h3>💪 Bloque 4 — Contracción muscular</h3>
+<h4>Tipos de músculo</h4>
+<table>
+<tr><th></th><th>Esquelético</th><th>Cardíaco</th><th>Liso</th></tr>
+<tr><td>Núcleos</td><td>Múltiples (sincitio)</td><td>1 central</td><td>1 central</td></tr>
+<tr><td>Estriaciones</td><td>Sí</td><td>Sí</td><td>No</td></tr>
+<tr><td>Control</td><td>Voluntario</td><td>Involuntario</td><td>Involuntario</td></tr>
+<tr><td>Discos intercalares</td><td>No</td><td>Sí (gap junctions)</td><td>No (gap junctions presentes)</td></tr>
+</table>
+<h4>Sarcómero</h4>
+<ul>
+<li>Unidad funcional. Va de banda Z a banda Z.</li>
+<li><strong>Banda A</strong>: filamentos GRUESOS (miosina). No cambia con contracción.</li>
+<li><strong>Banda I</strong>: solo filamentos finos. Se ACORTA en contracción.</li>
+<li><strong>Banda H</strong>: solo gruesos (centro de A). Se acorta en contracción.</li>
+<li><strong>Línea Z</strong>: ancla actina. Se acercan entre sí en contracción.</li>
+<li><strong>Filamento fino</strong>: actina F + tropomiosina + complejo troponina (TnC une Ca²⁺, TnI inhibe, TnT une tropomiosina).</li>
+<li><strong>Filamento grueso</strong>: miosina II (cabezas con sitio ATPasa y unión a actina).</li>
+<li><strong>Titina</strong>: elasticidad pasiva. <strong>Nebulina</strong>: ancla actina.</li>
+</ul>
+<h4>Acoplamiento excitación-contracción</h4>
+<ol>
+<li>PA en placa motora se propaga por sarcolema → entra por <strong>túbulo T</strong>.</li>
+<li>Túbulo T despolariza el <strong>receptor de dihidropiridina (DHPR)</strong>.</li>
+<li>DHPR cambia conformación y abre el <strong>receptor de rianodina (RyR)</strong> del retículo sarcoplásmico.</li>
+<li>Sale Ca²⁺ del RS al sarcoplasma.</li>
+<li>Ca²⁺ se une a <strong>TnC</strong> → cambio conformacional → tropomiosina se desplaza → expone sitios activos de actina.</li>
+<li>Cabezas de miosina se unen a actina, hidrolizan ATP, "golpe de fuerza" → deslizamiento de filamentos.</li>
+<li>Recaptación de Ca²⁺ por SERCA hacia el RS → relajación.</li>
+</ol>
+<h4>Ciclo de puentes cruzados</h4>
+<ol>
+<li><strong>Sin ATP</strong>: cabeza miosina unida fuertemente a actina (estado <em>rigor</em>).</li>
+<li><strong>Llega ATP</strong>: se une a miosina → se despega de actina.</li>
+<li><strong>Hidrólisis ATP → ADP·Pi</strong>: cabeza se "arma" en ángulo de 90°.</li>
+<li>Si Ca²⁺/TnC permite, se une a la actina (puente débil → fuerte).</li>
+<li><strong>Liberación de Pi</strong>: <em>power stroke</em> → cabeza vuelve a 45° → desliza filamento.</li>
+<li>Liberación de ADP. Ciclo se repite si hay ATP y Ca²⁺.</li>
+</ol>
+<h4>Diferencias muscular cardíaco</h4>
+<ul>
+<li>Ca²⁺ entra desde el exterior por túbulo T (Ca²⁺-induced Ca²⁺ release).</li>
+<li>PA cardíaco tiene MESETA (canales Ca²⁺ tipo L abiertos) → ~200 ms → impide tetanización.</li>
+<li>Acoplamiento eléctrico vía gap junctions (sincicio funcional).</li>
+</ul>
+<h4>Muscular liso</h4>
+<ul>
+<li>NO troponina. Ca²⁺ se une a <strong>calmodulina</strong> → activa <strong>MLCK (myosin light chain kinase)</strong> → fosforila miosina → contracción.</li>
+<li>Relajación: MLCP (myosin LC phosphatase) defosforila.</li>
+</ul>
+`,
+
+  sangre: `
+<h3>🩸 Bloque 5 — Sangre y hematopoyesis</h3>
+<h4>Composición</h4>
+<ul>
+<li><strong>Plasma</strong> (55%): agua, electrolitos, proteínas (albúmina, globulinas, fibrinógeno).</li>
+<li><strong>Elementos formes</strong> (45%, hematocrito): eritrocitos, leucocitos, plaquetas.</li>
+<li><strong>Suero</strong> = plasma SIN fibrinógeno (consumido en coágulo).</li>
+</ul>
+<h4>Eritrocitos</h4>
+<ul>
+<li>Sin núcleo, sin mitocondrias → solo glucólisis anaerobia.</li>
+<li>Vida media ~120 días. Recambio: ~2,5 millones/seg.</li>
+<li>Hemoglobina: HbA1 (α₂β₂, 97%), HbA2 (α₂δ₂, 2,5%), HbF (α₂γ₂, fetal).</li>
+<li>HbF tiene MAYOR afinidad por O2 que HbA → permite captar O2 de la madre.</li>
+</ul>
+<h4>Eritropoyesis</h4>
+<ul>
+<li>Lugar: médula ósea roja (huesos planos en adulto).</li>
+<li>Estímulo: HIPOXIA → <strong>HIF-1α</strong> estable → ↑ síntesis de <strong>EPO en intersticio peritubular RENAL</strong>.</li>
+<li>Sin EPO, los precursores eritroides sufren apoptosis.</li>
+<li>Requerimientos: Fe²⁺, B12, ácido fólico, vitamina C.</li>
+</ul>
+<h4>Grupos sanguíneos</h4>
+<ul>
+<li><strong>ABO</strong>: A (anti-B), B (anti-A), AB (sin anticuerpos, receptor universal), O (anti-A y anti-B, donante universal de hematíes).</li>
+<li><strong>Rh</strong>: + tiene antígeno D, - no. Anti-D NO espontáneos: aparecen tras sensibilización (transfusión, embarazo).</li>
+<li><strong>Eritroblastosis fetal</strong>: madre Rh- gestando feto Rh+ (sensibilización en parto previo). Profilaxis: anti-D.</li>
+</ul>
+<h4>Plaquetas</h4>
+<ul>
+<li>Fragmentos de megacariocitos. Sin núcleo. Vida media 8-10 días.</li>
+<li>Función: hemostasia primaria.</li>
+<li>Adhesión: receptor GPIb/IX-V se une a vWF subendotelial.</li>
+<li>Activación: liberan ADP, TXA2, serotonina (vasoconstrictor).</li>
+<li>Agregación: GPIIb/IIIa une fibrinógeno.</li>
+<li><strong>Petequias</strong> = problema plaquetario.</li>
+</ul>
+<h4>Leucocitos (función inmune)</h4>
+<ul>
+<li><strong>Neutrófilos</strong> (más abundantes ~60%): fagocitos en infección bacteriana.</li>
+<li><strong>Eosinófilos</strong>: parásitos, alergia.</li>
+<li><strong>Basófilos / mastocitos</strong>: liberan histamina (alergia).</li>
+<li><strong>Monocitos / macrófagos</strong>: fagocitos, CPA.</li>
+<li><strong>Linfocitos B</strong>: anticuerpos. <strong>T</strong>: inmunidad celular. <strong>NK</strong>: citotoxicidad innata.</li>
+<li>CPA profesionales: macrófagos, células dendríticas, linfocitos B.</li>
+</ul>
+<h4>Hemostasia</h4>
+<ul>
+<li><strong>Vasoconstricción</strong> (endotelina, TXA2, serotonina).</li>
+<li><strong>Hemostasia primaria</strong> (plaquetas → tapón).</li>
+<li><strong>Hemostasia secundaria</strong> (cascada coagulación → fibrina).</li>
+<li><strong>Vía intrínseca</strong> (in vitro PTT): XII→XI→IX→X.</li>
+<li><strong>Vía extrínseca</strong> (in vivo, principal): factor tisular (III) + VII → X.</li>
+<li><strong>Vía común</strong>: X → trombina (II) → fibrina (I). XIII estabiliza.</li>
+<li><strong>Vit K dependientes</strong>: II, VII, IX, X (+ proteína C y S).</li>
+<li><strong>Anticoagulantes endógenos</strong>: antitrombina (potenciada por heparina), proteína C/S, TFPI.</li>
+<li><strong>Fibrinolisis</strong>: plasminógeno → plasmina (vía tPA endotelial) → degrada fibrina → dímero D.</li>
+</ul>
+<h4>Endotelio sano: anti-trombótico</h4>
+<ul>
+<li>Libera <strong>NO y prostaciclina (PGI2)</strong>: vasodilatadores y antiagregantes.</li>
+<li>Expresa trombomodulina (activa proteína C).</li>
+<li>Heparán sulfato (potencia antitrombina).</li>
+</ul>
+`,
+
+  sensimotor: `
+<h3>👁️ Bloque 6 — Receptores sensoriales y reflejos</h3>
+<h4>Tipos de receptores sensoriales</h4>
+<ul>
+<li><strong>Mecanorreceptores</strong>: tacto, presión, vibración, propiocepción, audición.</li>
+<li><strong>Quimiorreceptores</strong>: gusto, olfato, glucosa, pH, pO2/pCO2 (carotídeos, aórticos, bulbo).</li>
+<li><strong>Termorreceptores</strong>: calor (TRPV) y frío (TRPM8).</li>
+<li><strong>Nociceptores</strong>: dolor.</li>
+<li><strong>Fotorreceptores</strong>: visión (bastones, conos).</li>
+</ul>
+<h4>Propiedades comunes</h4>
+<ul>
+<li><strong>Adaptación</strong>: rápida (fásica, p. ej. Pacini) vs lenta (tónica, p. ej. Merkel).</li>
+<li><strong>Campo receptor</strong>: zona cuyo estímulo activa la neurona. Más pequeño = mayor discriminación (yemas dedos).</li>
+<li><strong>Codificación</strong>: intensidad → frecuencia de PA; tipo → identidad de la fibra (línea marcada).</li>
+</ul>
+<h4>Husos musculares y reflejo miotático</h4>
+<ul>
+<li><strong>Huso muscular</strong>: dentro del músculo, sensible al ESTIRAMIENTO (longitud y velocidad).</li>
+<li>Aferencia Ia (rápida) y II (más lenta).</li>
+<li><strong>Órgano de Golgi</strong>: en el tendón, sensible a TENSIÓN. Aferencia Ib.</li>
+<li><strong>Reflejo miotático</strong> (rotuliano): estiramiento → huso → Ia → médula → motoneurona α homónima → contracción + inhibición de antagonista (vía interneurona).</li>
+<li>Es <em>monosináptico</em> para el agonista, <em>bisináptico</em> para el antagonista.</li>
+</ul>
+<h4>Reflejos</h4>
+<ul>
+<li><strong>Miotático</strong>: monosináptico, mantiene tono.</li>
+<li><strong>Miotático inverso</strong>: protege contra sobrecarga (Golgi → inhibición motoneurona).</li>
+<li><strong>Flexor / retirada</strong>: polisináptico, ipsilateral.</li>
+<li><strong>Extensor cruzado</strong>: contralateral, complementa al flexor.</li>
+</ul>
+<h4>Control motor</h4>
+<ul>
+<li><strong>Médula</strong>: reflejos, generadores centrales de patrón (CPG).</li>
+<li><strong>Tronco encéfalo</strong>: postura, equilibrio, locomoción.</li>
+<li><strong>Cerebelo</strong>: precisión, coordinación, aprendizaje motor.</li>
+<li><strong>Ganglios basales</strong>: selección de programas motores. Lesión: Parkinson (sustancia negra ↓DA).</li>
+<li><strong>Corteza motora</strong>: planificación y ejecución voluntaria.</li>
+</ul>
+`,
+
+  cardiorrespiratorio: `
+<h3>❤️ Bloque 7 — Cardiovascular y respiratorio</h3>
+<h4>Ciclo cardíaco</h4>
+<ol>
+<li><strong>Sístole auricular</strong>: completa el llenado ventricular (~20%).</li>
+<li><strong>Contracción isovolumétrica</strong>: ventrículos contraen, válvulas AV cerradas, semilunares cerradas. Presión sube sin cambio de volumen.</li>
+<li><strong>Eyección</strong>: presión > aórtica → abren semilunares.</li>
+<li><strong>Relajación isovolumétrica</strong>: ventrículos relajan, todas las válvulas cerradas.</li>
+<li><strong>Llenado pasivo</strong>: presión auricular > ventricular → abren AV.</li>
+</ol>
+<h4>Sistema de conducción</h4>
+<p><strong>Nodo SA</strong> (marcapasos, 60-100 lpm) → <strong>nodo AV</strong> (retraso ~0,1 s) → haz de His → ramas → fibras de Purkinje. NA acelera (β1), ACh enlentece (M2).</p>
+<h4>Gasto cardíaco</h4>
+<p><strong>GC = FC × VS</strong>. Adulto reposo ~5 L/min. Ley de Frank-Starling: ↑precarga (volumen telediastólico) → ↑VS hasta cierto punto.</p>
+<h4>Presión arterial</h4>
+<ul>
+<li><strong>PAM</strong> ≈ Pdiastólica + 1/3·(Psist−Pdiast). Normal ~93 mmHg.</li>
+<li><strong>PA = GC × RVP</strong>.</li>
+<li>Regulación corto plazo: <em>barorreceptores</em> carotídeos/aórticos → bulbo → simpático/parasimpático.</li>
+<li>Regulación largo plazo: riñón (sistema renina-angiotensina-aldosterona).</li>
+</ul>
+<h4>Mecánica respiratoria</h4>
+<ul>
+<li><strong>Inspiración</strong> (activa): diafragma + intercostales externos → ↑volumen torácico → ↓presión intraalveolar → entra aire.</li>
+<li><strong>Espiración</strong> (pasiva en reposo): retroceso elástico.</li>
+<li><strong>Surfactante</strong> (DPPC, neumocitos II): ↓tensión superficial → estabiliza alvéolos. Su falta = enf. membrana hialina del prematuro.</li>
+<li><strong>Ley de Laplace</strong>: P = 2T/r → alvéolo pequeño tendría más presión sin surfactante (colapsaría a uno mayor).</li>
+</ul>
+<h4>Volúmenes y capacidades</h4>
+<ul>
+<li>Volumen corriente (VC) ~500 mL.</li>
+<li>VRI (reserva inspiratoria), VRE, VR (residual).</li>
+<li>Capacidad vital = VC + VRI + VRE.</li>
+<li>Capacidad pulmonar total = CV + VR.</li>
+</ul>
+<h4>Transporte de gases</h4>
+<ul>
+<li><strong>O2</strong>: 98% unido a hemoglobina, 2% disuelto. Curva sigmoidea (cooperatividad).</li>
+<li><strong>Efecto Bohr</strong>: ↓pH, ↑CO2, ↑Tª, ↑2,3-BPG → curva a la DERECHA → libera O2 a tejidos.</li>
+<li><strong>CO2</strong>: 70% como bicarbonato (CO2 + H2O ⇌ HCO3- + H+ por anhidrasa carbónica), 23% carbamatos (Hb), 7% disuelto.</li>
+<li><strong>CO</strong>: afinidad ~250× la del O2. Carboxihemoglobina.</li>
+</ul>
+<h4>Control de la respiración</h4>
+<ul>
+<li>Centros bulbares (DRG, VRG) y protuberanciales (apnéustico, neumotáxico).</li>
+<li><strong>Quimiorreceptores centrales</strong> (bulbo): detectan ↑pCO2 (vía pH del LCR). Mayor estímulo respiratorio fisiológico.</li>
+<li><strong>Periféricos</strong> (carotídeos, aórticos): pO2 (responden a hipoxia importante &lt;60 mmHg), pCO2, pH.</li>
+</ul>
+`,
+
+  renal_digestivo: `
+<h3>💧 Bloque 8 — Renal y digestivo</h3>
+<h4>Nefrona</h4>
+<ul>
+<li>Unidad funcional. ~1 millón por riñón.</li>
+<li>Partes: corpúsculo renal (glomérulo + cápsula Bowman), TCP, asa Henle (descendente y ascendente), TCD, túbulo colector.</li>
+</ul>
+<h4>Filtración glomerular</h4>
+<ul>
+<li><strong>FG</strong> ≈ 125 mL/min (~180 L/día). Solo se elimina ~1,5 L → 99% reabsorbido.</li>
+<li>Filtra todo &lt; 70 kDa. Albúmina NO pasa.</li>
+<li>FG = K_f × (P_hidrostática glomerular - P_oncótica - P_capsular).</li>
+<li>Autorregulada (mecanismo miogénico + retroalimentación tubuloglomerular vía mácula densa).</li>
+<li><strong>Aclaramiento</strong>: C = (U × V) / P. Inulina = FG.</li>
+</ul>
+<h4>Reabsorción y secreción tubular</h4>
+<table>
+<tr><th>Segmento</th><th>Función principal</th></tr>
+<tr><td>TCP</td><td>Reabsorbe 65% Na+, glucosa (SGLT2), aa, HCO3- (vía anhidrasa carbónica). Isotónica.</td></tr>
+<tr><td>Asa descendente</td><td>Permeable a agua, no a solutos → orina concentrada.</td></tr>
+<tr><td>Asa ascendente gruesa</td><td>NKCC2 reabsorbe Na+/K+/2Cl-. Impermeable a agua. Genera gradiente medular.</td></tr>
+<tr><td>TCD</td><td>NCC (Na+/Cl-). Aldosterona estimula reabsorción Na+ y secreción K+.</td></tr>
+<tr><td>Colector</td><td>ADH inserta acuaporinas-2 → reabsorbe agua. Aldosterona también actúa aquí (células principales). Células intercaladas: equilibrio ácido-base.</td></tr>
+</table>
+<h4>Hormonas renales</h4>
+<ul>
+<li><strong>Aldosterona</strong>: corteza suprarrenal, mineralocorticoide. ↑Na+ (y agua), ↑secreción K+ y H+.</li>
+<li><strong>ADH/Vasopresina</strong>: neurohipófisis. Reabsorbe agua en colector. Estímulo: ↑osmolaridad, ↓volemia.</li>
+<li><strong>Renina</strong>: aparato yuxtaglomerular. Convierte angiotensinógeno → AngI → (ECA pulmonar) → AngII (vasoconstrictor + estimula aldosterona + sed).</li>
+<li><strong>EPO</strong>: hipoxia.</li>
+<li><strong>1α-hidroxilasa</strong>: activa vit D.</li>
+</ul>
+<h4>Equilibrio ácido-base</h4>
+<ul>
+<li>pH normal: 7,35-7,45.</li>
+<li><strong>Acidosis metabólica</strong>: ↓HCO3-. Compensación: hiperventilación.</li>
+<li><strong>Alcalosis metabólica</strong>: ↑HCO3-. Compensación: hipoventilación.</li>
+<li><strong>Acidosis respiratoria</strong>: ↑pCO2. Compensación: ↑HCO3- (lenta, renal).</li>
+<li><strong>Alcalosis respiratoria</strong>: ↓pCO2. Compensación: ↓HCO3- (renal).</li>
+<li><strong>Anión GAP</strong> = Na+ - (Cl- + HCO3-). Normal 8-12. ↑ en cetoacidosis, lactato, uremia, intoxicaciones.</li>
+</ul>
+<h4>Digestivo (lo esencial)</h4>
+<ul>
+<li><strong>Saliva</strong>: amilasa (HC), lipasa lingual, lisozima.</li>
+<li><strong>Estómago</strong>: HCl (parietales), pepsinógeno (principales), factor intrínseco (parietales, B12), gastrina (G antrales).</li>
+<li><strong>Páncreas exocrino</strong>: bicarbonato (estimula <em>secretina</em>) y enzimas (estimula <em>CCK</em>).</li>
+<li><strong>Bilis</strong>: emulsiona grasas. Sales biliares se reabsorben en íleon (circulación enterohepática).</li>
+<li><strong>Absorción</strong>: yeyuno (mayoría), íleon (B12 + sales biliares), colon (agua + electrolitos).</li>
+</ul>
+`,
+
+  endocrino: `
+<h3>🧪 Bloque 9 — Endocrino</h3>
+<h4>Tipos de hormonas</h4>
+<ul>
+<li><strong>Peptídicas/proteicas</strong>: hidrosolubles. Receptores de membrana (RTK, GPCR, JAK/STAT). Ejemplos: insulina, GH, prolactina.</li>
+<li><strong>Esteroideas</strong>: lipofílicas. Receptores nucleares. Atraviesan membrana. Ejemplos: cortisol, aldosterona, sexuales.</li>
+<li><strong>Tiroideas</strong>: lipofílicas pero requieren transportadores (MCT8). Receptores nucleares.</li>
+<li><strong>Catecolaminas</strong>: hidrosolubles. GPCR.</li>
+</ul>
+<h4>Eje hipotálamo-hipófisis</h4>
+<ul>
+<li>Hipotálamo libera <strong>liberinas</strong> (TRH, CRH, GnRH, GHRH) y <strong>estatinas</strong> (somatostatina, dopamina = PIF).</li>
+<li><strong>Adenohipófisis</strong>: GH, prolactina (monocatenarias) + TSH, FSH, LH (bicatenarias α/β) + ACTH.</li>
+<li><strong>Neurohipófisis</strong>: oxitocina, ADH (sintetizadas en hipotálamo, almacenadas).</li>
+<li><strong>Retroalimentación negativa</strong>: hormona periférica inhibe el eje (cortisol → ACTH y CRH).</li>
+</ul>
+<h4>Tiroides</h4>
+<ul>
+<li>I- entra al tirocito por <strong>NIS</strong> (basolateral, simporte Na+).</li>
+<li>Sale al coloide por <strong>pendrina</strong> (apical).</li>
+<li><strong>TPO</strong> + H2O2: oxida y une I- a tirosinas de la tiroglobulina.</li>
+<li>T4 mayoritaria, T3 forma activa (3,5,3'-triiodotironina).</li>
+<li>Receptores nucleares.</li>
+<li>Cretinismo: déficit en infancia → retraso mental irreversible.</li>
+</ul>
+<h4>Páncreas endocrino</h4>
+<ul>
+<li><strong>Células β</strong> (insulina): glucosa → GLUT2 → ↑ATP/ADP → cierre canal K+(ATP) → despolarización → entra Ca²⁺ → exocitosis insulina + péptido C (equimolar).</li>
+<li><strong>Células α</strong> (glucagón): GPCR Gs → ↑AMPc → glucogenólisis y gluconeogénesis.</li>
+<li><strong>Células δ</strong> (somatostatina): inhibe insulina y glucagón.</li>
+<li><strong>Diabetes tipo 1</strong>: destrucción células β. <strong>Tipo 2</strong>: resistencia (fosforilación serina IRS-1).</li>
+</ul>
+<h4>Suprarrenal</h4>
+<ul>
+<li><strong>Corteza</strong>: zona glomerular (aldosterona), fasciculada (cortisol), reticular (andrógenos).</li>
+<li><strong>Médula</strong>: catecolaminas (80% adrenalina, 20% noradrenalina). Inervada por simpático preganglionar (ACh).</li>
+<li><strong>Cortisol</strong>: ritmo circadiano, pico 6-8 am. Antiinflamatorio, hiperglucemiante, catabólico, ↓inmunidad.</li>
+<li><strong>Hiperplasia suprarrenal congénita</strong>: déficit más frecuente <em>21α-hidroxilasa</em> → no cortisol/aldosterona, exceso andrógenos.</li>
+</ul>
+<h4>Calcio y hueso</h4>
+<ul>
+<li><strong>PTH</strong>: hipocalcemia → osteoclastos, reabsorción renal de Ca, activa vit D.</li>
+<li><strong>Calcitonina</strong>: hipercalcemia → inhibe osteoclastos.</li>
+<li><strong>Vit D</strong>: 1ª hidroxilación hígado (25), 2ª riñón (1α). Calcitriol = forma activa.</li>
+</ul>
+`,
+
+  // Concatenados
+  electrico_sinaptico: '__ESQ_CONCAT__electrico,sinaptico',
+  celular_muscular: '__ESQ_CONCAT__celular,muscular',
+  sangre_sensimotor: '__ESQ_CONCAT__sangre,sensimotor',
+  all6_celular: '__ESQ_CONCAT__celular,electrico,sinaptico,muscular,sangre,sensimotor',
+  all: '__ESQ_CONCAT__celular,electrico,sinaptico,muscular,sangre,sensimotor,cardiorrespiratorio,renal_digestivo,endocrino',
+  marcados: '<p><em>Vuelve a leer los esquemas que dejaste marcados. Si no marcaste ninguno, repasa los 9 a vista de pájaro.</em></p>',
+  mnemo: '__MNEMO__',
+  reglas: '__REGLAS__',
+};
+
+
+/* ======================================================================
+   ESTADO Y PERSISTENCIA
+   ====================================================================== */
+
+const STORAGE_KEY = 'planEstudioFisioV1';
+
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) try { return JSON.parse(raw); } catch {}
+  return {
+    completed: {},  // "fase1.dia0.sesion0" => true
+    currentFase: 0,
+    currentDia: 0,
+    currentSesion: null,
+    timer: { start: 0, paused: 0, totalPausedMs: 0, isRunning: false, sessionDurMs: 0, sessionKey: null },
+    streak: 0,
+    lastActiveDay: null,
+  };
+}
+
+let state = loadState();
+
+function saveLocal() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function save() {
+  saveLocal();
+  if (typeof fbSaveDebounced === 'function') fbSaveDebounced();
+}
+
+function sessionKey(faseIdx, diaIdx, sesIdx) {
+  return `f${faseIdx}d${diaIdx}s${sesIdx}`;
+}
+
+function isCompleted(faseIdx, diaIdx, sesIdx) {
+  return !!state.completed[sessionKey(faseIdx, diaIdx, sesIdx)];
+}
+
+function markCompleted(faseIdx, diaIdx, sesIdx) {
+  state.completed[sessionKey(faseIdx, diaIdx, sesIdx)] = Date.now();
+  // Actualizar streak
+  const today = new Date().toDateString();
+  if (state.lastActiveDay !== today) {
+    const ayer = new Date(Date.now() - 24*60*60*1000).toDateString();
+    state.streak = state.lastActiveDay === ayer ? (state.streak + 1) : 1;
+    state.lastActiveDay = today;
+  }
+  save();
+}
+
+function unmarkCompleted(faseIdx, diaIdx, sesIdx) {
+  delete state.completed[sessionKey(faseIdx, diaIdx, sesIdx)];
+  save();
+}
+
+/* ======================================================================
+   CÁLCULOS DE PROGRESO
+   ====================================================================== */
+
+function totalSesiones() {
+  return PLAN.fases.reduce((acc, f) => acc + f.dias.reduce((a, d) => a + d.sesiones.length, 0), 0);
+}
+
+function completedCount() {
+  return Object.keys(state.completed).length;
+}
+
+function faseProgress(faseIdx) {
+  const f = PLAN.fases[faseIdx];
+  let total = 0, done = 0;
+  f.dias.forEach((d, di) => {
+    d.sesiones.forEach((s, si) => {
+      total++;
+      if (isCompleted(faseIdx, di, si)) done++;
+    });
+  });
+  return { total, done, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+function diaProgress(faseIdx, diaIdx) {
+  const d = PLAN.fases[faseIdx].dias[diaIdx];
+  let done = 0;
+  d.sesiones.forEach((s, si) => {
+    if (isCompleted(faseIdx, diaIdx, si)) done++;
+  });
+  return { total: d.sesiones.length, done, pct: d.sesiones.length ? Math.round(done/d.sesiones.length*100) : 0 };
+}
+
+function nextSession() {
+  for (let fi = 0; fi < PLAN.fases.length; fi++) {
+    const f = PLAN.fases[fi];
+    for (let di = 0; di < f.dias.length; di++) {
+      const d = f.dias[di];
+      for (let si = 0; si < d.sesiones.length; si++) {
+        if (!isCompleted(fi, di, si)) return { fi, di, si };
+      }
+    }
+  }
+  return null;
+}
+
+/* ======================================================================
+   RENDERIZADO
+   ====================================================================== */
+
+function render() {
+  renderSidebar();
+  renderMain();
+  renderTimer();
+}
+
+function renderSidebar() {
+  const total = totalSesiones();
+  const done = completedCount();
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  const next = nextSession();
+
+  let html = `
+    <div class="sb-header">
+      <div class="sb-title">🧠 Plan Fisiología</div>
+      <div class="sb-subtitle">889 preguntas · sistema 4-3-2-1</div>
+      <div class="sb-progress">
+        <div class="sb-progress-label"><span>Progreso global</span><span>${done}/${total} · ${pct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="sb-progress" style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--text3)">
+        <span>🔥 Racha: <strong style="color:var(--warning)">${state.streak}</strong> ${state.streak === 1 ? 'día' : 'días'}</span>
+        ${next ? `<span>⏭ Sig: ${PLAN.fases[next.fi].dias[next.di].id}</span>` : '<span style="color:var(--success)">✓ Completo</span>'}
+      </div>
+      ${renderAuthStatus()}
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-section-title">Inicio</div>
+      <div class="sb-link ${state.view==='home'?'active':''}" onclick="setView('home')"><span class="ico">🏠</span>Resumen</div>
+      <div class="sb-link ${state.view==='now'?'active':''}" onclick="goToNext()"><span class="ico">▶️</span>Siguiente sesión</div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-section-title">Plan por fases</div>`;
+
+  PLAN.fases.forEach((f, fi) => {
+    const fp = faseProgress(fi);
+    const collapsed = state.collapsed && state.collapsed[fi] ? 'collapsed' : '';
+    html += `
+      <div class="sb-fase ${collapsed}">
+        <div class="sb-fase-head" onclick="toggleFase(${fi})">
+          ${f.icon} Fase ${f.id} · ${f.nombre}
+          <span class="progressMini">${fp.done}/${fp.total}</span>
+        </div>
+        <div class="sb-fase-days">`;
+    f.dias.forEach((d, di) => {
+      const dp = diaProgress(fi, di);
+      const isActive = state.view==='dia' && state.currentFase===fi && state.currentDia===di;
+      const isDone = dp.done === dp.total;
+      html += `
+        <div class="sb-day ${isActive?'active':''} ${isDone?'done':''}" onclick="setView('dia', ${fi}, ${di})">
+          ${d.id} · ${d.tema.length>26?d.tema.substring(0,26)+'…':d.tema}
+          <span class="pct">${dp.pct}%</span>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-title">Material</div>
+      <div class="sb-link ${state.view==='reglas'?'active':''}" onclick="setView('reglas')"><span class="ico">⚖️</span>Reglas de oro</div>
+      <div class="sb-link ${state.view==='mnemo'?'active':''}" onclick="setView('mnemo')"><span class="ico">🧠</span>Mnemónicos</div>
+      <div class="sb-link ${state.view==='esquemas'?'active':''}" onclick="setView('esquemas')"><span class="ico">📖</span>Todos los esquemas</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-link" onclick="resetProgress()" style="color:var(--danger)"><span class="ico">🗑</span>Reiniciar progreso</div>
+    </div>`;
+
+  document.getElementById('sidebar').innerHTML = html;
+}
+
+function setView(v, fi, di, si) {
+  state.view = v;
+  if (fi !== undefined) state.currentFase = fi;
+  if (di !== undefined) state.currentDia = di;
+  if (si !== undefined) state.currentSesion = si;
+  save();
+  render();
+}
+
+function toggleFase(fi) {
+  state.collapsed = state.collapsed || {};
+  state.collapsed[fi] = !state.collapsed[fi];
+  save();
+  renderSidebar();
+}
+
+function goToNext() {
+  const n = nextSession();
+  if (!n) {
+    setView('home');
+    return;
+  }
+  setView('dia', n.fi, n.di);
+  // abrir la sesión pendiente
+  setTimeout(() => {
+    const ses = document.querySelector(`[data-ses="${n.si}"]`);
+    if (ses) {
+      ses.classList.add('open');
+      ses.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+}
+
+function resetProgress() {
+  if (!confirm('¿Reiniciar todo el progreso? No se puede deshacer.')) return;
+  state = {
+    completed: {}, currentFase: 0, currentDia: 0, currentSesion: null,
+    timer: { start: 0, paused: 0, totalPausedMs: 0, isRunning: false, sessionDurMs: 0, sessionKey: null },
+    streak: 0, lastActiveDay: null, view: 'home', collapsed: {},
+  };
+  save();
+  render();
+}
+
+function renderMain() {
+  const v = state.view || 'home';
+  const m = document.getElementById('main');
+  if (v === 'home') return renderHome(m);
+  if (v === 'dia') return renderDia(m);
+  if (v === 'reglas') return renderReglas(m);
+  if (v === 'mnemo') return renderMnemo(m);
+  if (v === 'esquemas') return renderEsquemas(m);
+}
+
+function renderHome(m) {
+  const total = totalSesiones();
+  const done = completedCount();
+  const pct = total ? Math.round(done/total*100) : 0;
+  const next = nextSession();
+  let nextHtml = '';
+  if (next) {
+    const f = PLAN.fases[next.fi], d = f.dias[next.di], s = d.sesiones[next.si];
+    nextHtml = `<div class="card" style="grid-column: span 2; cursor:pointer; border-color:var(--accent)" onclick="setView('dia', ${next.fi}, ${next.di})">
+      <div class="card-label">Siguiente sesión</div>
+      <div style="font-size:18px;font-weight:600;color:var(--accent2);margin:8px 0">${d.id} · ${s.t}</div>
+      <div class="card-foot">${f.nombre} · ${d.tema} · ${s.d} min</div>
+    </div>`;
+  }
+
+  m.innerHTML = `
+    <div class="crumb">Inicio</div>
+    <h1 class="maintitle">Plan de estudio · Megaexamen Fisiología</h1>
+    <p class="lead">Sistema 4-3-2-1 a lo largo de 21 días. Te llevo de la mano: día a día, sesión a sesión, con tus esquemas-resumen, temporizador y seguimiento.</p>
+
+    <div class="cards">
+      ${nextHtml}
+      <div class="card">
+        <div class="card-label">Progreso global</div>
+        <div class="card-num">${pct}%</div>
+        <div class="card-foot">${done}/${total} sesiones</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Racha 🔥</div>
+        <div class="card-num">${state.streak}</div>
+        <div class="card-foot">${state.streak === 1 ? 'día' : 'días'} consecutivos</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Las 5 fases del plan</div>
+      ${PLAN.fases.map((f, fi) => {
+        const fp = faseProgress(fi);
+        return `<div class="fase-card" onclick="setView('dia', ${fi}, 0)">
+          <div class="fase-card-head">
+            <div class="fase-card-icon">${f.icon}</div>
+            <div style="flex:1">
+              <div class="fase-card-name">Fase ${f.id} · ${f.nombre}</div>
+              <div class="fase-card-sub">${f.sub}</div>
+            </div>
+            <div style="text-align:right;font-size:13px;color:var(--text3)">${fp.done}/${fp.total} · ${fp.pct}%</div>
+          </div>
+          <div class="fase-card-bar">
+            <div class="progress-bar"><div class="progress-fill" style="width:${fp.pct}%"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Reglas de oro · siempre presentes</div>
+      <ol style="padding-left:20px;color:var(--text2)">
+        ${PLAN.reglas.map(r => `<li style="margin:6px 0">${r}</li>`).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+function renderDia(m) {
+  const fi = state.currentFase, di = state.currentDia;
+  const f = PLAN.fases[fi];
+  const d = f.dias[di];
+  const dp = diaProgress(fi, di);
+
+  // Botones prev/next entre días
+  const allDays = [];
+  PLAN.fases.forEach((ff, ffi) => ff.dias.forEach((dd, ddi) => allDays.push({fi:ffi, di:ddi, d:dd, f:ff})));
+  const idx = allDays.findIndex(x => x.fi === fi && x.di === di);
+  const prev = idx > 0 ? allDays[idx-1] : null;
+  const nxt = idx < allDays.length-1 ? allDays[idx+1] : null;
+
+  m.innerHTML = `
+    <div class="crumb">${f.icon} Fase ${f.id} · ${f.nombre}</div>
+    <div class="day-head">
+      <div class="day-title">${d.id} · ${d.tema}</div>
+      <div class="day-meta">
+        ${d.sesiones.length} sesiones · ${d.sesiones.reduce((a,s)=>a+s.d, 0)} min totales · ${dp.done}/${dp.total} completadas (${dp.pct}%)
+      </div>
+      <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${dp.pct}%"></div></div>
+    </div>
+
+    ${d.sesiones.map((s, si) => {
+      const done = isCompleted(fi, di, si);
+      const isActive = state.timer.isRunning && state.timer.sessionKey === sessionKey(fi, di, si);
+      return `
+      <div class="session ${done?'done':''} ${isActive?'active':''}" data-ses="${si}">
+        <div class="session-head">
+          <div class="session-num">${done?'✓':si+1}</div>
+          <div class="session-info">
+            <div class="session-title">${s.t}</div>
+            <div class="session-meta">
+              <span class="chip ${s.tipo}">${s.tipo}</span>
+              ${s.d > 0 ? `· ${s.d} min` : '· instrucción'}
+              ${s.esq ? '· esquema integrado' : ''}
+            </div>
+          </div>
+          <div class="session-actions">
+            ${s.d > 0 ? `<button class="btn primary btn-sm" onclick="startSession(${fi},${di},${si})">▶ Iniciar</button>` : ''}
+            <button class="btn btn-sm" onclick="toggleSession(this)">${s.esq || s.ins ? '📖 Ver' : '› Ver'}</button>
+            ${done
+              ? `<button class="btn btn-sm" onclick="unmarkSession(${fi},${di},${si})">↺</button>`
+              : `<button class="btn success btn-sm" onclick="completeSession(${fi},${di},${si})">✓</button>`}
+          </div>
+        </div>
+        <div class="session-body">
+          ${s.ins ? `<div class="instrucciones">💡 ${s.ins}</div>` : ''}
+          ${s.esq ? renderEsquema(s.esq) : ''}
+        </div>
+      </div>`;
+    }).join('')}
+
+    <div style="display:flex;gap:8px;margin-top:24px;justify-content:space-between">
+      ${prev ? `<button class="btn" onclick="setView('dia', ${prev.fi}, ${prev.di})">← ${prev.d.id}</button>` : '<span></span>'}
+      ${nxt ? `<button class="btn primary" onclick="setView('dia', ${nxt.fi}, ${nxt.di})">${nxt.d.id} →</button>` : '<span></span>'}
+    </div>
+  `;
+}
+
+function renderEsquema(key) {
+  let content = ESQUEMAS[key];
+  if (!content) return `<div class="esquema"><em>Esquema no encontrado: ${key}</em></div>`;
+  if (content === '__MNEMO__') {
+    return `<div class="esquema">${PLAN.mnemonicos.map((m,i) => `<div style="margin-bottom:10px"><strong style="color:var(--warning)">${i+1}.</strong> ${m.t}</div>`).join('')}</div>`;
+  }
+  if (content === '__REGLAS__') {
+    return `<div class="esquema"><ol>${PLAN.reglas.map(r => `<li style="margin:6px 0">${r}</li>`).join('')}</ol></div>`;
+  }
+  if (content.startsWith('__ESQ_CONCAT__')) {
+    const ids = content.replace('__ESQ_CONCAT__', '').split(',');
+    return `<div class="esquema">${ids.map(id => ESQUEMAS[id]).join('<hr style="margin:18px 0;border:none;border-top:1px dashed var(--border)">')}</div>`;
+  }
+  return `<div class="esquema">${content}</div>`;
+}
+
+function toggleSession(btn) {
+  const ses = btn.closest('.session');
+  ses.classList.toggle('open');
+}
+
+function completeSession(fi, di, si) {
+  markCompleted(fi, di, si);
+  if (state.timer.sessionKey === sessionKey(fi, di, si)) {
+    stopTimer();
+  }
+  render();
+}
+function unmarkSession(fi, di, si) {
+  unmarkCompleted(fi, di, si);
+  render();
+}
+
+function renderReglas(m) {
+  m.innerHTML = `
+    <div class="crumb">Material</div>
+    <h1 class="maintitle">⚖️ Reglas de oro</h1>
+    <p class="lead">No negociables. Repásalas al empezar cada sesión.</p>
+    <div class="esquema">
+      <ol style="padding-left:24px">
+        ${PLAN.reglas.map((r, i) => `<li style="margin:10px 0;font-size:14px"><strong style="color:var(--accent3)">${i+1}.</strong> ${r}</li>`).join('')}
+      </ol>
+    </div>
+  `;
+}
+
+function renderMnemo(m) {
+  const cats = [...new Set(PLAN.mnemonicos.map(x => x.c))];
+  m.innerHTML = `
+    <div class="crumb">Material</div>
+    <h1 class="maintitle">🧠 30 mnemónicos clave</h1>
+    <p class="lead">Para datos numéricos, secuencias y trampas. Memoriza la frase entera.</p>
+    ${cats.map(cat => `
+      <div class="section">
+        <div class="section-title">${cat}</div>
+        <div class="mnemo-grid">
+          ${PLAN.mnemonicos.filter(x => x.c === cat).map((x, i) => `
+            <div class="mnemo">
+              <div class="mnemo-num">${PLAN.mnemonicos.indexOf(x)+1}</div>
+              <div class="mnemo-text">${x.t}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderEsquemas(m) {
+  const principales = ['tiroides','digestion','higado','nutricion','inmunidad','hierro','cancer','calcio','lipidos','antiox','vision','embarazo','neuro','sarcomero'];
+  m.innerHTML = `
+    <div class="crumb">Material</div>
+    <h1 class="maintitle">📖 14 esquemas-resumen</h1>
+    <p class="lead">Toda la materia condensada en lo que cae. Recórrelos en víspera del examen.</p>
+    ${principales.map(id => `<div style="margin-bottom:24px">${renderEsquema(id)}</div>`).join('')}
+  `;
+}
+
+/* ======================================================================
+   TEMPORIZADOR
+   ====================================================================== */
+
+let timerInterval = null;
+
+function startSession(fi, di, si) {
+  const s = PLAN.fases[fi].dias[di].sesiones[si];
+  if (s.d <= 0) {
+    completeSession(fi, di, si);
+    return;
+  }
+  state.timer = {
+    start: Date.now(),
+    paused: 0,
+    totalPausedMs: 0,
+    isRunning: true,
+    sessionDurMs: s.d * 60 * 1000,
+    sessionKey: sessionKey(fi, di, si),
+    sessionTitle: `${PLAN.fases[fi].dias[di].id} · ${s.t}`,
+    sessionFi: fi, sessionDi: di, sessionSi: si,
+  };
+  save();
+  startTicker();
+  render();
+}
+
+function startTicker() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 250);
+  updateTimer();
+}
+
+function pauseTimer() {
+  if (state.timer.isRunning && !state.timer.paused) {
+    state.timer.paused = Date.now();
+    save();
+    renderTimer();
+  }
+}
+function resumeTimer() {
+  if (state.timer.paused) {
+    state.timer.totalPausedMs += Date.now() - state.timer.paused;
+    state.timer.paused = 0;
+    save();
+    renderTimer();
+  }
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  state.timer = { start: 0, paused: 0, totalPausedMs: 0, isRunning: false, sessionDurMs: 0, sessionKey: null };
+  save();
+  renderTimer();
+}
+function resetTimer() {
+  if (state.timer.isRunning) {
+    state.timer.start = Date.now();
+    state.timer.paused = 0;
+    state.timer.totalPausedMs = 0;
+    save();
+    renderTimer();
+  }
+}
+
+function elapsedMs() {
+  if (!state.timer.isRunning) return 0;
+  const now = state.timer.paused || Date.now();
+  return now - state.timer.start - state.timer.totalPausedMs;
+}
+
+function updateTimer() {
+  renderTimer();
+  // Si terminó, alerta visual; el usuario decide si marca completado.
+  const elapsed = elapsedMs();
+  if (elapsed >= state.timer.sessionDurMs && state.timer.isRunning && !state.timer._notified) {
+    state.timer._notified = true;
+    try { new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQwAAACAgICAgICAgICAgIA=').play(); } catch {}
+    if (Notification && Notification.permission === 'granted') {
+      new Notification('⏰ Tiempo cumplido', { body: state.timer.sessionTitle });
+    }
+  }
+}
+
+function renderTimer() {
+  const bar = document.getElementById('timerbar');
+  if (!state.timer.isRunning) {
+    bar.innerHTML = `
+      <div class="timer-info">
+        <div class="timer-session-name">No hay sesión activa</div>
+        <div class="timer-session-title">Selecciona una sesión y pulsa <strong>▶ Iniciar</strong></div>
+      </div>`;
+    return;
+  }
+  const elapsed = elapsedMs();
+  const remaining = Math.max(0, state.timer.sessionDurMs - elapsed);
+  const isPaused = !!state.timer.paused;
+  const isOver = remaining === 0;
+  const isEnding = remaining < 60_000 && remaining > 0;
+
+  const mm = Math.floor(remaining / 60000);
+  const ss = Math.floor((remaining % 60000) / 1000);
+  const display = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+
+  bar.innerHTML = `
+    <div class="timer-info">
+      <div class="timer-session-name">${isPaused?'⏸ Pausado · ':''}${isOver?'✓ Tiempo cumplido · ':''}En sesión</div>
+      <div class="timer-session-title">${state.timer.sessionTitle || ''}</div>
+    </div>
+    <div class="timer-display ${isOver?'over':isEnding?'ending':''}">${display}</div>
+    <div class="timer-controls">
+      ${isPaused
+        ? `<button class="timer-btn primary" title="Reanudar" onclick="resumeTimer()">▶</button>`
+        : `<button class="timer-btn" title="Pausar" onclick="pauseTimer()">⏸</button>`}
+      <button class="timer-btn" title="Reiniciar (repetir)" onclick="resetTimer()">↻</button>
+      <button class="timer-btn" title="Marcar completada" onclick="completeSession(${state.timer.sessionFi},${state.timer.sessionDi},${state.timer.sessionSi})">✓</button>
+      <button class="timer-btn" title="Cancelar" onclick="stopTimer()">✕</button>
+    </div>`;
+}
+
+/* ======================================================================
+   FIREBASE — sincronización entre dispositivos
+   ====================================================================== */
+
+const FB_CONFIG = {
+  apiKey: "AIzaSyAKughV5w2XAKRm3rWuUmhVldwU2bjj0zY",
+  authDomain: "portal-estudio-medicina.firebaseapp.com",
+  databaseURL: "https://portal-estudio-medicina-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "portal-estudio-medicina",
+  storageBucket: "portal-estudio-medicina.firebasestorage.app",
+  messagingSenderId: "536326985694",
+  appId: "1:536326985694:web:ee2428d39421653be26f4f"
+};
+
+let _fbDB = null, _fbAuth = null, _fbUser = null, _fbListener = null;
+let _fbSyncStatus = 'offline'; // offline | online | syncing | error
+let _fbSaveTimer = null;
+let _fbApplyingRemote = false; // evita bucle local↔remoto
+
+(function initFirebase() {
+  try {
+    if (typeof firebase === 'undefined') {
+      console.warn('Firebase SDK no cargó. Sin sincronización.');
+      return;
+    }
+    const app = firebase.initializeApp(FB_CONFIG, 'planEstudioApp');
+    _fbAuth = firebase.auth(app);
+    _fbDB = firebase.database(app);
+    _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    _fbAuth.onAuthStateChanged(function(user) {
+      _fbUser = user;
+      if (user) {
+        _fbSyncStatus = 'syncing';
+        renderSidebar();
+        fbStartListener();
+      } else {
+        _fbSyncStatus = 'offline';
+        if (_fbListener) {
+          try { fbRef().off('value', _fbListener); } catch(e) {}
+          _fbListener = null;
+        }
+        renderSidebar();
+      }
+    });
+  } catch(e) { console.warn('Firebase init error:', e); }
+})();
+
+function fbRef() {
+  if (!_fbDB || !_fbUser) return null;
+  return _fbDB.ref('users/' + _fbUser.uid + '/' + STORAGE_KEY);
+}
+
+// Merge inteligente: une dos estados sin perder progreso de ningún dispositivo.
+function mergeStates(local, remote) {
+  if (!remote) return local;
+  if (!local) return remote;
+  const merged = JSON.parse(JSON.stringify(local));
+  // completed: para cada key, conservar el más antiguo (=primer momento en que se completó)
+  merged.completed = Object.assign({}, local.completed || {});
+  Object.keys(remote.completed || {}).forEach(k => {
+    if (!merged.completed[k]) merged.completed[k] = remote.completed[k];
+    else if (remote.completed[k] < merged.completed[k]) merged.completed[k] = remote.completed[k];
+  });
+  // streak y lastActiveDay: tomar el más reciente
+  if ((remote.lastActiveDay || '') >= (local.lastActiveDay || '')) {
+    merged.streak = remote.streak || 0;
+    merged.lastActiveDay = remote.lastActiveDay || null;
+  }
+  // collapsed, view, currentFase, currentDia: tomar lo local (UI propia del dispositivo)
+  // timer: NO sincronizar (es del dispositivo en uso). Se mantiene el local.
+  return merged;
+}
+
+function fbStartListener() {
+  const ref = fbRef();
+  if (!ref) return;
+  if (_fbListener) { try { ref.off('value', _fbListener); } catch(e) {} }
+  _fbListener = ref.on('value', function(snap) {
+    const remote = snap.val();
+    if (remote) {
+      const merged = mergeStates(state, remote);
+      _fbApplyingRemote = true;
+      state = merged;
+      saveLocal();
+      _fbApplyingRemote = false;
+      // Si remote tenía menos info, subimos el merged.
+      const remoteJson = JSON.stringify(sanitizeForRemote(remote));
+      const mergedJson = JSON.stringify(sanitizeForRemote(merged));
+      if (remoteJson !== mergedJson) fbSaveImmediate();
+    } else {
+      // No había nada remoto → subimos el local actual.
+      fbSaveImmediate();
+    }
+    _fbSyncStatus = 'online';
+    render();
+  }, function(err) {
+    console.warn('Firebase listener error', err);
+    _fbSyncStatus = 'error';
+    renderSidebar();
+  });
+}
+
+function sanitizeForRemote(s) {
+  // Mandamos solo lo importante. Quitamos timer y vista efímera.
+  return {
+    completed: s.completed || {},
+    streak: s.streak || 0,
+    lastActiveDay: s.lastActiveDay || null,
+  };
+}
+
+function fbSaveImmediate() {
+  const ref = fbRef();
+  if (!ref) return;
+  _fbSyncStatus = 'syncing';
+  renderSidebar();
+  ref.set(sanitizeForRemote(state))
+    .then(() => { _fbSyncStatus = 'online'; renderSidebar(); })
+    .catch(e => { console.warn(e); _fbSyncStatus = 'error'; renderSidebar(); });
+}
+
+function fbSaveDebounced() {
+  if (!_fbUser || _fbApplyingRemote) return;
+  if (_fbSaveTimer) clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(fbSaveImmediate, 600);
+}
+
+function renderAuthStatus() {
+  if (typeof firebase === 'undefined') return '';
+  if (_fbUser) {
+    const labels = { online: '✓ Sincronizado', syncing: '⟳ Sincronizando…', error: '⚠ Error de sincronización', offline: '⏸ Desconectado' };
+    return `
+      <div class="auth-status ${_fbSyncStatus}" onclick="toggleAuthMenu()">
+        <span class="dot"></span>
+        <div class="info">
+          <div>${labels[_fbSyncStatus] || 'Conectado'}</div>
+          <div class="uid">${_fbUser.email || ''}</div>
+        </div>
+        <span style="color:var(--text3);font-size:11px" title="Cerrar sesión" onclick="event.stopPropagation();fbLogout()">⎋</span>
+      </div>`;
+  }
+  return `
+    <div class="auth-status offline" onclick="openAuthModal()">
+      <span class="dot"></span>
+      <div class="info">
+        <div>Sin sincronizar</div>
+        <div class="uid">Iniciar sesión para sync</div>
+      </div>
+    </div>`;
+}
+
+function openAuthModal() {
+  document.getElementById('authModal').classList.add('show');
+  switchAuthTab('login');
+  document.getElementById('authError').textContent = '';
+}
+function closeAuthModal() {
+  document.getElementById('authModal').classList.remove('show');
+}
+function switchAuthTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === t));
+  document.getElementById('authSubmit').textContent = t === 'login' ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('authSubmit').dataset.tab = t;
+}
+function authSubmit() {
+  const tab = document.getElementById('authSubmit').dataset.tab || 'login';
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const err = document.getElementById('authError');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Email y contraseña son obligatorios.'; return; }
+  if (!_fbAuth) { err.textContent = 'Firebase no disponible.'; return; }
+  const op = tab === 'login'
+    ? _fbAuth.signInWithEmailAndPassword(email, pass)
+    : _fbAuth.createUserWithEmailAndPassword(email, pass);
+  op.then(() => closeAuthModal())
+    .catch(e => { err.textContent = e.message || e.code; });
+}
+function forgotPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { document.getElementById('authError').textContent = 'Escribe tu email arriba primero.'; return; }
+  _fbAuth.sendPasswordResetEmail(email)
+    .then(() => { document.getElementById('authError').textContent = '✓ Email de recuperación enviado.'; })
+    .catch(e => { document.getElementById('authError').textContent = e.message; });
+}
+function fbLogout() {
+  if (!_fbAuth) return;
+  if (!confirm('¿Cerrar sesión? Tu progreso quedará solo en este dispositivo hasta que vuelvas a iniciar sesión.')) return;
+  _fbAuth.signOut();
+}
+function toggleAuthMenu() {
+  if (_fbUser) return; // ya logueado, el ⎋ maneja logout
+  openAuthModal();
+}
+
+/* ======================================================================
+   ARRANQUE
+   ====================================================================== */
+
+if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+  // pedimos permiso suavemente al iniciar
+  setTimeout(() => Notification.requestPermission().catch(()=>{}), 2000);
+}
+
+if (!state.view) state.view = 'home';
+if (state.timer && state.timer.isRunning) startTicker();
+render();
+
+</script>
+</body>
+</html>

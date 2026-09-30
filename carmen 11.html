@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 11 (Faringe)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 11</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 11: La Faringe (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Reiniciar Todo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. La faringe se extiende desde la base del cráneo hasta el nivel vertebral:", options: [
+            { text: "C6", isCorrect: true, rationale: "Correcto. A nivel del cartílago cricoides, donde se continúa con el esófago." },
+            { text: "C3", isCorrect: false, rationale: "Nivel del hioides." },
+            { text: "T1", isCorrect: false, rationale: "Demasiado bajo." },
+            { text: "C1", isCorrect: false, rationale: "Es el inicio." }
+        ]},
+        { id: 2, q: "2. ¿Qué estructura comunica la nasofaringe con la cavidad nasal?", options: [
+            { text: "Las coanas", isCorrect: true, rationale: "Correcto. Son los orificios posteriores de las fosas nasales." },
+            { text: "El istmo de las fauces", isCorrect: false, rationale: "Comunica boca con orofaringe." },
+            { text: "El aditus laríngeo", isCorrect: false, rationale: "Entrada a la laringe." },
+            { text: "La trompa auditiva", isCorrect: false, rationale: "Comunica con el oído medio." }
+        ]},
+        { id: 3, q: "3. La fascia que recubre la superficie externa de los músculos constrictores se llama:", options: [
+            { text: "Fascia bucofaríngea", isCorrect: true, rationale: "Correcto. Separa la faringe del espacio retrofaríngeo." },
+            { text: "Fascia faringobasilar", isCorrect: false, rationale: "Es la fascia interna, bajo la mucosa." },
+            { text: "Fascia prevertebral", isCorrect: false, rationale: "Cubre la columna vertebral." },
+            { text: "Fascia alar", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 4, q: "4. El músculo constrictor superior de la faringe se inserta anteriormente en:", options: [
+            { text: "El rafe pterigomandibular", isCorrect: true, rationale: "Correcto. Donde se une con el músculo buccinador." },
+            { text: "El hueso hioides", isCorrect: false, rationale: "Origen del constrictor medio." },
+            { text: "El cartílago tiroides", isCorrect: false, rationale: "Origen del constrictor inferior." },
+            { text: "El proceso estiloides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 5, q: "5. ¿Qué estructura se encuentra en el techo de la nasofaringe?", options: [
+            { text: "Amígdala faríngea (adenoides)", isCorrect: true, rationale: "Correcto. Tejido linfoide que puede hipertrofiarse." },
+            { text: "Amígdala palatina", isCorrect: false, rationale: "Está en la orofaringe." },
+            { text: "Amígdala lingual", isCorrect: false, rationale: "En la base de la lengua." },
+            { text: "Receso piriforme", isCorrect: false, rationale: "En la laringofaringe." }
+        ]},
+        { id: 6, q: "6. El orificio de la trompa auditiva (Eustaquio) se localiza en:", options: [
+            { text: "Pared lateral de la nasofaringe", isCorrect: true, rationale: "Correcto. Protegido por el torus tubarius." },
+            { text: "Orofaringe", isCorrect: false, rationale: "No." },
+            { text: "Laringofaringe", isCorrect: false, rationale: "No." },
+            { text: "Techo de la faringe", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 7, q: "7. El receso faríngeo (fosa de Rosenmüller) se sitúa:", options: [
+            { text: "Posterior al torus tubarius", isCorrect: true, rationale: "Correcto. Es un lugar frecuente de origen de carcinomas nasofaríngeos." },
+            { text: "Anterior al torus tubarius", isCorrect: false, rationale: "No." },
+            { text: "En la orofaringe", isCorrect: false, rationale: "No." },
+            { text: "En la vallécula", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 8, q: "8. ¿Cuál es el único músculo de la faringe inervado por el nervio glosofaríngeo (IX)?", options: [
+            { text: "Estilofaríngeo", isCorrect: true, rationale: "Correcto. Todos los demás son inervados por el plexo faríngeo (principalmente Vago X)." },
+            { text: "Salpingofaríngeo", isCorrect: false, rationale: "Inervado por el X." },
+            { text: "Palatofaríngeo", isCorrect: false, rationale: "Inervado por el X." },
+            { text: "Constrictor superior", isCorrect: false, rationale: "Inervado por el X." }
+        ]},
+        { id: 9, q: "9. El istmo de las fauces está delimitado lateralmente por:", options: [
+            { text: "Los arcos palatogloso y palatofaríngeo", isCorrect: true, rationale: "Correcto. Entre ellos se sitúa la amígdala palatina." },
+            { text: "Los dientes", isCorrect: false, rationale: "No." },
+            { text: "La epiglotis", isCorrect: false, rationale: "No." },
+            { text: "El paladar duro", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 10, q: "10. La amígdala palatina se aloja en:", options: [
+            { text: "La fosa tonsilar, entre los pilares anterior y posterior", isCorrect: true, rationale: "Correcto." },
+            { text: "La nasofaringe", isCorrect: false, rationale: "No." },
+            { text: "La base de la lengua", isCorrect: false, rationale: "Amígdala lingual." },
+            { text: "El receso piriforme", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 11, q: "11. El músculo constrictor medio se origina principalmente en:", options: [
+            { text: "Hueso hioides (astas mayor y menor)", isCorrect: true, rationale: "Correcto." },
+            { text: "Mandíbula", isCorrect: false, rationale: "Constrictor superior." },
+            { text: "Cartílago tiroides", isCorrect: false, rationale: "Constrictor inferior." },
+            { text: "Apófisis estiloides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 12, q: "12. El hiato situado entre el constrictor superior y el medio permite el paso de:", options: [
+            { text: "Músculo estilofaríngeo y nervio glosofaríngeo", isCorrect: true, rationale: "Correcto." },
+            { text: "Trompa auditiva", isCorrect: false, rationale: "Pasa por encima del superior." },
+            { text: "Nervio laríngeo interno", isCorrect: false, rationale: "Pasa entre medio e inferior." },
+            { text: "Nervio recurrente", isCorrect: false, rationale: "Pasa por debajo del inferior." }
+        ]},
+        { id: 13, q: "13. La porción más inferior del músculo constrictor inferior se denomina:", options: [
+            { text: "Músculo cricofaríngeo", isCorrect: true, rationale: "Correcto. Actúa como esfínter esofágico superior." },
+            { text: "Músculo tirofaríngeo", isCorrect: false, rationale: "Es la porción superior del constrictor inferior." },
+            { text: "Músculo palatofaríngeo", isCorrect: false, rationale: "Es un elevador." },
+            { text: "Músculo salpingofaríngeo", isCorrect: false, rationale: "Es un elevador." }
+        ]},
+        { id: 14, q: "14. El anillo de Waldeyer está formado por tejido linfoide que incluye:", options: [
+            { text: "Amígdalas faríngea, tubáricas, palatinas y linguales", isCorrect: true, rationale: "Correcto. Forman un cinturón de defensa inmunológica." },
+            { text: "Solo amígdalas palatinas", isCorrect: false, rationale: "Incompleto." },
+            { text: "Ganglios cervicales profundos", isCorrect: false, rationale: "No forman parte del anillo mucoso." },
+            { text: "Timo", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 15, q: "15. La inervación sensitiva de la nasofaringe depende principalmente de:", options: [
+            { text: "Nervio maxilar (V2)", isCorrect: true, rationale: "Correcto. A través del nervio faríngeo." },
+            { text: "Nervio glosofaríngeo (IX)", isCorrect: false, rationale: "Orofaringe." },
+            { text: "Nervio vago (X)", isCorrect: false, rationale: "Laringofaringe." },
+            { text: "Nervio mandibular (V3)", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 16, q: "16. La inervación sensitiva de la orofaringe depende de:", options: [
+            { text: "Nervio glosofaríngeo (IX)", isCorrect: true, rationale: "Correcto. Es responsable del reflejo nauseoso." },
+            { text: "Nervio vago", isCorrect: false, rationale: "Laringofaringe." },
+            { text: "Nervio trigémino", isCorrect: false, rationale: "Nasofaringe." },
+            { text: "Nervio facial", isCorrect: false, rationale: "Gusto." }
+        ]},
+        { id: 17, q: "17. El espacio retrofaríngeo:", options: [
+            { text: "Permite el deslizamiento de la faringe durante la deglución", isCorrect: true, rationale: "Correcto. Es un espacio virtual entre la fascia bucofaríngea y prevertebral." },
+            { text: "Contiene la arteria carótida", isCorrect: false, rationale: "Esa está en el espacio carotídeo (lateral)." },
+            { text: "Está dentro de la faringe", isCorrect: false, rationale: "Está detrás." },
+            { text: "No existe", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 18, q: "18. El receso piriforme se encuentra en:", options: [
+            { text: "Laringofaringe, a cada lado de la entrada laríngea", isCorrect: true, rationale: "Correcto. Es donde suelen quedar atrapados cuerpos extraños." },
+            { text: "Nasofaringe", isCorrect: false, rationale: "No." },
+            { text: "Orofaringe", isCorrect: false, rationale: "No." },
+            { text: "Esófago", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 19, q: "19. ¿Qué arteria es la principal fuente de irrigación de la amígdala palatina?", options: [
+            { text: "Rama tonsilar de la arteria facial", isCorrect: true, rationale: "Correcto." },
+            { text: "Arteria lingual", isCorrect: false, rationale: "No." },
+            { text: "Arteria faríngea ascendente", isCorrect: false, rationale: "Contribuye, pero no es la principal." },
+            { text: "Arteria maxilar", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 20, q: "20. La dehiscencia de Killian (divertículo de Zenker) ocurre:", options: [
+            { text: "Entre las porciones tirofaríngea y cricofaríngea del constrictor inferior", isCorrect: true, rationale: "Correcto. Es una zona de debilidad muscular posterior." },
+            { text: "En la nasofaringe", isCorrect: false, rationale: "No." },
+            { text: "Entre constrictor medio y superior", isCorrect: false, rationale: "No." },
+            { text: "En el esófago torácico", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 21, q: "21. El músculo salpingofaríngeo se origina en:", options: [
+            { text: "El cartílago de la trompa auditiva", isCorrect: true, rationale: "Correcto. Desciende para mezclarse con el palatofaríngeo." },
+            { text: "El paladar blando", isCorrect: false, rationale: "No." },
+            { text: "La apófisis estiloides", isCorrect: false, rationale: "No." },
+            { text: "El hueso hioides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 22, q: "22. El rodete de Passavant es:", options: [
+            { text: "Un relieve mucoso en la pared posterior formado por el constrictor superior durante la deglución", isCorrect: true, rationale: "Correcto. Ayuda al paladar blando a cerrar la nasofaringe." },
+            { text: "Parte de la lengua", isCorrect: false, rationale: "No." },
+            { text: "Un cartílago", isCorrect: false, rationale: "No." },
+            { text: "Una arteria", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 23, q: "23. La fascia faringobasilar:", options: [
+            { text: "Cierra los espacios donde falta capa muscular superiormente", isCorrect: true, rationale: "Correcto. Es la 'aponeurosis' de la faringe, fuerte superiormente y débil inferiormente." },
+            { text: "Es superficial a los músculos", isCorrect: false, rationale: "Es profunda (interna) a los músculos." },
+            { text: "Recubre la columna", isCorrect: false, rationale: "No." },
+            { text: "No existe", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 24, q: "24. El drenaje venoso de la faringe va principalmente a:", options: [
+            { text: "Plexo venoso faríngeo y vena yugular interna", isCorrect: true, rationale: "Correcto." },
+            { text: "Vena yugular externa", isCorrect: false, rationale: "No." },
+            { text: "Vena cava superior directa", isCorrect: false, rationale: "No." },
+            { text: "Vena vertebral", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 25, q: "25. ¿Qué nervio pasa por el hiato entre el constrictor medio e inferior?", options: [
+            { text: "Ramo interno del nervio laríngeo superior", isCorrect: true, rationale: "Correcto. Acompañado de la arteria laríngea superior." },
+            { text: "Nervio glosofaríngeo", isCorrect: false, rationale: "Pasa por el hiato superior." },
+            { text: "Nervio recurrente", isCorrect: false, rationale: "Pasa por el hiato inferior." },
+            { text: "Nervio hipogloso", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 26, q: "26. Los músculos elevadores de la faringe (capa longitudinal) son:", options: [
+            { text: "Estilofaríngeo, Salpingofaríngeo y Palatofaríngeo", isCorrect: true, rationale: "Correcto. Acortan y elevan la faringe en la deglución." },
+            { text: "Constrictores superior, medio e inferior", isCorrect: false, rationale: "Capa circular externa." },
+            { text: "Digástrico y milohioideo", isCorrect: false, rationale: "Suprahioideos." },
+            { text: "Escalenos", isCorrect: false, rationale: "Cuello lateral." }
+        ]},
+        { id: 27, q: "27. La comunicación entre la laringofaringe y la laringe se llama:", options: [
+            { text: "Aditus laríngeo (entrada de la laringe)", isCorrect: true, rationale: "Correcto." },
+            { text: "Glotis", isCorrect: false, rationale: "Está dentro de la laringe." },
+            { text: "Coanas", isCorrect: false, rationale: "Nasofaringe." },
+            { text: "Istmo de las fauces", isCorrect: false, rationale: "Orofaringe." }
+        ]},
+        { id: 28, q: "28. El rafe faríngeo:", options: [
+            { text: "Es la inserción posterior de los músculos constrictores", isCorrect: true, rationale: "Correcto. Cuelga del tubérculo faríngeo del occipital." },
+            { text: "Está en la cara anterior", isCorrect: false, rationale: "No." },
+            { text: "Es un nervio", isCorrect: false, rationale: "No." },
+            { text: "Divide la nariz", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 29, q: "29. ¿Qué estructura pasa por el hiato superior (por encima del constrictor superior)?", options: [
+            { text: "Trompa auditiva y músculo elevador del velo del paladar", isCorrect: true, rationale: "Correcto. Pasan por el seno de Morgagni." },
+            { text: "Arteria carótida", isCorrect: false, rationale: "No." },
+            { text: "Nervio vago", isCorrect: false, rationale: "No." },
+            { text: "Músculo estilofaríngeo", isCorrect: false, rationale: "Pasa por el segundo hiato." }
+        ]},
+        { id: 30, q: "30. La inervación motora del plexo faríngeo proviene principalmente de:", options: [
+            { text: "Nervio Vago (X)", isCorrect: true, rationale: "Correcto. Aporta las fibras motoras para los constrictores." },
+            { text: "Nervio Trigémino (V)", isCorrect: false, rationale: "No." },
+            { text: "Nervio Facial (VII)", isCorrect: false, rationale: "No." },
+            { text: "Nervio Hipogloso (XII)", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 31, q: "31. Las valléculas se encuentran:", options: [
+            { text: "Entre la base de la lengua y la epiglotis", isCorrect: true, rationale: "Correcto." },
+            { text: "En la nasofaringe", isCorrect: false, rationale: "No." },
+            { text: "En el esófago", isCorrect: false, rationale: "No." },
+            { text: "Detrás de las amígdalas", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 32, q: "32. El reflejo nauseoso (gag reflex) tiene como vía aferente (sensitiva) al nervio:", options: [
+            { text: "Glosofaríngeo (IX)", isCorrect: true, rationale: "Correcto. Y la vía eferente (motora) es el Vago (X)." },
+            { text: "Vago (X)", isCorrect: false, rationale: "Es la vía motora." },
+            { text: "Facial (VII)", isCorrect: false, rationale: "No." },
+            { text: "Trigémino (V)", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 33, q: "33. La arteria faríngea ascendente es rama de:", options: [
+            { text: "Arteria carótida externa", isCorrect: true, rationale: "Correcto. Suele ser su primera rama medial." },
+            { text: "Arteria carótida interna", isCorrect: false, rationale: "No da ramas en el cuello." },
+            { text: "Arteria subclavia", isCorrect: false, rationale: "No." },
+            { text: "Arteria facial", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 34, q: "34. El músculo palatofaríngeo forma:", options: [
+            { text: "El pilar posterior de la amígdala (arco palatofaríngeo)", isCorrect: true, rationale: "Correcto." },
+            { text: "El pilar anterior", isCorrect: false, rationale: "Formado por el palatogloso." },
+            { text: "El suelo de la boca", isCorrect: false, rationale: "No." },
+            { text: "La úvula", isCorrect: false, rationale: "Músculo de la úvula." }
+        ]},
+        { id: 35, q: "35. La linfa de la faringe drena principalmente a:", options: [
+            { text: "Ganglios retrofaríngeos y cervicales profundos", isCorrect: true, rationale: "Correcto." },
+            { text: "Ganglios axilares", isCorrect: false, rationale: "No." },
+            { text: "Ganglios inguinales", isCorrect: false, rationale: "No." },
+            { text: "Ganglios submentonianos exclusivamente", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 36, q: "36. ¿Qué función tienen los músculos constrictores durante la deglución?", options: [
+            { text: "Se contraen secuencialmente de arriba abajo (peristalsis)", isCorrect: true, rationale: "Correcto. Para empujar el bolo hacia el esófago." },
+            { text: "Se relajan todos a la vez", isCorrect: false, rationale: "No." },
+            { text: "Elevan la laringe", isCorrect: false, rationale: "Función de los longitudinales." },
+            { text: "Cierran la nariz", isCorrect: false, rationale: "Función del paladar blando." }
+        ]},
+        { id: 37, q: "37. El torus tubarius es:", options: [
+            { text: "Una elevación mucosa producida por el cartílago de la trompa auditiva", isCorrect: true, rationale: "Correcto. En la nasofaringe." },
+            { text: "Un músculo", isCorrect: false, rationale: "No." },
+            { text: "Una glándula", isCorrect: false, rationale: "No." },
+            { text: "Un hueso", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 38, q: "38. El nervio laríngeo recurrente pasa por el hiato:", options: [
+            { text: "Inferior (debajo del constrictor inferior)", isCorrect: true, rationale: "Correcto. Entra hacia la laringe." },
+            { text: "Superior", isCorrect: false, rationale: "No." },
+            { text: "Medio", isCorrect: false, rationale: "No." },
+            { text: "No pasa por hiatos", isCorrect: false, rationale: "Falso." }
+        ]},
+        { id: 39, q: "39. La laringofaringe se sitúa posterior a:", options: [
+            { text: "La laringe", isCorrect: true, rationale: "Correcto. Desde la epiglotis hasta el cricoides." },
+            { text: "La nariz", isCorrect: false, rationale: "Nasofaringe." },
+            { text: "La boca", isCorrect: false, rationale: "Orofaringe." },
+            { text: "La tráquea", isCorrect: false, rationale: "Esófago." }
+        ]},
+        { id: 40, q: "40. ¿Qué pliegue desciende desde el torus tubarius hacia la faringe?", options: [
+            { text: "Pliegue salpingofaríngeo", isCorrect: true, rationale: "Correcto. Contiene el músculo homónimo." },
+            { text: "Pliegue palatogloso", isCorrect: false, rationale: "Orofaringe." },
+            { text: "Pliegue vocal", isCorrect: false, rationale: "Laringe." },
+            { text: "Pliegue ariepiglótico", isCorrect: false, rationale: "Laringe." }
+        ]},
+        { id: 41, q: "41. La amígdala lingual se encuentra en:", options: [
+            { text: "El tercio posterior (base) de la lengua", isCorrect: true, rationale: "Correcto. Superficie irregular." },
+            { text: "El paladar", isCorrect: false, rationale: "No." },
+            { text: "La mejilla", isCorrect: false, rationale: "No." },
+            { text: "El suelo de la boca", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 42, q: "42. La rama arterial tonsilar suele penetrar en la amígdala por su polo:", options: [
+            { text: "Inferior", isCorrect: true, rationale: "Correcto. Importante en amigdalectomías." },
+            { text: "Superior", isCorrect: false, rationale: "No." },
+            { text: "Anterior", isCorrect: false, rationale: "No." },
+            { text: "Posterior", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 43, q: "43. El músculo constrictor inferior se origina en:", options: [
+            { text: "Línea oblicua del tiroides y cartílago cricoides", isCorrect: true, rationale: "Correcto." },
+            { text: "Hioides", isCorrect: false, rationale: "Constrictor medio." },
+            { text: "Rafe pterigomandibular", isCorrect: false, rationale: "Constrictor superior." },
+            { text: "Estiloides", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 44, q: "44. La fase faríngea de la deglución es:", options: [
+            { text: "Involuntaria", isCorrect: true, rationale: "Correcto. Una vez el bolo toca la orofaringe, el reflejo es automático." },
+            { text: "Voluntaria", isCorrect: false, rationale: "La fase oral es voluntaria." },
+            { text: "Lenta", isCorrect: false, rationale: "Es rápida." },
+            { text: "Consciente", isCorrect: false, rationale: "Es refleja." }
+        ]},
+        { id: 45, q: "45. Las coanas están separadas entre sí por:", options: [
+            { text: "El vómer (tabique nasal posterior)", isCorrect: true, rationale: "Correcto." },
+            { text: "El paladar blando", isCorrect: false, rationale: "Límite inferior." },
+            { text: "El esfenoides", isCorrect: false, rationale: "Techo." },
+            { text: "El cornete inferior", isCorrect: false, rationale: "Lateral." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            currentPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

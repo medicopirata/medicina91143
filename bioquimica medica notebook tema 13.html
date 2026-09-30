@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Metabolismo del Hierro y Grupo Hemo</title>
+    <style>
+        :root {
+            --primary-dark: #1a252f;
+            --accent-red: #c0392b;
+            --success-green: #27ae60;
+            --warning-yellow: #f1c40f;
+            --bg-light: #f9f9f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+            color: #333;
+        }
+
+        /* Modal de Inicio */
+        #init-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Barra Lateral */
+        #sidebar {
+            width: 70px;
+            background: var(--primary-dark);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 6px;
+            border-right: 2px solid #000;
+        }
+
+        .nav-dot {
+            width: 45px;
+            height: 45px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .nav-dot.answered { background: var(--success-green); }
+        .nav-dot.marked { border: 3px solid var(--warning-yellow); box-sizing: border-box; }
+
+        /* Contenido Principal */
+        #main-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-box {
+            background: white;
+            max-width: 850px;
+            margin: 0 auto 50px auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #ddd;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .mark-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #666;
+            border: 1px solid #eee;
+        }
+
+        .opt-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .opt-item {
+            padding: 15px 20px;
+            border: 2px solid #f1f1f1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            line-height: 1.5;
+        }
+
+        .opt-item:hover:not(.disabled) { background: #f0f7ff; border-color: #d0e3ff; }
+        
+        .opt-item.correct { background: #d4edda; border-color: var(--success-green); color: #155724; }
+        .opt-item.incorrect { background: #f8d7da; border-color: var(--accent-red); color: #721c24; }
+        .opt-item.disabled { pointer-events: none; }
+
+        .expl-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #eef2f7;
+            border-left: 5px solid #2980b9;
+            display: none;
+            line-height: 1.6;
+        }
+
+        /* Botones y Footer */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .btn-primary { background: var(--primary-dark); color: white; }
+        .btn-finish { background: var(--accent-red); color: white; position: fixed; bottom: 20px; right: 20px; }
+
+        /* Pantalla Final */
+        #final-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white;
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .reset-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 600px) {
+            #sidebar { width: 50px; }
+            .reset-options { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-modal">
+        <div class="modal-content">
+            <h2>Bioquímica: Hierro y Hemo</h2>
+            <p>Selecciona el modo de inicio:</p>
+            <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-primary" style="width:100%;" onclick="startQuiz(true)">Orden Aleatorio (Mezclado)</button>
+        </div>
+    </div>
+
+    <aside id="sidebar"></aside>
+
+    <main id="main-view">
+        <div id="quiz-flow"></div>
+        <div style="height: 100px;"></div>
+    </main>
+
+    <button class="btn btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+
+    <div id="final-screen">
+        <h1 id="score-title">¡Cuestionario Completado!</h1>
+        <p id="score-summary" style="font-size: 1.4rem;"></p>
+        <div class="reset-options">
+            <button class="btn btn-primary" onclick="resetQuiz('all')">Repetir Todo</button>
+            <button class="btn btn-primary" onclick="resetQuiz('failed')">Repetir Solo Falladas</button>
+            <button class="btn btn-primary" onclick="resetQuiz('marked')">Repetir Solo Marcadas</button>
+            <button class="btn btn-primary" onclick="resetQuiz('failed-marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+<script>
+    const questionsDB = [
+        { id: 1, q: "1. Según advirtió textualmente la profesora (\"pregunta de examen superfácil\"), ¿en qué estado de oxidación se transporta el hierro unido a la transferrina y en cuál se almacena en la ferritina, respectivamente?", opts: ["Transportado como Ferroso (Fe2+) y almacenado como Ferroso (Fe2+).", "Transportado como Férrico (Fe3+) y almacenado como Ferroso (Fe2+).", "Transportado como Ferroso (Fe2+) y almacenado como Férrico (Fe3+).", "Transportado unido a la protoporfirina y almacenado como Férrico (Fe3+)."], ans: 1, exp: "La profesora recalcó que la ferritina almacena el hierro en estado ferroso, mientras que la transferrina lo transporta en estado férrico." },
+        { id: 2, q: "2. ¿Qué coenzima/vitamina es estrictamente necesaria para que la enzima ALA sintasa pueda llevar a cabo el paso limitante en la síntesis del grupo hemo?", opts: ["Vitamina C (Ácido ascórbico).", "Vitamina B12 (Cianocobalamina).", "Vitamina B6 (Fosfato de piridoxal).", "NADP+."], ans: 2, exp: "La síntesis del ácido δ-aminolevulínico requiere fosfato de piridoxal, que es la forma activa de la vitamina B6." },
+        { id: 3, q: "3. Si un paciente llega a urgencias con sospecha de intoxicación por metales pesados (plomo), ¿qué perfil bioquímico de los intermediarios de la síntesis del hemo esperaría encontrar según lo explicado en clase?", opts: ["Mucho uroporfirinógeno III y ausencia total de protoporfirina.", "Ausencia de ácido δ-aminolevulínico (ALA) y mucho porfobilinógeno.", "Elevados niveles de ácido δ-aminolevulínico (ALA) y ausencia de porfobilinógeno.", "Niveles tóxicos de bilirrubina directa."], ans: 2, exp: "El plomo inhibe específicamente a la enzima ALA deshidratasa. Como consecuencia, se acumula el precursor previo (ALA) y no se produce el siguiente intermediario (porfobilinógeno)." },
+        { id: 4, q: "4. ¿Cuáles son las dos moléculas precursoras iniciales que se unen en la mitocondria para comenzar la síntesis del grupo hemo?", opts: ["Acetil-CoA y Alanina.", "Succinil-CoA y Glicina.", "Malonil-CoA y Glutamato.", "Porfobilinógeno y Hierro."], ans: 1, exp: "El inicio de la ruta del hemo requiere la unión de succinil-CoA (procedente del ciclo de Krebs) y el aminoácido glicina." },
+        { id: 5, q: "5. ¿Qué molécula aporta específicamente los átomos de nitrógeno necesarios para la formación de los anillos pirrólicos en el hemo?", opts: ["El Succinil-CoA.", "La Glicina.", "La enzima ALA sintasa.", "La Transferrina."], ans: 1, exp: "Durante la condensación inicial, es el aminoácido glicina el que proporciona los átomos de nitrógeno que posteriormente formarán parte de la estructura del tetrapirrol." },
+        { id: 6, q: "6. De las siguientes opciones, ¿cómo se distribuye topográficamente la síntesis del grupo hemo dentro de la célula?", opts: ["Ocurre íntegramente en el citosol celular.", "Ocurre íntegramente en la matriz mitocondrial.", "El primer paso y los tres últimos pasos ocurren en la mitocondria, mientras que los pasos intermedios son citosólicos.", "Comienza en el citosol y finaliza en el núcleo celular."], ans: 2, exp: "La vía metabólica se inicia en la mitocondria, pasa al citosol para las siguientes reacciones intermedias y regresa a la mitocondria para los tres pasos finales." },
+        { id: 7, q: "7. ¿Qué proteína y mecanismo regulan la salida del hierro de los enterocitos (tras la digestión) y de los macrófagos (tras la hemocateresis) hacia el torrente sanguíneo?", opts: ["La ceruloplasmina, estimulada por la insulina.", "La hepcidina, que se une a la ferroportina y bloquea la salida de hierro celular.", "La transferrina, que extrae el hierro perforando la membrana celular.", "La biliverdina, que induce canales dependientes de ATP."], ans: 1, exp: "La hormona hepcidina actúa bloqueando la actividad de la ferroportina en enterocitos y macrófagos, evitando así que el hierro sea exportado a la circulación." },
+        { id: 8, q: "8. Cuando el hierro sale del enterocito por la ferroportina en estado ferroso (Fe2+), no puede unirse directamente a la transferrina sanguínea. ¿Qué enzima se encarga de oxidarlo a estado férrico (Fe3+)?", opts: ["La Citocromo b duodenal (Dcyt b).", "La Hemooxigenasa.", "La Hephaestina (ferroxidasa).", "La Biliverdina reductasa."], ans: 2, exp: "La hephaestina, que es una ferroxidasa, actúa oxidando el hierro a estado férrico (Fe3+) justo cuando sale de la célula, permitiendo su unión a la transferrina." },
+        { id: 9, q: "9. Al ingerir alimentos de origen vegetal, se aporta hierro \"no hemo\" en estado férrico (Fe3+) que no puede ser absorbido directamente. ¿Qué enzima de la membrana apical del enterocito resuelve este problema?", opts: ["La Transferrina de superficie.", "La Ferroporfirina.", "La Ferroporfirina reductasa.", "La Citocromo b duodenal (ferroreductasa Dcyt b)."], ans: 3, exp: "La enzima Dcyt b reduce el hierro no hemo del estado férrico al ferroso (Fe2+), lo que permite su entrada al enterocito a través del transportador de metales divalentes (DMT1)." },
+        { id: 10, q: "10. En el proceso de catabolismo, ¿en qué punto exacto de la estructura de la porfirina interviene la hemooxigenasa para abrir el anillo y degradar el grupo hemo?", opts: ["Rompiendo el enlace del hierro central.", "Cortando los residuos propionato del anillo III.", "Rompiendo el puente meteno α (alfa) situado entre los anillos I y II.", "Destruyendo simultáneamente todos los anillos pirrólicos."], ans: 2, exp: "La degradación del hemo ocurre por la apertura del anillo en el puente meteno alfa (α), que conecta los anillos pirrólicos I y II." },
+        { id: 11, q: "11. Como producto de la ruptura del puente meteno α por la hemooxigenasa, se genera un compuesto gaseoso que puede ser medido en la respiración del paciente. ¿De cuál se trata?", opts: ["Dióxido de carbono (CO2).", "Óxido nítrico (NO).", "Monóxido de carbono (CO).", "Amoniaco (NH3)."], ans: 2, exp: "La ruptura de ese puente de carbono libera monóxido de carbono (CO), siendo esta la única fuente biológica endógena de este gas en el organismo." },
+        { id: 12, q: "12. En relación al uroporfirinógeno III, ¿por qué insistió la profesora en la actividad conjunta de las enzimas uroporfirinógeno I sintasa y uroporfirinógeno III cosintasa durante la ciclación?", opts: ["Porque sin ellas la molécula estalla espontáneamente.", "Porque permiten la correcta inversión de los sustituyentes en el anillo IV, obteniendo un orden \"metil, propil\" en lugar del \"acetil, propil\" que se generaría de forma espontánea.", "Porque añaden directamente los cuatro átomos de hierro.", "Porque cambian todos los grupos acetato por residuos vinilo inmediatamente."], ans: 1, exp: "Si la estructura lineal se cicla espontáneamente o sin la cosintasa, forma el isómero I. La acción enzimática es necesaria para invertir los radicales del cuarto anillo y producir el uroporfirinógeno III metabólicamente útil." },
+        { id: 13, q: "13. Un paciente acude a consulta refiriendo que sus heces son extremadamente pálidas (acolia). Relacionando el catabolismo del hemo, la profesora explicó que esto es indicativo clínico de:", opts: ["Sangrado digestivo activo.", "Afectación hepática (como hepatitis) que impide la conjugación y paso de bilirrubina al intestino, evitando la formación de estercobilina.", "Intoxicación severa por plomo.", "Déficit genético de la enzima ALA sintasa."], ans: 1, exp: "El color normal de las heces lo proporciona la estercobilina. Si el hígado falla, no se excreta bilirrubina al intestino y las heces pierden su pigmentación." },
+        { id: 14, q: "14. La degradación del hemo genera primeramente biliverdina, y luego bilirrubina. Señale la afirmación correcta sobre la bilirrubina generada en los macrófagos (Bilirrubina Indirecta):", opts: ["Es altamente soluble y viaja libremente por el plasma sanguíneo.", "Es insoluble en agua y necesita viajar unida a la albúmina para llegar al hígado.", "Es conjugada directamente en el macrófago con ácido glucurónico.", "Se excreta en un 90% a través de los pulmones."], ans: 1, exp: "La bilirrubina formada inicialmente (Bilirrubina Indirecta) es un compuesto insoluble, por lo que requiere unirse a la albúmina para ser transportada al hígado." },
+        { id: 15, q: "15. ¿Qué cofactores requiere obligatoriamente la enzima hemooxigenasa para realizar el primer paso del catabolismo del hemo?", opts: ["Oxígeno molecular (O2) y NADPH.", "ATP y Ácido fólico.", "Vitamina B6 y Succinil-CoA.", "Glicina y Plomo."], ans: 0, exp: "La apertura enzimática del anillo del hemo por la hemooxigenasa necesita oxígeno molecular (O2) y poder reductor en forma de NADPH." },
+        { id: 16, q: "16. Clínicamente, los pacientes con porfirias hereditarias pueden experimentar crisis con afectación severa de la piel y del sistema nervioso. Según la profesora, ¿a qué se debe la toxicidad en la piel?", opts: ["A que las porfirinas precipitan formando cristales de hierro que rasgan los capilares cutáneos.", "A que la acumulación de ALA y porfobilinógeno atrae plomo hacia la dermis.", "A que la acumulación de intermediarios con anillos ampliamente conjugados absorbe luz, produciendo quemaduras cutáneas o fotosensibilidad.", "A la liberación masiva de biliverdina en el tejido adiposo."], ans: 2, exp: "El acúmulo de intermediarios porfirínicos, al poseer múltiples dobles enlaces conjugados, reacciona a la luz solar induciendo daño tisular y quemaduras." },
+        { id: 17, q: "17. En una crisis grave de porfiria, el tratamiento farmacológico de elección incluye administrar \"Hemina\". Según lo explicado en clase, ¿qué es la hemina y cuál es su mecanismo de acción?", opts: ["Es biliverdina pura que facilita la excreción de las porfirinas por orina.", "Es un grupo hemo que contiene hierro oxidado (Fe3+) y actúa inhibiendo alostéricamente a la enzima limitante ALA sintasa para frenar la vía.", "Es un quelante de plomo que elimina el metal pesado de las enzimas afectadas.", "Es el precursor Glicina concentrado para acelerar el ciclo metabólico."], ans: 1, exp: "La hemina es hemo con hierro férrico. Se administra para inducir un feedback negativo inhibiendo a la ALA sintasa, lo que detiene la sobreproducción tóxica." },
+        { id: 18, q: "18. La protoporfirina IX se caracteriza por poseer cuatro tipos de cadenas laterales. Siguiendo la numeración de Fischer (del 1 al 8), ¿cuál es la secuencia correcta de dichos sustituyentes?", opts: ["Metilo, Vinilo, Metilo, Vinilo, Metilo, Propionato, Propionato, Metilo.", "Acetato, Propionato, Acetato, Propionato, Acetato, Propionato, Acetato, Propionato.", "Vinilo, Vinilo, Metilo, Metilo, Propionato, Propionato, Acetato, Acetato.", "Metilo, Propionato, Metilo, Propionato, Propionato, Metilo, Propionato, Metilo."], ans: 0, exp: "La disposición específica es M-V-M-V-M-P-P-M (Metilo, Vinilo, Metilo, Vinilo, Metilo, Propionato, Propionato, Metilo)." },
+        { id: 19, q: "19. ¿Por qué la enzima que une las cuatro moléculas de porfobilinógeno se denomina específicamente \"porfobilinógeno desaminasa\"?", opts: ["Porque destruye el nitrógeno de la glicina transformándolo en urea.", "Porque añade grupos amina a los anillos pirrólicos.", "Porque al unir cada anillo pirrólico para formar el hidroximetilbilano lineal, la molécula va perdiendo grupos amina libres (liberando amoniaco).", "Porque utiliza ácido δ-aminolevulínico (ALA) en lugar de aminas."], ans: 2, exp: "Para formar los puentes de unión entre los pirroles, la enzima elimina las aminas terminales, produciéndose una desaminación (liberando amoníaco)." },
+        { id: 20, q: "20. En la captación celular de hierro mediante el receptor de transferrina, el endosoma creado debe liberar el hierro de la proteína. ¿Cómo se logra esta disociación?", opts: ["Mediante hidrólisis dependiente de ATP por una bomba iónica.", "El pH ácido del interior del endosoma provoca la liberación del hierro de la transferrina.", "Los lisosomas digieren y destruyen por completo el receptor y la transferrina.", "La hepcidina entra en la vesícula e intercambia el hierro por calcio."], ans: 1, exp: "Tras la endocitosis, la acidificación (pH bajo) en el endosoma debilita la unión y facilita que el hierro se desprenda de la transferrina." },
+        { id: 21, q: "21. Teniendo en cuenta la absorción intestinal del hierro explicada en la clase de la UCA, señale la afirmación CORRECTA:", opts: ["Los vegetarianos estrictos (veganos) absorben el hierro con mayor facilidad al ingerirlo en forma no hemo.", "El hierro de origen animal (hierro hemo) tiene gran solubilidad a pH alcalino en el intestino, por lo que su absorción es más eficaz.", "El hierro hemo requiere obligatoriamente ser reducido a estado férrico por la citocromo reductasa antes de absorberse.", "El hierro exógeno representa el pool de hierro más grande y abundante del cuerpo humano en estado de salud."], ans: 1, exp: "El hierro hemo es altamente soluble en el medio alcalino intestinal y posee un transportador específico (HCP1), lo que hace su asimilación mucho más eficiente." },
+        { id: 22, q: "22. ¿Qué reacción metabólica adversa pueden causar las sales de hierro en el contexto de la biosíntesis de porfirinas?", opts: ["Oxidan irreversiblemente a la ALA sintasa.", "Inhiben la enzima uroporfirinógeno decarboxilasa.", "Aceleran desproporcionadamente la actividad de la porfobilinógeno desaminasa.", "Degradan la hemooxigenasa."], ans: 1, exp: "Se mencionó en clase que las sales de hierro pueden actuar como inhibidoras de la uroporfirinógeno decarboxilasa." },
+        { id: 23, q: "23. La enzima coproporfirinógeno oxidasa cataliza el paso de coproporfirinógeno III a protoporfirinógeno IX. ¿En qué consiste fundamentalmente la transformación química que realiza?", opts: ["Convierte todos los grupos metilo en grupos carboxilo.", "Cierra el cuarto anillo pirrólico completando el ciclo.", "Descarboxila oxidativamente dos grupos propionato de los anillos I y II para transformarlos en dos grupos vinilo.", "Añade el átomo de hierro central a la molécula."], ans: 2, exp: "La enzima descarboxila y oxida los residuos propionato (3C) convirtiéndolos en radicales vinilo (2C)." },
+        { id: 24, q: "24. El último paso previo a la inserción del hierro es la conversión de protoporfirinógeno IX a protoporfirina IX por la enzima protoporfirinógeno oxidasa. En términos de estructura química, esta oxidación logra:", opts: ["Transformar los puentes metilenos en puentes metenilos (añadiendo dobles enlaces que confieren el sistema conjugado final).", "Dividir el anillo en cuatro moléculas de ácido acético independientes.", "Transformar el hierro ferroso en férrico.", "Introducir azufre en los anillos pirrólicos."], ans: 0, exp: "La enzima sustrae hidrógenos transformando enlaces sencillos en dobles enlaces (puentes metenilos), completando el sistema conjugado." },
+        { id: 25, q: "25. Si durante la síntesis ocurre una \"ciclación espontánea\" del hidroximetilbilano sin la intervención de las enzimas sintasa y cosintasa, el resultado metabólico es:", opts: ["La formación de uroporfirinógeno I, un isómero que no sigue la síntesis hacia el grupo hemo.", "La inserción prematura del hierro formando un grupo hemo defectuoso.", "La apoptosis inmediata de la mitocondria.", "La formación acelerada de uroporfirinógeno III."], ans: 0, exp: "La ciclación espontánea adopta una forma simétrica (Tipo I) que es inútil para la vía biológica del hemo (Tipo III)." },
+        { id: 26, q: "26. La enzima ALA deshidratasa condensa dos moléculas de ácido δ-aminolevulínico perdiendo dos moléculas de agua. ¿Qué compuesto resulta de esta reacción?", opts: ["Coproporfirinógeno III.", "El primer pirrol activo denominado porfobilinógeno.", "Uroporfirinógeno sintasa.", "Hemooxigenasa inactiva."], ans: 1, exp: "La unión de dos moléculas de ALA da lugar a la primera estructura cíclica de la ruta: el porfobilinógeno (un pirrol)." },
+        { id: 27, q: "27. ¿Qué nombre recibe la molécula lineal formada por la condensación secuencial de cuatro porfobilinógenos antes de convertirse en un ciclo cerrado?", opts: ["Bilirrubina indirecta.", "Biliverdina.", "Hidroximetilbilano.", "Uroporfirinógeno descarboxilasa."], ans: 2, exp: "La PBG desaminasa une cuatro pirroles generando el tetrapirrol lineal llamado hidroximetilbilano." },
+        { id: 28, q: "28. La capacidad de transporte de la proteína Transferrina varía en función de la cantidad de hierro fijado. Cuando sus dos lugares de unión de alta afinidad están ocupados por hierro, la molécula se denomina:", opts: ["Apotransferrina.", "Monotransferrina.", "Holotransferrina.", "Ferritina circulante."], ans: 2, exp: "Se denomina holotransferrina cuando está totalmente saturada con sus dos átomos de hierro férrico." },
+        { id: 29, q: "29. En la composición definitiva de las hemoproteínas que transportan oxígeno, el grupo prostético (Hemo) puede definirse bioquímicamente como:", opts: ["Protoporfirina IX coordinada con un ion de hierro ferroso (Fe2+).", "Uroporfirinógeno I unido a un átomo de zinc.", "Coproporfirina conjugada con ácido glucurónico.", "Hidroximetilbilano asociado a plomo."], ans: 0, exp: "El hemo funcional es protoporfirina IX con un átomo central de hierro ferroso (Fe2+)." },
+        { id: 30, q: "30. El hierro de los glóbulos rojos senescentes se recicla en el organismo. ¿Qué células se encargan de la \"hemocateresis\" y de degradar la hemoglobina para recuperar este hierro?", opts: ["Los enterocitos del duodeno.", "Los macrófagos del Sistema Retículo Endotelial (principalmente en bazo e hígado).", "Las células epiteliales de la piel.", "Los astrocitos cerebrales."], ans: 1, exp: "Los hematíes viejos son fagocitados por los macrófagos del bazo e hígado para reciclar el hierro." },
+        { id: 31, q: "31. La formación del ácido δ-aminolevulínico (ALA) requiere succinil-CoA. ¿De qué importante ruta metabólica de la célula se extrae este intermediario para sintetizar las porfirinas?", opts: ["Vía de las pentosas fosfato.", "Ciclo de Krebs (Ciclo de los ácidos tricarboxílicos).", "Glucólisis anaerobia.", "Ciclo de la Urea."], ans: 1, exp: "El succinil-CoA se extrae directamente del Ciclo de Krebs para iniciar la síntesis del hemo." },
+        { id: 32, q: "32. Señale el enunciado que relacione correctamente los transportadores de la membrana apical del enterocito con la molécula que internalizan:", opts: ["El transportador HCP1 absorbe hierro hemo, y el transportador DMT1 absorbe hierro divalente libre (Fe2+).", "El transportador HCP1 absorbe hierro en estado férrico (Fe3+) exclusivamente.", "El transportador DMT1 es específico para expulsar hierro hacia el torrente sanguíneo.", "La ferroportina internaliza el grupo hemo procedente de la dieta."], ans: 0, exp: "El hemo usa el HCP1, mientras que el hierro divalente libre usa el DMT1." },
+        { id: 33, q: "33. La ictericia es un signo clínico visible en fallos del metabolismo de las porfirinas. Para evitar la toxicidad de la bilirrubina indirecta, el hígado debe hacerla hidrosoluble. ¿Qué reacción química cataliza la Bilirrubina glucuronil transferasa en el hepatocito?", opts: ["Oxida la molécula añadiendo un doble enlace.", "Realiza una esterificación conjugando ácido glucurónico en los restos propionato de la bilirrubina, originando el diglucurónido de bilirrubina.", "Quela de nuevo un átomo de hierro para formar hemina.", "Rompe el tetrapirrol en cuatro fragmentos de urea."], ans: 1, exp: "La conjugación hepática añade ácido glucurónico a la bilirrubina, convirtiéndola en hidrosoluble para ser excretada." },
+        { id: 34, q: "34. Tras la expulsión de la bilis al duodeno, la bilirrubina conjugada llega al tracto intestinal. ¿Por qué es necesaria la presencia de la microbiota (bacterias intestinales) en la última fase de este catabolismo?", opts: ["Porque son las encargadas de destruir la enzima ALA sintasa en las heces.", "Porque reabsorben el 100% de la bilirrubina y la devuelven al cerebro.", "Porque oxidan y transforman la bilirrubina en estercobilinógeno (incoloro), que luego formará estercobilina (el pigmento pardo de las heces).", "Porque transforman la bilirrubina de nuevo en protoporfirina IX apta para la dieta."], ans: 2, exp: "Las bacterias intestinales reducen la bilirrubina a estercobilinógenos, responsables del color de las heces." },
+        { id: 35, q: "35. Aparte del efecto inhibidor del grupo hemo libre, la regulación de la enzima limitante ALA sintasa presenta diferencias según el tejido. ¿Qué induce su actividad en los eritrocitos y qué en el hígado?", opts: ["En eritrocitos se induce por la hormona eritropoyetina (EPO) y en el hígado se induce por la presencia de hierro.", "En eritrocitos se induce por la hepcidina y en hígado por el plomo.", "Ambos tejidos responden exclusivamente al estrés oxidativo de los macrófagos.", "En eritrocitos la induce la bilirrubina directa y en hígado la bilirrubina indirecta."], ans: 0, exp: "En la médula la EPO estimula la síntesis, mientras que el hígado se regula según el hierro disponible." },
+        { id: 36, q: "36. Según la numeración de Hans Fischer, la estructura del grupo hemo está formada por cuatro anillos unidos por puentes metino. ¿Qué nomenclatura reciben exactamente dichos puentes?", opts: ["Puentes 1, 2, 3 y 4.", "Puentes metilo A, B, C y D.", "Puentes α,β,γ,δ (alfa, beta, gamma y delta).", "Puentes acetato-propionato."], ans: 2, exp: "En el sistema de Fischer, los puentes que conectan los anillos se identifican con letras griegas: alfa, beta, gamma y delta." },
+        { id: 37, q: "37. En la última reacción de síntesis, ¿donde se localiza exactamente la enzima Ferroquelatasa, la cual es muy sensible al envenenamiento por plomo?", opts: ["En la membrana plasmática del enterocito.", "Flotando libremente en el citosol.", "En el interior de los lisosomas.", "En la membrana mitocondrial interna."], ans: 3, exp: "La ferroquelatasa está anclada en la membrana mitocondrial interna para el paso final de la síntesis." },
+        { id: 38, q: "38. La enzima biliverdina reductasa convierte la biliverdina en bilirrubina. Estructuralmente, ¿qué cambio conlleva esta reducción?", opts: ["Rompe el anillo de la biliverdina, que era cíclica.", "Inserta un átomo de magnesio.", "Satura con hidrógenos uno de los dobles enlaces del puente meteno central de la cadena lineal.", "Convierte los cuatro anillos pirrólicos en bencenos."], ans: 2, exp: "La reductasa satura el doble enlace del puente central de la cadena de biliverdina para formar bilirrubina." },
+        { id: 39, q: "39. La síntesis completa de una molécula de grupo hemo se caracteriza por su compartimentación celular dinámica. De las siete reacciones catalizadas, ¿cuáles tienen lugar en la mitocondria?", opts: ["Solo la reacción inicial de la ALA sintasa.", "Únicamente la reacción final de la Ferroquelatasa.", "La reacción inicial (1) y las tres últimas reacciones (5, 6 y 7).", "Todas las reacciones enzimáticas menos la de la ALA deshidratasa."], ans: 2, exp: "La ruta empieza en la mitocondria (paso 1), va al citosol (2-4) y termina en la mitocondria (5-7)." },
+        { id: 40, q: "40. De forma resumida, los anillos pirrólicos (I, II, III, IV) que conforman la estructura base del hemo se encuentran sólidamente unidos entre sí por:", opts: ["Enlaces disulfuro.", "Puentes metino/metenilo (=HC-).", "Puentes de hidrógeno exclusivos.", "Interacciones hidrofóbicas con la globina."], ans: 1, exp: "El armazón se sustenta en puentes de carbono con dobles enlaces llamados metino o metenilos." }
+    ];
+
+    let currentQuestions = [];
+    let state = {
+        answered: new Set(),
+        failed: new Set(),
+        marked: new Set(),
+        correctCount: 0
+    };
+
+    function startQuiz(shuffle) {
+        document.getElementById('init-modal').style.display = 'none';
+        currentQuestions = JSON.parse(JSON.stringify(questionsDB));
+        if(shuffle) currentQuestions.sort(() => Math.random() - 0.5);
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        const flow = document.getElementById('quiz-flow');
+        const sidebar = document.getElementById('sidebar');
+        flow.innerHTML = '';
+        sidebar.innerHTML = '';
+
+        currentQuestions.forEach((item, index) => {
+            // Sidebar dots
+            const dot = document.createElement('a');
+            dot.className = 'nav-dot';
+            dot.href = `#q-${index}`;
+            dot.id = `dot-${index}`;
+            dot.innerText = index + 1;
+            sidebar.appendChild(dot);
+
+            // Question Card
+            const card = document.createElement('div');
+            card.className = 'question-box';
+            card.id = `q-${index}`;
+            
+            // Shuffle answers for each question
+            let options = item.opts.map((o, i) => ({ text: o, originalIdx: i }));
+            options.sort(() => Math.random() - 0.5);
+
+            card.innerHTML = `
+                <div class="q-header">
+                    <strong>Pregunta ${index + 1}</strong>
+                    <label class="mark-tab">
+                        <input type="checkbox" onchange="toggleMark(${index}, ${item.id})" ${state.marked.has(item.id) ? 'checked' : ''}> Marcada
+                    </label>
+                </div>
+                <p style="font-size: 1.15rem; font-weight: 500;">${item.q}</p>
+                <div class="opt-list" id="opts-${index}">
+                    ${options.map(opt => `
+                        <div class="opt-item" onclick="checkAnswer(${index}, ${opt.originalIdx}, ${item.ans}, this)">
+                            ${opt.text}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="expl-box" id="expl-${index}">
+                    <strong>Respuesta Correcta:</strong> ${item.opts[item.ans]}<br><br>
+                    <strong>Explicación:</strong> ${item.exp}
+                </div>
+            `;
+            flow.appendChild(card);
+        });
+    }
+
+    function checkAnswer(qIdx, selected, correct, element) {
+        if(state.answered.has(qIdx)) return;
+        state.answered.add(qIdx);
+
+        const qId = currentQuestions[qIdx].id;
+        const isCorrect = selected === correct;
+
+        if(isCorrect) {
+            state.correctCount++;
+            element.classList.add('correct');
+        } else {
+            state.failed.add(qId);
+            element.classList.add('incorrect');
+            // Show the actual correct one
+            const container = document.getElementById(`opts-${qIdx}`);
+            Array.from(container.children).forEach(child => {
+                if(child.innerText.trim() === currentQuestions[qIdx].opts[correct].trim()) {
+                    child.classList.add('correct');
+                }
+            });
+        }
+
+        document.getElementById(`expl-${qIdx}`).style.display = 'block';
+        document.getElementById(`dot-${qIdx}`).classList.add('answered');
+        document.getElementById(`opts-${qIdx}`).querySelectorAll('.opt-item').forEach(i => i.classList.add('disabled'));
+    }
+
+    function toggleMark(qIdx, qId) {
+        const dot = document.getElementById(`dot-${qIdx}`);
+        if(state.marked.has(qId)) {
+            state.marked.delete(qId);
+            dot.classList.remove('marked');
+        } else {
+            state.marked.add(qId);
+            dot.classList.add('marked');
+        }
+    }
+
+    function showResults() {
+        const screen = document.getElementById('final-screen');
+        const summary = document.getElementById('score-summary');
+        summary.innerText = `Puntuación: ${state.correctCount} / ${currentQuestions.length}`;
+        screen.style.display = 'flex';
+    }
+
+    function resetQuiz(mode) {
+        document.getElementById('final-screen').style.display = 'none';
+        let nextSet = [];
+
+        if(mode === 'all') {
+            nextSet = questionsDB;
+            state.failed.clear();
+        } else if(mode === 'failed') {
+            nextSet = questionsDB.filter(q => state.failed.has(q.id));
+        } else if(mode === 'marked') {
+            nextSet = questionsDB.filter(q => state.marked.has(q.id));
+        } else if(mode === 'failed-marked') {
+            nextSet = questionsDB.filter(q => state.failed.has(q.id) || state.marked.has(q.id));
+        }
+
+        if(nextSet.length === 0) {
+            alert("No hay preguntas en esta categoría.");
+            document.getElementById('final-screen').style.display = 'flex';
+            return;
+        }
+
+        state.answered.clear();
+        state.correctCount = 0;
+        document.getElementById('init-modal').style.display = 'flex';
+        // El estado de "marcadas" persiste hasta refrescar la página
+    }
+</script>
+</body>
+</html>

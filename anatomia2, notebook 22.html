@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Anatomía y Fisiología Renal</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantalla de Inicio */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-start {
+            background: var(--accent);
+            border: none;
+            padding: 15px 30px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 10px;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover { transform: scale(1.05); background: #2980b9; }
+
+        /* Navegación Izquierda */
+        #sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        #index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .index-btn {
+            background: #eee;
+            border: 1px solid #ccc;
+            padding: 10px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .index-btn.correct { background: var(--success); color: white; border-color: #1e8449; }
+        .index-btn.wrong { background: var(--error); color: white; border-color: #922b21; }
+        .index-btn.marked { border: 2px solid var(--marked); font-weight: bold; }
+
+        /* Contenido Principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--bg);
+            padding-bottom: 10px;
+        }
+
+        .mark-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            cursor: pointer;
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { border-color: var(--accent); background: #f0f8ff; }
+        .option-btn.disabled { cursor: default; }
+        .option-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            background: #eaf4ff;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Botón Finalizar */
+        #finish-trigger {
+            margin-top: auto;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Pantalla Resultados */
+        #results-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .result-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>Cuestionario de Sistema Renal</h1>
+        <p>Selecciona el modo de inicio:</p>
+        <button class="btn-start" onclick="initQuiz(false)">Orden Preestablecido</button>
+        <button class="btn-start" onclick="initQuiz(true)">Orden Aleatorio</button>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-grid"></div>
+        <button id="finish-trigger" onclick="finishQuiz()">Finalizar y Rehacer</button>
+    </div>
+
+    <main id="main-content">
+        <div id="quiz-container"></div>
+    </main>
+
+    <div id="results-screen">
+        <h2 id="result-title">Sesión Finalizada</h2>
+        <p id="result-score"></p>
+        <div class="result-buttons">
+            <button class="btn-start" onclick="location.reload()">Reiniciar Todo</button>
+            <button class="btn-start" style="background: var(--error);" onclick="retry('failed')">Repetir Falladas</button>
+            <button class="btn-start" style="background: var(--marked);" onclick="retry('marked')">Repetir Marcadas</button>
+            <button class="btn-start" style="background: #9b59b6;" onclick="retry('both')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            { id: 1, q: "1. Durante el desarrollo embrionario, los riñones producen una \"orina primitiva\". El profesor destaca que si los riñones no se desarrollan correctamente (por ejemplo, agenesia bilateral), se produce una disminución del líquido amniótico (oligohidramnios). ¿Qué consecuencia morfológica fetal directa tiene esta falta de líquido?", opts: ["a) Hipertrofia de las glándulas suprarrenales.", "b) Falta de desarrollo del hígado.", "c) Aplastamiento de los rasgos faciales del feto por las membranas amnióticas (Facies de Potter).", "d) Herniación del intestino medio."], ans: "c) Aplastamiento de los rasgos faciales del feto por las membranas amnióticas (Facies de Potter).", exp: "Al no haber orina, no hay \"colchón\" de líquido amniótico, y las membranas aplastan mecánicamente la cara del feto impidiendo que los mamelones se fusionen correctamente." },
+            { id: 2, q: "2. Embriológicamente, la formación del riñón definitivo (metanefros) requiere un proceso de inducción cruzada. ¿Qué estructura debe aparecer obligatoriamente para inducir al mesodermo a formar la pirámide de Malpighi y el riñón?", opts: ["a) El conducto de Wolff.", "b) La glándula suprarrenal.", "c) La yema ureteral (brote ureteral).", "d) El seno urogenital."], ans: "c) La yema ureteral (brote ureteral).", exp: "El profesor remarca que \"si no hay yema ureteral que induzca [...] no hay inducción\". La yema ureteral forma la vía excretora (pelvis, cálices) e induce el parénquima." },
+            { id: 3, q: "3. Los riñones inician su desarrollo en la región caudal (fosa ilíaca) y sufren un ascenso relativo. Si un riñón no asciende y se queda en la pelvis, estamos ante una Ectopia Renal. ¿Cómo la diferenciamos radiológicamente de una Ptosis Renal (riñón caído)?", opts: ["a) En la ectopia no hay uréter funcional.", "b) En la ectopia, la arteria renal nace muy caudalmente de la aorta; en la ptosis, la arteria nace arriba (L1) y está estirada hacia abajo.", "c) En la ptosis el riñón no tiene glándula suprarrenal.", "d) La ptosis afecta siempre a ambos riñones simultáneamente."], ans: "b) En la ectopia, la arteria renal nace muy caudalmente de la aorta; en la ptosis, la arteria nace arriba (L1) y está estirada hacia abajo.", exp: "Es un detalle clínico clave de la clase. El riñón ectópico nunca subió, por lo que su vaso nunca cambió a uno superior. El riñón ptósico subió, agarró un vaso en L1, y luego se cayó, estirando su arteria." },
+            { id: 4, q: "4. ¿Cuál es el factor anatómico principal que impide que el riñón derecho ascienda durante el desarrollo hasta el mismo nivel que el riñón izquierdo?", opts: ["a) La presencia del estómago.", "b) La arteria mesentérica superior.", "c) La presencia de la gran masa del hígado en el lado derecho.", "d) El ángulo cólico derecho."], ans: "c) La presencia de la gran masa del hígado en el lado derecho.", exp: "El riñón derecho \"choca\" con el hígado, quedando casi un cuerpo vertebral por debajo del izquierdo (que solo compite con el bazo)." },
+            { id: 5, q: "5. Topográficamente, si observamos el dorso de un paciente, ¿cuál es la proyección costal del polo superior de los riñones?", opts: ["a) El izquierdo en la costilla X, el derecho en la XI.", "b) El izquierdo en la costilla XI, el derecho en la costilla XII.", "c) Ambos en la costilla XII simétricamente.", "d) El derecho en la costilla XI, el izquierdo en la XII."], ans: "b) El izquierdo en la costilla XI, el derecho en la costilla XII.", exp: "Tal y como muestran las diapositivas y repite el profesor, el izquierdo llega a la 11ª costilla y el derecho (más bajo) a la 12ª." },
+            { id: 6, q: "6. Cuando el riñón asciende embrionariamente, se encuentra con la glándula suprarrenal en su polo superior y se \"la lleva puesta\". Sin embargo, el profesor aclara sobre su origen y envoltura que:", opts: ["a) Ambas comparten el mismo origen endodérmico y la misma cápsula fibrosa.", "b) Tienen orígenes distintos y la glándula suprarrenal tiene su propia cápsula aislada, aunque ambas estén envueltas por la misma fascia renal (de Gerota).", "c) La glándula suprarrenal deriva de la yema ureteral.", "d) El riñón absorbe a la glándula suprarrenal formando la corteza renal."], ans: "b) Tienen orígenes distintos y la glándula suprarrenal tiene su propia cápsula aislada, aunque ambas estén envueltas por la misma fascia renal (de Gerota).", exp: "Son entidades independientes con cápsulas propias, unidas topográficamente dentro de la compartimentación de la fascia renal." },
+            { id: 7, q: "7. La médula de la glándula suprarrenal, a diferencia de su corteza (que es mesodérmica), tiene un origen embriológico distinto y muy específico. ¿De dónde deriva?", opts: ["a) Del endodermo intestinal.", "b) Del mesodermo esplácnico.", "c) De la cresta neural / tubo neural (Sistema Nervioso Central/Ectodermo).", "d) Del seno urogenital."], ans: "c) De la cresta neural / tubo neural (Sistema Nervioso Central/Ectodermo).", exp: "El profesor enfatiza que la porción central (médula) depende de la cresta neural y tiene función neuroendocrina." },
+            { id: 8, q: "8. En pacientes con caquexia severa (pérdida masiva de peso), el riñón puede caer de su posición originando una \"ptosis renal\". ¿Qué estructura anatómica, fundamental para el sostén del riñón, se ha consumido en este proceso?", opts: ["a) La fascia de Toldt.", "b) La arteria renal.", "c) La grasa perirrenal/pararrenal (cápsula adiposa).", "d) El músculo psoas mayor."], ans: "c) La grasa perirrenal/pararrenal (cápsula adiposa).", exp: "El riñón está sostenido pasivamente por un lecho de grasa. Si el paciente consume esta grasa visceral por proteólisis/inanición, el riñón pierde su soporte y cae por gravedad." },
+            { id: 9, q: "9. Para realizar la exploración clínica de los riñones en el dorso (maniobra de percusión), el profesor indica que se debe pedir al paciente que realice una:", opts: ["a) Expiración forzada.", "b) Flexión ventral profunda.", "c) Inspiración profunda, para que el diafragma descienda y empuje el polo inferior del riñón haciéndolo más accesible.", "d) Apnea relajada en decúbito supino."], ans: "c) Inspiración profunda, para que el diafragma descienda y empuje el polo inferior del riñón haciéndolo más accesible.", exp: "El diafragma \"empuja\" al riñón hacia abajo, exponiendo su polo inferior por debajo de las costillas." },
+            { id: 10, q: "10. La inervación de los riñones y suprarrenales es casi exclusivamente de un tipo, proveniente del plexo celíaco a través de los nervios esplácnicos torácicos (T6-T11 y T12). ¿De qué sistema hablamos?", opts: ["a) Parasimpático sacro.", "b) Sistema Nervioso Somático.", "c) Sistema Simpático.", "d) Nervio Vago directamente."], ans: "c) Sistema Simpático.", exp: "La presentación indica \"Inervación casi exclusiva del SISTEMA SIMPÁTICO\" a través del plexo renal." },
+            { id: 11, q: "11. Relaciones cruzadas arteriales: Debido a que la Aorta Abdominal está ligeramente lateralizada a la izquierda, la Arteria Renal Derecha debe ser más larga. ¿Por dónde pasa la Arteria Renal Derecha para llegar al hilio?", opts: ["a) Por delante de la Vena Cava Inferior.", "b) Por detrás de la Vena Cava Inferior (retrocava).", "c) Por encima del tronco celíaco.", "d) Por delante de la 3ª porción del duodeno."], ans: "b) Por detrás de la Vena Cava Inferior (retrocava).", exp: "Es una trampa topográfica clásica mencionada por el profesor; la arteria renal derecha debe cruzar el espacio pasando por detrás de la Cava." },
+            { id: 12, q: "12. Relaciones cruzadas venosas: La Vena Cava Inferior está a la derecha, por lo que la Vena Renal Izquierda es más larga. En su trayecto transversal, se ve sometida a un \"clip\" o \"pinza\" anatómica. ¿Entre qué dos vasos transcurre?", opts: ["a) Por delante de la Arteria Mesentérica Superior y por detrás del estómago.", "b) Por detrás de la Aorta y por delante de la columna vertebral.", "c) Por delante de la Aorta Abdominal y por debajo (detrás) de la Arteria Mesentérica Superior.", "d) Entre el Tronco Celíaco y la Vena Porta."], ans: "c) Por delante de la Aorta Abdominal y por debajo (detrás) de la Arteria Mesentérica Superior.", exp: "La vena renal izquierda se \"acabalga\" sobre la aorta, pero queda aplastada si la AMS la presiona (Pinza aortomesentérica), dificultando su retorno." },
+            { id: 13, q: "13. El drenaje venoso de las gónadas (testículos/ovarios) es asimétrico. ¿Dónde drena habitualmente la Vena Gonadal IZQUIERDA?", opts: ["a) En la Vena Cava Inferior directamente.", "b) En la Vena Mesentérica Inferior.", "c) En la Vena Renal Izquierda.", "d) En el sistema Porta."], ans: "c) En la Vena Renal Izquierda.", exp: "Mientras la derecha va a la Cava, la izquierda desemboca en la Vena Renal Izquierda antes de que esta llegue a la Cava." },
+            { id: 14, q: "14. Al igual que las venas gonadales, el drenaje de las venas suprarrenales es asimétrico. ¿Dónde drena la Vena Suprarrenal Izquierda?", opts: ["a) En la Vena Renal Izquierda.", "b) En la Vena Cava Inferior directamente.", "c) En la Vena Esplénica.", "d) En la Vena Frénica Inferior."], ans: "a) En la Vena Renal Izquierda.", exp: "Siguiendo el mismo patrón asimétrico, la vena suprarrenal izquierda vierte en la vena renal izquierda." },
+            { id: 15, q: "15. Las Glándulas Suprarrenales poseen una vascularización arterial tremendamente rica procedente de tres fuentes. ¿De qué arteria nacen las Arterias Suprarrenales Medias?", opts: ["a) De las arterias frénicas inferiores.", "b) De las arterias renales.", "c) Directamente de la Aorta Abdominal.", "d) Del tronco celíaco."], ans: "c) Directamente de la Aorta Abdominal.", exp: "Las superiores nacen de la frénica, las medias directamente de la Aorta, y las inferiores de las renales." },
+            { id: 16, q: "16. En el Hilio Renal (entrada al seno renal), los elementos del pedículo presentan una disposición topográfica ordenada en el plano anteroposterior. ¿Cuál es la disposición de anterior a posterior?", opts: ["a) Pelvis renal - Arteria renal - Vena renal.", "b) Vena renal - Arteria renal - Pelvis renal.", "c) Arteria renal - Pelvis renal - Vena renal.", "d) Uréter - Arteria renal - Vena renal."], ans: "b) Vena renal - Arteria renal - Pelvis renal.", exp: "La famosa regla V-A-P: Vena (más anterior), Arteria (medio), Pelvis (más posterior)." },
+            { id: 17, q: "17. El parénquima renal está macroscópicamente dividido en corteza y médula. La médula está conformada por estructuras triangulares cuya base mira a la corteza y su vértice al seno renal. Son:", opts: ["a) Las Columnas de Bertin.", "b) Los cálices menores.", "c) Las Pirámides de Malpighi.", "d) Los Corpúsculos de Bowman."], ans: "c) Las Pirámides de Malpighi.", exp: "Las Pirámides de Malpighi constituyen la médula renal, y sus vértices (papilas) \"gotean\" la orina en los cálices." },
+            { id: 18, q: "18. Entre estas pirámides de la médula, existe tejido cortical que se expande hacia el seno renal formando tabiques. Estas invaginaciones de corteza se denominan:", opts: ["a) Cálices mayores.", "b) Columnas renales (de Bertin).", "c) Nefronas.", "d) Área cribosa."], ans: "b) Columnas renales (de Bertin).", exp: "Las columnas de Bertin son expansiones de la corteza renal que separan las pirámides medulares." },
+            { id: 19, q: "19. Según la organización histológico-macroscópica, ¿qué estructuras conforman un \"Lóbulo Renal\"?", opts: ["a) Una columna de Bertin y su cáliz menor asociado.", "b) La pelvis renal y el uréter.", "c) Cada pirámide renal más las porciones corticales adyacentes correspondientes.", "d) Exclusivamente un glomérulo y sus túbulos contorneados."], ans: "c) Cada pirámide renal más las porciones corticales adyacentes correspondientes.", exp: "El lóbulo renal es la unidad anatómica conformada por una pirámide de Malpighi y el \"sombrero\" de tejido cortical que la recubre." },
+            { id: 20, q: "20. Fisiológicamente, el profesor destaca que el riñón es un sensor (\"termómetro\") vital. Produce Eritropoyetina (EPO) en respuesta a un estímulo muy concreto. ¿Cuál?", opts: ["a) Un aumento agudo de la presión arterial (barorreceptor).", "b) Una baja presión parcial de oxígeno (O2) en sangre (quimiorreceptor).", "c) Una disminución en los niveles de calcio sérico.", "d) Un aumento de la osmolaridad de la orina."], ans: "b) Una baja presión parcial de oxígeno (O2) en sangre (quimiorreceptor).", exp: "El riñón detecta la hipoxia (baja O2) y secreta EPO para estimular la producción de más eritrocitos (matíes) y mejorar el transporte de O2." },
+            { id: 21, q: "21. Asimismo, el riñón detecta disminuciones en el flujo/volumen de sangre y tensión arterial. ¿Qué enzima libera para iniciar una cascada hormonal (eje renina-angiotensina-aldosterona) que elevará la tensión?", opts: ["a) Angiotensina II.", "b) Aldosterona.", "c) Renina.", "d) Vitamina D."], ans: "c) Renina.", exp: "El riñón secreta Renina, la cual inicia la cascada descrita en clase para retener líquidos y contraer vasos." },
+            { id: 22, q: "22. Al abrir el riñón, la vía conductora (excretora) de la orina se organiza desde lo microscópico a lo macroscópico. ¿Cuál es el orden secuencial correcto de goteo de la orina definitiva en el seno renal?", opts: ["a) Papila renal -> Cáliz mayor -> Pelvis renal -> Cáliz menor.", "b) Cáliz mayor -> Cáliz menor -> Papila renal -> Pelvis.", "c) Pelvis renal -> Cáliz mayor -> Cáliz menor.", "d) Papila renal -> Cáliz menor -> Cáliz mayor -> Pelvis renal."], ans: "d) Papila renal -> Cáliz menor -> Cáliz mayor -> Pelvis renal.", exp: "El vértice de la pirámide (papila) gotea en el cáliz menor; 3-4 cálices menores forman un cáliz mayor; los cálices mayores confluyen en la pelvis renal." },
+            { id: 23, q: "23. El origen embriológico del sistema excretor (pelvis, cálices, túbulos colectores) es distinto al del tejido filtrante. Como recuerda el profesor, todo este \"árbol\" de conducción deriva de:", opts: ["a) La Yema Ureteral.", "b) El Mesogastrio dorsal.", "c) El Endodermo del intestino medio.", "d) La cresta neural."], ans: "a) La Yema Ureteral.", exp: "La yema o brote ureteral se bifurca y crea todo el sistema colector de orina, induciendo además la formación del tejido renal." },
+            { id: 24, q: "24. Relaciones anteriores del riñón derecho: Al estar el hígado encima, la cara anterior del riñón derecho se relaciona directamente con una flexura intestinal importante. ¿Cuál?", opts: ["a) La flexura duodenoyeyunal (ángulo de Treitz).", "b) El ángulo esplénico del colon.", "c) La flexura cólica derecha (ángulo hepático del colon).", "d) La unión ileocecal."], ans: "c) La flexura cólica derecha (ángulo hepático del colon).", exp: "El riñón derecho se relaciona por delante con la cara visceral del hígado, el duodeno y el ángulo cólico derecho." },
+            { id: 25, q: "25. Relaciones del riñón izquierdo: La cara anterior del polo superior del riñón izquierdo contacta de forma íntima con la cara posterior del estómago. ¿Qué espacio o bolsa peritoneal separa ambas estructuras?", opts: ["a) El receso subfrénico.", "b) El espacio parietocólico.", "c) El receso hepatorrenal.", "d) La bolsa omental (transcavidad de los epiplones)."], ans: "d) La bolsa omental (transcavidad de los epiplones).", exp: "El profesor explica que se relacionan a través del espacio peritoneal interpuesto, que es la bolsa omental." },
+            { id: 26, q: "26. Además del estómago, la cara anterior del riñón izquierdo es atravesada de forma horizontal/transversal por un órgano retroperitoneal que se dirige hacia el hilio esplénico. Se trata de:", opts: ["a) El duodeno (3ª porción).", "b) El cuerpo y la cola del páncreas.", "c) El colon ascendente.", "d) La vena cava inferior."], ans: "b) El cuerpo y la cola del páncreas.", exp: "El páncreas cruza transversalmente sobre la cara anterior del riñón izquierdo buscando el bazo." },
+            { id: 27, q: "27. Las Arterias Renales, al entrar por el hilio, se dividen en arterias segmentarias (superior, inferior, anterosuperior, anteroinferior y posterior). ¿Qué peculiaridad clínica subraya la presentación respecto a estas arterias?", opts: ["a) Son arterias altamente anastomosadas, por lo que su oclusión no produce isquemia.", "b) Su oclusión provoca un infarto renal sectorizado, ya que irrigan territorios o \"segmentos\" independientes sin anastomosis cruzadas importantes.", "c) Drenan directamente en las venas sin pasar por capilares.", "d) Todas se originan de la arteria frénica inferior."], ans: "b) Su oclusión provoca un infarto renal sectorizado, ya que irrigan territorios o \"segmentos\" independientes sin anastomosis cruzadas importantes.", exp: "\"Dependiendo de la rama de la arteria renal que se ocluya, el infarto afectará a un segmento u otro\"." },
+            { id: 28, q: "28. La fascia renal rodea al riñón formando un compartimento. Esta condensación fascial posee dos láminas: la lámina retrorrenal y la lámina prerrenal. ¿Cómo se conoce clásicamente a la lámina prerrenal (hoja anterior)?", opts: ["a) Fascia de Toldt.", "b) Fascia de Gerota.", "c) Fascia de Treitz.", "d) Ligamento gastrocólico."], ans: "b) Fascia de Gerota.", exp: "El esquema y la literatura la denominan Fascia de Gerota a la hoja anterior de la fascia renal." },
+            { id: 29, q: "29. En el riñón, la distribución vascular intra-parenquimatosa tiene un orden. Después de las arterias segmentarias, los vasos penetran entre las pirámides de Malpighi discurriendo por las columnas de Bertin. ¿Cómo se denominan estas arterias?", opts: ["a) Arterias arqueadas o arciformes.", "b) Arterias corticales radiadas.", "c) Arterias aferentes.", "d) Arterias interlobares."], ans: "d) Arterias interlobares.", exp: "Entran entre los lóbulos (por las columnas), luego se curvan sobre las pirámides (arqueadas) y luego suben a la corteza (corticales radiadas)." },
+            { id: 30, q: "30. El profesor menciona que las arterias y el flujo sanguíneo van con una diana específica: el Glomérulo. Topográficamente, el penacho u ovillo capilar del glomérulo (donde se filtra la orina primitiva) se sitúa mayoritariamente en:", opts: ["a) El vértice de la papila renal.", "b) La pelvis renal.", "c) El límite entre la base de la pirámide de Malpighi y la corteza (zona corticomedular).", "d) La columna de Bertin exclusivamente."], ans: "c) El límite entre la base de la pirámide de Malpighi y la corteza (zona corticomedular).", exp: "Las cápsulas de Bowman (y sus glomérulos) son extremadamente abundantes en la corteza yuxtamedular para favorecer el gran filtrado y medir presión/oxígeno." },
+            { id: 31, q: "31. La cara posterior de ambos riñones descansa sobre el lecho muscular de la pared posterior del abdomen. ¿Sobre qué dos músculos principales se apoyan los riñones?", opts: ["a) Recto del abdomen y Psoas ilíaco.", "b) Músculo Cuadrado lumbar y Músculo Psoas ilíaco.", "c) Dorsal ancho y Trapecio.", "d) Iliaco y Glúteo mayor."], ans: "b) Músculo Cuadrado lumbar y Músculo Psoas ilíaco.", exp: "En la diapositiva \"Relaciones Posterior\" se detalla claramente: \"M. cuadrado lumbar y M. Psoas iliaco\"." },
+            { id: 32, q: "32. El uréter, vía de salida de la orina definitiva, desciende hacia la pelvis. El profesor señala que en su porción abdominal, el uréter queda atrapado y limitado mecánicamente entre dos estructuras. ¿Cuáles son?", opts: ["a) El psoas por detrás y el peritoneo parietal por delante.", "b) La aorta por la derecha y la cava por la izquierda.", "c) La fascia de Toldt y el colon transverso.", "d) La arteria renal y la vena renal."], ans: "a) El psoas por detrás y el peritoneo parietal por delante.", exp: "\"El uréter queda atrapado entre la cara posterior del parietal [peritoneo] y la parte del músculo psoas\". De ahí que el dolor uretérico se asocie o simule a patología del psoas." },
+            { id: 33, q: "33. El dolor proveniente del riñón y las vías urinarias (por ejemplo, en una pielonefritis) se transmite mediante las vías autonómicas. ¿Qué vía conduce estas señales de dolor de regreso a la médula espinal?", opts: ["a) Las fibras parasimpadas del nervio vago.", "b) El nervio frénico.", "c) Las fibras simpáticas ascendentes que viajan junto con los nervios esplácnicos torácicos y lumbares.", "d) El nervio pudendo."], ans: "c) Las fibras simpáticas ascendentes que viajan junto con los nervios esplácnicos torácicos y lumbares.", exp: "Toda la inervación nociceptiva visceral del riñón viaja retrogradamente por las mismas vías simpáticas esplácnicas (T10-L1) que inervan la víscera." },
+            { id: 34, q: "34. Respecto a la superficie externa del riñón, el profesor aclara un concepto morfológico: aunque el riñón adulto suele ser liso, a veces presenta abollonaduras o bultos. ¿A qué se deben anatómica y embriológicamente?", opts: ["a) Son quistes parasitarios siempre.", "b) Son las improntas que dejan las costillas.", "c) Es la persistencia de la lobulación embrionaria o fetal original (cada abolladura corresponde a un lóbulo renal interno).", "d) Son los cálices mayores sobresaliendo."], ans: "c) Es la persistencia de la lobulación embrionaria o fetal original (cada abolladura corresponde a un lóbulo renal interno).", exp: "El riñón se forma por coalescencia de lóbulos; en la edad fetal es multilobulado y en algunos adultos se conservan externamente esas marcas sin ser patológico." },
+            { id: 35, q: "35. A diferencia del riñón, donde confluyen cálices menores para formar los mayores, el riñón en su \"hilio\" presenta una forma excavada hacia su interior donde se alojan vasos, grasa y los cálices. Esta cavidad interna del parénquima renal se llama:", opts: ["a) Fosa de Gerota.", "b) Seno renal.", "c) Área cribosa.", "d) Uretra proximal."], ans: "b) Seno renal.", exp: "El \"hilio\" es la puerta de entrada, pero el gran espacio hueco interior tapizado de grasa y por donde se ramifican los cálices es el \"seno renal\"." },
+            { id: 36, q: "36. Según la presentación de vascularización intrínseca (microvascularización), la Nefrona es la unidad funcional del riñón y presenta dos polos en su corpúsculo renal (Cápsula de Bowman). ¿Cuáles son?", opts: ["a) Polo simpático y polo parasimpático.", "b) Polo vascular (entrada/salida de arteriolas aferente y eferente) y polo urinario (inicio del túbulo contorneado proximal).", "c) Polo cortical y polo medular.", "d) Polo de filtración y polo de absorción."], ans: "b) Polo vascular (entrada/salida de arteriolas aferente y eferente) y polo urinario (inicio del túbulo contorneado proximal).", exp: "La diapositiva \"Corpúsculo Renal\" muestra un polo vascular (donde está el aparato yuxtaglomerular y vasos) y en el extremo opuesto el polo urinario por donde fluye el ultrafiltrado." },
+            { id: 37, q: "37. El riñón actúa como glándula endocrina. Además de la Renina y la Eritropoyetina, el riñón participa en la síntesis activa de una hormona clave para el metabolismo óseo. ¿Cuál?", opts: ["a) Hormona Paratiroidea (PTH).", "b) Insulina.", "c) Forma activa de la Vitamina D (1,25-dihidroxicolecalciferol).", "d) Cortisol."], ans: "c) Forma activa de la Vitamina D (1,25-dihidroxicolecalciferol).", exp: "\"La vitamina D, el doble hidroxilo [...] se va a dar parte en el metabolismo aquí, en el riñón\"." },
+            { id: 38, q: "38. Cuando se observa la vascularización del riñón desde el tronco de la aorta hasta el glomérulo, ¿qué tipo de vasos penetran de forma perpendicular hacia la superficie del riñón, ramificándose desde las arterias arqueadas en la corteza?", opts: ["a) Arteriolas eferentes.", "b) Arterias segmentarias.", "c) Arterias (o arteriolas) corticales radiadas.", "d) Vasos rectos de la médula."], ans: "c) Arterias (o arteriolas) corticales radiadas.", exp: "Desde los \"arcos\" en la unión corticomedular, nacen las arterias corticales radiadas hacia el exterior (la corteza), dando luego las aferentes a los glomérulos." },
+            { id: 39, q: "39. Fascias abdominales: En la diapositiva transversal de abdomen, se ilustra la Fascia de Toldt. Como repasamos previamente, esta es una fascia de fusión (coalescencia). ¿A qué parte del intestino afecta principalmente en su cercanía al riñón izquierdo?", opts: ["a) Al colon ascendente.", "b) Al colon transverso.", "c) Al colon descendente.", "d) A la segunda porción del duodeno."], ans: "c) Al colon descendente.", exp: "El diagrama indica \"Fascia de fusión de TOLDT\" fijando el mesocolon embrionario de la cara posterior del colon descendente a la pared, justo delante y lateral al riñón izquierdo." },
+            { id: 40, q: "40. Topografía radiológica: En el corte axial de TC (L1) provisto en la presentación, los riñones se localizan claramente en el retroperitoneo a ambos lados de la columna. Inmediatamente anteriores a la columna y mediales a los riñones, se sitúan los dos grandes vasos abdominales. A nivel de L1, ¿qué vaso principal se encuentra anterior a la Aorta Abdominal y cruza el espacio hacia el lado izquierdo?", opts: ["a) Vena Cava Inferior.", "b) Vena Renal Izquierda.", "c) Vena Mesentérica Inferior.", "d) Tronco celíaco."], ans: "b) Vena Renal Izquierda.", exp: "La Vena Renal Izquierda, al drenar en la VCI (situada a la derecha de la aorta), debe cruzar por delante de la Aorta a este nivel (quedando atrapada por la AMS, la \"pinza\")." }
+        ];
+
+        let questions = [];
+        let marked = new Set();
+        let answers = {}; // {id: bool}
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initQuiz(randomize) {
+            questions = randomize ? shuffle([...rawData]) : [...rawData];
+            document.getElementById('overlay').style.display = 'none';
+            renderIndex();
+            renderQuestions();
+        }
+
+        function renderIndex() {
+            const grid = document.getElementById('index-grid');
+            grid.innerHTML = '';
+            questions.forEach((q, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'index-btn';
+                btn.id = `idx-${q.id}`;
+                btn.innerText = i + 1;
+                btn.onclick = () => {
+                    document.getElementById(`q-${q.id}`).scrollIntoView();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = '';
+            questions.forEach((q, i) => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${q.id}`;
+
+                // Randomize options for this load
+                const options = shuffle([...q.opts]);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <strong>Pregunta ${i + 1}</strong>
+                        <label class="mark-label">
+                            <input type="checkbox" onchange="toggleMark(${q.id}, this.checked)" ${marked.has(q.id) ? 'checked' : ''}> Marcar
+                        </label>
+                    </div>
+                    <p>${q.q}</p>
+                    <div id="opts-${q.id}">
+                        ${options.map(opt => `
+                            <button class="option-btn" onclick="checkAnswer(${q.id}, '${opt.replace(/'/g, "\\'")}', '${q.ans.replace(/'/g, "\\'")}')">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${q.id}">
+                        <strong>Explicación:</strong> ${q.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswer(id, selected, correct) {
+            if (answers[id] !== undefined) return;
+
+            const isCorrect = selected === correct;
+            answers[id] = isCorrect;
+
+            const exp = document.getElementById(`exp-${id}`);
+            const idxBtn = document.getElementById(`idx-${id}`);
+            const optsDiv = document.getElementById(`opts-${id}`);
+
+            exp.style.display = 'block';
+            idxBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+            Array.from(optsDiv.children).forEach(btn => {
+                btn.classList.add('disabled');
+                if (btn.innerText.trim() === correct) {
+                    btn.classList.add('correct');
+                } else if (btn.innerText.trim() === selected && !isCorrect) {
+                    btn.classList.add('wrong');
+                }
+            });
+        }
+
+        function toggleMark(id, isMarked) {
+            const idxBtn = document.getElementById(`idx-${id}`);
+            if (isMarked) {
+                marked.add(id);
+                idxBtn.classList.add('marked');
+            } else {
+                marked.delete(id);
+                idxBtn.classList.remove('marked');
+            }
+        }
+
+        function finishQuiz() {
+            const total = questions.length;
+            const solved = Object.keys(answers).length;
+            const correctCount = Object.values(answers).filter(v => v).length;
+
+            document.getElementById('result-score').innerText = `Has respondido ${solved} de ${total}. Aciertos: ${correctCount}`;
+            document.getElementById('results-screen').style.display = 'flex';
+        }
+
+        function retry(type) {
+            let filterIds = [];
+            const failed = Object.keys(answers).filter(id => !answers[id]).map(Number);
+            
+            if (type === 'failed') {
+                filterIds = failed;
+            } else if (type === 'marked') {
+                filterIds = Array.from(marked);
+            } else if (type === 'both') {
+                filterIds = Array.from(new Set([...failed, ...Array.from(marked)]));
+            }
+
+            if (filterIds.length === 0) {
+                alert("No hay preguntas en esa categoría.");
+                return;
+            }
+
+            // Reset only those being retried
+            filterIds.forEach(id => {
+                delete answers[id];
+            });
+
+            questions = rawData.filter(q => filterIds.includes(q.id));
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('main-content').scrollTop = 0;
+            renderIndex();
+            renderQuestions();
+        }
+    </script>
+</body>
+</html>

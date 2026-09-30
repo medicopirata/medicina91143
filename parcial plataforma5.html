@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Digestivo - Parcial 7</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #27ae60;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f4f9f4;
+            --sidebar-w: 130px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice lateral en 3 columnas */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-header {
+            color: white;
+            text-align: center;
+            padding: 10px 5px;
+            font-size: 0.75em;
+            font-weight: bold;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            padding: 10px;
+            align-content: start;
+        }
+
+        .nav-dot {
+            aspect-ratio: 1;
+            background: #34495e;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: 0.2s;
+        }
+
+        .nav-dot:hover { background: var(--accent); }
+        .nav-dot.answered { background: var(--success); }
+        .nav-dot.marked { border: 2px solid #f1c40f; color: #f1c40f; }
+
+        .restart-tab {
+            padding: 15px 0;
+            background: #1a252f;
+            color: #f1c40f;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-top: 1px solid #34495e;
+        }
+
+        #main-content {
+            margin-left: calc(var(--sidebar-w) + 20px);
+            padding: 30px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid var(--accent);
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .mark-btn.active { color: #f1c40f; }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            padding: 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #fff;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--accent); background: #f9fffb; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .option.disabled { cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95em;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+        }
+
+        #results-area {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-finish { background: var(--primary); margin-bottom: 30px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="nav-header">DIGESTIVO</div>
+    <div class="nav-container" id="nav-dots"></div>
+    <div class="restart-tab" onclick="showResults()" title="Finalizar y Reiniciar">🔄</div>
+</div>
+
+<div id="main-content">
+    <h1>Aparato Digestivo - Examen Parcial 7</h1>
+    <button class="btn-finish" onclick="showResults()">Finalizar Cuestionario</button>
+    
+    <div id="results-area">
+        <h2>Resultados</h2>
+        <p id="score-text" style="font-size: 1.4rem;"></p>
+        <div class="btn-group">
+            <button onclick="restartQuiz('all')">Repetir Todo</button>
+            <button onclick="restartQuiz('failed')">Repetir Falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button onclick="restartQuiz('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<script>
+    const rawQuestions = [
+        { id: 1, q: "Cuál de estas estructuras no se relacionan con la cara dorsal del páncreas", options: ["Vena esplénica", "Aorta abdominal", "Riñón izquierdo", "glándula suprarrenal izquierda"], correct: 0, r: "La vena esplénica recorre el borde superior y la cara posterior, pero está integrada en el páncreas; la pregunta suele referirse a que no es una relación 'retroperitoneal' pura detrás de la fascia de recubrimiento como las otras." },
+        { id: 2, q: "El mesogastrio ventral que organiza el ligamento falciforme separa los lóbulos hepáticos en", options: ["Derecho e izquierdo", "Anterior y posterior", "Superior e inferior", "Cuadrado y caudado"], correct: 0, r: "Anatómicamente, el ligamento falciforme divide el hígado en lóbulos derecho e izquierdo." },
+        { id: 3, q: "La ampolla hepatopancreática de Vater se forma por la unión de", options: ["Conducto colédoco y conducto pancreático principal", "Conducto cístico y hepático común", "Conducto pancreático accesorio y colédoco", "Conductos hepáticos derecho e izquierdo"], correct: 0, r: "Es la unión de la vía biliar principal y el conducto de Wirsung." },
+        { id: 4, q: "En la cara visceral del hígado se puede observar", options: ["El lóbulo cuadrado y el lóbulo caudado", "El ligamento falciforme", "El área desnuda", "La cúpula diafragmática"], correct: 0, r: "Ambos lóbulos accesorios se sitúan en la cara inferior o visceral entre las fisuras en H." },
+        { id: 5, q: "Cuál de las siguientes afirmaciones sobre el estómago es correcta", options: ["El cardias comunica el esófago con el fondo gástrico", "La curvatura mayor se relaciona con el epiplón menor", "El cuerpo se sitúa entre el fondo y el antro pilórico", "Posee dos capas de músculo liso únicamente"], correct: 2, r: "El cuerpo es la porción más extensa del estómago situada tras el fundus." },
+        { id: 6, q: "El epiplón menor (ligamento hepatogástrico) contiene", options: ["La arteria gástrica izquierda y derecha", "La arteria gástrica corta", "La arteria gastroepiploica derecha", "Los vasos esplénicos"], correct: 0, r: "Contiene el arco arterial de la curvatura menor." },
+        { id: 7, q: "Qué estructura delimita el hiato de Winslow (entrada a la bolsa omental) anteriormente", options: ["Ligamento hepatoduodenal", "Vena cava inferior", "Lóbulo caudado", "Duodeno"], correct: 0, r: "El borde libre del epiplón menor contiene la tríada portal y limita el hiato anterior." },
+        { id: 8, q: "La segunda porción del duodeno (descendente) se caracteriza por", options: ["La presencia de las papilas duodenales mayor y menor", "Ser totalmente intraperitoneal", "Cruzar por delante de la aorta", "Relacionarse con el bazo"], correct: 0, r: "Aquí desembocan los conductos biliares y pancreáticos." },
+        { id: 9, q: "El ángulo de Treitz (duodenoyeyunal) está sostenido por", options: ["Músculo suspensorio del duodeno", "Ligamento falciforme", "Epiplón mayor", "Fascia de Toldt"], correct: 0, r: "Es una banda musculofibrosa que proviene del pilar derecho del diafragma." },
+        { id: 10, q: "Las arterias que irrigan el yeyuno e íleon son ramas de", options: ["Arteria mesentérica superior", "Arteria mesentérica inferior", "Tronco celíaco", "Arterias lumbares"], correct: 0, r: "Forman arcos arteriales en el mesenterio." },
+        { id: 11, q: "El intestino grueso se diferencia del delgado por presentar", options: ["Tenias, haustras y apéndices epiploicos", "Vellosidades intestinales", "Pliegues circulares", "Mayor longitud"], correct: 0, r: "Son las tres características macroscópicas distintivas del colon." },
+        { id: 12, q: "La válvula ileocecal (de Bauhin) se sitúa en", options: ["La unión del íleon con el ciego", "La unión del duodeno con el yeyuno", "La unión del esófago con el estómago", "La unión del recto con el ano"], correct: 0, r: "Regula el paso de contenido hacia el intestino grueso." },
+        { id: 13, q: "Sobre el borde mesentérico del yeyuno e íleon, señale la opción correcta", options: ["Es el borde a través del cual alcanzan los vasos rectos al tubo", "Supone el borde diametralmente contrario al cual el peritoneo alcanza", "Es el borde contramesentérico", "Es la base de implantación del mesenterio"], correct: 0, r: "Los vasos y nervios penetran por el borde unido al mesenterio." },
+        { id: 14, q: "Sobre el colon sigmoides, señale la opción incorrecta", options: ["no posee ni haustras, ni tenias, ni apéndices epiploicos", "es intraperitoneal", "tiene una extensión variable de hasta 40 cm", "se relaciona sobre la fosa iliaca izquierda y el hipogastrio"], correct: 0, r: "Incorrecto. El colon sigmoides SÍ posee tenias, haustras y apéndices epiploicos, aunque las tenias se expanden al final." },
+        { id: 15, q: "Sobre el esófago en su porción abdominal, señale la incorrecta", options: ["Su drenaje venoso se hace de forma íntegra al sistema portal", "Se relaciona con la cara visceral del hígado", "Es intraperitoneal", "Su corto trayecto se aboca sobre el cardias"], correct: 0, r: "Incorrecto. Su drenaje es mixto: una parte va a la vena gástrica izquierda (portal) y otra a las venas ácigos (cava), creando una anastomosis portocava." }
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [];
+
+    function preparePool(questions) {
+        return questions.map(q => {
+            const options = q.options.map((text, i) => ({ text, isCorrect: i === q.correct }));
+            return { ...q, options };
+        });
+    }
+
+    const fullPool = preparePool(rawQuestions);
+
+    function initQuiz(questions) {
+        const container = document.getElementById('quiz-container');
+        const nav = document.getElementById('nav-dots');
+        container.innerHTML = '';
+        nav.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            const dot = document.createElement('div');
+            dot.className = `nav-dot ${markedQuestions.has(q.id) ? 'marked' : ''}`;
+            dot.id = `dot-${q.id}`;
+            dot.innerHTML = index + 1;
+            dot.onclick = () => document.getElementById(`q-card-${q.id}`).scrollIntoView({behavior: 'smooth'});
+            nav.appendChild(dot);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${q.id}`;
+            
+            const markBtn = document.createElement('span');
+            markBtn.className = `mark-btn ${markedQuestions.has(q.id) ? 'active' : ''}`;
+            markBtn.innerHTML = '★';
+            markBtn.onclick = () => toggleMark(q.id, markBtn);
+            
+            const qText = document.createElement('h3');
+            qText.innerHTML = `${index + 1}. ${q.q}`;
+            
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+            const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'option';
+                optDiv.innerHTML = opt.text;
+                optDiv.onclick = () => handleAnswer(q.id, opt, optDiv, card);
+                optionsDiv.appendChild(optDiv);
+            });
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            card.appendChild(markBtn);
+            card.appendChild(qText);
+            card.appendChild(optionsDiv);
+            card.appendChild(feedback);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+            document.getElementById(`dot-${id}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+            document.getElementById(`dot-${id}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(qId, option, el, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, id: qId };
+        const allOpts = card.querySelectorAll('.option');
+        allOpts.forEach(o => o.classList.add('disabled'));
+        const fb = card.querySelector('.feedback');
+        fb.style.display = 'block';
+        const qData = fullPool.find(f => f.id === qId);
+        fb.innerHTML = `<strong>${option.isCorrect ? 'Correcto' : 'Incorrecto'}</strong>: ${qData.r}`;
+        el.classList.add(option.isCorrect ? 'correct' : 'incorrect');
+        if (!option.isCorrect) {
+            const correctText = qData.options.find(o => o.isCorrect).text;
+            allOpts.forEach(o => { if (o.innerHTML === correctText) o.classList.add('correct'); });
+        }
+        document.getElementById(`dot-${qId}`).classList.add('answered');
+    }
+
+    function showResults() {
+        const total = currentPool.length;
+        const correctas = Object.values(userAnswers).filter(a => a.correct).length;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.querySelector('.btn-finish').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('score-text').innerHTML = `Has acertado <strong>${correctas}</strong> de <strong>${total}</strong> preguntas.`;
+        window.scrollTo(0,0);
+    }
+
+    function restartQuiz(mode) {
+        let next = [];
+        if (mode === 'all') next = [...fullPool];
+        else if (mode === 'failed') next = fullPool.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+        else if (mode === 'marked') next = fullPool.filter(q => markedQuestions.has(q.id));
+        else if (mode === 'failed-marked') next = fullPool.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+
+        if (next.length === 0) { alert("No hay preguntas en esta selección."); return; }
+        userAnswers = {};
+        currentPool = next;
+        document.getElementById('quiz-container').style.display = 'block';
+        document.querySelector('.btn-finish').style.display = 'block';
+        document.getElementById('results-area').style.display = 'none';
+        initQuiz(next);
+        window.scrollTo(0,0);
+    }
+
+    currentPool = [...fullPool];
+    initQuiz(currentPool);
+</script>
+</body>
+</html>

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Física de la Visión</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --correct: #27ae60;
+            --correct-bg: #d4edda;
+            --wrong: #c0392b;
+            --wrong-bg: #f8d7da;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f7;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin: 0; color: var(--primary); }
+        .stats { margin-top: 10px; font-weight: bold; color: var(--accent); }
+
+        .question-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            width: 90%;
+        }
+
+        .mark-btn {
+            background: none;
+            border: 2px solid #ccc;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 1.2em;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .mark-btn.active {
+            border-color: #f1c40f;
+            color: #f1c40f;
+            background-color: #fff9db;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background-color: var(--light);
+            border-color: var(--accent);
+        }
+
+        .option-btn:disabled {
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        /* Estilos de corrección */
+        .option-btn.correct {
+            background-color: var(--correct-bg);
+            border-color: var(--correct);
+            color: var(--correct);
+            font-weight: bold;
+        }
+
+        .option-btn.wrong {
+            background-color: var(--wrong-bg);
+            border-color: var(--wrong);
+            color: var(--wrong);
+        }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-left: 5px solid var(--accent);
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Panel final */
+        #results-panel {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+
+        .action-btn:hover { background-color: #2980b9; }
+        .action-btn.secondary { background-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Test Física de la Visión</h1>
+        <div class="stats" id="score-display">Puntuación: 0</div>
+    </header>
+
+    <div id="quiz-area">
+        </div>
+
+    <div id="results-panel">
+        <h2>Resultados</h2>
+        <p id="final-score-text"></p>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+            <button class="action-btn" onclick="startQuiz('all')">Repetir Todo</button>
+            <button class="action-btn secondary" id="btn-missed" onclick="startQuiz('missed')">Repetir Falladas</button>
+            <button class="action-btn secondary" id="btn-marked" onclick="startQuiz('marked')">Repetir Marcadas</button>
+            <button class="action-btn secondary" id="btn-missed-marked" onclick="startQuiz('missed_marked')">Repetir Falladas y Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Base de datos de preguntas
+    const dbQuestions = [
+        {
+            id: 10,
+            q: "El ojo miope tiene el punto remoto:",
+            opts: ["Más lejano que el ojo normal", "Igual que el ojo normal", "Más cercano que el ojo normal", "El ojo miope no tiene punto remoto"],
+            a: 2, // Índice correcto (0=a, 1=b, 2=c...)
+            exp: "En la miopía, el exceso de potencia hace que el punto remoto se acerque (ya no está en el infinito)."
+        },
+        {
+            id: 1,
+            q: "¿Cuál es el rango aproximado de longitudes de onda (λ) que detecta el ojo humano?",
+            opts: ["100 nm a 400 nm", "400 nm a 700 nm", "700 nm a 1000 nm", "10 nm a 100 nm"],
+            a: 1,
+            exp: "El espectro visible comprende aproximadamente desde el violeta (400nm) hasta el rojo (700nm)."
+        },
+        {
+            id: 2,
+            q: "La velocidad de la luz en el vacío (c) es aproximadamente:",
+            opts: ["300.000 km/s", "300.000 m/s", "3·10^8 km/s", "150.000 km/s"],
+            a: 0,
+            exp: "La velocidad es aprox. 3·10^8 m/s, lo que equivale a 300.000 km/s."
+        },
+        {
+            id: 3,
+            q: "El índice de refracción (n) se define como:",
+            opts: ["n = v/c", "n = c·v", "n = c/v", "n = λ/f"],
+            a: 2,
+            exp: "Es la relación entre la velocidad en el vacío (c) y la velocidad en el medio (v)."
+        },
+        {
+            id: 4,
+            q: "Según la Ley de Snell de la refracción:",
+            opts: ["n1 cos(θ1) = n2 cos(θ2)", "n1 / sin(θ1) = n2 / sin(θ2)", "n1 sin(θ1) = n2 sin(θ2)", "θ1 = θ1'"],
+            a: 2,
+            exp: "La ley establece la conservación del producto del índice por el seno del ángulo."
+        },
+        {
+            id: 5,
+            q: "Un dioptrio se considera convergente cuando su potencia (D) es:",
+            opts: ["D < 0", "D = 0", "D > 0", "D = infinito"],
+            a: 2,
+            exp: "Potencia positiva (D>0) indica convergencia; negativa indica divergencia."
+        },
+        {
+            id: 6,
+            q: "¿Qué ocurre con la potencia (D) si el radio de curvatura (R) de un dioptrio disminuye?",
+            opts: ["La potencia disminuye", "La potencia aumenta", "La potencia permanece constante", "El dioptrio se vuelve divergente"],
+            a: 1,
+            exp: "La potencia es inversamente proporcional al radio. Menor radio implica mayor curvatura y mayor potencia."
+        },
+        {
+            id: 7,
+            q: "La aproximación de Gauss en óptica geométrica se aplica a:",
+            opts: ["Haces muy inclinados respecto al eje", "Haces paraxiales (estrechos y poco inclinados)", "Lentes muy gruesas", "Luz policromática únicamente"],
+            a: 1,
+            exp: "Gauss asume ángulos pequeños (paraxiales) donde sin(x) ≈ x."
+        },
+        {
+            id: 8,
+            q: "Las aberraciones cromáticas son causadas por:",
+            opts: ["Alejarse de la aproximación paraxial", "La dispersión de la luz (el índice n depende de la frecuencia)", "Defectos en la construcción de la lente", "El uso de luz monocromática"],
+            a: 1,
+            exp: "Cada color (frecuencia) tiene un índice de refracción distinto, enfocándose en puntos diferentes."
+        },
+        {
+            id: 9,
+            q: "El ojo humano se comporta como un sistema óptico centrado compuesto por:",
+            opts: ["2 dioptrios", "6 dioptrios", "4 dioptrios", "Una sola lente delgada"],
+            a: 2,
+            exp: "Se modela con 4 dioptrios: cara anterior y posterior de la córnea, y cara anterior y posterior del cristalino."
+        },
+        {
+            id: 100, // ID modificado para evitar duplicado con el 10 original
+            q: "La potencia total del ojo humano en reposo es aproximadamente de:",
+            opts: ["20 dioptrías", "42 dioptrías", "60 dioptrías", "100 dioptrías"],
+            a: 2,
+            exp: "La suma de las potencias de córnea y cristalino da aprox. 60 D."
+        },
+        {
+            id: 11,
+            q: "¿Cuál es el elemento del ojo con mayor potencia refractiva individual (unas 42 dioptrías)?",
+            opts: ["El cristalino", "La córnea", "El humor vítreo", "La retina"],
+            a: 1,
+            exp: "La córnea tiene la mayor diferencia de índice con el aire, aportando unas 42-43 D."
+        },
+        {
+            id: 12,
+            q: "La potencia del cristalino en estado de reposo es de aproximadamente:",
+            opts: ["60 dioptrías", "42 dioptrías", "20 dioptrías", "8 dioptrías"],
+            a: 2,
+            exp: "El cristalino aporta unas 20 D, pudiendo aumentar con la acomodación."
+        },
+        {
+            id: 13,
+            q: "El iris actúa como un diafragma con una abertura central llamada:",
+            opts: ["Córnea", "Fóvea", "Pupila", "Cristalino"],
+            a: 2,
+            exp: "La pupila es el orificio que regula la entrada de luz."
+        },
+        {
+            id: 14,
+            q: "Los focos del sistema óptico ocular se sitúan a una distancia de los planos principales de:",
+            opts: ["f1 = -17 mm y f2 = 23 mm", "f1 = 17 mm y f2 = -23 mm", "f1 = -8 mm y f2 = 8 mm", "f1 = 0 mm y f2 = 60 mm"],
+            a: 0,
+            exp: "Foco objeto a unos 17mm delante y foco imagen a unos 23mm detrás."
+        },
+        {
+            id: 15,
+            q: "Un ojo emétrope es aquel que:",
+            opts: ["Tiene el foco imagen (F2) delante de la retina", "Tiene el punto remoto en el infinito y el foco imagen en la retina", "No puede enfocar de cerca", "Tiene una córnea asimétrica"],
+            a: 1,
+            exp: "Emétrope significa ojo normal, sin defectos refractivos."
+        },
+        {
+            id: 16,
+            q: "En la miopía, la imagen de un objeto lejano se forma:",
+            opts: ["Detrás de la retina", "Exactamente sobre la retina", "Delante de la retina", "En el punto ciego"],
+            a: 2,
+            exp: "Debido al exceso de potencia o longitud del ojo, la luz converge antes de llegar a la retina."
+        },
+        {
+            id: 17,
+            q: "La miopía se corrige mediante el uso de:",
+            opts: ["Lentes convergentes", "Lentes cilíndricas", "Lentes divergentes", "Lentes bifocales únicamente"],
+            a: 2,
+            exp: "Se usan lentes negativas (divergentes) para 'retrasar' el foco hasta la retina."
+        },
+        {
+            id: 18,
+            q: "La hipermetropía ocurre porque:",
+            opts: ["El ojo es muy largo o tiene demasiada potencia", "El ojo es muy corto o tiene poca potencia", "La córnea no tiene simetría de revolución", "El cristalino ha perdido elasticidad"],
+            a: 1,
+            exp: "Falta de potencia o eje anteroposterior corto hace que la imagen se formaría detrás de la retina."
+        },
+        {
+            id: 19,
+            q: "Un ojo hipermétrope forma la imagen de un objeto lejano:",
+            opts: ["Delante de la retina", "Detrás de la retina", "En la pupila", "En el humor acuoso"],
+            a: 1,
+            exp: "Virtualmente detrás de la retina."
+        },
+        {
+            id: 20,
+            q: "El astigmatismo se debe principalmente a:",
+            opts: ["Una falta de simetría de revolución en la córnea", "Un exceso de potencia en el cristalino", "El envejecimiento del músculo ciliar", "La falta de bastones en la periferia"],
+            a: 0,
+            exp: "La córnea tiene curvaturas distintas en diferentes ejes (como un balón de rugby)."
+        },
+        {
+            id: 21,
+            q: "¿Qué tipo de lentes se utilizan para corregir el astigmatismo?",
+            opts: ["Esféricas convergentes", "Esféricas divergentes", "Cilíndricas o toroidales", "Prismáticas"],
+            a: 2,
+            exp: "Estas lentes tienen potencias diferentes en distintos ejes para compensar la asimetría."
+        },
+        {
+            id: 22,
+            q: "El proceso por el cual el cristalino aumenta su curvatura para enfocar objetos cercanos se llama:",
+            opts: ["Refracción", "Acomodación", "Dispersión", "Reflexión"],
+            a: 1,
+            exp: "La acomodación permite cambiar la potencia del ojo."
+        },
+        {
+            id: 23,
+            q: "Cuando el músculo ciliar se contrae (empuja), el cristalino:",
+            opts: ["Se tensa y disminuye su potencia", "Se abomba, disminuye su radio y aumenta su potencia", "Se vuelve plano", "Se desplaza hacia la retina"],
+            a: 1,
+            exp: "Al contraerse el músculo, se relajan las zónulas y el cristalino se abomba por su propia elasticidad."
+        },
+        {
+            id: 24,
+            q: "La presbicia o vista cansada es causada por:",
+            opts: ["Una deformación de la esclerótica", "La pérdida de la capacidad de acomodación del cristalino", "Un aumento de la sensibilidad de los bastones", "Una infección en la cámara anterior"],
+            a: 1,
+            exp: "Con la edad, el cristalino pierde elasticidad y no puede abombarse para enfocar de cerca."
+        },
+        {
+            id: 25,
+            q: "El punto próximo (Pp) en un ojo joven con visión normal suele estar a unos:",
+            opts: ["25-35 cm", "5 metros", "2 cm", "El infinito"],
+            a: 0,
+            exp: "Convencionalmente se toma 25cm como referencia de lectura cómoda."
+        },
+        {
+            id: 26,
+            q: "¿Cuál es el fotorreceptor responsable de la visión en condiciones de penumbra (escotópica)?",
+            opts: ["Los conos", "Los bastones", "El epitelio pigmentario", "El iris"],
+            a: 1,
+            exp: "Los bastones son muy sensibles a la luz pero no distinguen colores."
+        },
+        {
+            id: 27,
+            q: "Los bastones son aproximadamente:",
+            opts: ["3 veces más sensibles que los conos", "100 veces más sensibles que los conos", "Menos numerosos que los conos", "Sensibles a la percepción de colores vivos"],
+            a: 1,
+            exp: "Tienen una sensibilidad mucho mayor, permitiendo ver con muy poca luz."
+        },
+        {
+            id: 28,
+            q: "La mayor concentración de conos se encuentra en:",
+            opts: ["El punto ciego", "La periferia de la retina", "La fóvea", "La córnea"],
+            a: 2,
+            exp: "La fóvea central es el área de máxima agudeza visual y color, repleta de conos."
+        },
+        {
+            id: 29,
+            q: "La visión fotópica (con buena iluminación) se caracteriza por:",
+            opts: ["Una visión aguda y sensación de color bien definida", "Poca agudeza visual y ausencia de colores", "El uso exclusivo de los bastones", "Ocurrir solo en la periferia del ojo"],
+            a: 0,
+            exp: "Es la visión diurna mediada por conos."
+        },
+        {
+            id: 30,
+            q: "El ojo humano normal consta de tres tipos de sensores de color (conos), por lo que su visión es:",
+            opts: ["Monocromática", "Dicromática", "Tricromática", "Acromática"],
+            a: 2,
+            exp: "Tenemos conos sensibles al Rojo (L), Verde (M) y Azul (S)."
+        },
+        {
+            id: 31,
+            q: "Los tres atributos de la luz que percibe el ojo humano según la 1ª Ley de Grassmann son:",
+            opts: ["Tonalidad, brillo y saturación", "Rojo, verde y azul", "Frecuencia, longitud de onda y velocidad", "Reflexión, refracción y difracción"],
+            a: 0,
+            exp: "Definen la experiencia perceptual del color."
+        },
+        {
+            id: 32,
+            q: "El sistema de colores primarios aditivos (luces) utilizado en monitores y proyectores es:",
+            opts: ["CMY", "RGB", "RYB", "Blanco y Negro"],
+            a: 1,
+            exp: "RGB: Red, Green, Blue. Sumados dan blanco."
+        },
+        {
+            id: 33,
+            q: "La mezcla de colores pigmento (como en impresoras) se denomina:",
+            opts: ["Mezcla aditiva", "Mezcla sustractiva", "Mezcla difractiva", "Mezcla paraxial"],
+            a: 1,
+            exp: "Cada pigmento sustrae (absorbe) luz. La mezcla tiende al negro."
+        },
+        {
+            id: 34,
+            q: "El atributo de la luz relacionado con la pureza del color y la cantidad de luz blanca que contiene es:",
+            opts: ["El brillo", "La tonalidad", "La saturación", "El índice de refracción"],
+            a: 2,
+            exp: "Un color muy saturado es muy puro; uno poco saturado tiende al gris/blanco."
+        },
+        {
+            id: 35,
+            q: "La protanopía es una anomalía de la visión del color donde:",
+            opts: ["Falta el pigmento verde (conos M)", "Falta el pigmento rojo (conos L)", "Falta el pigmento azul (conos S)", "El ojo no tiene conos en absoluto"],
+            a: 1,
+            exp: "Protan = Primero (Rojo). Falta de sensibilidad a longitudes de onda largas."
+        },
+        {
+            id: 36,
+            q: "El daltonismo (protanopía y deuteranopía) es un defecto genético ligado al:",
+            opts: ["Cromosoma 7", "Cromosoma X (recesivo)", "Cromosoma Y", "Par 21"],
+            a: 1,
+            exp: "Por eso es mucho más frecuente en hombres (XY) que en mujeres (XX)."
+        },
+        {
+            id: 37,
+            q: "La deuteranopía consiste en la falta del pigmento:",
+            opts: ["Rojo", "Verde", "Azul", "Amarillo"],
+            a: 1,
+            exp: "Deuteros = Segundo (Verde)."
+        },
+        {
+            id: 38,
+            q: "La tritanopía (falta de pigmento azul) es muy rara y afecta aproximadamente a:",
+            opts: ["1 de cada 100 hombres", "1 de cada 100 mujeres", "1 de cada millón de sujetos", "8% de la población mundial"],
+            a: 2, // Corregido según texto original: "c"
+            exp: "Es una anomalía muy poco frecuente."
+        },
+        {
+            id: 39,
+            q: "¿Qué es la acromatopsia o monocromatopía?",
+            opts: ["Una visión perfecta de todos los colores", "La falta de funcionamiento de los conos, viendo solo en blanco y negro", "Ver solo el color rojo", "La necesidad de usar lentes cilíndricas"],
+            a: 1,
+            exp: "Es la ceguera total al color."
+        },
+        {
+            id: 40,
+            q: "En el Test Duocromo, si un paciente ve más nítidas las letras sobre fondo rojo, es probable que sea:",
+            opts: ["Hipermétrope", "Miope", "Emétrope", "Daltónico"],
+            a: 1,
+            exp: "El rojo tiene mayor longitud de onda y se enfoca más atrás; si el miope (que enfoca delante) lo ve mejor, es porque su retina 'alcanza' mejor el foco rojo."
+        }
+    ];
+
+    // Variables de estado
+    let currentPool = [];
+    let userStats = { score: 0, marked: new Set(), missed: new Set() };
+    let answeredCount = 0;
+
+    // Inicialización
+    function init() {
+        startQuiz('all');
+    }
+
+    // Función principal para iniciar/reiniciar el quiz
+    function startQuiz(mode) {
+        // Resetear UI
+        const area = document.getElementById('quiz-area');
+        area.innerHTML = '';
+        document.getElementById('results-panel').style.display = 'none';
+        userStats.score = 0;
+        answeredCount = 0;
+        updateScoreDisplay();
+
+        // Filtrar preguntas según modo
+        if (mode === 'all') {
+            currentPool = [...dbQuestions];
+            userStats.marked.clear();
+            userStats.missed.clear();
+        } else if (mode === 'missed') {
+            currentPool = dbQuestions.filter(q => userStats.missed.has(q.id));
+        } else if (mode === 'marked') {
+            currentPool = dbQuestions.filter(q => userStats.marked.has(q.id));
+        } else if (mode === 'missed_marked') {
+            currentPool = dbQuestions.filter(q => userStats.marked.has(q.id) || userStats.missed.has(q.id));
+        }
+
+        if (currentPool.length === 0) {
+            area.innerHTML = '<p style="text-align:center; padding:20px;">No hay preguntas en esta categoría.</p>';
+            document.getElementById('results-panel').style.display = 'block';
+            return;
+        }
+
+        // Renderizar preguntas
+        currentPool.forEach((qData, index) => {
+            renderQuestion(qData, index);
+        });
+
+        // Actualizar botones de resumen (deshabilitar si no hay qué repetir)
+        updateSummaryButtons();
+    }
+
+    // Renderizar una pregunta individual
+    function renderQuestion(qData, index) {
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-card-${qData.id}`;
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'question-header';
+        
+        const text = document.createElement('div');
+        text.className = 'question-text';
+        text.innerText = `${index + 1}. ${qData.q}`;
+
+        const markBtn = document.createElement('button');
+        markBtn.className = 'mark-btn';
+        markBtn.innerHTML = '★';
+        markBtn.title = "Marcar para revisar";
+        if (userStats.marked.has(qData.id)) markBtn.classList.add('active');
+        
+        markBtn.onclick = () => toggleMark(qData.id, markBtn);
+
+        header.append(text, markBtn);
+
+        // Opciones (Aleatorizar)
+        const optionsGrid = document.createElement('div');
+        optionsGrid.className = 'options-grid';
+        
+        // Crear array de índices [0, 1, 2, 3] y mezclarlos
+        let indices = qData.opts.map((_, i) => i);
+        shuffleArray(indices);
+
+        indices.forEach(optIndex => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = qData.opts[optIndex];
+            btn.dataset.originalIndex = optIndex;
+            
+            btn.onclick = () => handleAnswer(qData, optIndex, btn, card);
+            
+            optionsGrid.appendChild(btn);
+        });
+
+        // Explicación
+        const expDiv = document.createElement('div');
+        expDiv.className = 'explanation';
+        expDiv.innerHTML = `<strong>${qData.exp}</strong>`;
+
+        card.append(header, optionsGrid, expDiv);
+        document.getElementById('quiz-area').appendChild(card);
+    }
+
+    // Manejar respuesta
+    function handleAnswer(qData, selectedIndex, btn, card) {
+        // Deshabilitar botones
+        const buttons = card.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        const expDiv = card.querySelector('.explanation');
+        expDiv.style.display = 'block';
+
+        const isCorrect = selectedIndex === qData.a;
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            userStats.score++;
+            // Si estaba en falladas y acierta ahora, podríamos quitarla, 
+            // pero para repaso estricto mejor dejarla hasta reiniciar 'all'.
+        } else {
+            btn.classList.add('wrong');
+            userStats.missed.add(qData.id);
+            // Buscar y marcar la correcta
+            buttons.forEach(b => {
+                if (parseInt(b.dataset.originalIndex) === qData.a) {
+                    b.classList.add('correct');
+                }
+            });
+        }
+
+        answeredCount++;
+        updateScoreDisplay();
+        updateSummaryButtons(); // Actualizar contadores de botones de repaso
+
+        // Verificar final
+        if (answeredCount === currentPool.length) {
+            showResults();
+        }
+    }
+
+    // Marcar/Desmarcar
+    function toggleMark(id, btn) {
+        if (userStats.marked.has(id)) {
+            userStats.marked.delete(id);
+            btn.classList.remove('active');
+        } else {
+            userStats.marked.add(id);
+            btn.classList.add('active');
+        }
+        updateSummaryButtons();
+    }
+
+    // Utilidades
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function updateScoreDisplay() {
+        document.getElementById('score-display').innerText = `Aciertos: ${userStats.score} / ${currentPool.length}`;
+    }
+
+    function showResults() {
+        const panel = document.getElementById('results-panel');
+        panel.style.display = 'block';
+        document.getElementById('final-score-text').innerHTML = 
+            `Has acertado <strong>${userStats.score}</strong> de <strong>${currentPool.length}</strong> preguntas.<br>` +
+            `Preguntas marcadas: ${userStats.marked.size} | Preguntas falladas (acumuladas): ${userStats.missed.size}`;
+        
+        // Scroll al final
+        setTimeout(() => {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }, 100);
+    }
+
+    function updateSummaryButtons() {
+        document.getElementById('btn-missed').disabled = userStats.missed.size === 0;
+        document.getElementById('btn-marked').disabled = userStats.marked.size === 0;
+        document.getElementById('btn-missed-marked').disabled = (userStats.marked.size === 0 && userStats.missed.size === 0);
+        
+        document.getElementById('btn-missed').innerText = `Repetir Falladas (${userStats.missed.size})`;
+        document.getElementById('btn-marked').innerText = `Repetir Marcadas (${userStats.marked.size})`;
+    }
+
+    // Arrancar
+    init();
+
+</script>
+
+</body>
+</html>

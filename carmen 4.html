@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía: Carmen - Tema 4 (Musculatura Autóctona)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 3px solid var(--accent);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-item {
+            background: var(--secondary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover { background: var(--accent); }
+        .nav-item.answered { background: var(--success); }
+        .nav-item.marked { border: 2px solid gold; box-shadow: 0 0 5px gold; }
+
+        #main-content {
+            margin-left: 270px;
+            padding: 40px;
+            width: calc(100% - 310px);
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: block; line-height: 1.4; }
+
+        .options-container { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            background: white;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f9f9f9; }
+        .option-btn.correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .mark-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .mark-btn.active { background: gold; font-weight: bold; }
+
+        #results-area {
+            display: none;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .btn-action {
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Índice Tema 4</h2>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div style="margin-top: 30px;">
+        <button class="btn-action" onclick="finishQuiz()" style="width: 100%; padding: 10px;">Ver Resultados</button>
+    </div>
+</div>
+
+<div id="main-content">
+    <h1>Tema 4: Musculatura Autóctona del Dorso (Carmen)</h1>
+    <div id="questions-container"></div>
+
+    <div id="results-area">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="score-text" style="font-size: 1.5rem; color: var(--primary);"></p>
+        <div id="retry-options">
+            <button class="btn-action" onclick="restartQuiz('all')">Reiniciar Todo</button>
+            <button class="btn-action" onclick="restartQuiz('wrong')">Repetir Falladas</button>
+            <button class="btn-action" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn-action" onclick="restartQuiz('mix')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allQuestions = [
+        { id: 1, q: "1. ¿De los siguientes músculos cuál es flexor del cuello?", options: [
+            { text: "Recto anterior de la cabeza.", isCorrect: true, rationale: "Correcto. Se sitúa profundamente por delante de la columna cervical." },
+            { text: "Esplenio de la cabeza.", isCorrect: false, rationale: "Es extensor." },
+            { text: "Erector de la columna.", isCorrect: false, rationale: "Es extensor del tronco." },
+            { text: "Multífidos.", isCorrect: false, rationale: "Son principalmente estabilizadores y extensores." }
+        ]},
+        { id: 2, q: "2. El músculo erector de la columna:", options: [
+            { text: "Se origina por un tendón común en la región lumbosacra.", isCorrect: true, rationale: "Correcto. Es su origen común antes de dividirse en iliocostal, longísimo y epiespinal." },
+            { text: "Es un flexor potente del tronco.", isCorrect: false, rationale: "Es el principal extensor." },
+            { text: "Está inervado por ramos anteriores de los nervios raquídeos.", isCorrect: false, rationale: "Está inervado por ramos posteriores." },
+            { text: "Se sitúa por delante de los cuerpos vertebrales.", isCorrect: false, rationale: "Se sitúa en los canales vertebrales (posterior)." }
+        ]},
+        { id: 3, q: "3. De los siguientes músculos ¿cuál está en un plano más profundo inmediatamente por delante de la columna vertebral?", options: [
+            { text: "a) Largo del cuello.", isCorrect: true, rationale: "Correcto. Pertenece al grupo prevertebral profundo." },
+            { text: "b) Omohioideo.", isCorrect: false, rationale: "Es un músculo infrahioideo superficial." },
+            { text: "c) Recto mayor de la cabeza.", isCorrect: false, rationale: "Es un músculo de la nuca (posterior)." },
+            { text: "d) Tirohioideo.", isCorrect: false, rationale: "Es un músculo infrahioideo." }
+        ]},
+        { id: 4, q: "4. De los siguientes músculos cuál es flexor del cuello:", options: [
+            { text: "recto anterior de la cabeza", isCorrect: true, rationale: "Correcto." },
+            { text: "recto posterior mayor", isCorrect: false, rationale: "Es extensor/rotador." },
+            { text: "oblicuo superior", isCorrect: false, rationale: "Es extensor." },
+            { text: "esplenio", isCorrect: false, rationale: "Es extensor." }
+        ]},
+        { id: 5, q: "5. Respecto a los músculos autóctonos del dorso hay una afirmación que NO es verdadera:", options: [
+            { text: "son flexores y rotadores del tronco", isCorrect: true, rationale: "Correcto, es la falsa. Los músculos autóctonos son principalmente extensores." },
+            { text: "están inervados por ramos posteriores de los nervios espinales", isCorrect: false, rationale: "Es verdadera." },
+            { text: "mantienen la bipedestación", isCorrect: false, rationale: "Es verdadera." },
+            { text: "se sitúan en los canales vertebrales", isCorrect: false, rationale: "Es verdadera." }
+        ]},
+        { id: 6, q: "6. Musculo erector de la columna:", options: [
+            { text: "Endereza el tronco", isCorrect: true, rationale: "Correcto. Su función principal es la extensión y el mantenimiento de la postura erguida." },
+            { text: "Flexiona el cuello", isCorrect: false, rationale: "No." },
+            { text: "Es inervado por el nervio frénico", isCorrect: false, rationale: "No." },
+            { text: "Es un músculo de la mímica", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 7, q: "7. De los músculos autóctonos del dorso podemos afirmar que:", options: [
+            { text: "mantienen la postura", isCorrect: true, rationale: "Correcto." },
+            { text: "son músculos flexores centrales y rotadores de la columna", isCorrect: false, rationale: "Son extensores." },
+            { text: "tienen un origen embriológico común, por ello están internados por los ramos anteriores de los nervios raquídeos", isCorrect: false, rationale: "Están inervados por ramos posteriores." },
+            { text: "todas son ciertas", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 8, q: "8. Cuál de los siguientes elementos es más profundo:", options: [
+            { text: "rotadores largos", isCorrect: true, rationale: "Correcto. Pertenecen al sistema transversoespinoso, el más profundo de los autóctonos." },
+            { text: "multífidos", isCorrect: false, rationale: "Están por encima de los rotadores." },
+            { text: "interespinosos", isCorrect: false, rationale: "Son profundos pero los rotadores son la referencia típica de profundidad en el sistema transversoespinoso." },
+            { text: "dorsal largo", isCorrect: false, rationale: "Es plano intermedio." },
+            { text: "esplenio", isCorrect: false, rationale: "Es plano superficial." }
+        ]},
+        { id: 9, q: "9. ¿Qué elementos de los que se relacionan se encuentran en el triángulo suboccipital? (Natalia)", options: [
+            { text: "Nervios espinales de C1 a C3", isCorrect: false, rationale: "Incorrecto." },
+            { text: "Vena basivertebral", isCorrect: false, rationale: "Es interna." },
+            { text: "Primer nervio espinal", isCorrect: false, rationale: "Cierto, pero incompleto." },
+            { text: "Nervios espinales C1 y C2 y la arteria vertebral", isCorrect: true, rationale: "Correcto. El contenido principal es el nervio suboccipital (C1) y la arteria vertebral." }
+        ]},
+        { id: 10, q: "10.El músculo erector de la columna:", options: [
+            { text: "a. está envuelto en la hoja anterior de la fascia toracolumbar", isCorrect: false, rationale: "Falso." },
+            { text: "b. el longísimo del dorso es el elemento más lateral", isCorrect: false, rationale: "El iliocostal es el más lateral." },
+            { text: "c. tiene tres componentes musculares, epiespinal, dorsal largo y longísimo del dorso", isCorrect: false, rationale: "Dorsal largo y longísimo son sinónimos." },
+            { text: "d. se origina por un tendón común en la región lumbosacra", isCorrect: true, rationale: "Correcto." }
+        ]},
+        { id: 11, q: "11. De los siguientes elementos cuál no forma parte del músculo erector de la espalda:", options: [
+            { text: "iliocostal", isCorrect: false, rationale: "Sí forma parte." },
+            { text: "dorsal largo", isCorrect: false, rationale: "Sí forma parte." },
+            { text: "Multífidos", isCorrect: true, rationale: "Correcto. Los multífidos pertenecen al sistema transversoespinoso, no al erector de la columna." },
+            { text: "Epiespinal", isCorrect: false, rationale: "Sí forma parte." }
+        ]},
+        { id: 12, q: "12. El esplenio:", options: [
+            { text: "es un músculo autóctono del dorso", isCorrect: true, rationale: "Correcto. Inervado por ramos posteriores." },
+            { text: "Está inervado por los ramos dorsales de los nervios raquídeos", isCorrect: true, rationale: "Correcto." },
+            { text: "forma parte de la musculatura suboccipital", isCorrect: false, rationale: "No." },
+            { text: "es un flexor ventral del cuello", isCorrect: false, rationale: "Es extensor." },
+            { text: "A y B son ciertas", isCorrect: true, rationale: "Ambas son correctas." }
+        ]},
+        { id: 13, q: "13. El músculo iliocostal: (Natalia)", options: [
+            { text: "Forma parte de la capa profunda de los músculos de la espalda", isCorrect: false, rationale: "Es del grupo erector (intermedio)." },
+            { text: "Es flexor del tronco", isCorrect: false, rationale: "Es extensor." },
+            { text: "Es un fundamental espirador", isCorrect: false, rationale: "No." },
+            { text: "Interviene en el enderezamiento del tronco", isCorrect: true, rationale: "Correcto." }
+        ]},
+        { id: 14, q: "19. Qué estructura de las siguientes se encuentra en el triángulo suboccipital:", options: [
+            { text: "Ganglios cervicales superficiales", isCorrect: false, rationale: "No." },
+            { text: "El serrato posterosuperior", isCorrect: false, rationale: "No." },
+            { text: "Arteria vertebral", isCorrect: true, rationale: "Correcto." },
+            { text: "A y C son ciertas", isCorrect: false, rationale: "Solo C." }
+        ]},
+        { id: 15, q: "20. Los músculos suboccipitales:", options: [
+            { text: "a) Se encuentran en la nuca", isCorrect: false, rationale: "Cierto pero incompleto." },
+            { text: "b) Incluye a los rectos dorsales", isCorrect: false, rationale: "Cierto pero incompleto." },
+            { text: "c) Incluye a los retadores", isCorrect: false, rationale: "No." },
+            { text: "e) A y B son ciertas", isCorrect: true, rationale: "Correcto. Son músculos profundos de la nuca e incluyen rectos y oblicuos." }
+        ]},
+        { id: 16, q: "21.- ¿Cuál de los siguientes músculos no es un rotador del tronco?", options: [
+            { text: "A.- Recto anterior del abdomen", isCorrect: true, rationale: "Correcto. Es un flexor puro." },
+            { text: "B.- Multífidos", isCorrect: false, rationale: "Tienen componente rotador." },
+            { text: "C.- Oblicuo mayor", isCorrect: false, rationale: "Es un rotador potente." },
+            { text: "D.- Oblicuo menor", isCorrect: false, rationale: "Es un rotador potente." }
+        ]},
+        { id: 17, q: "22.-Los nervios intercostales:", options: [
+            { text: "a. dan ramos motores para los músculos autóctonos del tórax y del dorso", isCorrect: false, rationale: "No inervan el dorso autóctono (ramos posteriores)." },
+            { text: "b. sólo aportan ramos sensitivos para la pared costal", isCorrect: false, rationale: "También aportan ramos motores." },
+            { text: "c. dan ramos motores para los músculos autóctonos del tórax", isCorrect: true, rationale: "Correcto. Inervan los intercostales." },
+            { text: "d. su territorio de distribución se limita a las 7 primeras costillas", isCorrect: false, rationale: "Llegan hasta la 11." }
+        ]},
+        { id: 18, q: "23.-El triángulo suboccipital:", options: [
+            { text: "a. zona limitada a las vértebras cervicales C1, C2, C3", isCorrect: false, rationale: "No." },
+            { text: "b. contiene a la arteria vertebral", isCorrect: true, rationale: "Correcto." },
+            { text: "c. zona delimitada entre occipital y atlas", isCorrect: false, rationale: "Entre atlas y axis principalmente." },
+            { text: "d. contiene a los dos primeros nervios raquídeos", isCorrect: false, rationale: "Contiene el C1." }
+        ]},
+        { id: 19, q: "24 de las siguientes estructuras qué elemento es más superficial:", options: [
+            { text: "A. músculo platisma", isCorrect: true, rationale: "Correcto. Es un músculo cutáneo, el más superficial." },
+            { text: "B. músculo esternocleidomastoideo", isCorrect: false, rationale: "Es profundo al platisma." },
+            { text: "C. músculo escaleno anterior", isCorrect: false, rationale: "Es profundo." },
+            { text: "D. músculos infrahioideos", isCorrect: false, rationale: "Son profundos." }
+        ]},
+        { id: 20, q: "25. Relacione las siguientes estructuras (recto capital o de la cabeza posterior mayor):", options: [
+            { text: "a. Triángulo suboccipital", isCorrect: true, rationale: "Correcto. Forma parte del límite superomedial del triángulo." },
+            { text: "b. Tiene su origen en la apófisis espinosa del atlas", isCorrect: false, rationale: "Se origina en el axis." },
+            { text: "c. Es un músculo del abdomen", isCorrect: false, rationale: "No." },
+            { text: "d. Musculatura suprahioidea", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 21, q: "26. Relacione las siguientes estructuras (recto capital o de la cabeza posterior menor):", options: [
+            { text: "a. Triángulo suboccipital", isCorrect: false, rationale: "No forma parte de los límites del triángulo." },
+            { text: "b. Tiene su origen en el tubérculo posterior del atlas", isCorrect: true, rationale: "Correcto. Es su rasgo distintivo." },
+            { text: "c. Es un músculo del abdomen", isCorrect: false, rationale: "No." },
+            { text: "d. Musculatura infrahioidea", isCorrect: false, rationale: "No." }
+        ]},
+        { id: 22, q: "131. El músculo iliocostal:", options: [
+            { text: "a) Es sinónimo de dorsal largo", isCorrect: false, rationale: "No." },
+            { text: "b) Es fundamentalmente espirador", isCorrect: false, rationale: "No." },
+            { text: "c) Es flexor del tronco", isCorrect: false, rationale: "No." },
+            { text: "d) Interviene en el enderezamiento del tronco", isCorrect: true, rationale: "Correcto." }
+        ]},
+        { id: 23, q: "137. Respecto a los movimientos del tronco es cierto que:", options: [
+            { text: "a. el músculo oblicuo interno es un rotador ipsilateral", isCorrect: true, rationale: "Correcto." },
+            { text: "b. el músculo transverso es un flexor", isCorrect: false, rationale: "Es compresor de vísceras." },
+            { text: "c. en la flexión del tronco sólo participan los músculos oblicuos mayor y menor", isCorrect: false, rationale: "Participa también el recto." }
+        ]},
+        { id: 24, q: "120. De las siguientes acciones del psoas iliaco, ¿Cuál no es cierta?:", options: [
+            { text: "a) Disminuye la lordosis lumbar", isCorrect: true, rationale: "Correcto, es la falsa: el psoas aumenta la lordosis lumbar." },
+            { text: "b) Estabiliza el tronco al sentarse", isCorrect: false, rationale: "Es cierto." },
+            { text: "c) Interviene en el salto", isCorrect: false, rationale: "Es cierto." },
+            { text: "d) Interviene en la marcha", isCorrect: false, rationale: "Es cierto." }
+        ]},
+        { id: 25, q: "198. De los siguientes músculos cuál está en un plano más profundo inmediatamente por delante de la columna vertebral:", options: [
+            { text: "a. tirohioideo", isCorrect: false, rationale: "No." },
+            { text: "b. omohioideo", isCorrect: false, rationale: "No." },
+            { text: "c. recto mayor de la cabeza", isCorrect: false, rationale: "No." },
+            { text: "d. largo del cuello", isCorrect: true, rationale: "Correcto." }
+        ]},
+        { id: 26, q: "69. Respecto a la musculatura de la espalda:", options: [
+            { text: "a) El erector participa en regular el movimiento durante la flexión", isCorrect: true, rationale: "Correcto. Actúa excéntricamente." },
+            { text: "b) El semiespinoso es el elemento muscular que ocupa el plano más superficial", isCorrect: false, rationale: "Es profundo al esplenio/trapecio." },
+            { text: "c) El esplenio se sitúa en la región lumbar", isCorrect: false, rationale: "Se sitúa en nuca/tórax superior." },
+            { text: "d) Los interespinosos son músculos rotadores del tronco", isCorrect: false, rationale: "Son extensores." }
+        ]},
+        { id: 27, q: "88. El epiespinal:", options: [
+            { text: "a) Forma parte de la musculatura más profunda del dorso", isCorrect: false, rationale: "Es del grupo erector." },
+            { text: "b) Forma parte de la musculatura autóctona del tórax", isCorrect: false, rationale: "Es del dorso." },
+            { text: "c) Es el componente mas medial de los músculos erectores del torso", isCorrect: true, rationale: "Correcto. Se sitúa pegado a las espinosas." },
+            { text: "d) Son importantes flexores del raquis", isCorrect: false, rationale: "Extensores." }
+        ]},
+        { id: 28, q: "85.- De los siguientes músculos que se relacionan cual es más profundo", options: [
+            { text: "A.- Iliocostal", isCorrect: false, rationale: "Superficial (Erector)." },
+            { text: "B.- Rotadores cortos", isCorrect: true, rationale: "Correcto. Son los más profundos del sistema transversoespinoso." },
+            { text: "C.- Dorsal largo", isCorrect: false, rationale: "Intermedio (Erector)." },
+            { text: "D.- Multífidos", isCorrect: false, rationale: "Profundos, pero por encima de los rotadores." }
+        ]}
+    ];
+
+    let userAnswers = {};
+    let markedQuestions = new Set();
+    let currentPool = [...allQuestions];
+
+    function shuffleOptions(options) {
+        return options.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz(questions) {
+        const container = document.getElementById('questions-container');
+        const navGrid = document.getElementById('nav-grid');
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        questions.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${item.id}`;
+
+            const markBtn = document.createElement('button');
+            markBtn.className = `mark-btn ${markedQuestions.has(item.id) ? 'active' : ''}`;
+            markBtn.innerText = markedQuestions.has(item.id) ? '⭐' : 'Marcar';
+            markBtn.onclick = () => toggleMark(item.id, markBtn);
+            card.appendChild(markBtn);
+
+            const qText = document.createElement('span');
+            qText.className = 'question-text';
+            qText.innerText = item.q;
+            card.appendChild(qText);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+
+            const shuffled = shuffleOptions([...item.options]);
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectOption(item.id, opt, btn, card);
+                if (userAnswers[item.id]) {
+                    btn.disabled = true;
+                    if (opt.isCorrect) btn.classList.add('correct');
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            card.appendChild(optionsContainer);
+
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.id = `expl-${item.id}`;
+            if (userAnswers[item.id]) {
+                expl.style.display = 'block';
+                const currentOpt = item.options.find(o => o.text === userAnswers[item.id].chosen);
+                expl.innerText = currentOpt ? currentOpt.rationale : "";
+            }
+            card.appendChild(expl);
+
+            container.appendChild(card);
+        });
+    }
+
+    function selectOption(qId, option, btn, card) {
+        if (userAnswers[qId]) return;
+        userAnswers[qId] = { correct: option.isCorrect, chosen: option.text };
+        
+        const allBtns = card.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+        const explanationDiv = card.querySelector('.explanation');
+        explanationDiv.style.display = 'block';
+        explanationDiv.innerText = option.rationale;
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('wrong');
+            const q = allQuestions.find(x => x.id === qId);
+            const correctText = q.options.find(o => o.isCorrect).text;
+            allBtns.forEach(b => { if (b.innerText === correctText) b.classList.add('correct'); });
+        }
+        renderNavOnly();
+    }
+
+    function toggleMark(id, btn) {
+        if (markedQuestions.has(id)) {
+            markedQuestions.delete(id);
+            btn.classList.remove('active');
+        } else {
+            markedQuestions.add(id);
+            btn.classList.add('active');
+        }
+        renderNavOnly();
+    }
+
+    function renderNavOnly() {
+        const navGrid = document.getElementById('nav-grid');
+        navGrid.innerHTML = '';
+        currentPool.forEach((item, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            if (markedQuestions.has(item.id)) navItem.classList.add('marked');
+            if (userAnswers[item.id]) navItem.classList.add('answered');
+            navItem.innerText = index + 1;
+            navItem.onclick = () => document.getElementById(`q-card-${item.id}`).scrollIntoView({ behavior: 'smooth' });
+            navGrid.appendChild(navItem);
+        });
+    }
+
+    function finishQuiz() {
+        document.getElementById('results-area').style.display = 'block';
+        let correctCount = Object.values(userAnswers).filter(x => x.correct).length;
+        document.getElementById('score-text').innerText = `Resultado: ${correctCount} / ${currentPool.length}`;
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function restartQuiz(mode) {
+        if (mode === 'all') {
+            currentPool = [...allQuestions];
+            userAnswers = {};
+            markedQuestions.clear();
+        } else if (mode === 'wrong') {
+            currentPool = allQuestions.filter(q => userAnswers[q.id] && !userAnswers[q.id].correct);
+            userAnswers = {};
+        } else if (mode === 'marked') {
+            currentPool = allQuestions.filter(q => markedQuestions.has(q.id));
+            userAnswers = {};
+        } else if (mode === 'mix') {
+            currentPool = allQuestions.filter(q => (userAnswers[q.id] && !userAnswers[q.id].correct) || markedQuestions.has(q.id));
+            userAnswers = {};
+        }
+
+        if (currentPool.length === 0) {
+            alert("No hay preguntas en esta selección.");
+            restartQuiz('all');
+            return;
+        }
+
+        document.getElementById('results-area').style.display = 'none';
+        renderQuiz(currentPool);
+        window.scrollTo(0, 0);
+    }
+
+    renderQuiz(allQuestions);
+</script>
+
+</body>
+</html>

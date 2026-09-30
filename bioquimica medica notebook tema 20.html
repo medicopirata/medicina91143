@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz: Colágeno, Elastina y Fibrilina</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #16a085;
+            --error: #c0392b;
+            --marked: #f39c12;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: var(--primary);
+        }
+
+        /* Pantalla de Selección Inicial */
+        #setup-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .setup-box {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+        }
+
+        /* Sidebar / Índice */
+        #sidebar {
+            width: 300px;
+            background: var(--primary);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+            overflow-y: auto;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #455a64;
+            color: white;
+            padding: 10px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .index-btn.active { border: 2px solid #3498db; }
+        .index-btn.correct { background: var(--accent) !important; }
+        .index-btn.wrong { background: var(--error) !important; }
+        .index-btn.marked { border: 2px solid var(--marked) !important; }
+
+        /* Contenido Principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .question-card {
+            background: var(--white);
+            max-width: 800px;
+            width: 100%;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .question-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .option-btn {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) { background: #f8f9fa; border-color: var(--accent); }
+        .option-btn.correct { background: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #eaf2f8;
+            border-left: 5px solid #2980b9;
+            display: none;
+            line-height: 1.5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-next { background: var(--accent); color: white; }
+        .btn-finish { background: var(--error); color: white; margin-top: auto; }
+        .btn-nav { background: #bdc3c7; color: var(--primary); }
+
+        /* Pantalla Final */
+        #results-screen {
+            display: none;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .results-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .retry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <h2>Configuración del Test</h2>
+            <p>Selecciona el orden de las preguntas:</p>
+            <button class="btn btn-next" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-next" onclick="startQuiz(true)">Mezclar Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-grid" class="index-grid"></div>
+        <button class="btn btn-finish" style="margin-top: 30px;" onclick="finishQuiz()">Finalizar Test</button>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container"></div>
+
+        <div id="results-screen">
+            <div class="results-box">
+                <h2>Cuestionario Finalizado</h2>
+                <h3 id="score-text"></h3>
+                <div class="retry-grid">
+                    <button class="btn btn-next" onclick="location.reload()">Rehacer Completo</button>
+                    <button class="btn btn-next" onclick="retry('failed')">Repetir Falladas</button>
+                    <button class="btn btn-next" onclick="retry('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-next" onclick="retry('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            // BLOQUE I
+            { n: 1, q: "Según lo descrito en clase, la matriz extracelular (MEC) tiene tres componentes principales. ¿Cuál de los siguientes componentes se encarga específicamente de formar un gel altamente hidratado que protege a los tejidos contra la compresión mecánica?", options: ["Las proteínas de adhesión (como la fibronectina).", "Los proteoglucanos.", "Las proteínas fibrosas (colágeno).", "Las integrinas transmembrana."], correct: 1, exp: "Los proteoglucanos tienen polisacáridos muy largos que se hidratan formando un gel que envuelve al resto de moléculas y protege de la compresión." },
+            { n: 2, q: "A diferencia de las proteínas globulares, las proteínas fibrosas o escleroproteínas (como el colágeno) se caracterizan bioquímicamente por:", options: ["Ser altamente solubles en agua y tener estructura esférica.", "Poseer una estructura primaria no repetitiva y carecer de aminoácidos modificados.", "Presentar una baja solubilidad en agua, estructura extendida alargada y una secuencia de aminoácidos con patrones muy repetitivos.", "Tener estructuras terciarias y cuaternarias extremadamente complejas (mezcla caótica de hélices alfa y hojas beta)."], correct: 2, exp: "El profesor recalcó que las fibrosas son bastones alargados, insolubles, con secuencias que se repiten (ej. Gly-X-Y) y presencia de aminoácidos modificados (como la hidroxiprolina)." },
+            { n: 3, q: "Teniendo en cuenta la abundancia del colágeno en el organismo, ¿qué porcentaje de la masa proteica total del cuerpo humano representa aproximadamente esta proteína?", options: ["El 6%.", "El 10%.", "El 30% (casi una tercera parte).", "El 75%."], correct: 2, exp: "Constituye el 6% del peso total del cuerpo, pero si quitamos el agua y nos quedamos solo con las proteínas, representa el 30% de toda nuestra masa proteica." },
+            { n: 4, q: "El colágeno no es una única proteína idéntica en todo el cuerpo. Según los datos aportados, en el ser humano se han identificado:", options: ["1 solo gen que por splicing alternativo da 40 tipos de colágeno.", "Hasta 40 genes distintos que pueden llegar a formar hasta 28 tipos de colágeno.", "3 genes exclusivos (COL1, COL2, COL3) que forman todos los colágenos.", "28 genes que forman 40 tipos de colágeno."], correct: 1, exp: "La combinación de las subunidades codificadas por 40 genes diferentes da lugar a los 28 tipos de colágeno conocidos." },
+            { n: 5, q: "Atendiendo a su estructura cuaternaria, decimos que el colágeno es una glucoproteína 'homo o heterotrimérica'. Esto nos indica estrictamente que:", options: ["Tiene partes glucídicas y partes lipídicas.", "Está formado por tres subunidades (cadenas alfa) que pueden estar codificadas por el mismo gen (homo) o por genes distintos (hetero).", "Se sintetiza tanto en el retículo endoplasmático como en el aparato de Golgi.", "Puede formar hélices dextrógiras y levógiras al azar."], correct: 1, exp: "'Trimerica' significa 3 unidades. Si vienen del mismo gen es homotrimérica (ej. tipo II); si vienen de genes distintos es heterotrimérica (ej. tipo I)." },
+            { n: 6, q: "Si analizamos un tendón en su peso seco, ¿qué porcentaje del mismo está compuesto por colágeno?", options: ["10-25%.", "50-70%.", "80-90%.", "4%."], correct: 2, exp: "El gráfico muestra que tendones (80-90%) y hueso desmineralizado (90%) son los tejidos con mayor proporción de colágeno." },
+            { n: 7, q: "¿Qué función biológica principal desempeñan la elastina y la fibrilina en contraste con el colágeno dentro de la matriz extracelular?", options: ["El colágeno dota de resistencia al tejido, mientras que la elastina y la fibrilina otorgan flexibilidad y elasticidad.", "El colágeno hidrata el tejido, mientras que la elastina lo calcifica.", "Ambas otorgan exclusivamente resistencia a la tracción.", "La elastina actúa como enzima degradadora del colágeno viejo."], correct: 0, exp: "El profesor distingue claramente: 'El colágeno otorga resistencia. Y después tenemos la elastina y la fibrilina que juntas forman las fibras elásticas que dotan a los tejidos de flexibilidad'." },
+            { n: 8, q: "En el contexto de las características comunes del tejido conectivo, la clase indica que las células especializadas de este tejido provienen de un origen embrionario común, el cual es:", options: ["El ectodermo primitivo.", "El endodermo del saco vitelino.", "La cresta neural.", "El mesénquima embrionario."], correct: 3, exp: "La diapositiva indica que el tejido conectivo tiene su origen en el mesénquima embrionario." },
+
+            // BLOQUE II
+            { n: 9, q: "La unidad estructural básica del colágeno es el tropocolágeno. Espacialmente, ¿cómo se organizan las 3 cadenas polipeptídicas (cadenas alfa) para formarlo?", options: ["Son 3 hélices dextrógiras que se enrollan formando una superhélice levógira.", "Son 3 hélices levógiras (giran a la izquierda) que se enrollan entre sí para formar una superhélice dextrógira (gira a la derecha).", "Son 3 láminas beta antiparalelas.", "Son 3 hélices alfa clásicas (dextrógiras) idénticas a las de la mioglobina."], correct: 1, exp: "El profesor insiste mucho en este detalle estructural: las cadenas individuales giran a la izquierda, pero al juntarse las tres, el cable completo gira hacia la derecha." },
+            { n: 10, q: "La composición de aminoácidos del colágeno es muy atípica. ¿Qué aminoácido representa exactamente el 33% (1 de cada 3 residuos) de la molécula?", options: ["Prolina.", "Cisteína.", "Glicina.", "Lisina."], correct: 2, exp: "'El 33% del colágeno es glicina... es decir, una tercera parte'." },
+            { n: 11, q: "¿Cuál es la razón estructural crítica por la que la Glicina debe ocupar obligatoriamente una de cada tres posiciones en la secuencia del colágeno?", options: ["Porque es el único aminoácido capaz de unir carbohidratos.", "Porque es el único aminoácido que forma puentes disulfuro.", "Porque su cadena lateral es un simple hidrógeno (muy pequeña), lo que le permite situarse en el estrecho eje central de la triple hélice.", "Porque es el precursor de la vitamina C."], correct: 2, exp: "'La glicina está justo en medio de la triple hélice... ¿Cómo es la cadena lateral de la glicina? Pequeñita... permite que la estructura esté tremendamente apretada'." },
+            { n: 12, q: "En la estructura del tropocolágeno MADURO, existen dos aminoácidos comunes en otras proteínas que están completamente AUSENTES. ¿Cuáles son?", options: ["Prolina y Glicina.", "Triptófano y Cisteína.", "Serina y Treonina.", "Alanina y Valina."], correct: 1, exp: "Remarcado fuertemente: 'no existe el triptófano en el colágeno, ni el triptófano ni la cisteína... en la molécula final'." },
+            { n: 13, q: "Aunque la molécula de tropocolágeno maduro no tiene Cisteína, este aminoácido SÍ es vital durante la síntesis. ¿En qué parte de la molécula precursora se localiza la Cisteína?", options: ["En el interior de la triple hélice.", "Exclusivamente en los glúcidos unidos a la lisina.", "En los propéptidos amino y carboxilo terminales del procolágeno.", "En la secuencia señal."], correct: 2, exp: "'La cisteína no aparece en el tropocolágeno... pero sí en los propéptidos del procolágeno, donde se forman puentes disulfuro'." },
+            { n: 14, q: "La secuencia primaria del colágeno sigue un patrón repetitivo muy estricto que se representa como (Gly - X - Y)n. Habitualmente, ¿qué aminoácido modificado suele ocupar la posición 'Y'?", options: ["4-hidroxiprolina o 5-hidroxilisina.", "Ácido glutámico.", "Tirosina.", "Cistina."], correct: 0, exp: "'En la primera posición la glicina... en la tercera, frecuentemente es la hidroxiprolina o hidroxilisina'." },
+            { n: 15, q: "La estructura cuaternaria del tropocolágeno se estabiliza internamente mediante puentes de hidrógeno. ¿Entre qué átomos se forman estos puentes habitualmente?", options: ["Entre los azufres de dos cisteínas.", "Entre el hidrógeno del grupo amino de la Glicina y el oxígeno del grupo carbonilo de la Prolina (o el grupo OH de la Hidroxiprolina).", "Entre las cadenas laterales apolares de valina y leucina.", "Entre los grupos carboxilo de dos glicinas contiguas."], correct: 1, exp: "'Los hidrógenos del grupo amino suelen ser de glicinas, y los oxígenos de los grupos carbonilo de la prolina o los grupos OH de las hidroxiprolinas'." },
+            { n: 16, q: "¿Cuáles son las dimensiones moleculares del tropocolágeno?", options: ["50 nm de longitud y 10 nm de diámetro.", "300 nm de longitud y 1,5 nm de diámetro (con un peso de 285 kDa).", "15 nm de longitud y 15 nm de diámetro.", "1 metro de longitud."], correct: 1, exp: "Diapositiva 7 y audio: '285 Kda en forma de fibra de 300 nm de longitud y 1,5 nm de diámetro'." },
+            { n: 17, q: "Un colágeno heterotrimérico codificado por los genes COL1A1 y COL1A2 (Colágeno tipo I) se compondría de:", options: ["Tres cadenas idénticas del gen COL1A1.", "Tres cadenas, donde al menos una es de COL1A1 y otra de COL1A2.", "Cadenas exclusivamente de elastina y fibrilina unidas.", "Una cadena alfa y dos láminas beta."], correct: 1, exp: "Heterotrimérico implica que sus 3 subunidades provienen de genes distintos (ej. 2 de COL1A1 y 1 de COL1A2)." },
+            { n: 18, q: "La 4-hidroxiprolina representa un 10% de los aminoácidos del colágeno. ¿Cuál es su función estructural principal dentro de la molécula?", options: ["Servir de punto de anclaje para los azúcares.", "Aportar grupos OH que establecen puentes de hidrógeno intercatenarios.", "Romper la hélice para dar flexibilidad.", "Formar enlaces covalentes tipo desmosina."], correct: 1, exp: "Su grupo OH 'es fundamental para estabilizar la molécula porque forman puentes de hidrógeno'." },
+            { n: 19, q: "¿Cuál de los siguientes aminoácidos NO sufre procesos de hidroxilación durante la síntesis normal del colágeno?", options: ["Prolina.", "Lisina.", "Glicina.", "Todas se hidroxilan."], correct: 2, exp: "Las enzimas específicas actúan sobre Prolina y Lisina, formando hidroxiprolina e hidroxilisina. La glicina se mantiene intacta." },
+            { n: 20, q: "Al observar un corte transversal de la triple hélice del tropocolágeno, ¿cómo se disponen los residuos de aminoácidos?", options: ["Las prolinas están en el centro y las glicinas hacia el exterior.", "Las tres glicinas (una de cada cadena) se agrupan apretadamente en el eje central de la hélice.", "Queda un poro hueco en el centro.", "Se forma un núcleo hidrofóbico exclusivo de triptófano."], correct: 1, exp: "Visto desde arriba... ¿qué es lo que se encuentra en medio? La glicina." },
+
+            // BLOQUE III
+            { n: 21, q: "La enzima Prolil 4-hidroxilasa requiere obligatoriamente dos cofactores para llevar a cabo la hidroxilación de la prolina. ¿Cuáles son?", options: ["Magnesio y ATP.", "Ion hierro ($Fe^{2+}$) y Ácido ascórbico (Vitamina C).", "Cobre y Vitamina B12.", "Zinc y NAD+."], correct: 1, exp: "Es una dioxigenasa dependiente de hierro ($Fe^{2+}$) que utiliza la Vitamina C (ascorbato) como donador de electrones." },
+            { n: 22, q: "La O-glucosilación en el colágeno une sus glúcidos al grupo OH de:", options: ["La 4-hidroxiprolina.", "La Glicina.", "La 5-hidroxilisina.", "La Cisteína."], correct: 2, exp: "'No usamos la serina o treonina... ¿qué utilizamos? El grupo OH de la 5-hidroxilisina que acabamos de hidroxilar'." },
+            { n: 23, q: "En el proceso de O-glucosilación del colágeno, ¿qué molécula actúa como donante (activador) de los monosacáridos?", options: ["ATP.", "CoA.", "UDP (Uridina difosfato).", "Acil-carnitina."], correct: 2, exp: "'No introducimos los glúcidos activados en forma de N-acetil, sino que lo introducimos activados con UDP'." },
+            { n: 24, q: "¿Cuál es el producto final de la O-glucosilación específica que queda anclado en la cadena del colágeno?", options: ["Una cadena de 14 manosas.", "Un disacárido de Galactosa y Glucosa unido a la hidroxilisina.", "Un residuo de ácido siálico.", "Un glucosaminoglucano gigante."], correct: 1, exp: "Se forma Glucosil-galactosil-hidroxilisina." },
+            { n: 25, q: "¿En qué parte de la molécula precursora se adhieren las cadenas complejas de N-glucosilación?", options: ["En la zona de la triple hélice madura.", "En las hidroxiprolinas.", "Exclusivamente en los residuos de Asparagina (Asn) ubicados en los propéptidos.", "En los átomos de azufre de la cisteína."], correct: 2, exp: "La N-glucosilación ocurre en los propéptidos, uniéndose al nitrógeno de las asparaginas." },
+            { n: 26, q: "¿Cuál es el destino de las N-glucosilaciones en la molécula final de tropocolágeno?", options: ["Quedan en el centro de la hélice.", "Se pierden; la molécula madura no tiene N-glucosilaciones.", "Se transforman en enlaces covalentes.", "Migran hacia la hidroxilisina."], correct: 1, exp: "Como están en los propéptidos y estos se cortan, el colágeno final no las conserva." },
+            { n: 27, q: "Temporalmente, ¿cuándo ocurren las reacciones de hidroxilación en relación con el plegamiento de la proteína?", options: ["En el espacio extracelular.", "Simultáneamente mientras la cadena alfa se está traduciendo, ANTES del enrollamiento.", "Justo después de secretarse por el aparato de Golgi.", "En el núcleo celular."], correct: 1, exp: "Ocurren antes de que se enrolle la hélice, al mismo tiempo que se van sintetizando en el RER." },
+            { n: 28, q: "Durante la hidroxilación de la lisina, la enzima Lisil 5-hidroxilasa es clasificada bioquímicamente como una:", options: ["Deshidrogenasa dependiente de NAD+.", "Dioxigenasa dependiente de hierro y vitamina C.", "Quinasa dependiente de ATP.", "Transferasa de metilos."], correct: 1, exp: "Es una dioxigenasa dependiente de hierro con ascorbato que introduce un grupo hidróxido en la posición 5." },
+            { n: 29, q: "¿Qué organelo celular es el escenario principal donde ocurren la hidroxilación y las glucosilaciones?", options: ["Las mitocondrias.", "Los lisosomas.", "El Retículo Endoplasmático Rugoso (RER).", "El citosol libre."], correct: 2, exp: "Las enzimas actúan en la luz del RER mientras la proteína co-traduce." },
+            { n: 30, q: "¿Por qué los diferentes tipos de colágeno presentan distintos patrones de O-glucosilación?", options: ["Es un error aleatorio.", "Determina su peso molecular en plasma.", "Porque ese patrón determina su distribución, función e interacción en los tejidos.", "Actúan como reserva de energía."], correct: 2, exp: "El patrón de glucosilación es lo que lo hace diferente para funcionar en distintos tejidos." },
+
+            // BLOQUE IV
+            { n: 31, q: "Para que las tres cadenas alfa se enrollen correctamente, ¿qué evento actúa como 'nudo' inicial?", options: ["La formación de puentes disulfuro INTERcatenarios en los propéptidos carboxilo terminales.", "La glicosilación masiva del extremo amino.", "La fosforilación del triptófano central.", "La formación de desmosina."], correct: 0, exp: "La enzima disulfuro isomerasa forma puentes intercatenarios en el extremo carboxilo para que se enrolle hacia atrás." },
+            { n: 32, q: "¿En qué dirección avanza el enrollamiento o 'cremallera' para formar la triple hélice?", options: ["Desde el centro hacia los extremos.", "Desde el extremo Amino hacia el Carboxilo.", "Desde el extremo Carboxilo hacia el Amino.", "Las 3 cadenas se enrollan instantáneamente."], correct: 2, exp: "Como se anclan por el extremo carboxilo terminal, la hélice se forma hacia el amino terminal." },
+            { n: 33, q: "La enzima encargada de formar los puentes disulfuro en los propéptidos se denomina:", options: ["Lisil oxidasa.", "Disulfuro isomerasa.", "Colagenasa tipo I.", "Prolil hidroxilasa."], correct: 1, exp: "La disulfuro isomerasa forma los puentes entre cisteínas para fijar las cadenas." },
+            { n: 34, q: "La molécula que contiene la triple hélice pero AÚN CONSERVA sus propéptidos terminales se denomina:", options: ["Preprocolágeno.", "Tropocolágeno.", "Procolágeno.", "Fibrilla de colágeno."], correct: 2, exp: "El procolágeno es la molécula trimerizada completa antes de ser recortada." },
+            { n: 35, q: "La proteína naciente original con su secuencia señal para dirigirse al RER se llama:", options: ["Tropocolágeno.", "Pre-procolágeno.", "Elastina madura.", "Fibra de colágeno."], correct: 1, exp: "El prefijo 'pre' indica la presencia del péptido señal de dirección al retículo." },
+            { n: 36, q: "¿DÓNDE actúan las procolágeno peptidasas para eliminar los propéptidos?", options: ["Dentro del RER.", "En los lisosomas.", "Exclusivamente en el espacio EXTRACELULAR.", "En el citosol libre."], correct: 2, exp: "Ocurre fuera para evitar que las fibras se ensamblen dentro de la célula, lo cual sería destructivo." },
+            { n: 37, q: "¿Cómo se llaman las enzimas extracelulares que recortan los extremos de la molécula?", options: ["Catepsina y Pepsina.", "Amino procolágeno peptidasa y Carboxilo procolágeno peptidasa.", "Disulfuro isomerasa y Lisil oxidasa.", "Endopeptidasa 1 y 2."], correct: 1, exp: "Recortan ambos extremos dejando libre la molécula de tropocolágeno." },
+            { n: 38, q: "¿Cuál es el orden jerárquico correcto de polimerización del colágeno?", options: ["Fibra -> Fibrilla -> Tropocolágeno -> Haz.", "Tropocolágeno -> Fibrilla -> Fibra -> Haz de fibras.", "Haz -> Tropocolágeno -> Fibrilla -> Fibra.", "Preprocolágeno -> Fibrilla -> Tropoelastina."], correct: 1, exp: "Varios tropocolágenos forman una fibrilla, estas forman fibras y estas haces de fibras." },
+            { n: 39, q: "¿Cuál es el mecanismo de transporte del procolágeno hasta su liberación?", options: ["Difusión pasiva.", "Bombas de ATP.", "Empaquetamiento en vesículas de secreción que se exocitan.", "Endocitosis mediada por receptor."], correct: 2, exp: "Se empaquetan en el Golgi y viajan en vesículas hasta fundirse con la membrana plasmática." },
+            { n: 40, q: "¿Qué estructura representa la forma final 'madura' de la molécula individual del colágeno?", options: ["Procolágeno.", "Preprocolágeno.", "Cadenas alfa sueltas.", "Tropocolágeno."], correct: 3, exp: "El tropocolágeno es la unidad estructural base lista para ensamblarse como un ladrillo." },
+
+            // BLOQUE V
+            { n: 41, q: "¿Qué enzima extracelular inicia la formación de enlaces COVALENTES entre las fibras?", options: ["Prolil 4-hidroxilasa.", "Lisil oxidasa.", "Glucosil transferasa.", "Disulfuro isomerasa."], correct: 1, exp: "La lisiloxidasa desamina oxidativamente las lisinas para permitir los enlaces cruzados fuertes." },
+            { n: 42, q: "Al actuar la Lisil oxidasa sobre la lisina, ¿en qué compuesto se transforma esta?", options: ["En hidroxilisina.", "En desmosina.", "En Alisina.", "En ascorbato."], correct: 2, exp: "Se forman moléculas con estructura aldehído llamadas alisinas." },
+            { n: 43, q: "Si una Alisina reacciona con otra Alisina vecina, el enlace se denomina:", options: ["Puente disulfuro.", "Base de Schiff.", "Enlace amida.", "Condensación aldólica."], correct: 3, exp: "Es una estructura tremendamente fuerte que ancla las moléculas." },
+            { n: 44, q: "Si una Alisina reacciona con una Lisina INTACTA, se forma inicialmente:", options: ["Base de Schiff (Dehidrolisinonorleucina).", "Condensación aldólica doble.", "Molécula de tropoelastina.", "Estructura de hidroxiprolina."], correct: 0, exp: "El grupo aldehído se une al grupo amino formando la base de Schiff." },
+            { n: 45, q: "Molecularmente, el Escorbuto es causado por:", options: ["Déficit de Glicina.", "Mutaciones en COL1A1.", "Déficit de Vitamina C (ácido ascórbico).", "Hiperactividad de peptidasas."], correct: 2, exp: "Sin Vitamina C no se hidroxilan ni la prolina ni la lisina, debilitando los puentes de hidrógeno." },
+            { n: 46, q: "En la Osteogénesis Imperfecta, ¿qué consecuencia estructural provoca la sustitución de Glicina?", options: ["Evita la secreción del colágeno.", "La triple hélice no puede compactarse, resultando en colágeno frágil.", "Se convierte en elastina.", "Destruye el RER."], correct: 1, exp: "Al no estar la glicina en medio, la hélice queda abierta y débil, causando fragilidad ósea." },
+            { n: 47, q: "Entre los hallazgos clínicos de los Síndromes de Ehlers-Danlos destaca:", options: ["Huesos de cristal.", "Sangrado de encías exclusivo.", "Articulaciones y piel exageradamente flexibles e inestables.", "Calcificación valvular."], correct: 2, exp: "La hiperlaxitud cutánea y articular es la marca de este síndrome." },
+            { n: 48, q: "¿Cuál es el mecanismo fisiopatológico del Latirismo?", options: ["Secuestra Vitamina C.", "Inhibe irreversiblemente la Lisil oxidasa.", "Degrada puentes disulfuro.", "Oxida la glicina."], correct: 1, exp: "El tóxico de la almorta bloquea la enzima, impidiendo los enlaces covalentes cruzados." },
+            { n: 49, q: "Si la Lisil oxidasa se inactiva, la debilidad principal será:", options: ["La hélice no se forma en el RER.", "Falta de enlaces covalentes (aldoles) entre moléculas de tropocolágeno.", "Ausencia de puentes de hidrógeno.", "Falta de O-glucosilación."], correct: 1, exp: "Sin alisinas no se pueden anclar las moléculas de la fibrilla entre sí." },
+            { n: 50, q: "Niño con dentición anormal, escleróticas azules y múltiples fracturas ante traumatismos mínimos:", options: ["Escorbuto.", "Latirismo crónico.", "Osteogénesis imperfecta.", "Síndrome de Marfan."], correct: 2, exp: "Es el cuadro clásico de los 'huesos de cristal' por mutación en colágeno tipo I." },
+
+            // BLOQUE VI
+            { n: 51, q: "Bioquímicamente, ¿qué diferencia a la Elastina del Colágeno?", options: ["Rica en hidroxilisina.", "Altamente glicosilada.", "Rica en aminoácidos apolares, escasa hidroxiprolina y sin hidroxilisina ni glúcidos.", "Codificada por 40 genes."], correct: 2, exp: "La elastina es 90% apolar, no tiene azúcares y sufre muy poca hidroxilación." },
+            { n: 52, q: "¿Cómo se denomina al precursor soluble de la Elastina?", options: ["Preproelastina.", "Tropoelastina.", "Alisina pura.", "Fibrilina tipo 1."], correct: 1, exp: "Es una molécula de unos 700-800 aminoácidos que se secreta al exterior." },
+            { n: 53, q: "¿Cómo se llama el nudo cruzado exclusivo de la red de elastina?", options: ["Base de Schiff simple.", "Enlace peptídico alfa-beta.", "Desmosina.", "Hidroxiapatita."], correct: 2, exp: "Las moléculas se entrecruzan formando estructuras heterocíclicas llamadas desmosinas." },
+            { n: 54, q: "¿Qué aminoácidos participan para generar el anillo de Desmosina?", options: ["4 residuos de Glicina.", "Residuos de Lisina (3 oxidados a Alisinas + 1 intacta).", "Ácido aspártico y Glutamina.", "Triptófanos y Cisteínas."], correct: 1, exp: "Se requiere la acción de la lisil oxidasa para condensar las 4 lisinas." },
+            { n: 55, q: "¿Cuál es el papel fisiológico de la Fibrilina respecto a la elastina?", options: ["Destruye elastina vieja.", "Actúa como 'armazón' o andamiaje para el depósito de elastina.", "Se transforma en colágeno.", "Transporta oxígeno."], correct: 1, exp: "La fibrilina forma las microfibrillas sobre las que se ensambla la fibra elástica." },
+            { n: 56, q: "Bioquímicamente, la Fibrilina es una:", options: ["Lipoproteína.", "Nucleoproteína.", "Glucoproteína de 3000 aminoácidos con enlaces disulfuro.", "Enzima catalítica."], correct: 2, exp: "Forma una red compleja estabilizada por puentes disulfuro." },
+            { n: 57, q: "Paciente con extremidades largas, aracnodactilia, talla alta y riesgo de disección aórtica:", options: ["Mutación COL1A1.", "Defecto en fibrilina-1 (Síndrome de Marfan).", "Déficit de vitamina C.", "Mutación de tropoelastina."], correct: 1, exp: "El fallo en el gen FBN1 altera el armazón elástico del cuerpo." },
+            { n: 58, q: "¿Cuál es la razón del peligro de rotura de aorta en el Síndrome de Marfan?", options: ["Calcificación cardíaca.", "Las fibras elásticas de la aorta se forman mal y no soportan la presión sanguínea.", "Trombosis por vitamina C.", "Elastificación del hueso."], correct: 1, exp: "Sin fibrilina, la elastina no se organiza bien y la pared arterial cede ante el pulso." },
+            { n: 59, q: "Indica la asociación FALSA:", options: ["Colágeno = Resistencia.", "Elastina = Flexibilidad.", "Colágeno y Fibrilina = Glucoproteínas.", "Elastina = Altamente glicosilada."], correct: 3, exp: "La elastina NO tiene glúcidos y no está glicosilada." },
+            { n: 60, q: "¿Qué tienen en común la estabilización del Colágeno y la Elastina?", options: ["Necesitan vitamina C extracelular.", "Dependen de la Lisil Oxidasa para formar enlaces cruzados covalentes.", "Solo usan puentes de hidrógeno.", "Ocurren dentro del RER."], correct: 1, exp: "Ambas usan la lisil oxidasa extracelular para anclarse firmemente al final." }
+        ];
+
+        let quizData = [];
+        let state = {};
+        let currentIdx = 0;
+
+        function startQuiz(shuffle) {
+            document.getElementById('setup-screen').style.display = 'none';
+            quizData = [...rawData];
+            if (shuffle) quizData.sort(() => Math.random() - 0.5);
+
+            quizData.forEach((q, i) => {
+                state[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            renderIndex();
+            showQuestion(0);
+        }
+
+        function renderIndex() {
+            const grid = document.getElementById('index-grid');
+            grid.innerHTML = '';
+            quizData.forEach((q, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'index-btn';
+                btn.id = `idx-${i}`;
+                btn.innerText = q.n;
+                btn.onclick = () => showQuestion(i);
+                grid.appendChild(btn);
+            });
+        }
+
+        function showQuestion(idx) {
+            currentIdx = idx;
+            const q = quizData[idx];
+            const s = state[idx];
+
+            document.querySelectorAll('.index-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`idx-${idx}`).classList.add('active');
+
+            // Mezclar opciones cada vez que se carga
+            let opts = q.options.map((o, i) => ({ text: o, originalIdx: i }));
+            opts.sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = `
+                <div class="question-card">
+                    <div class="question-meta">
+                        <strong>Pregunta ${q.n}</strong>
+                        <label>
+                            <input type="checkbox" onchange="toggleMark(${idx})" ${s.marked ? 'checked' : ''}> Marcar
+                        </label>
+                    </div>
+                    <p style="font-size: 1.1rem;">${q.q}</p>
+                    <div class="options-container">
+                        ${opts.map(o => `
+                            <button class="option-btn ${getOptionClass(idx, o.originalIdx)}" 
+                                onclick="handleAnswer(${idx}, ${o.originalIdx})" 
+                                ${s.answered ? 'disabled' : ''}>
+                                ${o.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${idx}" style="display: ${s.answered ? 'block' : 'none'}">
+                        <strong>Explicación:</strong> ${q.exp}
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-nav" onclick="prevQ()" ${idx === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="btn btn-nav" onclick="nextQ()" ${idx === quizData.length - 1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            `;
+            if (window.MathJax) MathJax.typeset();
+        }
+
+        function getOptionClass(qIdx, optIdx) {
+            const s = state[qIdx];
+            if (!s.answered) return '';
+            if (optIdx === quizData[qIdx].correct) return 'correct';
+            if (optIdx === s.choice) return 'wrong';
+            return '';
+        }
+
+        function handleAnswer(qIdx, choice) {
+            const correct = choice === quizData[qIdx].correct;
+            state[qIdx].answered = true;
+            state[qIdx].choice = choice;
+            state[qIdx].correct = correct;
+
+            const idxBtn = document.getElementById(`idx-${qIdx}`);
+            idxBtn.classList.add(correct ? 'correct' : 'wrong');
+            showQuestion(qIdx);
+        }
+
+        function toggleMark(idx) {
+            state[idx].marked = !state[idx].marked;
+            document.getElementById(`idx-${idx}`).classList.toggle('marked');
+        }
+
+        function nextQ() { if (currentIdx < quizData.length - 1) showQuestion(currentIdx + 1); }
+        function prevQ() { if (currentIdx > 0) showQuestion(currentIdx - 1); }
+
+        function finishQuiz() {
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'block';
+            let correct = Object.values(state).filter(s => s.correct).length;
+            document.getElementById('score-text').innerText = `Aciertos: ${correct} de ${quizData.length}`;
+        }
+
+        function retry(mode) {
+            let nextData = [];
+            if (mode === 'failed') {
+                nextData = quizData.filter((_, i) => !state[i].correct && state[i].answered);
+            } else if (mode === 'marked') {
+                nextData = quizData.filter((_, i) => state[i].marked);
+            } else if (mode === 'both') {
+                nextData = quizData.filter((_, i) => (!state[i].correct && state[i].answered) || state[i].marked);
+            }
+
+            if (nextData.length === 0) {
+                alert("No hay preguntas que cumplan el criterio.");
+                return;
+            }
+
+            quizData = nextData;
+            state = {};
+            quizData.forEach((q, i) => {
+                state[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('results-screen').style.display = 'none';
+            renderIndex();
+            showQuestion(0);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Embriología y Sistema Urogenital</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        /* Pantallas */
+        #start-screen, #end-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        #quiz-container {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex; /* Flex para sidebar y contenido */
+            gap: 20px;
+        }
+
+        /* Sidebar (Índice) */
+        #sidebar {
+            width: 250px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            height: max-content;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #sidebar h3 { margin-top: 0; text-align: center; }
+        #index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .index-btn {
+            padding: 8px 0;
+            text-align: center;
+            background: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #333;
+            border: 2px solid transparent;
+        }
+        .index-btn:hover { background: #ced4da; }
+        .index-btn.correct { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .index-btn.incorrect { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .index-btn.marked { border: 2px solid #ffc107; box-shadow: inset 0 0 5px rgba(255,193,7,0.5); }
+
+        /* Área de preguntas */
+        #main-content {
+            flex: 1;
+            padding-bottom: 100px; /* Espacio para botón final */
+        }
+        .question-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .question-text { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; }
+        
+        .mark-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #fff3cd;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: #f8f9fa;
+            border: 1px solid #dae0e5;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+        .option:hover:not(:disabled) { background: #e2e6ea; }
+        .option.correct-ans { background: #d4edda !important; border-color: #c3e6cb; color: #155724; font-weight: bold; }
+        .option.incorrect-ans { background: #f8d7da !important; border-color: #f5c6cb; color: #721c24; }
+        
+        .explanation {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #e2e3e5;
+            border-left: 5px solid #6c757d;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        /* Botón flotante para finalizar */
+        #finish-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            z-index: 1000;
+        }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Quizz de Embriología y Sistema Urogenital</h1>
+        <p>Selecciona cómo deseas ordenar las preguntas:</p>
+        <div>
+            <button onclick="initQuiz('original')">Orden Preestablecido</button>
+            <button onclick="initQuiz('random')">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="quiz-container" style="display: none;">
+        <div id="sidebar">
+            <h3>Índice</h3>
+            <div id="index-grid"></div>
+        </div>
+
+        <div id="main-content">
+            <div id="questions-list"></div>
+        </div>
+    </div>
+
+    <div id="finish-bar" style="display: none;">
+        <button class="btn-danger" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <div id="end-screen" style="display: none;">
+        <h1>Resultados del Cuestionario</h1>
+        <h2 id="score-display"></h2>
+        <p>¿Qué deseas hacer ahora?</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: 0 auto;">
+            <button onclick="restartQuiz('all')">Volver a realizarlo completo</button>
+            <button onclick="restartQuiz('failed')">Repetir solo las falladas</button>
+            <button onclick="restartQuiz('marked')">Repetir solo las marcadas</button>
+            <button onclick="restartQuiz('failed_marked')">Repetir falladas + marcadas</button>
+        </div>
+    </div>
+
+<script>
+    // Base de datos de preguntas literales (Nota: se ha quitado el "a) ", "b) " para que tenga sentido al barajarlas)
+    const rawQuestions = [
+        {
+            text: "El sistema urogenital se desarrolla embrionariamente a partir de una condensación celular específica situada en la pared posterior de la cavidad abdominal. ¿De qué capa embrionaria deriva?",
+            options: [
+                { text: "Del ectodermo superficial.", isCorrect: false },
+                { text: "Del endodermo del saco vitelino.", isCorrect: false },
+                { text: "Del mesodermo intermedio.", isCorrect: true },
+                { text: "Del mesodermo esplácnico (esplacnopleura).", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El sistema urogenital se forma entre la 4ª y 7ª semana a partir del mesodermo intermedio,."
+        },
+        {
+            text: "Durante la organogénesis, el embrión desarrolla tres pares de órganos renales primordiales en una secuencia cráneo-caudal. ¿Cuál de ellos es el que persiste para formar el riñón adulto definitivo?",
+            options: [
+                { text: "El pronefros.", isCorrect: false },
+                { text: "El mesonefros.", isCorrect: false },
+                { text: "El conducto de Wolff.", isCorrect: false },
+                { text: "El metanefros.", isCorrect: true }
+            ],
+            explanation: "Respuesta correcta: d. Explicación: El pronefros desaparece rápidamente, el mesonefros funciona temporalmente, y sólo el metanefros persiste formando el riñón definitivo,,."
+        },
+        {
+            text: "Para que el tejido del metanefros se desarrolle y organice el riñón definitivo, requiere obligatoriamente una inducción por parte de una estructura tubular que nace del conducto mesonéfrico. ¿Cuál es?",
+            options: [
+                { text: "El conducto de Müller.", isCorrect: false },
+                { text: "La yema o brote ureteral.", isCorrect: true },
+                { text: "El seno urogenital.", isCorrect: false },
+                { text: "El alantoides.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El conducto mesonéfrico emite la yema ureteral, la cual penetra en el metanefros e induce la formación del riñón definitivo,,."
+        },
+        {
+            text: "¿Qué estructuras anatómicas de la vía excretora adulta derivan directamente de la yema o brote ureteral?",
+            options: [
+                { text: "Únicamente los túbulos contorneados proximales.", isCorrect: false },
+                { text: "Uréter, pelvis renal, cálices y túbulos colectores.", isCorrect: true },
+                { text: "El trígono vesical y el uraco.", isCorrect: false },
+                { text: "El conducto deferente y la vesícula seminal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: De los brotes ureterales derivan los conductos de drenaje de la orina: uréter, pelvis renal, cálices y túbulos colectores."
+        },
+        {
+            text: "Clínica obstétrica: El riñón fetal comienza a producir orina al final del tercer mes. Si un feto sufre agenesia renal bilateral, no produce orina. ¿Cuál es la consecuencia directa sobre el entorno fetal?",
+            options: [
+                { text: "Polihidramnios severo por retención de líquidos.", isCorrect: false },
+                { text: "Oligohidramnios (disminución del líquido amniótico), lo que puede provocar aplastamiento facial (Facies de Potter).", isCorrect: true },
+                { text: "Formación de un riñón en herradura gigante.", isCorrect: false },
+                { text: "Herniación del intestino primitivo medio.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: La orina fetal contribuye a formar el líquido amniótico,. Su falta provoca que las membranas se peguen a la cara, impidiendo el desarrollo de los mamelones (Facies de Potter)."
+        },
+        {
+            text: "Anatomía Patológica: Al observar un cadáver, se descubre un riñón situado en la pelvis. ¿Qué característica morfológica y vascular confirma que se trata de una ectopia renal (defecto de migración) y no de una ptosis (riñón caído)?",
+            options: [
+                { text: "El riñón carece completamente de uréter.", isCorrect: false },
+                { text: "Su arteria nace a nivel de la bifurcación de la aorta y presenta una rotación incompleta del hilio (hilio anterior).", isCorrect: true },
+                { text: "El riñón está irrigado por la arteria mesentérica superior.", isCorrect: false },
+                { text: "Presenta dos pelvis y dos uréteres fusionados.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: En el riñón pelviano ectópico, la arteria nace baja (en la bifurcación aórtica) y falta la rotación normal, quedando el hilio anterior,."
+        },
+        {
+            text: "En las anomalías de migración renal, es posible encontrar un 'riñón en herradura'. ¿Qué característica topográfica presentan estos riñones fusionados?",
+            options: [
+                { text: "Están unidos por sus polos superiores y sus hilios son posteriores.", isCorrect: false },
+                { text: "Están unidos por sus polos inferiores y los hilios de ambos riñones son anteriores.", isCorrect: true },
+                { text: "Comparten una única arteria renal que nace del tronco celíaco.", isCorrect: false },
+                { text: "Drenan directamente en el intestino posterior.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: En el riñón en herradura, ambos polos inferiores están unidos y, debido al defecto de migración/rotación, los hilios son anteriores."
+        },
+        {
+            text: "Entre la 4ª y 7ª semana, la cloaca primitiva (endodérmica) debe dividirse en dos compartimentos funcionales distintos. ¿Qué estructura mesenquimal desciende para tabicar la cloaca?",
+            options: [
+                { text: "La membrana urogenital.", isCorrect: false },
+                { text: "El pliegue uretral.", isCorrect: false },
+                { text: "El tabique urorrectal.", isCorrect: true },
+                { text: "El conducto mesonéfrico.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El tabique urorrectal divide a la cloaca en el seno urogenital primitivo (anterior) y el conducto anorrectal (posterior),."
+        },
+        {
+            text: "Existe un caso clínico donde la división cloacal fracasa o se desajusta, y la yema ureteral queda abocando a la porción posterior. ¿Qué grave consecuencia anatómica describe el profesor?",
+            options: [
+                { text: "Los uréteres drenan directamente en la cara anterior del canal anorrectal, creando una fístula e incompatibilidad funcional.", isCorrect: true },
+                { text: "Se forman tres riñones.", isCorrect: false },
+                { text: "La vejiga urinaria se asoma al exterior del abdomen (extrofia).", isCorrect: false },
+                { text: "El uraco se hipertrofia masivamente.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: a. Explicación: Si el tabicamiento no es correcto, la yema ureteral puede quedar abocando en el canal anorrectal, lo que produce salida de orina por el recto,."
+        },
+        {
+            text: "Embriología de la Vejiga: El saco vesical deriva del seno urogenital (endodermo). Sin embargo, el Trígono Vesical (comprendido entre los uréteres y la uretra) tiene un origen completamente distinto debido a la incorporación de tejidos. ¿De dónde deriva el trígono?",
+            options: [
+                { text: "Del ectodermo de la cloaca.", isCorrect: false },
+                { text: "Del mesodermo (origen Wolffiano / conductos mesonéfricos).", isCorrect: true },
+                { text: "De los conductos de Müller exclusivamente.", isCorrect: false },
+                { text: "Del tabique urorrectal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El espacio entre los orificios terminales es el trígono vesical, que es de origen Wolffiano y, por lo tanto, mesodérmico, a diferencia del resto de la vejiga (endodérmica),,."
+        },
+        {
+            text: "¿Por qué el profesor insiste en la relevancia de conocer este doble origen embriológico (endodermo vs. mesodermo) en la pared de la vejiga urinaria?",
+            options: [
+                { text: "Porque el mesodermo no duele al ser cortado.", isCorrect: false },
+                { text: "Porque justifica la diferencia de color y, lo más importante, tiene implicaciones terapéuticas ante tumores, ya que los distintos orígenes celulares responden diferente a los tratamientos.", isCorrect: true },
+                { text: "Porque impide colocar sondas vesicales.", isCorrect: false },
+                { text: "Porque determina el sexo genético del paciente.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El distinto origen embriológico hace que la apariencia (pálida vs. sonrosada) y la tipología celular sean distintas, lo cual tiene importancia clínica en la terapia tumoral,."
+        },
+        {
+            text: "En la pared abdominal anterior del adulto, desde el vértice de la vejiga hasta el ombligo, se extiende un cordón fibroso conocido como uraco o ligamento umbilical medio. ¿De qué estructura fetal es remanente?",
+            options: [
+                { text: "De la vena umbilical obliterada.", isCorrect: false },
+                { text: "Del conducto onfalomesentérico.", isCorrect: false },
+                { text: "De la alantoides.", isCorrect: true },
+                { text: "Del conducto de Müller.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La vejiga se continúa inicialmente con la alantoides, la cual al obliterarse forma el uraco,."
+        },
+        {
+            text: "Migración celular: Las células germinales primordiales (futuros óvulos o espermatozoides) NO se originan en las gónadas. Alrededor del día 24, ¿desde dónde inician su migración hacia las crestas gonadales?",
+            options: [
+                { text: "Desde la glándula suprarrenal.", isCorrect: false },
+                { text: "Desde el conducto de Wolff.", isCorrect: false },
+                { text: "Desde el epitelio del saco vitelino, viajando a lo largo del mesenterio dorsal del intestino posterior.", isCorrect: true },
+                { text: "Desde el ectodermo superficial.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Se alojan en el epitelio del saco vitelino y emigran a través del mesenterio dorsal del intestino posterior hasta introducirse en las crestas gonadales,,."
+        },
+        {
+            text: "Oncología básica: Si durante esta larga migración desde el saco vitelino, algunas células germinales primordiales se extravían y quedan aisladas en la línea media o fosa ilíaca, ¿qué tipo de tumor característico de origen embrionario pueden originar?",
+            options: [
+                { text: "Un adenoma de próstata.", isCorrect: false },
+                { text: "Un teratoma retroperitoneal, formado por líneas celulares desorganizadas de las tres hojas germinales.", isCorrect: true },
+                { text: "Un nefroblastoma (tumor de Wilms).", isCorrect: false },
+                { text: "Un carcinoma urotelial puro.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Al quedar aisladas en el espacio retroperitoneal, estas células totipotentes pueden desarrollarse caóticamente formando teratomas con las tres líneas celulares,."
+        },
+        {
+            text: "Determinación sexual: En el momento de la fecundación se establece el sexo genético. ¿Qué gen específico, localizado en el cromosoma Y (Yp11.3), actúa como el 'factor determinante testicular'?",
+            options: [
+                { text: "Gen HAM.", isCorrect: false },
+                { text: "Gen p53.", isCorrect: false },
+                { text: "Gen SRY.", isCorrect: true },
+                { text: "Gen WNT4.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La proteína SRY, codificada en el cromosoma Y, es el factor determinante testicular que desencadena el desarrollo del fenotipo masculino,,."
+        },
+        {
+            text: "Diferenciación gonadal masculina: Bajo la influencia del gen SRY, la gónada se diferencia en testículo. ¿Qué sustancia segregan las Células de Sertoli fetales para masculinizar tempranamente la vía genital interna?",
+            options: [
+                { text: "Testosterona pura.", isCorrect: false },
+                { text: "Factor Inhibidor Mülleriano (HAM), que provoca la atrofia de los conductos de Müller.", isCorrect: true },
+                { text: "Dihidrotestosterona.", isCorrect: false },
+                { text: "Estrógenos.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El testículo segrega el factor inhibidor mülleriano desde las células de Sertoli, provocando la atrofia de los conductos de Müller para que persistan los de Wolff,."
+        },
+        {
+            text: "Derivados del Conducto de Wolff (mesonéfrico): En el varón, al persistir los conductos de Wolff, ¿qué estructuras anatómicas definitivas se originarán a partir de ellos?",
+            options: [
+                { text: "Trompas de Falopio y útero.", isCorrect: false },
+                { text: "Los uréteres y los cálices exclusivamente.", isCorrect: false },
+                { text: "El conducto deferente, el epidídimo y las vesículas seminales.", isCorrect: true },
+                { text: "La próstata y el glande del pene.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: En el hombre se conservan partes de los túbulos mesonéfricos y el conducto de Wolff, que se convierten en los conductos excretores de los testículos (epidídimo, deferente) y las glándulas seminales,,,."
+        },
+        {
+            text: "En el adulto masculino, quedan algunos pequeños vestigios embrionarios que confirman que el embrión tuvo temporalmente conductos de Müller antes de su involución. ¿Cuáles son estos restos inútiles en el hombre?",
+            options: [
+                { text: "Los canales de Gartner y el epoóforo.", isCorrect: false },
+                { text: "El utrículo prostático y el apéndice testicular (Hidátide de Morgagni).", isCorrect: true },
+                { text: "Las glándulas bulbouretrales.", isCorrect: false },
+                { text: "Los cuerpos cavernosos.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Los conductos de Müller se atrofian en el varón, quedando solo como restos el utrículo prostático y el apéndice testicular,."
+        },
+        {
+            text: "Clínica Infecciosa: El profesor destaca que el Utrículo Prostático, al ser un fondo de saco ciego remanente de los conductos de Müller en la uretra prostática, es propenso a una patología. ¿A cuál?",
+            options: [
+                { text: "A la formación de cálculos renales.", isCorrect: false },
+                { text: "A convertirse en un 'acantonamiento' de bacterias, causando prostatitis e infecciones de repetición difíciles de curar con antibióticos.", isCorrect: true },
+                { text: "A malignizar inmediatamente en la pubertad.", isCorrect: false },
+                { text: "A la eyaculación retrógrada.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Al ser un fondo de saco, acumula bacterias ('quedan acantonados restos bacterianos') provocando infecciones de repetición."
+        },
+        {
+            text: "Derivados del Conducto de Müller (paramesonéfrico): Si el embrión es genéticamente femenino (sin SRY ni factor inhibidor mülleriano), los conductos de Müller persisten y se fusionan en la línea media. ¿A qué darán lugar?",
+            options: [
+                { text: "Al conducto deferente y al clítoris.", isCorrect: false },
+                { text: "A los ovarios y a los labios mayores.", isCorrect: false },
+                { text: "A las trompas de Falopio, el útero y el tercio superior de la vagina.", isCorrect: true },
+                { text: "A los uréteres femeninos.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El conducto de Müller da origen a la trompa, al útero (por la fusión de ambos) y al tercio superior de la vagina,."
+        },
+        {
+            text: "Desarrollo de la Vagina: Al igual que la vejiga, la vagina humana tiene un doble origen embriológico vital. ¿De dónde derivan sus dos tercios inferiores?",
+            options: [
+                { text: "De los conductos de Wolff mesodérmicos.", isCorrect: false },
+                { text: "De los senos bulbovaginales (cordón vaginal) derivados del seno urogenital (endodermo).", isCorrect: true },
+                { text: "De los pliegues uretrales exclusivamente.", isCorrect: false },
+                { text: "De la persistencia de la cloaca posterior.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Su tercio superior procede de Müller, y los dos tercios inferiores se forman desde los senos bulbovaginales (endodermo del seno urogenital) que se ahuecan,."
+        },
+        {
+            text: "Anomalías Uterinas: Si durante la organogénesis, los dos conductos de Müller femeninos fallan en fusionarse correctamente o no reabsorben el tabique central en la línea media, ¿qué grupo de malformaciones se producirán?",
+            options: [
+                { text: "Ausencia de ovarios.", isCorrect: false },
+                { text: "Úteros bicornes, didelfos o septados, que pueden causar problemas de implantación o fertilidad.", isCorrect: true },
+                { text: "Clitoromegalia severa.", isCorrect: false },
+                { text: "Fístulas rectovaginales sistemáticas.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: La falta de unión o la persistencia del tabique entre ambos conductos de Müller provoca útero bicorne, doble (didelfo) o septado, dificultando la implantación embrionaria,."
+        },
+        {
+            text: "Desarrollo de Genitales Externos: Hasta la 10ª semana, los genitales externos son idénticos en ambos sexos e incluyen un Tubérculo Genital, Pliegues Uretrales y Pliegues Genitales. En el varón, ¿qué forma el Tubérculo Genital?",
+            options: [
+                { text: "El escroto.", isCorrect: false },
+                { text: "El glande del pene y los cuerpos cavernosos.", isCorrect: true },
+                { text: "La uretra membranosa.", isCorrect: false },
+                { text: "El prepucio exclusivamente.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: En el fenotipo varón, el tubérculo genital formará el glande del pene (y los cuerpos cavernosos),."
+        },
+        {
+            text: "Diferenciación Femenina: En la mujer, los Pliegues Uretrales NO se fusionan en la línea media, sino que permanecen abiertos delimitando el vestíbulo vaginal. ¿En qué estructura anatómica se convierten?",
+            options: [
+                { text: "En los labios mayores.", isCorrect: false },
+                { text: "En el monte de Venus.", isCorrect: false },
+                { text: "En los labios menores de la vulva.", isCorrect: true },
+                { text: "En el clítoris.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: En el fenotipo mujer, los pliegues uretrales no se van a fusionar y forman los labios menores,."
+        },
+        {
+            text: "Cierre de la Uretra y Malformaciones: En el hombre, los pliegues uretrales deben cerrarse en la línea media ventral como una 'cremallera' para formar la uretra peneana. Si este cierre fracasa y la uretra queda abierta en la cara ventral del pene, la anomalía se denomina:",
+            options: [
+                { text: "Epispadias.", isCorrect: false },
+                { text: "Hipospadias.", isCorrect: true },
+                { text: "Criptorquidia.", isCorrect: false },
+                { text: "Fimosis.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El cierre incompleto en la cara ventral (por debajo) origina una hipospadias. Si fuera dorsal (por encima), sería epispadias."
+        },
+        {
+            text: "Desarrollo del Escroto vs. Labios Mayores: Las prominencias mesenquimales laterales conocidas como 'Pliegues Genitales' tienen destinos homólogos. Si se fusionan forman el Escroto masculino; si no se fusionan en la mujer, ¿qué forman?",
+            options: [
+                { text: "La vagina inferior.", isCorrect: false },
+                { text: "El periné.", isCorrect: false },
+                { text: "Los labios mayores.", isCorrect: true },
+                { text: "Los bulbos vestibulares.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Los pliegues genitales se unen para formar el escroto en el varón, mientras que en la mujer formarán los labios mayores,,."
+        },
+        {
+            text: "Origen de la Próstata: Como glándula anexa, la próstata brota como evaginaciones alrededor del cuello de la vejiga. ¿De qué porción del seno urogenital primitivo deriva?",
+            options: [
+                { text: "De la porción fálica.", isCorrect: false },
+                { text: "De la porción pélvica del seno urogenital (endodermo).", isCorrect: true },
+                { text: "De los uréteres dístales.", isCorrect: false },
+                { text: "Del tabique urorrectal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: En el seno urogenital, la porción pélvica da lugar a las porciones prostática y membranosa de la uretra (y a la glándula prostática misma),."
+        },
+        {
+            text: "Cordones Gonadales: En un feto con gen SRY activo, los cordones sexuales primitivos se introducen en la médula gonadal para formar los 'cordones medulares o testiculares'. ¿Qué importante red de tubos testiculares derivará de estos cordones profundos?",
+            options: [
+                { text: "La uretra esponjosa.", isCorrect: false },
+                { text: "La Rete testis (Red de Haller).", isCorrect: true },
+                { text: "El conducto deferente completo.", isCorrect: false },
+                { text: "La vesícula seminal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Con SRY, los cordones forman los cordones testiculares/medulares y la rete testis."
+        },
+        {
+            text: "Si no hay gen SRY, los cordones medulares degeneran. En su lugar, el epitelio superficial prolifera para rodear a los ovocitos femeninos. ¿Cómo se llaman estos cordones femeninos?",
+            options: [
+                { text: "Cordones de Müller.", isCorrect: false },
+                { text: "Cordones mesonéfricos.", isCorrect: false },
+                { text: "Cordones corticales (periféricos).", isCorrect: true },
+                { text: "Cordones de Wolff.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Sin SRY, los cordones medulares degeneran y se desarrollan los cordones corticales periféricos, que rodearán a las células germinales,."
+        },
+        {
+            text: "Síndrome de Insensibilidad a los Andrógenos: El profesor comenta un caso donde un paciente es genéticamente XY (masculino) y tiene testículos intraabdominales funcionales, pero fenotípicamente tiene aspecto femenino externo. ¿A qué fallo enzimático o receptorial suele deberse esto?",
+            options: [
+                { text: "A una hiperactividad del gen SRY.", isCorrect: false },
+                { text: "A la falta de receptores celulares funcionales para los andrógenos (ej. testosterona) o déficit de la enzima 5-alfa-reductasa.", isCorrect: true },
+                { text: "A la secreción masiva de Factor Inhibidor Mülleriano.", isCorrect: false },
+                { text: "A una agenesia de la cresta gonadal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El profesor explica el síndrome de feminización testicular por 'ceguera periférica': la testosterona existe pero no puede unirse a receptores, o no se activa por fallo de la 5-alfa-reductasa, impidiendo la masculinización de los genitales externos,,."
+        },
+        {
+            text: "Discordancia Genotipo/Fenotipo: Como excepción biológica (y origen de controversia deportiva), ¿puede existir un sujeto con cariotipo XX (femenino) que desarrolle un fenotipo y gónadas masculinas?",
+            options: [
+                { text: "No, es biológicamente imposible bajo cualquier circunstancia.", isCorrect: false },
+                { text: "Sí, si durante el 'crossing-over' meiótico de sus padres, el gen SRY se translocó accidentalmente al cromosoma X que heredó.", isCorrect: true },
+                { text: "Sí, siempre que beba mucho líquido amniótico.", isCorrect: false },
+                { text: "Solo si los conductos de Müller se hipertrofian.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El profesor explica que el gen SRY puede haber saltado del Y al X durante el crossing over meiótico, por lo que un sujeto XX puede tener el gen SRY y masculinizarse."
+        },
+        {
+            text: "Origen de la Vía Seminal Distal: El Conducto Eyaculador es la vía final que perfora la próstata. Embriológicamente y anatómicamente, se forma por la confluencia de:",
+            options: [
+                { text: "Los conductos eferentes y la Rete Testis.", isCorrect: false },
+                { text: "El uréter y el conducto deferente.", isCorrect: false },
+                { text: "La porción terminal del conducto deferente (ampolla) y el conducto de la glándula vesiculosa (vesícula seminal).", isCorrect: true },
+                { text: "El utrículo prostático y la uretra.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: Como evaginación del conducto de Wolff, la vesícula seminal y el deferente quedan unidos, formando el conducto eyaculador común."
+        },
+        {
+            text: "Descenso Ovárico: Al igual que el testículo, el ovario desciende, pero queda retenido en la pelvis gracias a remanentes embrionarios de sostén que lo fijan al útero. ¿Cuál es uno de estos ligamentos derivados del sistema de descenso ovárico?",
+            options: [
+                { text: "El ligamento ancho del útero en su totalidad.", isCorrect: false },
+                { text: "El ligamento propio del ovario (y el ligamento redondo del útero).", isCorrect: true },
+                { text: "El cordón espermático.", isCorrect: false },
+                { text: "La fascia de Toldt.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El ovario queda soportado por el ligamento propio del ovario, que lo une al conducto de Müller (útero), como parte del sistema de descenso y sostén,."
+        },
+        {
+            text: "Relación cruzada uréter y vía genital (Masculina): Cuando el conducto de Wolff se transforma en conducto deferente, su descenso pélvico obliga a que se cruce con el uréter que va hacia la vejiga. ¿Cuál es esta disposición?",
+            options: [
+                { text: "El conducto deferente pasa cranealmente ('salta por encima') del uréter de lateral a medial.", isCorrect: true },
+                { text: "El uréter cruza por encima del conducto deferente.", isCorrect: false },
+                { text: "Discurren completamente paralelos por la fosa isquioanal.", isCorrect: false },
+                { text: "El uréter perfora la vesícula seminal.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: a. Explicación: Por el crecimiento de la vejiga y el entrecruzamiento de las entradas, el conducto deferente baja y salta por encima/anterior al uréter,,."
+        },
+        {
+            text: "Anatomía clínica de la uretra: El 'codo' de la uretra masculina, punto débil crítico ante sondajes forzados, se sitúa exactamente en la transición entre:",
+            options: [
+                { text: "La vejiga y la uretra prostática.", isCorrect: false },
+                { text: "La uretra membranosa (fija al periné) y la uretra esponjosa (laxa y móvil).", isCorrect: true },
+                { text: "La uretra esponjosa y la fosa navicular.", isCorrect: false },
+                { text: "Los dos uréteres.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: Es el cambio de la estructura rígida (membranosa) al cuerpo móvil (esponjoso) lo que facilita la perforación si no se endereza el pene."
+        },
+        {
+            text: "Consecuencia del 'Falso Sondaje': Si se produce la rotura de la uretra en dicho codo, ¿hacia qué fascia o espacio se extravasa masivamente la orina, causando edema ('elefantiasis') escrotal y del pene?",
+            options: [
+                { text: "Hacia la cavidad peritoneal de la pelvis.", isCorrect: false },
+                { text: "Hacia la cápsula prostática.", isCorrect: false },
+                { text: "Hacia el tejido celular subcutáneo laxo y músculo liso continuo del escroto y pene, conocido como Dartos.", isCorrect: true },
+                { text: "Hacia la bolsa omental.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: La orina inunda la fascia superficial o Dartos peneano y escrotal, porque es un espacio subcutáneo laxo y continuo,."
+        },
+        {
+            text: "Capas del testículo: Aclaración de clase. Una alumna pregunta si la 'túnica albugínea' cuenta como una capa de envoltura de la bolsa escrotal arrastrada del abdomen. El profesor corrige afirmando que:",
+            options: [
+                { text: "Sí, deriva directamente del peritoneo.", isCorrect: false },
+                { text: "No, la túnica albugínea es la cápsula íntima y estructural de la propia gónada, no una capa externa de la bolsa.", isCorrect: true },
+                { text: "Sí, es la que forma el músculo cremáster.", isCorrect: false },
+                { text: "Es el resto de la fascia de Gerota.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El profesor insiste en que no se incluye en las capas de la bolsa, ya que es la cubierta firme de la propia gónada y sus tabiques."
+        },
+        {
+            text: "Sistema mesonefro/Wolffiano: En la organogénesis, el conducto mesonéfrico o de Wolff drena temporalmente la orina del mesonefros y desemboca en:",
+            options: [
+                { text: "El saco vitelino directamente.", isCorrect: false },
+                { text: "La pared lateral de la cloaca primitiva (alantoides).", isCorrect: true },
+                { text: "El líquido amniótico vía boca fetal.", isCorrect: false },
+                { text: "El conducto de Müller.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: b. Explicación: El extremo distal del conducto mesonéfrico de Wolff desemboca en la pared lateral de la cloaca,."
+        },
+        {
+            text: "Epitelio Celómico Ovárico: A diferencia del testículo (envuelto en túnica albugínea densa), el ovario debe permitir la liberación cíclica de óvulos. Por ello, está recubierto exteriormente por una modificación del peritoneo llamada:",
+            options: [
+                { text: "Epitelio germinal.", isCorrect: true },
+                { text: "Músculo Dartos.", isCorrect: false },
+                { text: "Endometrio.", isCorrect: false },
+                { text: "Parametrio.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: a. Explicación: Las imágenes y esquemas embriológicos muestran el 'surface epithelium' o 'epitelio germinal' cubriendo la gónada femenina, adaptado para romperse."
+        },
+        {
+            text: "Diferenciación celular testículo: ¿Qué células testiculares, derivadas de la mesénquima intersticial, son las responsables de secretar Testosterona y dirigir el fenotipo sexual masculino externo?",
+            options: [
+                { text: "Células de Sertoli.", isCorrect: false },
+                { text: "Células de la Rete Testis.", isCorrect: false },
+                { text: "Células de Leydig.", isCorrect: true },
+                { text: "Células de la cresta neural.", isCorrect: false }
+            ],
+            explanation: "Respuesta correcta: c. Explicación: El testículo, inducido por SRY, produce hormonas masculinas a través de las Células de Leydig."
+        }
+    ];
+
+    let currentQuestions = [];
+    
+    // Preparar el array maestro añadiendo el ID original
+    const masterQuestions = rawQuestions.map((q, index) => {
+        return {
+            id: index + 1,
+            originalText: (index + 1) + ". " + q.text,
+            options: q.options,
+            explanation: q.explanation,
+            marked: false,
+            answered: false,
+            correct: null
+        };
+    });
+
+    // Utilidades
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function initQuiz(orderMode) {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'none';
+        document.getElementById('quiz-container').style.display = 'flex';
+        document.getElementById('finish-bar').style.display = 'block';
+
+        // Clonar array para el estado actual
+        currentQuestions = JSON.parse(JSON.stringify(masterQuestions));
+        
+        // Mantener el estado de 'marked' si estamos reiniciando
+        currentQuestions.forEach((q, i) => q.marked = masterQuestions[i].marked);
+
+        if (orderMode === 'random') {
+            shuffleArray(currentQuestions);
+        }
+
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        const indexGrid = document.getElementById('index-grid');
+        const questionsList = document.getElementById('questions-list');
+        
+        indexGrid.innerHTML = '';
+        questionsList.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            const displayNum = index + 1;
+            
+            // Render Índice
+            const idxBtn = document.createElement('a');
+            idxBtn.href = `#q-${q.id}`;
+            idxBtn.className = 'index-btn';
+            idxBtn.id = `idx-${q.id}`;
+            idxBtn.textContent = displayNum;
+            if (q.marked) idxBtn.classList.add('marked');
+            indexGrid.appendChild(idxBtn);
+
+            // Render Pregunta
+            const qCard = document.createElement('div');
+            qCard.className = 'question-card';
+            qCard.id = `q-${q.id}`;
+
+            // Pestaña de marcado
+            const markDiv = document.createElement('div');
+            markDiv.className = 'mark-container';
+            markDiv.innerHTML = `<input type="checkbox" id="mark-${q.id}" ${q.marked ? 'checked' : ''} onchange="toggleMark(${q.id}, this.checked)"> <label for="mark-${q.id}">Marcar</label>`;
+            qCard.appendChild(markDiv);
+
+            // Texto de la pregunta
+            const qText = document.createElement('div');
+            qText.className = 'question-text';
+            qText.textContent = `${displayNum}. ${q.originalText.substring(q.originalText.indexOf('.') + 2)}`; // Respetar texto original literal
+            qCard.appendChild(qText);
+
+            // Barajar opciones cada vez que se carga
+            let shuffledOptions = JSON.parse(JSON.stringify(q.options));
+            shuffleArray(shuffledOptions);
+
+            const optionsContainer = document.createElement('div');
+            optionsContainer.id = `opts-${q.id}`;
+            
+            shuffledOptions.forEach((opt, optIndex) => {
+                const optBtn = document.createElement('button');
+                optBtn.className = 'option';
+                optBtn.textContent = opt.text;
+                optBtn.onclick = () => handleAnswer(q.id, opt.isCorrect, optBtn, optionsContainer, q.explanation);
+                optionsContainer.appendChild(optBtn);
+            });
+            qCard.appendChild(optionsContainer);
+
+            // Explicación (oculta inicialmente)
+            const expDiv = document.createElement('div');
+            expDiv.className = 'explanation';
+            expDiv.id = `exp-${q.id}`;
+            expDiv.textContent = q.explanation;
+            qCard.appendChild(expDiv);
+
+            questionsList.appendChild(qCard);
+        });
+    }
+
+    function handleAnswer(qId, isCorrect, btnElement, container, explanation) {
+        // Encontrar pregunta en currentQuestions
+        const q = currentQuestions.find(x => x.id === qId);
+        if (q.answered) return; // Ya respondida
+
+        q.answered = true;
+        q.correct = isCorrect;
+
+        // Actualizar master
+        masterQuestions.find(x => x.id === qId).answered = true;
+        masterQuestions.find(x => x.id === qId).correct = isCorrect;
+
+        // Desactivar todos los botones de esta pregunta
+        const buttons = container.querySelectorAll('.option');
+        buttons.forEach(b => {
+            b.disabled = true;
+            // Mostrar cuál era la correcta a nivel visual (para corrección inmediata)
+            const optText = b.textContent;
+            const originalOpt = q.options.find(o => o.text === optText);
+            if (originalOpt.isCorrect) {
+                b.classList.add('correct-ans');
+            }
+        });
+
+        if (!isCorrect) {
+            btnElement.classList.add('incorrect-ans');
+        }
+
+        // Mostrar explicación
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+
+        // Actualizar índice
+        const idxBtn = document.getElementById(`idx-${qId}`);
+        idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qId, isMarked) {
+        const q = currentQuestions.find(x => x.id === qId);
+        q.marked = isMarked;
+        masterQuestions.find(x => x.id === qId).marked = isMarked;
+
+        const idxBtn = document.getElementById(`idx-${qId}`);
+        if (isMarked) {
+            idxBtn.classList.add('marked');
+        } else {
+            idxBtn.classList.remove('marked');
+        }
+    }
+
+    function finishQuiz() {
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('finish-bar').style.display = 'none';
+        
+        let correctCount = masterQuestions.filter(q => q.correct === true).length;
+        let totalAnswered = masterQuestions.filter(q => q.answered === true).length;
+
+        document.getElementById('score-display').textContent = `Has respondido ${totalAnswered} preguntas. Aciertos: ${correctCount}`;
+        document.getElementById('end-screen').style.display = 'flex';
+    }
+
+    function restartQuiz(mode) {
+        // Reset de variables contestadas
+        masterQuestions.forEach(q => {
+            q.answered = false;
+            q.correct = null;
+        });
+
+        // Filtrar según el modo
+        let subset = [];
+        if (mode === 'all') {
+            subset = JSON.parse(JSON.stringify(masterQuestions));
+        } else if (mode === 'failed') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.correct === false)));
+            if (subset.length === 0) { alert("¡No hay preguntas falladas!"); return; }
+        } else if (mode === 'marked') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.marked === true)));
+            if (subset.length === 0) { alert("¡No hay preguntas marcadas!"); return; }
+        } else if (mode === 'failed_marked') {
+            subset = JSON.parse(JSON.stringify(masterQuestions.filter(q => q.correct === false || q.marked === true)));
+            if (subset.length === 0) { alert("¡No hay preguntas falladas ni marcadas!"); return; }
+        }
+
+        // Preparar UI
+        document.getElementById('end-screen').style.display = 'none';
+        
+        // Preguntar orden de nuevo
+        if (confirm("¿Deseas mezclar el orden de las preguntas aleatoriamente? (Aceptar = Sí, Cancelar = No)")) {
+            shuffleArray(subset);
+        }
+
+        currentQuestions = subset;
+        document.getElementById('quiz-container').style.display = 'flex';
+        document.getElementById('finish-bar').style.display = 'block';
+        
+        renderQuiz();
+    }
+</script>
+
+</body>
+</html>

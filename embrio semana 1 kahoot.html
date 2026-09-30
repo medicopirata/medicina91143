@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario Interactivo</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --sidebar-width: 80px;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* Pantallas */
+        #pantalla-inicio, #pantalla-resultados {
+            width: 100%;
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            align-self: flex-start;
+        }
+        #pantalla-quiz {
+            display: none;
+            width: 100%;
+        }
+        /* Barra lateral */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            gap: 10px;
+        }
+        .btn-indice {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid #cbd5e1;
+            background: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-indice:hover { background: #f1f5f9; }
+        .btn-indice.respondida { background: #e2e8f0; border-color: #94a3b8; }
+        .btn-indice.marcada { border: 2px solid #eab308; background: #fef08a; }
+        
+        /* Contenido principal */
+        #contenido-principal {
+            margin-left: var(--sidebar-width);
+            padding: 40px;
+            width: calc(100% - var(--sidebar-width));
+            box-sizing: border-box;
+            max-width: 900px;
+        }
+        /* Preguntas */
+        .tarjeta-pregunta {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.1);
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .texto-pregunta {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .marcador-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+        .marcador-container input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        .opcion {
+            display: block;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .opcion:hover:not(.deshabilitada) { background: #f8fafc; }
+        .opcion input { margin-right: 10px; }
+        .opcion.deshabilitada { cursor: not-allowed; opacity: 0.8; }
+        .opcion.correcta { background: #dcfce7; border-color: var(--correct); }
+        .opcion.incorrecta { background: #fee2e2; border-color: var(--incorrect); }
+        
+        .explicacion {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            font-size: 0.95rem;
+            display: none;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* Botones */
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s;
+            margin: 5px 0;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-flotante {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            box-shadow: 0 4px 6px rgb(0 0 0 / 0.2);
+            z-index: 100;
+        }
+        .btn-outline {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover { background: #eff6ff; }
+        
+        /* Controles de Inicio */
+        .seccion-inicio { margin-bottom: 25px; }
+        .seccion-inicio h3 { margin-top: 0; }
+        .tema-checkbox { margin-bottom: 10px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="pantalla-inicio">
+        <h2>Configuración del Cuestionario</h2>
+        
+        <div class="seccion-inicio">
+            <h3>1. Selecciona los temas</h3>
+            <div id="contenedor-temas">
+                </div>
+        </div>
+
+        <div class="seccion-inicio">
+            <h3>2. Orden de las preguntas</h3>
+            <label class="tema-checkbox"><input type="radio" name="orden" value="original" checked> Orden preestablecido</label>
+            <label class="tema-checkbox"><input type="radio" name="orden" value="aleatorio"> Mezcladas aleatoriamente</label>
+        </div>
+
+        <button onclick="iniciarCuestionario('nuevo')">Comenzar Cuestionario</button>
+    </div>
+
+    <div id="pantalla-quiz">
+        <div id="sidebar">
+            </div>
+        <div id="contenido-principal">
+            <div id="contenedor-preguntas">
+                </div>
+            <br><br><br>
+        </div>
+        <button class="btn-flotante" onclick="finalizarCuestionario()">Finalizar Cuestionario</button>
+    </div>
+
+    <div id="pantalla-resultados" style="display:none;">
+        <h2>Resultados</h2>
+        <p id="texto-puntuacion" style="font-size: 1.2rem; font-weight: bold;"></p>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
+            <button onclick="iniciarCuestionario('todo')">Repetir todo el cuestionario completo</button>
+            <button id="btn-rep-falladas" class="btn-outline" onclick="iniciarCuestionario('falladas')">Repetir SOLO las falladas</button>
+            <button id="btn-rep-marcadas" class="btn-outline" onclick="iniciarCuestionario('marcadas')">Repetir SOLO las marcadas</button>
+            <button id="btn-rep-mixto" class="btn-outline" onclick="iniciarCuestionario('mixto')">Repetir falladas + marcadas</button>
+            <button class="btn-outline" style="border-color: #64748b; color: #64748b;" onclick="volverAlInicio()">Volver a Selección de Temas</button>
+        </div>
+    </div>
+
+    <script>
+        // BASE DE DATOS PREPARADA PARA MÁS TEMAS
+        const baseDeDatos = [
+            {
+                id: 1,
+                tema: "Embriología - Semana 1",
+                pregunta: "1️⃣ ¿Dónde se inicia la migración del cigoto?",
+                opciones: [
+                    { texto: "🔺 Tercio tubárico externo", correcta: true, explicacion: "La fecundación ocurre en la ampolla (tercio externo de la trompa), desde donde el cigoto inicia su viaje hacia la cavidad uterina." },
+                    { texto: "🔷 Cérvix interno", correcta: false },
+                    { texto: "🟡 Cavidad uterina", correcta: false },
+                    { texto: "🟢 Ovario", correcta: false }
+                ]
+            },
+            {
+                id: 2,
+                tema: "Embriología - Semana 1",
+                pregunta: "2️⃣ El blastocisto NO presenta",
+                opciones: [
+                    { texto: "🔺 Trofoblasto", correcta: false },
+                    { texto: "🔷 Disco embrionario", correcta: true, explicacion: "El disco embrionario bilaminar se forma en la segunda semana. En la primera semana, el blastocisto presenta trofoblasto, blastocele y masa celular interna (embrioblasto)." },
+                    { texto: "🟡 Blastocele", correcta: false },
+                    { texto: "🟢 Yema embrionaria", correcta: false }
+                ]
+            },
+            {
+                id: 3,
+                tema: "Embriología - Semana 1",
+                pregunta: "3️⃣ La masa celular interna origina",
+                opciones: [
+                    { texto: "🔺 Hojas embrionarias", correcta: true, explicacion: "La masa celular interna o embrioblasto dará lugar a los tejidos del embrión propiamente dicho (las hojas germinativas)." },
+                    { texto: "🔷 Vellosidades coriónicas", correcta: false },
+                    { texto: "🟡 Miometrio", correcta: false },
+                    { texto: "🟢 Decidua", correcta: false }
+                ]
+            },
+            {
+                id: 4,
+                tema: "Embriología - Semana 1",
+                pregunta: "4️⃣ La implantación típica ocurre en",
+                opciones: [
+                    { texto: "🔺 Trompa uterina", correcta: false },
+                    { texto: "🔷 Istmo tubárico", correcta: false },
+                    { texto: "🟡 Fondo cervical", correcta: false },
+                    { texto: "🟢 Parte superior del cuerpo uterino", correcta: true, explicacion: "Lo habitual y fisiológico es que el blastocisto se implante en la pared anterior o posterior de la porción superior del cuerpo del útero." }
+                ]
+            },
+            {
+                id: 5,
+                tema: "Embriología - Semana 1",
+                pregunta: "5️⃣ Se habla de placenta previa cuando la implantación es",
+                opciones: [
+                    { texto: "🔺 En el útero cerca del orificio cervical", correcta: true, explicacion: "Si la implantación ocurre muy cerca del orificio cervical interno, la placenta en desarrollo cubrirá total o parcialmente dicha abertura (placenta previa)." },
+                    { texto: "🔷 En la trompa", correcta: false },
+                    { texto: "🟡 En el ovario", correcta: false },
+                    { texto: "🟢 En la cavidad abdominal", correcta: false }
+                ]
+            },
+            {
+                id: 6,
+                tema: "Embriología - Semana 1",
+                pregunta: "6️⃣ El trofoblasto origina principalmente",
+                opciones: [
+                    { texto: "🔺 Hojas embrionarias", correcta: false },
+                    { texto: "🔷 Neuroectodermo", correcta: false },
+                    { texto: "🟡 Disco embrionario", correcta: false },
+                    { texto: "🟢 Placenta", correcta: true, explicacion: "El trofoblasto es la capa celular externa del blastocisto que invadirá el endometrio y formará la parte embrionaria de la placenta." }
+                ]
+            },
+            {
+                id: 7,
+                tema: "Embriología - Semana 1",
+                pregunta: "7️⃣ La zona pelúcida",
+                opciones: [
+                    { texto: "🔺 Desaparece antes de la implantación", correcta: true, explicacion: "Para que el blastocisto pueda unirse al endometrio e implantarse, primero debe 'eclosionar' y liberarse de la zona pelúcida." },
+                    { texto: "🔷 Tiene capacidad erosiva necesaria para la implantación", correcta: false },
+                    { texto: "🟡 Rodea al saco vitelino primitivo", correcta: false },
+                    { texto: "🟢 Forma el amnios", correcta: false }
+                ]
+            },
+            {
+                id: 8,
+                tema: "Embriología - Semana 1",
+                pregunta: "8️⃣ Nombre del embrión con 16-32 células",
+                opciones: [
+                    { texto: "🔺 Neúrula", correcta: false },
+                    { texto: "🔷 Mórula", correcta: true, explicacion: "Aproximadamente a los 3 días tras la fecundación, el embrión es una esfera sólida de entre 16 y 32 blastómeras llamada mórula." },
+                    { texto: "🟡 Blastocisto", correcta: false },
+                    { texto: "🟢 Gástrula", correcta: false }
+                ]
+            },
+            {
+                id: 9,
+                tema: "Embriología - Semana 1",
+                pregunta: "9️⃣ El disco embrionario bilaminar está formado por",
+                opciones: [
+                    { texto: "🔺 Endometrio y ectodermo", correcta: false },
+                    { texto: "🔷 Mesodermo y epiblasto", correcta: false },
+                    { texto: "🟡 Epiblasto e hipoblasto", correcta: true, explicacion: "Durante la segunda semana, las células de la masa celular interna se diferencian en dos capas planas que forman el disco bilaminar: epiblasto e hipoblasto." },
+                    { texto: "🟢 Epiblasto y endodermo", correcta: false }
+                ]
+            },
+            {
+                id: 10,
+                tema: "Embriología - Semana 1",
+                pregunta: "🔟 Las células deciduales son",
+                opciones: [
+                    { texto: "🔺 Células del estroma uterino que disminuyen su tamaño", correcta: false },
+                    { texto: "🔷 Células del cuello uterino que producen moco", correcta: false },
+                    { texto: "🟡 Células del endometrio ricas en lípidos", correcta: true, explicacion: "Como respuesta a la implantación, las células del estroma endometrial se vuelven poliédricas y acumulan glucógeno y lípidos (reacción decidual)." },
+                    { texto: "🟢 Células del endometrio que producen FSH", correcta: false }
+                ]
+            }
+        ];
+
+        // VARIABLES DE ESTADO
+        let preguntasActivas = [];
+        let respuestasUsuario = {}; // id: true/false
+        let preguntasMarcadas = new Set(); // ids marcados
+
+        // INICIALIZACIÓN DE TEMAS
+        function cargarTemas() {
+            const temasUnicos = [...new Set(baseDeDatos.map(p => p.tema))];
+            const contenedor = document.getElementById("contenedor-temas");
+            contenedor.innerHTML = "";
+            temasUnicos.forEach(tema => {
+                contenedor.innerHTML += `<label class="tema-checkbox"><input type="checkbox" value="${tema}" checked> ${tema}</label>`;
+            });
+        }
+        cargarTemas();
+
+        function barajarArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // CONTROL DE FLUJO
+        function volverAlInicio() {
+            document.getElementById("pantalla-resultados").style.display = "none";
+            document.getElementById("pantalla-inicio").style.display = "block";
+            preguntasMarcadas.clear();
+        }
+
+        function iniciarCuestionario(modo) {
+            respuestasUsuario = {};
+            
+            if (modo === 'nuevo') {
+                preguntasMarcadas.clear();
+                const temasSeleccionados = Array.from(document.querySelectorAll('#contenedor-temas input:checked')).map(cb => cb.value);
+                if(temasSeleccionados.length === 0) { alert("Selecciona al menos un tema"); return; }
+                
+                preguntasActivas = baseDeDatos.filter(p => temasSeleccionados.includes(p.tema));
+                
+                const ordenAleatorio = document.querySelector('input[name="orden"]:checked').value === 'aleatorio';
+                if (ordenAleatorio) barajarArray(preguntasActivas);
+                
+            } else if (modo === 'todo') {
+                // Mantiene las mismas preguntasActivas
+            } else if (modo === 'falladas') {
+                preguntasActivas = preguntasActivas.filter(p => respuestasUsuario[p.id] === false);
+            } else if (modo === 'marcadas') {
+                preguntasActivas = preguntasActivas.filter(p => preguntasMarcadas.has(p.id));
+            } else if (modo === 'mixto') {
+                preguntasActivas = preguntasActivas.filter(p => respuestasUsuario[p.id] === false || preguntasMarcadas.has(p.id));
+            }
+
+            // Cada vez que se carga, las opciones de cada pregunta se mezclan
+            preguntasActivas = JSON.parse(JSON.stringify(preguntasActivas)); // Clon profundo
+            preguntasActivas.forEach(p => barajarArray(p.opciones));
+
+            document.getElementById("pantalla-inicio").style.display = "none";
+            document.getElementById("pantalla-resultados").style.display = "none";
+            document.getElementById("pantalla-quiz").style.display = "flex";
+            
+            renderizarInterfaz();
+            window.scrollTo(0,0);
+        }
+
+        function renderizarInterfaz() {
+            const sidebar = document.getElementById("sidebar");
+            const contenedor = document.getElementById("contenedor-preguntas");
+            sidebar.innerHTML = "";
+            contenedor.innerHTML = "";
+
+            if(preguntasActivas.length === 0) {
+                contenedor.innerHTML = "<h3>No hay preguntas para mostrar en esta categoría.</h3>";
+                return;
+            }
+
+            preguntasActivas.forEach((preg, index) => {
+                const numVisual = index + 1;
+                
+                // Botón Sidebar
+                const btnSidebar = document.createElement("button");
+                btnSidebar.className = "btn-indice";
+                btnSidebar.id = `idx-${preg.id}`;
+                btnSidebar.textContent = numVisual;
+                if(preguntasMarcadas.has(preg.id)) btnSidebar.classList.add("marcada");
+                btnSidebar.onclick = () => document.getElementById(`pregunta-${preg.id}`).scrollIntoView({behavior: "smooth"});
+                sidebar.appendChild(btnSidebar);
+
+                // Tarjeta de pregunta
+                let opcionesHTML = "";
+                preg.opciones.forEach((opc, opcIdx) => {
+                    opcionesHTML += `
+                        <label class="opcion" id="lbl-${preg.id}-${opcIdx}">
+                            <input type="radio" name="preg-${preg.id}" onchange="comprobarRespuesta(${preg.id}, ${opcIdx}, ${opc.correcta})">
+                            ${opc.texto}
+                        </label>
+                    `;
+                });
+
+                const estaMarcada = preguntasMarcadas.has(preg.id) ? "checked" : "";
+
+                contenedor.innerHTML += `
+                    <div class="tarjeta-pregunta" id="pregunta-${preg.id}">
+                        <div class="marcador-container">
+                            <label><input type="checkbox" onchange="alternarMarca(${preg.id}, this)" ${estaMarcada}> 📌 Marcar</label>
+                        </div>
+                        <div class="texto-pregunta">${preg.pregunta}</div>
+                        <div class="opciones-contenedor">${opcionesHTML}</div>
+                        <div class="explicacion" id="exp-${preg.id}"></div>
+                    </div>
+                `;
+            });
+        }
+
+        // LÓGICA DE RESPUESTA
+        function comprobarRespuesta(preguntaId, opcionSeleccionadaIdx, esCorrecta) {
+            const preguntaObj = preguntasActivas.find(p => p.id === preguntaId);
+            const contenedor = document.getElementById(`pregunta-${preguntaId}`);
+            const opcionesLabels = contenedor.querySelectorAll(".opcion");
+            const inputs = contenedor.querySelectorAll("input[type='radio']");
+            const explicacionDiv = document.getElementById(`exp-${preguntaId}`);
+            
+            // Bloquear otras opciones
+            inputs.forEach(input => input.disabled = true);
+            opcionesLabels.forEach(lbl => lbl.classList.add("deshabilitada"));
+
+            // Colorear opciones
+            preguntaObj.opciones.forEach((opc, idx) => {
+                const lbl = document.getElementById(`lbl-${preguntaId}-${idx}`);
+                if (opc.correcta) {
+                    lbl.classList.add("correcta");
+                } else if (idx === opcionSeleccionadaIdx && !opc.correcta) {
+                    lbl.classList.add("incorrecta");
+                }
+            });
+
+            // Guardar registro
+            respuestasUsuario[preguntaId] = esCorrecta;
+
+            // Mostrar explicación
+            const explicacionTexto = preguntaObj.opciones.find(o => o.correcta).explicacion || "Respuesta correcta identificada.";
+            explicacionDiv.innerHTML = `<strong>${esCorrecta ? '¡Correcto!' : 'Incorrecto.'}</strong> ${explicacionTexto}`;
+            explicacionDiv.style.display = "block";
+
+            // Actualizar color en el índice de la izquierda
+            const btnIndice = document.getElementById(`idx-${preguntaId}`);
+            btnIndice.classList.add("respondida");
+            btnIndice.style.borderColor = esCorrecta ? "var(--correct)" : "var(--incorrect)";
+            btnIndice.style.color = esCorrecta ? "var(--correct)" : "var(--incorrect)";
+        }
+
+        function alternarMarca(preguntaId, checkbox) {
+            const btnIndice = document.getElementById(`idx-${preguntaId}`);
+            if (checkbox.checked) {
+                preguntasMarcadas.add(preguntaId);
+                btnIndice.classList.add("marcada");
+            } else {
+                preguntasMarcadas.delete(preguntaId);
+                btnIndice.classList.remove("marcada");
+            }
+        }
+
+        // FINALIZAR
+        function finalizarCuestionario() {
+            document.getElementById("pantalla-quiz").style.display = "none";
+            document.getElementById("pantalla-resultados").style.display = "block";
+
+            const totalMostradas = preguntasActivas.length;
+            const correctas = Object.values(respuestasUsuario).filter(v => v === true).length;
+            const falladas = totalMostradas - correctas; // cuenta como falladas las no respondidas
+
+            document.getElementById("texto-puntuacion").innerText = `Has acertado ${correctas} de ${totalMostradas} preguntas.`;
+
+            // Habilitar/deshabilitar botones de repetición
+            document.getElementById("btn-rep-falladas").disabled = falladas === 0;
+            document.getElementById("btn-rep-marcadas").disabled = preguntasMarcadas.size === 0;
+            document.getElementById("btn-rep-mixto").disabled = (falladas === 0 && preguntasMarcadas.size === 0);
+            
+            window.scrollTo(0,0);
+        }
+    </script>
+</body>
+</html>

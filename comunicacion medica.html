@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Comunicación Médica - Completo</title>
+    <style>
+        :root {
+            --primary: #2980b9;
+            --secondary: #2c3e50;
+            --accent: #16a085;
+            --bg: #f5f6fa;
+            --text: #2c3e50;
+            --card-bg: #ffffff;
+            --sidebar-width: 250px;
+            --warning: #f39c12;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR NAVEGACIÓN */
+        #sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--secondary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background-color: rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.2rem; color: var(--accent); }
+        .sidebar-header p { margin: 5px 0 0; font-size: 0.8rem; opacity: 0.7; }
+
+        #nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .nav-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+        .nav-btn.active { border: 2px solid var(--accent); background: rgba(255,255,255,0.2); color: white; }
+        .nav-btn.correct { background-color: var(--accent); color: white; }
+        .nav-btn.incorrect { background-color: #c0392b; color: white; }
+        
+        .nav-btn.marked::after {
+            content: "★";
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            font-size: 8px;
+            color: #f1c40f;
+        }
+
+        /* ÁREA PRINCIPAL */
+        #main-content {
+            flex-grow: 1;
+            position: relative;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        /* TARJETAS DE PREGUNTA */
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-bottom: 25px;
+            border-left: 5px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .question-card.answered { border-left-color: var(--secondary); }
+        .question-card.correct { border-left-color: var(--accent); }
+        .question-card.incorrect { border-left-color: #c0392b; }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .q-num {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .q-mark {
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+        .q-mark.active { color: #f1c40f; }
+
+        .q-text {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #34495e;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-item {
+            padding: 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .option-item:hover:not(.disabled) {
+            background-color: #ecf0f1;
+            transform: translateX(5px);
+        }
+
+        .option-item.correct {
+            background-color: #d1f2eb;
+            border-color: #a3e4d7;
+            color: #0e6251;
+        }
+
+        .option-item.incorrect {
+            background-color: #fadbd8;
+            border-color: #f5b7b1;
+            color: #78281f;
+        }
+
+        .option-item.disabled {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f6f3;
+            border-radius: 6px;
+            color: #16a085;
+            display: none;
+            font-size: 0.95rem;
+        }
+        
+        .explanation strong { display: block; margin-bottom: 5px; }
+
+        /* BARRA INFERIOR FLOTANTE */
+        #bottom-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: calc(100% - var(--sidebar-width));
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--secondary); color: white; }
+        .btn-danger { background-color: #c0392b; color: white; }
+        .btn-warning { background-color: var(--warning); color: white; }
+        .btn-ghost { background: transparent; color: var(--text); border: 2px solid #ddd; }
+
+        /* PANTALLAS MODALES */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        .config-options {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar { display: none; }
+            #bottom-bar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h2>Com. Médica</h2>
+            <p>150 Preguntas</p>
+        </div>
+        <div id="nav-container">
+            <div id="nav-grid" class="nav-grid">
+                </div>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container" class="container">
+            </div>
+    </div>
+
+    <div id="bottom-bar" class="hidden">
+        <div id="progress-text" style="font-weight:bold; color:var(--secondary)">0 / 0 Respondidas</div>
+        <button class="btn btn-danger" onclick="showResults()">Finalizar Revisión</button>
+    </div>
+
+    <div id="start-screen" class="modal">
+        <h1 style="color:var(--primary); font-size: 2.5rem; margin-bottom: 10px;">Examen Comunicación Médica</h1>
+        <h3 style="color:var(--text); font-weight: 400; margin-bottom: 30px;">Banco de 150 Preguntas</h3>
+        
+        <div class="toggle-container">
+            <input type="checkbox" id="shuffle-toggle" style="transform: scale(1.5);">
+            <label for="shuffle-toggle">Mezclar orden de las preguntas</label>
+        </div>
+
+        <p style="margin-bottom: 10px; font-weight: bold;">Selecciona el bloque:</p>
+        <div class="config-options">
+            <button class="btn btn-secondary" onclick="startQuiz(1, 50)">Bloque 1-50 (2020)</button>
+            <button class="btn btn-secondary" onclick="startQuiz(51, 100)">Bloque 51-100 (Adicional)</button>
+            <button class="btn btn-secondary" onclick="startQuiz(101, 150)">Bloque 101-150 (2012)</button>
+            <button class="btn btn-primary" onclick="startQuiz(1, 150)">Test Completo (Todo)</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="modal hidden">
+        <h2 style="font-size: 2rem;">Resultados</h2>
+        <div id="score-circle" style="
+            width: 150px; height: 150px; 
+            border-radius: 50%; background: var(--primary); color: white;
+            display: flex; flex-direction: column; justify-content: center; 
+            font-size: 3rem; font-weight: bold; margin: 30px;">
+            <span id="score-num">0</span>
+            <span style="font-size: 1rem; font-weight: normal;">de <span id="total-questions">0</span></span>
+        </div>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+            <button class="btn btn-primary" onclick="resetQuiz('same')">Repetir Mismo Test</button>
+            <button class="btn btn-danger" onclick="resetQuiz('failed')">Repetir Falladas</button>
+            <button class="btn btn-warning" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+            <button class="btn btn-ghost" onclick="location.reload()">Volver al Inicio</button>
+        </div>
+    </div>
+
+<script>
+    // BASE DE DATOS DE PREGUNTAS (150 Total)
+    const questionsDB = [
+        // --- BLOQUE 1: EXAMEN 2020 (1-50) ---
+        { id: 1, q: "Juán López... comenta que “le es difícil guardar reposo con 3 niños pequeños”. Con respecto a la escucha activa. Señala la correcta:", o: ["La comparación con otros casos es buena", "La escucha activa exige obligatoriamente interpretar lo que se escucha", "Oir exige concentración", "Es bueno apoyarse en tópicos"], c: 1, exp: "La escucha activa implica decodificar (interpretar) el mensaje para dar feedback. Oír es pasivo." },
+        { id: 2, q: "Roberto... médico con estrés. Es falso que:", o: ["Debemos gestionar el estrés (afrontamiento)", "Son más eficaces las estrategias centradas en el problema", "El estrés es diferente en cada persona", "Sólo existe una forma de afrontar los problemas"], c: 3, exp: "Existen múltiples formas de afrontamiento (coping)." },
+        { id: 3, q: "En relación a la enfermedad todos son alteraciones psicológicas excepto:", o: ["Dolor", "Problemas de concentración", "Problemas en el ciclo del sueño", "Ansiedad y depresión"], c: 0, exp: "El dolor es primariamente una experiencia sensorial/física, aunque tenga componente emocional." },
+        { id: 4, q: "El sufrimiento empático es:", o: ["Mucha asertividad y autorregulación", "Mucha empatía y poca capacidad de autorregulación (quedando afectado)", "Poca empatía y poca autorregulación", "Mucha empatía y mucha autorregulación"], c: 1, exp: "Ocurre cuando nos contagiamos del dolor ajeno sin poder regularlo (Distress empático)." },
+        { id: 5, q: "Comunicación no verbal y distancia (proxémica). Señale la incorrecta:", o: ["Distancia íntima: amor/lucha", "Orientación crea distancia", "No está relacionada con el sexo o carácter", "Distancia pública > 3,5 m"], c: 2, exp: "Sí está relacionada con el género, cultura y personalidad (introversión/extroversión)." },
+        { id: 6, q: "Paciente agresivo demandando atención. Debemos:", o: ["Escucha activa y silencio son las mejores armas", "Llamar siempre a seguridad", "Contacto físico para frenar", "Subir el tono de voz"], c: 0, exp: "Dejar ventilar (silencio) y escuchar reduce la tensión." },
+        { id: 7, q: "Técnicas de negociación. Es falso que:", o: ["Imposibilidad acuerdo -> Disco rayado", "Intercambio opiniones -> Propuesta nueva relación", "Toma de acuerdos -> Doble pacto", "Acuerdo del problema -> Cesión intencional"], c: 1, exp: "La propuesta de una nueva relación (ruptura/derivación) es una medida extrema ante la imposibilidad, no para el intercambio habitual." },
+        { id: 8, q: "Dr. García: altivo, trata como inferiores, decide solo. Modelo:", o: ["Paternalista", "Técnico", "Camaradería", "Centrado en paciente"], c: 0, exp: "El paternalismo clásico decide por el paciente (a veces con actitud de superioridad moral)." },
+        { id: 9, q: "Comunicación eficiente. Incorrecta:", o: ["Colabora en el seguimiento", "Mejora predisposición psicológica", "Consigue adherencia", "Aumenta la insatisfacción y temor"], c: 3, exp: "Obviamente, una comunicación eficiente reduce el temor y aumenta la satisfacción." },
+        { id: 10, q: "Orden de la historia clínica:", o: ["Anamnesis, EF, epicrisis, curso", "Anamnesis, curso, EF, epicrisis", "Anamnesis, exploración física, evolución y epicrisis", "Anamnesis, curso, epicrisis, EF"], c: 2, exp: "Lógica clínica: Interrogatorio -> Exploración -> Evolución -> Resumen final (Epicrisis)." },
+        { id: 11, q: "Malas noticias. No es cierta:", o: ["La define quien la recibe", "Importa la situación personal", "Solo afecta al paciente", "Provoca cambio emocional"], c: 2, exp: "Afecta también a la familia y al profesional." },
+        { id: 12, q: "No es una variable tangible de la calidad asistencial:", o: ["Limpieza", "Apariencia física", "Actitudes individuales", "Ambientación"], c: 2, exp: "Las actitudes son intangibles; limpieza y entorno son tangibles." },
+        { id: 13, q: "Historia clínica. Es falso que:", o: ["Incluye enfermedad actual", "No debe incluir aspectos humanos", "Es un episodio biográfico", "Es un relato"], c: 1, exp: "Debe ser biopsicosocial, incluyendo aspectos humanos." },
+        { id: 14, q: "Silencio como herramienta. Todo cierto excepto:", o: ["Indican empatía", "Son incómodos y provocan estrés", "Dan tiempo a reflexionar", "Puede significar rechazo"], c: 1, exp: "Como 'herramienta' terapéutica no debe ser incómodo; esa es una percepción a superar." },
+        { id: 15, q: "Características formales mensajes. No se encuentra:", o: ["Complemento visual ayuda", "No tener prisa", "Dicción clara", "Aportar mucha información es necesario"], c: 3, exp: "La cantidad no es calidad. Aportar 'mucha' información suele saturar (overload)." },
+        { id: 16, q: "Historia clínica. Falso que:", o: ["Lo que no se escribe no existe", "Herramienta comunicación", "Información variada", "Según LOPD no es delito la difusión"], c: 3, exp: "La difusión no autorizada es un delito grave contra la intimidad." },
+        { id: 17, q: "Anamnesis. Falso que:", o: ["Identificar paciente", "Historia familiar/personal/actual", "Qué le pasa y desde cuándo", "La exploración es la que va a orientar el caso clínico"], c: 3, exp: "La anamnesis orienta el 70-80% del diagnóstico, la exploración confirma." },
+        { id: 18, q: "Contacto físico. No debemos emplearlo:", o: ["Situaciones de agresividad", "Paciente otra cultura", "Sexo opuesto", "Mecanismo complicidad"], c: 0, exp: "Por seguridad, nunca tocar a un paciente agresivo." },
+        { id: 19, q: "Oposición familiar donación. ¿Cuál es la más difícil de argumentar (revertir)?", o: ["Incomprensión muerte encefálica", "Asertividad", "Negativa del fallecido", "Problemas sistema sanitario"], c: 2, exp: "Si el fallecido dejó dicho que NO, es legalmente vinculante e irreversible." },
+        { id: 20, q: "Objetivo principal al plantear donación a familia de fallecida:", o: ["Obtener donación", "Conseguir órganos", "Inicio duelo", "Ayudar a la familia en el duelo"], c: 3, exp: "Éticamente, el objetivo del coordinador es el bienestar de la familia (la donación ayuda al duelo)." },
+        { id: 21, q: "Familiares cuidadores. Se observa todo excepto:", o: ["Pérdida de control", "Falta de soluciones a propias necesidades", "Información completa sobre el proceso", "Angustia y tensión"], c: 2, exp: "Suelen quejarse de falta de información o incertidumbre, no de tenerla completa." },
+        { id: 22, q: "Fases entrevista semiestructurada:", o: ["Subjetiva...", "Objetiva...", "Objetiva...", "Preliminar, exploratoria, resolutiva y de cierre"], c: 3, exp: "Estructura clásica: Apertura -> Exploración -> Resolución -> Cierre." },
+        { id: 23, q: "Paciente que miente. Es falso que:", o: ["Esquiva mirada", "Tensión/rigidez", "Habla lenta/baja", "Gran expresividad facial"], c: 3, exp: "La mentira suele asociarse a restricción gestual (máscara), no a gran expresividad." },
+        { id: 24, q: "Empatía. Todo cierto excepto:", o: ["Procede del respeto", "El problema de falta de empatía es el tiempo", "Aumenta autoestima paciente", "Aumenta satisfacción profesional"], c: 1, exp: "La falta de empatía es un problema de actitud/burnout, no de tiempo (la empatía ahorra tiempo)." },
+        { id: 25, q: "Cesión real (Negociación). Falso que:", o: ["Puede ser diferida/parcial", "Accedemos si lo vemos útil", "Parcial = incompleta", "Diferida = futuro"], c: 1, exp: "La cesión real implica ceder a una petición del paciente para mantener la relación, aunque clínicamente no sea lo 'más' indicado." },
+        { id: 26, q: "Tres pilares relación de ayuda (Rogers):", o: ["Primum non nocere...", "Asertividad...", "Autonomía...", "Autenticidad, respeto y empatía"], c: 3, exp: "Carl Rogers: Empatía, Aceptación incondicional (Respeto) y Congruencia (Autenticidad)." },
+        { id: 27, q: "Tipos de ancianos. Falso que:", o: ["Geriátrico >75 + pluripatología", "Mayor sano: plenas facultades", "Persona mayor enferma solo presenta patologías crónicas e invalidantes", "Frágil >75 + características"], c: 2, exp: "La 'persona mayor enferma' puede tener patología aguda habitual, no necesariamente invalidante crónica." },
+        { id: 28, q: "Informar a niños. Falso que:", o: ["Cortas e intensas", "Cuidado con autoimagen", "Utilizar la misma tonalidad de voz y manera habitual", "Colaboración padres"], c: 2, exp: "Hay que adaptar el lenguaje y tono al nivel del niño." },
+        { id: 29, q: "Fase exploratoria entrevista:", o: ["Consultamos info", "Resumen", "Con buen interrogatorio nos acercamos al 90% diagnóstico", "Intercambiamos opiniones"], c: 2, exp: "Es la fase de anamnesis, la de mayor peso diagnóstico." },
+        { id: 30, q: "Imposibilidad de acuerdos:", o: ["Nueva relación = mejor equipo", "Disco rayado = cambiar decisión", "Autorrevelación = no cumplir", "Nueva relación = deterioro"], c: 0, exp: "La propuesta de nueva relación se 'vende' positivamente (otro profesional podrá ayudarte mejor)." },
+        { id: 31, q: "Informar fumador. Incorrecta:", o: ["Mejor elección", "Estimular cambios", "Comprensión", "Con lenguaje técnico intentaremos abandono"], c: 3, exp: "El lenguaje técnico aleja al paciente. Se usa entrevista motivacional." },
+        { id: 32, q: "Beneficios empatía profesional. No se encuentra:", o: ["Comprender mejor", "Los médicos empáticos suelen tener poco éxito", "Trabajo satisfactorio", "Reduce tensión"], c: 1, exp: "Es falso. Los médicos empáticos tienen más éxito terapéutico y menos denuncias." },
+        { id: 33, q: "Burnout. Excepto:", o: ["Actitudes negativas (despersonalización)", "Pérdida ilusión", "Agotamiento físico pero no emocional", "Respuesta estrés crónico"], c: 2, exp: "El 'Agotamiento Emocional' es la dimensión principal del Burnout." },
+        { id: 34, q: "Adecuado nivel de empatía se consigue con:", o: ["Menos info", "Prejuicios", "Ser puntuales y no hacer presunciones", "Presión asistencial"], c: 2, exp: "Evitar juicios y respeto (puntualidad)." },
+        { id: 35, q: "Decir 'No debe sentirse culpable' ante un sentimiento de culpa es:", o: ["Respeto", "Reflejo de emociones", "Proxémica", "Autenticidad"], c: 1, exp: "Aunque directivo, intenta abordar/reflejar la emoción del paciente (Validación/Reflejo)." },
+        { id: 36, q: "Adolescente 17 años (Ana). Información:", o: ["Grave riesgo vida -> consentimiento representante legal", "Avisar siempre padres", "Grave riesgo -> Nunca cuenta opinión menor", "IVE > 16 no necesita consentimiento"], c: 0, exp: "En situación de 'Grave Riesgo', la mayoría de edad sanitaria (16) se revierte a favor de la protección (padres/juez)." },
+        { id: 37, q: "Entrevista según estructura:", o: ["Operativa...", "Operativa...", "Estructurada, semiestructurada y libre", "Presencial..."], c: 2, exp: "Clasificación clásica." },
+        { id: 38, q: "Componentes concepto enfermedad (Modelo Clínico):", o: ["Síntomas, secundarios, pruebas", "Síntomas, etiologías, pruebas", "Síntomas principales, diagnóstico y pruebas complementarias", "Síntomas, secundarios, etiología"], c: 2, exp: "Correlato del método clínico: Síntoma -> Juicio Dx -> Pruebas." },
+        { id: 39, q: "Comportamientos (No verbal). Todo cierto excepto:", o: ["Indumentaria", "Comportamiento vocal lingüístico y paralingüístico", "Territorial", "Táctil"], c: 1, exp: "Lo 'Lingüístico' es VERBAL, no No-Verbal. Lo paralingüístico sí es No-Verbal." },
+        { id: 40, q: "Rostro (Morfopsicología). No es cierto:", o: ["Inferior = instintiva", "Ojos/boca = info emocional", "Media = afectiva", "Superior = placeres sensuales"], c: 3, exp: "La zona superior (frente) se asocia a lo cerebral/intelectual. Lo sensual es la zona inferior (boca)." },
+        { id: 41, q: "Habilidades sociales. No es cierto:", o: ["Socialmente aceptadas", "Aprendidas", "Dependen contexto", "Se distinguen 4 categorías"], c: 3, exp: "La clasificación de Goldstein tiene 6 categorías." },
+        { id: 42, q: "Formas de negociar (Toma acuerdo). Excepto:", o: ["Transferencia responsabilidad", "Doble pacto", "Disco rayado", "Paréntesis"], c: 2, exp: "El 'Disco Rayado' es una técnica asertiva para decir NO o mantener postura, no para negociar un acuerdo." },
+        { id: 43, q: "Error al informar:", o: ["Breve y sencillo", "Contacto físico acorde", "Voz monótona", "Mensajes positivos"], c: 2, exp: "La monotonía pierde la atención y transmite desinterés." },
+        { id: 44, q: "Fase introductoria entrevista:", o: ["Exploración", "Informar", "Acogida empática", "Adhesión"], c: 2, exp: "Es el momento del saludo y la acogida." },
+        { id: 45, q: "Características entrevistador. Excepto:", o: ["Orden = superficial", "Cordialidad = superficial", "Empatía/Contención = superficial", "Asertividad = profundas"], c: 2, exp: "La Empatía es una característica profunda (de actitud), no una técnica superficial." },
+        { id: 46, q: "Protocolo SPIKES (Baile-Buckman). No se encuentra:", o: ["Son 5 etapas", "Comunicación info (Knowledge)", "Responder reacciones (Empathy)", "Preparar entorno (Setting)"], c: 0, exp: "Son 6 etapas (S-P-I-K-E-S)." },
+        { id: 47, q: "Dando información:", o: ["Paciente se entera 90%", "Términos técnicos ayudan", "No hace caso = no comprende", "Tiempo invertido informar no es menos eficaz que medicar"], c: 3, exp: "La información tiene valor terapéutico." },
+        { id: 48, q: "Habilidades sociales médico. Falso que:", o: ["Aumenta prevención", "Transmite apoyo", "Aumenta adherencia pero no eficacia", "Mejora satisfacción"], c: 2, exp: "La adherencia AUMENTA la eficacia." },
+        { id: 49, q: "Paciente quería donar, familia se niega. Actuación:", o: ["No consultar voluntades", "Investigar motivo rechazo", "Si quería es suficiente (extraer)", "Argumentos gratificación"], c: 1, exp: "En la práctica se intenta revertir la negativa investigando la causa, pero no se extrae contra la voluntad familiar." },
+        { id: 50, q: "Cesión real. Falso que:", o: ["Diferida/Parcial", "Accedemos si útil", "Parcial incompleta", "Diferida futuro"], c: 1, exp: "Igual que la pregunta 25." },
+
+        // --- BLOQUE 2: PREGUNTAS ADICIONALES (01-50) (ID 51-100) ---
+        { id: 51, q: "Axiomas comunicación (Watzlawick). No es correcto:", o: ["Es posible no comunicarse", "Contenido y relación", "Digital y analógica", "Simétricos o complementarios"], c: 0, exp: "Es IMPOSIBLE no comunicarse." },
+        { id: 52, q: "Habilidad de recepción:", o: ["Escucha activa", "Empatía", "Pensar en receptor", "a y b son correctas"], c: 3, exp: "Ambas se centran en recibir/entender al otro." },
+        { id: 53, q: "Importancia comunicación Medicina:", o: ["Mejora cumplimiento", "Protege burnout", "Disminuye hiperfrecuentación", "Todas correctas"], c: 3, exp: "Beneficios demostrados." },
+        { id: 54, q: "Comunicación NO verbal. No corresponde:", o: ["65-70% del mensaje", "Es inequívoca", "Es afectiva", "Es inconsciente"], c: 1, exp: "La CNV es ambigua y equívoca (polisémica)." },
+        { id: 55, q: "Elementos Albert Mehrabian (3V):", o: ["Visuales, Vocales, Verbales", "Vocales, Verbales, Variados", "Visuales, Verbales, Velocidad", "Influyen todos igual"], c: 0, exp: "55% Visual, 38% Vocal, 7% Verbal." },
+        { id: 56, q: "Gestos para manejar emociones no expresadas / incompatibles:", o: ["Reguladores", "Ilustradores", "Emblemáticos", "Adaptadores"], c: 3, exp: "Gestos manipuladores o adaptadores (tocar el pelo, boli) denotan tensión/fuga." },
+        { id: 57, q: "Entrevista clínica en investigación médica:", o: ["Diagnóstica", "Estructurada", "Semiestructurada", "Ninguna"], c: 1, exp: "La estructurada garantiza la homogeneidad de datos." },
+        { id: 58, q: "Atribución normalizadora se corresponde con:", o: ["Validación personal", "Validación del entorno", "Validación social", "Ninguna"], c: 2, exp: "Es la validación social ('le pasa a todo el mundo')." },
+        { id: 59, q: "Modelo relación más adecuado:", o: ["Paternalista", "Técnico", "Camaradería", "Centrado en el paciente"], c: 3, exp: "El Gold Standard actual." },
+        { id: 60, q: "Silencio es técnica de:", o: ["Escucha activa", "Negociación", "Manejo reactividad", "a y c son correctas"], c: 3, exp: "Sirve para escuchar y para calmar (reactividad)." },
+        { id: 61, q: "Tiempo suficiente inicio entrevista para detectar disposición:", o: ["Ninguno", "3-5 seg", "2-5 min", "10 min"], c: 2, exp: "Dejar hablar 2-3 minutos suele ser suficiente para que el paciente cuente su problema." },
+        { id: 62, q: "Clarificar y solicitar ejemplos sirve para:", o: ["Facilitar hablar (Precisión)", "Seguir pista", "Finalizar", "a y c"], c: 0, exp: "Ayuda a concretar la narrativa del paciente." },
+        { id: 63, q: "No es obstáculo escucha activa:", o: ["Prejuicios", "Barreras físicas", "Evitar distracciones", "Excitación emocional"], c: 2, exp: "Evitar distracciones es una solución, no un obstáculo." },
+        { id: 64, q: "Mayor obstáculo cambio hábito:", o: ["Autoconvencimiento", "Autoconfianza", "Ambivalencia", "Motivación intrínseca"], c: 2, exp: "La ambivalencia ('quiero pero no quiero') es el núcleo del problema de cambio." },
+        { id: 65, q: "Entrevista motivacional. Señalamiento emocional como apoyo:", o: ["Preguntas abiertas", "Escucha reflexiva", "Reestructuración", "Reafirmar"], c: 1, exp: "Reflejar emociones es parte de la escucha reflexiva." },
+        { id: 66, q: "Resistencias. No corresponde a fase exploratoria:", o: ["Preguntas espontáneas", "Descripción síntomas", "Resistencias no verbales", "Peticiones específicas"], c: 3, exp: "Las peticiones (recetas, bajas) suelen ser resistencias de la fase resolutiva/negociación." },
+        { id: 67, q: "Estrategias no negociadoras (Influencia). Adecuada:", o: ["Complacer", "Apelar confianza", "Imponer", "Ninguna"], c: 3, exp: "En un modelo participativo, ninguna estrategia impositiva o paternalista es ideal." },
+        { id: 68, q: "Técnica negociación en toma de acuerdos:", o: ["Doble pacto", "Definición problema", "Toma precauciones", "a y c"], c: 0, exp: "El doble pacto (acuerdo 'si... entonces...') es típico de esta fase." },
+        { id: 69, q: "Imposibilidad llegar acuerdos. Técnica:", o: ["Nueva relación", "Disco rayado", "Autorrevelación", "Todas"], c: 3, exp: "Depende del contexto: Disco rayado (negativa), Nueva relación (ruptura), etc." },
+        { id: 70, q: "Habilidades negociación. Incorrecta:", o: ["Bidireccionalidad", "Empatía", "Asertividad", "Alta reactividad emocional"], c: 3, exp: "La reactividad emocional (enfadarse) impide la negociación." },
+        { id: 71, q: "Posición que asume persona enferma:", o: ["Enfermo", "Rol de enfermo", "Experiencia", "Conducta"], c: 1, exp: "Sick Role (Parsons)." },
+        { id: 72, q: "Fase III experiencia enfermedad (Suchman):", o: ["Síntoma", "Rol enfermo", "Contacto con agente salud", "Rehabilitación"], c: 2, exp: "Búsqueda de ayuda médica." },
+        { id: 73, q: "Enfermedades mecanoposturales:", o: ["Endógenas", "Exógenas", "Ambientales", "Multifactorial"], c: 2, exp: "Relacionadas con el ambiente laboral/ergonomía." },
+        { id: 74, q: "Requisitos historia clínica. Incorrecta:", o: ["Veraz/Exacta", "Rigor", "Coetaneidad", "No requiere identificación profesional"], c: 3, exp: "Es obligatorio identificar quién escribe." },
+        { id: 75, q: "Componentes mínimos HC hospitalizado:", o: ["Autorización ingreso", "Gráfica", "Informe alta", "Todas"], c: 3, exp: "Documentación básica legal." },
+        { id: 76, q: "Componentes HC:", o: ["Datos subjetivos", "Datos objetivos", "Diagnóstico", "Todas"], c: 3, exp: "Estructura SOAP." },
+        { id: 77, q: "Procedimientos obtención datos (Interrogatorio + Examen):", o: ["Semiología", "Método clínico", "Anamnesis", "Historia"], c: 1, exp: "Es la aplicación del método clínico." },
+        { id: 78, q: "Estudio enfermedades (clasificación/descripción):", o: ["Nosología", "Semiología", "Patología", "Ninguna"], c: 0, exp: "Nosología: Tratado de las enfermedades." },
+        { id: 79, q: "Área Nosología que describe enfermedades:", o: ["Nosonomía", "Nosotaxia", "Nosografía", "Nosognóstica"], c: 2, exp: "Grafía = Descripción." },
+        { id: 80, q: "Ventajas informatización AP:", o: ["Mejora adherencia", "Facilita supervisión", "Disminuye errores", "Todas"], c: 3, exp: "Beneficios generales de la HCE." },
+        { id: 81, q: "Ventajas HC informatizada:", o: ["No servidumbres", "No riesgo pérdida", "Conlleva seguridad y confidencialidad", "Ninguna"], c: 2, exp: "Sistemas de acceso seguro y auditoría." },
+        { id: 82, q: "Llave acceso DIRAYA:", o: ["Tarjeta sanitaria (Usuario)", "BDU", "Módulo acceso", "Estructura"], c: 0, exp: "El NUHSA (en la tarjeta) es la llave única del paciente." },
+        { id: 83, q: "Paciente difícil: Frecuentador, ingenuo, agradecido pese a mala evolución:", o: ["Pasivo dependiente", "Emotivo seductor", "Masoquista", "Somatizador"], c: 2, exp: "El 'Buscador de sufrimiento' o masoquista se apega al médico pese al fracaso." },
+        { id: 84, q: "Paciente difícil. Hipótesis clínica:", o: ["Psicología", "Creencias", "Problema biológico desapercibido", "Ninguna"], c: 2, exp: "Revisar si se nos ha pasado algo orgánico (error diagnóstico)." },
+        { id: 85, q: "Manejo paciente difícil:", o: ["Admitir dificultad", "Negociación", "Segunda opinión", "Todas"], c: 3, exp: "Estrategias combinadas." },
+        { id: 86, q: "Hostilidad mayor coste emocional:", o: ["Latente", "Institucional", "Espiral", "Directa"], c: 0, exp: "La hostilidad pasiva/latente (cinismo, silencios) desgasta más que un grito puntual." },
+        { id: 87, q: "Violencia. Incorrecta:", o: ["Aprendida", "Inmediata", "Sociocultural", "Implicados factores biológicos"], c: 3, exp: "La violencia es aprendida, pero la agresividad tiene base biológica. 'Es inmediata' es discutible, pero la opción incorrecta suele referirse a negar factores biológicos o sociales." },
+        { id: 88, q: "Comportamiento intencionado fuerza física...", o: ["Agresión física", "Amenaza", "Insulto", "Ninguna (Violencia)"], c: 3, exp: "Es la definición de VIOLENCIA de la OMS." },
+        { id: 89, q: "Violencia entorno sanitario más frecuente en:", o: ["Sexo femenino", "Enfermería", "Urgencias", "Ninguna"], c: 1, exp: "El colectivo de enfermería es el más agredido." },
+        { id: 90, q: "Excepción mala noticia:", o: ["Petición familia", "Malevolencia", "Normativa", "Ninguna"], c: 3, exp: "La única excepción real es la 'Necesidad Terapéutica' o renuncia del paciente, no listadas." },
+        { id: 91, q: "Principios malas noticias. Incorrecta:", o: ["Certeza", "Gradual", "Menor impacto", "Tener en cuenta opinión familia"], c: 3, exp: "La familia no decide sobre la información al paciente (salvo incapacidad)." },
+        { id: 92, q: "Informar familiares suceso inesperado:", o: ["Escucha", "Empatía", "Técnica narrativa", "Asertividad"], c: 2, exp: "Contar cronológicamente lo sucedido ayuda a procesar el shock." },
+        { id: 93, q: "Paciente terminal. Correcto:", o: ["Mentir", "Ocultar esperanza", "Plazos", "Garantizar compromisos (No abandono)"], c: 3, exp: "El compromiso de cuidado es fundamental." },
+        { id: 94, q: "Disciplina moral y conducta:", o: ["Moral", "Deontología", "Ética", "Bioética"], c: 2, exp: "Definición clásica de Ética." },
+        { id: 95, q: "Dilemas éticos. Incorrecta:", o: ["Confidencialidad", "Recursos", "Secreto", "Trabajo en equipo"], c: 3, exp: "El trabajo en equipo es una metodología, no un dilema ético per se." },
+        { id: 96, q: "Principios ámbito privado:", o: ["Honestidad", "Beneficencia", "Autonomía", "b y c"], c: 3, exp: "Nivel 2 de Gracia: Autonomía y Beneficencia." },
+        { id: 97, q: "Ética de mínimos (Nivel 1):", o: ["No maleficencia", "Justicia", "Beneficencia", "a y b"], c: 3, exp: "Son los exigibles por ley (Públicos)." },
+        { id: 98, q: "Excepción consentimiento:", o: ["Urgencia", "Incapaz", "Riesgo salud pública", "Todas"], c: 3, exp: "Excepciones legales clásicas." },
+        { id: 99, q: "Elemento normativo CI:", o: ["Proceso", "Voluntariedad", "Capacidad", "Todas"], c: 3, exp: "Todos son elementos validados." },
+        { id: 100, q: "Comités Ética:", o: ["Sanitarios solo", "Decisorio", "Evitar judicialización", "No protegen legalmente"], c: 2, exp: "Su objetivo final es resolver conflictos para evitar llegar a tribunales." },
+
+        // --- BLOQUE 3: EXAMEN 2012 (101-150) ---
+        { id: 101, q: "1. Señale cuál de los axiomas básicos de la comunicación humana es correcto:", o: ["a. No es posible no comunicarse", "b. Toda comunicación tiene un aspecto de contenido y un aspecto relacional", "c. Los seres humanos se comunican tanto analógica como digitalmente", "d. Todas son correctas"], c: 3, exp: "Todos son axiomas de Watzlawick." },
+        { id: 102, q: "2. Con respecto a las barreras de la comunicación, la aversión, la timidez, las emociones y la sobrevaloración son barreras de tipo:", o: ["a. Semánticas", "b. Psicológicas", "c. Físicas", "d. Administrativas"], c: 1, exp: "Se refieren a estados internos o actitudes del sujeto." },
+        { id: 103, q: "3. De los siguientes modelos de comunicación, quién de los siguientes autores propuso la teoría del “feedback”:", o: ["a. Aristóteles", "b. Shannon y Weaver", "c. Watzlawick", "d. Norbert Wiener"], c: 3, exp: "Norbert Wiener introdujo el concepto de retroalimentación en la Cibernética." },
+        { id: 104, q: "4. De los siguientes tipos de habilidades de comunicación, cuál de las siguientes propuestas es una habilidad de recepción:", o: ["a. Escucha activa", "b. Empatía", "c. Cordialidad", "d. a y b son correctas"], c: 3, exp: "Ambas son habilidades para recibir y comprender el mensaje." },
+        { id: 105, q: "5. La eficiencia y la efectividad en la comunicación viene determinada por:", o: ["a. El emisor", "b. El receptor", "c. El mensaje", "d. El canal utilizado"], c: 1, exp: "La comunicación es efectiva si el receptor interpreta el mensaje tal como el emisor pretendía." },
+        { id: 106, q: "6. Al conjunto de signos que comparten los miembros que se comunican entre sí se le denomina:", o: ["a. Mensaje", "b. Canal", "c. Código", "d. Ninguna es correcta"], c: 2, exp: "Definición de código (ej: el idioma)." },
+        { id: 107, q: "7. Cuál de las siguientes técnicas de escucha activa son correctas:", o: ["a. La paráfrasis", "b. El silencio", "c. Las expresiones faciales", "d. Todas son correctas"], c: 3, exp: "Todas son herramientas de escucha activa (verbales y no verbales)." },
+        { id: 108, q: "8. En medicina, los programas de educación para pacientes son una práctica de prevención:", o: ["a. Primaria", "b. Secundaria", "c. Terciaria", "d. b y c son correctas"], c: 3, exp: "Suelen enfocarse en manejo de enfermedad (Terciaria) o detección/control precoz (Secundaria)." },
+        { id: 109, q: "9. De los siguientes objetivos de los programas de psicoeducación en el trastorno bipolar, cuál de los siguientes es un objetivo secundario:", o: ["a. Conciencia de enfermedad", "b. Manejo de estrés", "c. Aprender estilos de vida regular", "d. Mejorar el funcionamiento personal y social"], c: 3, exp: "Los primarios suelen ser adherencia y reducción de síntomas." },
+        { id: 110, q: "10. Los elementos propuestos por Albert Mehrabian (fórmula “3V”) que menos influye en la comunicación son las:", o: ["a. Visuales", "b. Vocales", "c. Verbales", "d. Influyen todas por igual"], c: 2, exp: "Solo el 7% es Verbal." },
+        { id: 111, q: "11. La importancia de la comunicación médica para el sistema sanitario en general viene definido por:", o: ["a. Disminuir la hiperfrecuentación", "b. Maximizar el coste-beneficio", "c. Incrementar la calidad percibida", "d. Todas las anteriores son correctas"], c: 3, exp: "Impacta en eficiencia, calidad y uso de recursos." },
+        { id: 112, q: "12. Cuál de las siguientes características diferenciales de la comunicación verbal no es correcta:", o: ["a. Es la más desarrollada", "b. Supone el 65-70% de la información", "c. Es consciente", "d. Es inequívoca"], c: 1, exp: "Es falso; el 65-70% es No Verbal." },
+        { id: 113, q: "13. De las “3V” de la comunicación propuestas por A. Mehrabian, qué porcentaje corresponde a las vocales:", o: ["a. Ninguno", "b. 38%", "c. 55%", "d. 7%"], c: 1, exp: "38% Vocal (tono, volumen), 55% Visual, 7% Verbal." },
+        { id: 114, q: "14. Cuál de las siguientes funciones pragmáticas de la comunicación no verbal es la más importante:", o: ["a. Crear lazos de amistad", "b. Mostrar poder y superioridad", "c. Disminuir el engaño", "d. Expresar las emociones"], c: 3, exp: "La función primordial es la expresión afectiva/emocional." },
+        { id: 115, q: "15. De las principales posiciones corporales, la ideal para negociar es la:", o: ["a. Cerrada", "b. Abierta", "c. Evasiva", "d. Agresiva"], c: 1, exp: "Una postura abierta facilita la comunicación y el acuerdo." },
+        { id: 116, q: "16. Cuando se hace referencia a gestos que expresan estados emotivos, estamos hablando de gestos:", o: ["a. Emblemáticos", "b. Ilustrativos", "c. Patógrafos", "d. Reguladores"], c: 2, exp: "Patógrafos (reflejan el pathos/emoción)." },
+        { id: 117, q: "17. En cuanto a los gestos, los más importantes para el desempeño de la actividad profesional médica son los:", o: ["a. Reguladores", "b. Ilustradores", "c. Adaptadores", "d. Emblemáticos"], c: 0, exp: "Los reguladores controlan el flujo de la entrevista (turnos de palabra, escucha)." },
+        { id: 118, q: "18. Entre las diferentes funciones de la mirada en la interacción humana, cuál es la más relevante:", o: ["a. Regula el acto comunicativo", "b. Es fuente de información", "c. Es comunicadora de la naturaleza de la relación interpersonal", "d. Todas son correctas"], c: 3, exp: "Cumple todas esas funciones." },
+        { id: 119, q: "19. Cuando dos personas interactúan, la frecuencia de la mirada del que habla al otro aumenta cuando:", o: ["a. Las personas están muy separadas entre sí", "b. Si están discutiendo un asunto íntimo", "c. Si el que mira tiene un estatus superior", "d. Si es introvertido"], c: 0, exp: "Para compensar la distancia física y mantener el contacto." },
+        { id: 120, q: "20. Cuando hablamos de una distancia entre 40 cm y 1’5 m, estamos hablando de distancia:", o: ["a. Personal", "b. Social/profesional", "c. Íntima", "d. Pública"], c: 0, exp: "Distancia personal (interacción con amigos/conocidos)." },
+        { id: 121, q: "21. En la comunicación simbólica, las formas de representaciones de cosas o ideas son:", o: ["a. Icono", "b. Señales", "c. Símbolos", "d. Conductas sociales"], c: 2, exp: "Definición de símbolo." },
+        { id: 122, q: "22. La idea que tiene el paciente de lo que le ocurre, se denomina:", o: ["a. Concepto de enfermedad", "b. Proceso de enfermedad", "c. Conducta de enfermedad", "d. Ninguna es correcta"], c: 0, exp: "Modelo explicativo o concepto de enfermedad del paciente." },
+        { id: 123, q: "23. Cuando los objetivos del paciente y del médico coinciden, estamos hablando de entrevista:", o: ["a. Concreta", "b. Dirigida", "c. Elaborada", "d. a y b son correctas"], c: 3, exp: "(Interpretación contextual: se suele referir a eficacia/concreción)." },
+        { id: 124, q: "24. Cuál de las siguientes características superficiales del entrevistador no es correcta:", o: ["a. Cordialidad", "b. Respeto", "c. Contenido emocional", "d. Concreción"], c: 2, exp: "El manejo del contenido emocional (empatía profunda) se considera una habilidad profunda, no superficial." },
+        { id: 125, q: "25. El tipo de entrevista que más y mejor se adapta a la atención primaria es la:", o: ["a. Estructurada", "b. Semiestructurada", "c. Libre", "d. Ninguna es correcta"], c: 1, exp: "Permite flexibilidad pero mantiene objetivos clínicos." },
+        { id: 126, q: "26. De los siguientes tipos de entrevista, la que ofrece una mayor fiabilidad intercomunicacional es la:", o: ["a. Estructurada", "b. Semiestructurada", "c. Libre", "d. Ninguna es correcta"], c: 0, exp: "Al ser rígida, es la más reproducible (fiable)." },
+        { id: 127, q: "27. En las fases de la entrevista clínica, la técnica de vaciar la información preelaborada del paciente se corresponde con la:", o: ["a. Fase inicial", "b. Fase exploratoria", "c. Fase resolutiva", "d. Fase final"], c: 0, exp: "Dejar hablar al paciente al principio (fase exploratoria inicial/apertura)." },
+        { id: 128, q: "28. En la fase resolutiva de la entrevista, cuál de las siguientes técnicas para informar considera más adecuada:", o: ["a. Categorización explícita", "b. Ejemplificación", "c. Comprobar la asimilación", "d. Todas son correctas"], c: 3, exp: "Todas mejoran la adherencia y comprensión." },
+        { id: 129, q: "29. Cuál de las siguientes técnicas de apoyo narrativo considera más adecuada:", o: ["a. Escucha reflexiva", "b. Reestructuración positiva", "c. Afirmaciones de autoconvencimiento", "d. Todas son correctas"], c: 3, exp: "Técnicas de entrevista motivacional." },
+        { id: 130, q: "30. Señala cuál de los siguientes errores de actitud que puede llevarse a cabo en la escucha activa no es correcta:", o: ["a. Prepotencia", "b. Estilo profesional", "c. Prejuzgar", "d. No integrar la información obtenida"], c: 1, exp: "Mantener un estilo profesional adecuado no es un error; la prepotencia sí." },
+        { id: 131, q: "31. El mayor obstáculo para motivar y hacer cambiar a las personas:", o: ["a. La motivación extrínseca", "b. La elección y el control propios", "c. Autoconvencimiento auditivo", "d. Ambivalencia"], c: 3, exp: "El conflicto 'quiero pero no quiero' (ambivalencia)." },
+        { id: 132, q: "32. Inclinarse, mirar, sonreír, asentir, etc., son técnicas de facilitaciones:", o: ["a. No verbales", "b. Vocales", "c. Verbales", "d. Ninguna es correcta"], c: 0, exp: "Facilitaciones no verbales (proxémica, kinésica)." },
+        { id: 133, q: "33. La ciencia que estudia los síntomas y signos como manifestación de salud o enfermedad:", o: ["a. Semiología clínica", "b. Patología", "c. Etiología", "d. Nosología"], c: 0, exp: "Definición de semiología." },
+        { id: 134, q: "34. De las siguientes enfermedades, cuál o cuáles se consideran de etiología multifactorial:", o: ["a. Neoplásicas", "b. Del desarrollo", "c. Idiopáticas", "d. Todas son correctas"], c: 3, exp: "La mayoría de crónicas e idiopáticas tienen múltiples factores." },
+        { id: 135, q: "35. A quién pertenece la historia clínica:", o: ["a. Al paciente", "b. Al profesional", "c. A la institución", "d. Legalmente no está claro (Compartida)"], c: 3, exp: "Legalmente: Paciente (datos), Centro (custodia/soporte), Médico (propiedad intelectual). Es compleja." },
+        { id: 136, q: "36. Elija una de las siguientes técnicas para prevenir la agresividad de un paciente o acompañante:", o: ["a. Vaciaje emocional", "b. Contrabalanceo emocional", "c. Propuesta de nueva relación con otro profesional", "d. Todas son correctas"], c: 3, exp: "Todas son estrategias válidas de manejo." },
+        { id: 137, q: "37. Cuál de las siguientes premisas con respecto a la dinámica del comportamiento violento es correcta:", o: ["a. La violencia es una reacción defensiva", "b. La violencia genera más violencia", "c. Los episodios violentos son limitados", "d. Todas son correctas"], c: 3, exp: "Características dinámicas de la violencia." },
+        { id: 138, q: "38. Cuando el paciente presenta un comportamiento verbal que humilla, degrada o muestra falta de respeto a la dignidad y el valor del profesional sanitario, estamos haciendo referencia a:", o: ["a. Agresión física", "b. Insulto o injuria", "c. Amenaza verbal", "d. Todas las anteriores son correctas"], c: 1, exp: "Definición de insulto/injuria." },
+        { id: 139, q: "39. Señale cuál de las siguientes características de la agresividad no es correcta:", o: ["a. Se aprende", "b. Es inmediata", "c. Intervienen factores socioculturales", "d. Intervienen factores biológicos"], c: 1, exp: "La agresividad no es necesariamente 'inmediata' (puede ser premeditada/fría); la violencia impulsiva sí lo es." },
+        { id: 140, q: "40. La principal causa de los factores socioculturales que propician la agresividad en el paciente es:", o: ["a. Entorno social", "b. Situaciones de estrés", "c. Pacientes con patología psiquiátricas", "d. Ninguna es correcta"], c: 0, exp: "El entorno social desfavorecido/violento es el factor sociocultural clave." },
+        { id: 141, q: "41. Cuál de las siguientes situaciones se considera una excepción a la hora de notificar malas noticias:", o: ["a. A petición de los familiares del paciente", "b. A petición expresa del paciente", "c. Por normativa legal", "d. Siempre hay que informar"], c: 1, exp: "El derecho a no saber (renuncia expresa del paciente)." },
+        { id: 142, q: "42. Cuál o cuáles de los principios básicos a tener en cuenta a la hora de dar malas noticias considera más adecuado:", o: ["a. Tener certeza de lo que se transmite", "b. Informar de manera gradual", "c. Provocar el mínimo impacto posible", "d. Todas las anteriores son correctas"], c: 3, exp: "Principios estándar de comunicación de malas noticias." },
+        { id: 143, q: "43. Cuál de las siguientes recomendaciones centradas en el mensaje del profesional a la hora de dar malas noticias no es correcta:", o: ["a. Evitar seguridades prematuras", "b. Ser empático y asertivo", "c. Utilizar palabras de bajo contenido emocional", "d. No culpabilizar al paciente o a los familiares"], c: 2, exp: "Usar un lenguaje excesivamente técnico o frío (bajo contenido emocional) dificulta la comprensión y el duelo." },
+        { id: 144, q: "44. Con respecto a las estrategias de Buckman en el paciente terminal, cuál de las siguientes afirmaciones considera que no es correcta:", o: ["a. Preparar el entorno", "b. Asumir las reacciones del paciente", "c. Aportar el máximo de información posible", "d. Planificar el futuro"], c: 2, exp: "Se debe dosificar la información (Check & Chunk), no dar el máximo de golpe." },
+        { id: 145, q: "45. Cuál de las siguientes situaciones se considera una excepción para no solicitar el consentimiento informado a un paciente o familiar allegado:", o: ["a. Grave peligro para la salud pública", "b. Paciente incapaz legalmente", "c. Situación de emergencia vital inmediata", "d. Todas son correctas"], c: 3, exp: "Excepciones legales al CI." },
+        { id: 146, q: "46. La disciplina que se define como “la valoración positiva o negativa que se deriva de las acciones humanas” se denomina:", o: ["a. Ética", "b. Deontología", "c. Moral", "d. Ninguna es correcta"], c: 2, exp: "La moral se refiere a la valoración (bueno/malo) de las conductas." },
+        { id: 147, q: "47. Cuál de los siguientes principios ético son considerados principios de ámbito universal:", o: ["a. Honestidad", "b. No maleficencia", "c. Justicia", "d. b y c son correctas"], c: 3, exp: "Nivel 1 (Ética de Mínimos): No maleficencia y Justicia." },
+        { id: 148, q: "48. Las herramientas de aplicación práctica que permiten realizar un proceso de consentimiento informado son fundamentalmente:", o: ["a. Técnicas de entrevista clínica, soporte emocional y relación de ayuda", "b. Protocolos de evaluación de la capacidad", "c. Formularios escritos de consentimiento informados", "d. Todas son correctas"], c: 3, exp: "El CI es un proceso que incluye comunicación verbal, evaluación y registro." },
+        { id: 149, q: "49. Señale cuál de las siguientes características de los Comités de Ética Asistencial (CEA) de Andalucía es incorrecta:", o: ["a. Tienen como finalidad la mejora continua de la calidad integral", "b. Son órganos delegados de deliberación", "c. Están bajo la coordinación general del Comité de Bioética de Andalucía", "d. Solo se pueden constituir CEA en instituciones sanitarias públicas"], c: 3, exp: "También existen en centros privados." },
+        { id: 150, q: "50. Una de las siguientes funciones de los CEA no se corresponde con la realidad:", o: ["a. Promover o amparar actuaciones jurídicas", "b. Emitir informe respecto del libre consentimiento", "c. Asesorar a los equipos directivos", "d. Promover la investigación en ética"], c: 0, exp: "Los CEA no tienen funciones jurídicas ni sancionadoras, son consultivos." }
+    ];
+
+    let currentQuestions = [];
+    let currentMode = { start: 1, end: 150, shuffle: false };
+    let markedQuestions = new Set();
+    let failedQuestions = new Set();
+
+    function startQuiz(start, end) {
+        // Filtrar por rango
+        const subset = questionsDB.filter(q => q.id >= start && q.id <= end);
+        
+        // Copiar array para no mutar el original
+        currentQuestions = [...subset];
+
+        // Mezclar si el checkbox está activo
+        const shuffle = document.getElementById('shuffle-toggle').checked;
+        if (shuffle) {
+            currentQuestions.sort(() => Math.random() - 0.5);
+        }
+
+        // Guardar configuración para reinicio (mismo test)
+        currentMode = { start, end, shuffle };
+
+        // Resetear estados
+        // markedQuestions.clear(); // Opcional: ¿Quieres limpiar las marcadas al iniciar nuevo test? Generalmente sí.
+        failedQuestions.clear();
+        
+        document.getElementById('total-questions').innerText = currentQuestions.length;
+        
+        // UI Transition
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('bottom-bar').classList.remove('hidden');
+        
+        renderSidebar();
+        renderQuiz();
+    }
+
+    function renderSidebar() {
+        const grid = document.getElementById('nav-grid');
+        grid.innerHTML = '';
+        currentQuestions.forEach((q, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.id = `nav-${q.id}`;
+            btn.innerText = index + 1;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            grid.appendChild(btn);
+        });
+    }
+
+    function renderQuiz() {
+        const container = document.getElementById('quiz-container');
+        container.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            const header = document.createElement('div');
+            header.className = 'q-header';
+            header.innerHTML = `
+                <span class="q-num">Pregunta ${index + 1}</span>
+                <span class="q-mark" onclick="toggleMark(${q.id}, this)">★</span>
+            `;
+
+            const text = document.createElement('div');
+            text.className = 'q-text';
+            text.innerText = q.q;
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-list';
+
+            q.o.forEach((opt, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'option-item';
+                btn.innerHTML = `<span>${opt}</span>`;
+                btn.onclick = () => checkAnswer(q, i, btn, card);
+                optionsDiv.appendChild(btn);
+            });
+
+            const exp = document.createElement('div');
+            exp.className = 'explanation';
+            exp.id = `exp-${q.id}`;
+            exp.innerHTML = `<strong>Respuesta Correcta:</strong> ${q.exp}`;
+
+            card.appendChild(header);
+            card.appendChild(text);
+            card.appendChild(optionsDiv);
+            card.appendChild(exp);
+            container.appendChild(card);
+        });
+        
+        updateProgress();
+    }
+
+    function checkAnswer(question, selectedIndex, optionBtn, card) {
+        if (card.classList.contains('answered')) return;
+        card.classList.add('answered');
+
+        const isCorrect = selectedIndex === question.c;
+        const navBtn = document.getElementById(`nav-${question.id}`);
+        const allOpts = card.querySelectorAll('.option-item');
+
+        if (isCorrect) {
+            optionBtn.classList.add('correct');
+            card.classList.add('correct');
+            navBtn.classList.add('correct');
+        } else {
+            optionBtn.classList.add('incorrect');
+            card.classList.add('incorrect');
+            navBtn.classList.add('incorrect');
+            failedQuestions.add(question);
+            
+            // Marcar la correcta
+            allOpts[question.c].classList.add('correct');
+        }
+
+        allOpts.forEach(opt => opt.classList.add('disabled'));
+        document.getElementById(`exp-${question.id}`).style.display = 'block';
+        updateProgress();
+    }
+
+    function toggleMark(id, el) {
+        el.classList.toggle('active');
+        const navBtn = document.getElementById(`nav-${id}`);
+        navBtn.classList.toggle('marked');
+        if (markedQuestions.has(id)) markedQuestions.delete(id);
+        else markedQuestions.add(id);
+    }
+
+    function updateProgress() {
+        const answered = document.querySelectorAll('.question-card.answered').length;
+        document.getElementById('progress-text').innerText = `${answered} / ${currentQuestions.length} Respondidas`;
+    }
+
+    function showResults() {
+        const correct = document.querySelectorAll('.question-card.correct').length;
+        document.getElementById('score-num').innerText = correct;
+        document.getElementById('result-screen').classList.remove('hidden');
+    }
+
+    function resetQuiz(mode) {
+        if (mode === 'same') {
+            startQuiz(currentMode.start, currentMode.end);
+        } else if (mode === 'failed') {
+            if (failedQuestions.size === 0) return alert("No hay fallos");
+            currentQuestions = Array.from(failedQuestions);
+            if (currentMode.shuffle) currentQuestions.sort(() => Math.random() - 0.5);
+            
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('total-questions').innerText = currentQuestions.length;
+            renderSidebar();
+            renderQuiz();
+        } else if (mode === 'marked') {
+            if (markedQuestions.size === 0) return alert("No hay preguntas marcadas");
+            // Filtramos la DB completa por las IDs marcadas
+            currentQuestions = questionsDB.filter(q => markedQuestions.has(q.id));
+            if (currentMode.shuffle) currentQuestions.sort(() => Math.random() - 0.5);
+
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('total-questions').innerText = currentQuestions.length;
+            renderSidebar();
+            renderQuiz();
+        }
+    }
+</script>
+
+</body>
+</html>

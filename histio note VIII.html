@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Histología: Adiposo y Muscular</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #e67e22; /* Color distintivo para este bloque */
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --mark: #f1c40f;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice Lateral en 3 Columnas */
+        #sidebar {
+            width: 320px;
+            height: 100vh;
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 2px solid rgba(0,0,0,0.1);
+        }
+
+        #sidebar h2 { font-size: 1.1rem; text-align: center; color: var(--accent); }
+
+        .grid-indices {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 8px 2px;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.answered { border-bottom: 4px solid var(--success); }
+        .index-btn.marked { background: var(--mark); color: black; font-weight: bold; }
+
+        /* Contenido Principal */
+        #main-content {
+            margin-left: 320px;
+            padding: 40px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .screen {
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-left: 5px solid #eee;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .mark-tab {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .mark-tab.active { background: var(--mark); border-color: #d4ac0d; }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #f0f0f0;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #fffcf9; }
+
+        .correct { background-color: #d4edda !important; border-color: var(--success) !important; color: #155724; font-weight: bold; }
+        .incorrect { background-color: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fcf3cf;
+            border-radius: 6px;
+            border-left: 4px solid #f1c40f;
+            display: none;
+            text-align: left;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .action-btns {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        button.secondary {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn-finish-all {
+            background: var(--error) !important;
+            width: 100%;
+            margin-top: 30px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>BLOQUE: ADIPOSO Y MUSCULAR</h2>
+    <div class="grid-indices" id="nav-grid"></div>
+    <button class="primary btn-finish-all" onclick="calculateResults()">FINALIZAR CUESTIONARIO</button>
+</div>
+
+<div id="main-content">
+    <div id="setup-screen" class="screen">
+        <h1>Evaluación Histológica</h1>
+        <p>¿Cómo deseas realizar el cuestionario hoy?</p>
+        <div style="display:flex; gap:20px; justify-content: center; margin-top:30px;">
+            <button class="primary" onclick="initQuiz(false)">Orden Preestablecido</button>
+            <button class="primary" onclick="initQuiz(true)">Mezclar Preguntas</button>
+        </div>
+    </div>
+
+    <div id="quiz-area" style="display:none;"></div>
+
+    <div id="result-screen" class="screen" style="display:none;">
+        <h2>Resumen de Evaluación</h2>
+        <h1 id="final-score" style="font-size: 3rem; margin: 10px 0;">0%</h1>
+        <p id="stats-detail"></p>
+        <hr>
+        <h3>Opciones de Reintento:</h3>
+        <div class="action-btns">
+            <button class="secondary" onclick="retry('all')">Repetir Completo</button>
+            <button class="secondary" onclick="retry('failed')">Repetir solo Falladas</button>
+            <button class="secondary" onclick="retry('marked')">Repetir solo Marcadas</button>
+            <button class="secondary" onclick="retry('failed-marked')">Falladas + Marcadas</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const database = [
+        { id: 1, q: "A diferencia del resto de los tejidos conjuntivos donde predominan las fibras o la sustancia fundamental, el tejido adiposo se caracteriza porque en él predominan:", options: ["Las fibras reticulares.", "Las células (adipocitos).", "Las fibras elásticas.", "La sustancia fundamental amorfa."], correct: 1, exp: "La profesora empieza la clase indicando que el tejido graso es la única variedad de conjuntivo en la que claramente predominan las células sobre la matriz." },
+        { id: 2, q: "¿De qué linaje embrionario derivan las células del tejido adiposo?", options: ["Del ectodermo superficial.", "Del endodermo.", "Del mesénquima (a partir de células madres mesenquimales).", "Del sistema mononuclear fagocítico."], correct: 2, exp: "Derivan del mesénquima, pasando por las fases de preadipocito, adipoblasto y finalmente adipocito." },
+        { id: 3, q: "🚨 TRAMPA DE CLASE: Respecto a la proliferación celular en el tejido adiposo en un adulto, la profesora recalca que:", options: ["Los adipocitos maduros de grasa blanca se dividen constantemente por mitosis.", "Los adipocitos no se dividen; el crecimiento de la grasa (hipertrofia) se debe al aumento de tamaño de sus vacuolas lipídicas.", "Los adipocitos de grasa parda se dividen para formar grasa blanca.", "Los preadipocitos carecen de núcleo."], correct: 1, exp: "Subraya que los adipoblastos son los que se dividen. Una vez que maduran a adipocitos, pierden la capacidad de dividirse." },
+        { id: 4, q: "¿Qué ocurre fisiológicamente con el tejido adiposo pardo a medida que un individuo recién nacido crece hasta la edad adulta?", options: ["Se multiplica y sustituye a la grasa blanca.", "Se hipertrofia ocupando todo el panículo adiposo.", "Dura muy poco tiempo, y sus células pueden convertirse progresivamente en adipocitos de grasa blanca.", "Se transforma en tejido muscular liso."], correct: 2, exp: "La grasa parda predomina en el feto/recién nacido. En el adulto quedan restos mínimos, ya que se convierten en grasa blanca de reserva." },
+        { id: 5, q: "Según los esquemas del PDF, ¿qué hormona segregada por el propio tejido adiposo blanco proporciona información sobre la masa grasa a los centros neurales para regular el apetito y el balance energético?", options: ["Glucagón.", "Leptina.", "Insulina.", "Adrenalina."], correct: 1, exp: "El esquema del PDF señala explícitamente que la Leptina es una hormona producida por la grasa blanca para informar a los centros neurales." },
+        { id: 6, q: "Macroscópicamente, al tejido adiposo unilocular se le denomina 'grasa blanca', pero microscópicamente sus células se caracterizan por:", options: ["Tener múltiples vacuolas pequeñas y núcleo central.", "Tener un citoplasma muy grande con núcleo central y ausencia de grasa.", "Tener un pequeño halo citoplasmático, un núcleo desplazado a la periferia y una enorme vacuola única que ocupa todo el centro.", "Tener forma estrellada con largas prolongaciones."], correct: 2, exp: "Es la descripción clásica para la grasa blanca, que forma una sola y enorme gota de lípido (unilocular)." },
+        { id: 7, q: "METÁFORA VISUAL: En algunos libros de histología, a la célula de grasa blanca (adipocito unilocular) se le denomina por su peculiar morfología celular:", options: ["Célula en herradura.", "Célula en anillo de sello.", "Célula en palillo de tambor.", "Célula espumosa."], correct: 1, exp: "La profesora utiliza esta metáfora visual porque la vacuola gigante y el núcleo periférico recuerdan a un anillo con el sello de firmar en un borde." },
+        { id: 8, q: "Si observamos una preparación de tejido adiposo blanco con una tinción convencional (como Hematoxilina-Eosina), las células se ven 'blancas o vacías'. ¿Por qué ocurre esto?", options: ["Porque no captan ningún tipo de colorante existente.", "Porque la grasa se ha disuelto durante los procesos de fijación y preparación de la muestra.", "Porque su citoplasma está compuesto de aire.", "Porque la luz del microscopio no puede atravesar la grasa."], correct: 1, exp: "Los disolventes de la técnica convencional eliminan la gota de lípido, dejando el espacio ópticamente vacío." },
+        { id: 9, q: "Para poder observar la vacuola lipídica teñida de color negro o rojo intenso en el interior del adipocito, ¿qué tinciones especiales deben utilizarse?", options: ["Tricrómico de Masson.", "Sales de plata.", "Sudán (Sudán negro o Sudán rojo).", "PAS (Ácido Peryódico de Schiff)."], correct: 2, exp: "Estas tinciones específicas (lipofílicas) sí preservan y colorean los lípidos celulares." },
+        { id: 10, q: "La capa inferior de la piel, formada por una gran cantidad de células adiposas blancas envueltas y delimitadas por trabéculas de tejido conjuntivo por las que viajan vasos y nervios, recibe el nombre de:", options: ["Epidermis.", "Panículo adiposo (hipodermis).", "Perimisio.", "Fascia muscular."], correct: 1, exp: "Las trabéculas dividen la grasa en lóbulos formando el panículo adiposo o hipodermis." },
+        { id: 11, q: "¿Cuál es la función principal del tejido adiposo pardo en el recién nacido?", options: ["Actuar como reserva energética a largo plazo.", "Termogénesis (mantener la temperatura corporal disipando energía en forma de calor).", "Sintetizar células sanguíneas.", "Producir leptina para inhibir el apetito."], correct: 1, exp: "La grasa parda es el mecanismo fundamental para generar calor metabólico en neonatos." },
+        { id: 12, q: "Citológicamente, el adipocito de grasa parda se diferencia radicalmente del blanco en que:", options: ["No tiene vasos sanguíneos a su alrededor.", "Tiene un núcleo periférico y carece de mitocondrias.", "Tiene el núcleo en posición central, un citoplasma lleno de pequeñas vacuolas lipídicas y gran riqueza en mitocondrias.", "Carece de citoplasma."], correct: 2, exp: "Es la definición de grasa 'multilocular'. Posee gran cantidad de mitocondrias para la termogénesis." },
+        { id: 13, q: "Según el esquema del PDF, ¿qué proteína específica se encuentra en la membrana mitocondrial interna de la grasa parda y es responsable de generar calor al desacoplar la producción de ATP?", options: ["Lipoproteína lipasa.", "Proteína desacoplante 1 (Uncoupling protein-1 / UCP-1).", "GLUT-4.", "Actina."], correct: 1, exp: "La UCP-1 mueve protones a favor de gradiente disipando la energía como calor en lugar de formar ATP." },
+        { id: 14, q: "¿En qué localizaciones anatómicas predomina el tejido adiposo pardo en el recién nacido?", options: ["En las palmas de las manos y plantas de los pies.", "En el cuero cabelludo.", "En el entorno del cuello, nuca, zona interescapular, y envolviendo pulmones y abdomen.", "En el interior de los huesos largos."], correct: 2, exp: "Zonas estratégicas enumeradas por la profesora para mantener el calor en los órganos vitales y el tronco." },
+        { id: 15, q: "Todos los tejidos musculares comparten la capacidad de contraerse. ¿De qué célula embrionaria del mesodermo derivan las células musculares?", options: ["Mioblastos.", "Condroblastos.", "Osteoblastos.", "Fibroblastos."], correct: 0, exp: "Los mioblastos son las células precursoras que se dividen y fusionan para formar las fibras musculares." },
+        { id: 16, q: "¿Qué ión es el desencadenante universal e imprescindible de los fenómenos de contracción en las fibras musculares?", options: ["Sodio.", "Potasio.", "Hierro.", "Calcio."], correct: 3, exp: "La contracción siempre dependerá de la liberación y concentración de calcio intracelular." },
+        { id: 17, q: "En la nomenclatura específica del tejido muscular (donde se usa el prefijo 'sarco-'), ¿cómo se denomina a la membrana plasmática de la fibra muscular?", options: ["Sarcoplasma.", "Sarcosoma.", "Sarcolema.", "Retículo sarcoplásmico."], correct: 2, exp: "Sarcolema es la membrana, Sarcoplasma el citoplasma y Sarcosoma las mitocondrias." },
+        { id: 18, q: "Clínicamente, si un paciente desarrolla un tumor maligno originado en células de estirpe mesenquimal/muscular, este tumor recibirá el nombre genérico de:", options: ["Carcinoma.", "Sarcoma.", "Adenoma.", "Linfoma."], correct: 1, exp: "Los carcinomas derivan de epitelios, mientras que los sarcomas derivan de tejidos mesenquimales (conectivo, músculo, hueso)." },
+        { id: 19, q: "¿Por qué las células musculares esqueléticas maduras se denominan habitualmente 'fibras musculares'?", options: ["Porque son células extremadamente largas que pueden alcanzar la longitud total del músculo (hasta 25-30 cm).", "Porque no tienen células, son solo proteínas extracelulares.", "Porque son idénticas a las fibras de colágeno.", "Porque son muy cortas pero se ramifican."], correct: 0, exp: "Su longitud anatómica excepcional hace que se les denomine fibras." },
+        { id: 20, q: "Al observar una fibra muscular esquelética al microscopio óptico en un corte longitudinal, ¿cuál es su característica morfológica nuclear más distintiva?", options: ["Tiene un solo núcleo grande y central.", "Es multinucleada, y sus múltiples núcleos están situados en la periferia, debajo del sarcolema.", "Carece de núcleo.", "Tiene núcleos polilobulados en el centro."], correct: 1, exp: "Sincitio multinucleado con núcleos periféricos debido al empuje de las miofibrillas centrales." },
+        { id: 21, q: "La estriación (las 'rayitas' transversales) visible en el músculo esquelético y cardíaco es la expresión visual de:", options: ["Las trabéculas de tejido conjuntivo.", "La organización ordenada de las miofibrillas (actina y miosina) formando sarcómeros.", "La presencia masiva de mitocondrias alineadas.", "Los capilares sanguíneos."], correct: 1, exp: "El sarcómero es la unidad funcional que genera ópticamente las estrías transversales." },
+        { id: 22, q: "Funcionalmente, el tejido muscular estriado esquelético está sometido a control voluntario. ¿Cómo se denomina la estructura a través de la cual recibe la INERVACIÓN MOTORA?", options: ["Placa motora.", "Huso neuromuscular.", "Nódulo sinusal.", "Unión gap."], correct: 0, exp: "La placa motora (unión neuromuscular) transmite el impulso nervioso para la contracción." },
+        { id: 23, q: "El músculo esquelético también tiene inervación SENSORIAL que informa sobre si el músculo está estirado o contraído. Esta estructura se llama:", options: ["Placa motora.", "Huso neuromuscular.", "Nódulo auriculoventricular.", "Corpúsculo de Pacini."], correct: 1, exp: "El huso neuromuscular detecta el grado de estiramiento y envía la información al SNC." },
+        { id: 24, q: "🚨 REGENERACIÓN MUSCULAR: Las fibras musculares esqueléticas adultas no se dividen. Sin embargo, ante una lesión, pueden regenerarse gracias a la presencia de:", options: ["Células cebadas.", "Mioblastos presuntivos.", "Células satélite.", "Pericitos."], correct: 2, exp: "Las células satélite son células madre miogénicas latentes situadas bajo la lámina basal." },
+        { id: 25, q: "METÁFORA DE CLASE: Si asimilamos un músculo a una 'cartuchera llena de bolígrafos', el tejido conjuntivo denso más externo que rodea a todo el músculo completo se denomina:", options: ["Endomisio.", "Perimisio.", "Epimisio.", "Sarcolema."], correct: 2, exp: "Epimisio: Vaina externa que envuelve todo el vientre muscular." },
+        { id: 26, q: "Al abrir el músculo, encontramos las fibras agrupadas en 'fascículos'. El tejido conjuntivo que rodea a cada fascículo muscular se llama:", options: ["Epimisio.", "Perimisio.", "Endomisio.", "Lámina basal."], correct: 1, exp: "Perimisio: Envuelve los paquetes de fibras o fascículos." },
+        { id: 27, q: "Finalmente, cada célula o fibra muscular individual está envuelta por su propia red de tejido conjuntivo fino. Esto se conoce como:", options: ["Endomisio.", "Perimisio.", "Sarcolema.", "Sarcoplasma."], correct: 0, exp: "Endomisio: Conectivo laxo íntimo que rodea cada fibra individual." },
+        { id: 28, q: "Si en un corte transversal al microscopio usted observa capilares sanguíneos circulando entre las fibras musculares individuales, ese espacio conjuntivo corresponde a:", options: ["Epimisio.", "Perimisio.", "Endomisio.", "Huso neuromuscular."], correct: 2, exp: "Por el endomisio discurren los capilares y terminaciones nerviosas que alimentan a cada célula." },
+        { id: 29, q: "Citológicamente, ¿qué característica diferencial nos permite identificar al instante a una fibra muscular cardíaca frente a una esquelética?", options: ["Carece totalmente de estriaciones.", "Es polinucleada y los núcleos están en la periferia.", "Tiene un solo núcleo (mononucleada) situado en el centro de la célula.", "No tiene tejido conjuntivo."], correct: 2, exp: "Fibra cardíaca: Mononucleada central y ramificada. Esquelética: Multinucleada periférica." },
+        { id: 30, q: "La estructura tridimensional del corazón requiere que las células encajen perfectamente. La profesora describe la forma de las células cardíacas como:", options: ["Esféricas.", "Fusiformes sin ramificar.", "Irregulares (en Y, W, N) que encajan como un puzle.", "Cúbicas."], correct: 2, exp: "La ramificación permite la contracción tridimensional coordinada del miocardio." },
+        { id: 31, q: "🚨 PATOLOGÍA: ¿Qué ocurre a nivel celular en el 'Infarto de Miocardio' descrito en clase?", options: ["Las fibras se multiplican.", "Las fibras mueren por falta de riego y son sustituidas por una cicatriz inerte (fibrosis).", "Las células satélite regeneran el corazón.", "Se transforma en grasa."], correct: 1, exp: "El miocardio no tiene capacidad regenerativa efectiva; el tejido muerto se vuelve cicatriz no contráctil." },
+        { id: 32, q: "El tejido muscular cardíaco NO recibe órdenes voluntarias de placas motoras. La orden de contracción se genera en su propio interior a través de:", options: ["Los husos neuromusculares.", "El sistema de conducción cardíaca (nodos y fibras de Purkinje).", "El epimisio externo.", "Células satélite."], correct: 1, exp: "Automatismo cardíaco mediado por células musculares modificadas en los nodos." },
+        { id: 33, q: "Anatómicamente, el tejido muscular cardíaco se localiza en la pared del corazón, concretamente formando la capa:", options: ["Endocardio.", "Miocardio.", "Pericardio.", "Epimisio."], correct: 1, exp: "El miocardio es la gruesa capa muscular intermedia del corazón." },
+        { id: 34, q: "De las tres variedades musculares, el tejido muscular LISO se diferencia histológicamente de forma radical porque:", options: ["Es de control voluntario.", "Carece de estriaciones transversales, ya que no posee sarcómeros.", "Sus células son polinucleadas.", "Está en los huesos."], correct: 1, exp: "Los filamentos de actina y miosina no se organizan en sarcómeros, por eso es 'liso'." },
+        { id: 35, q: "Morfológicamente, ¿cómo se describe a una célula muscular lisa?", options: ["Cilíndrica multinucleada.", "Ramificada en Y.", "Alargada y fusiforme con un único núcleo central.", "Redondeada."], correct: 2, exp: "Forma de huso: centro ancho (núcleo) y extremos afilados." },
+        { id: 36, q: "METÁFORA DE CLASE: Al carecer de sarcómeros, los filamentos contráctiles del músculo liso se anclan al sarcolema mediante 'placas densas' comparadas con:", options: ["Las teclas de un piano.", "Las cuerdas de una guitarra ancladas a una placa.", "Un cartucho de escopeta.", "Un andamio."], correct: 1, exp: "Metáfora de las cuerdas de guitarra para explicar la transmisión de fuerzas en el citoplasma liso." },
+        { id: 37, q: "En el tejido muscular liso que forma capas (ej. intestino), la orden de contracción se propaga a las vecinas:", options: ["Por los capilares.", "Por placa motora.", "Por uniones comunicantes (gap junctions) que las hacen actuar en bloque.", "Por leptina."], correct: 2, exp: "Actúan como un sincitio funcional gracias a las uniones eléctricas entre membranas." },
+        { id: 38, q: "¿En cuál de las siguientes localizaciones anatómicas esperaría encontrar tejido muscular liso?", options: ["Cuádriceps.", "Miocardio.", "Pared de vísceras huecas (estómago, útero, vasos).", "Diafragma."], correct: 2, exp: "El músculo liso es la musculatura visceral e involuntaria por excelencia." },
+        { id: 39, q: "Según el esquema de regulación del adipocito (PDF), ¿qué hormonas promueven el EFECTO LIPOLÍTICO?", options: ["Insulina.", "Epinefrina (Adrenalina), Glucagón y ACTH.", "Prostaglandinas.", "Calcitonina."], correct: 1, exp: "Estas hormonas activan la lipasa sensible a hormonas para liberar ácidos grasos." },
+        { id: 40, q: "REPASO COMPARATIVO: Si observa estrías transversales pero células mononucleadas centrales y ramificadas, el diagnóstico es:", options: ["Liso.", "Esquelético.", "Adiposo pardo.", "Cardíaco."], correct: 3, exp: "Combinación de estrías (excluye liso), núcleo central (excluye esquelético) y ramificación = Cardíaco." }
+    ];
+
+    let currentSet = [];
+    let state = {}; 
+
+    function initQuiz(randomize) {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        currentSet = [...database];
+        if(randomize) currentSet.sort(() => Math.random() - 0.5);
+
+        renderNav();
+        renderQuestions();
+    }
+
+    function renderNav() {
+        const nav = document.getElementById('nav-grid');
+        nav.innerHTML = '';
+        currentSet.forEach((_, i) => {
+            const b = document.createElement('button');
+            b.className = 'index-btn';
+            b.id = `nav-${i}`;
+            b.innerText = i + 1;
+            b.onclick = () => document.getElementById(`q-${i}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            nav.appendChild(b);
+        });
+    }
+
+    function renderQuestions() {
+        const container = document.getElementById('quiz-area');
+        container.innerHTML = '';
+
+        currentSet.forEach((q, i) => {
+            state[i] = { answered: false, marked: false, correct: false };
+            
+            // Mezclar opciones
+            let opts = q.options.map((text, idx) => ({text, originalIdx: idx}));
+            opts.sort(() => Math.random() - 0.5);
+
+            const div = document.createElement('div');
+            div.className = 'question-card';
+            div.id = `q-${i}`;
+            div.innerHTML = `
+                <div class="question-header">
+                    <strong>PREGUNTA ${i+1}</strong>
+                    <button class="mark-tab" id="mark-${i}" onclick="toggleMark(${i})">🔖 Marcar</button>
+                </div>
+                <p>${q.q}</p>
+                <div id="opts-container-${i}">
+                    ${opts.map(o => `
+                        <button class="option-btn" onclick="check(${i}, ${o.originalIdx}, this)">${o.text}</button>
+                    `).join('')}
+                </div>
+                <div class="explanation-box" id="exp-${i}">
+                    <strong>Respuesta correcta literal: ${q.options[q.correct]}</strong><hr>
+                    ${q.exp}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function check(qIdx, selected, btn) {
+        if(state[qIdx].answered) return;
+        
+        const qData = currentSet[qIdx];
+        state[qIdx].answered = true;
+        state[qIdx].correct = (selected === qData.correct);
+
+        const container = document.getElementById(`opts-container-${qIdx}`);
+        const buttons = container.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        if(state[qIdx].correct) {
+            btn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            buttons.forEach(b => {
+                if(b.innerText === qData.options[qData.correct]) b.classList.add('correct');
+            });
+        }
+
+        document.getElementById(`exp-${qIdx}`).style.display = 'block';
+        document.getElementById(`nav-${qIdx}`).classList.add('answered');
+    }
+
+    function toggleMark(i) {
+        state[i].marked = !state[i].marked;
+        const btn = document.getElementById(`mark-${i}`);
+        const navBtn = document.getElementById(`nav-${i}`);
+        
+        if(state[i].marked) {
+            btn.classList.add('active');
+            navBtn.classList.add('marked');
+        } else {
+            btn.classList.remove('active');
+            navBtn.classList.remove('marked');
+        }
+    }
+
+    function calculateResults() {
+        let corrects = 0;
+        let total = currentSet.length;
+        Object.values(state).forEach(s => { if(s.correct) corrects++; });
+        
+        const percent = Math.round((corrects / total) * 100);
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('final-score').innerText = percent + "%";
+        document.getElementById('stats-detail').innerText = `Aciertos: ${corrects} | Errores: ${total - corrects}`;
+        window.scrollTo(0,0);
+    }
+
+    function retry(mode) {
+        let nextSet = [];
+        if(mode === 'all') {
+            nextSet = [...database];
+        } else {
+            currentSet.forEach((q, i) => {
+                const s = state[i];
+                if(mode === 'failed' && s.answered && !s.correct) nextSet.push(q);
+                if(mode === 'marked' && s.marked) nextSet.push(q);
+                if(mode === 'failed-marked' && (s.marked || (s.answered && !s.correct))) nextSet.push(q);
+            });
+        }
+
+        if(nextSet.length === 0) {
+            alert("No hay preguntas en esta categoría.");
+            return;
+        }
+
+        currentSet = nextSet;
+        state = {};
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

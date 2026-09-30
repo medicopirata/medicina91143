@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz Xenobióticos y Metabolismo Hepático</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Índice lateral */
+        #sidebar {
+            width: 80px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            overflow-y: auto;
+            border-right: 2px solid #1a252f;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.3s;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+
+        .index-item:hover { background: var(--accent); }
+        .index-item.correct { background: var(--success); }
+        .index-item.incorrect { background: var(--error); }
+        .index-item.marked { position: relative; }
+        .index-item.marked::after {
+            content: '🚩';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 10px;
+        }
+
+        /* Contenedor principal */
+        #main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: transparent;
+        }
+
+        .card-setup {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { color: var(--primary); text-align: center; }
+        
+        /* Pantalla de Inicio */
+        #setup-screen { text-align: center; }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            transition: 0.3s;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-finish { background: #95a5a6; padding: 15px 40px; font-size: 1.1em;}
+
+        /* Preguntas */
+        .question-block { 
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border-left: 6px solid var(--secondary);
+        }
+        
+        .options { margin-top: 20px; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option-btn:hover:not(:disabled) { border-color: var(--accent); background: #f0f8ff; }
+        .option-btn.correct { background: #d4edda !important; border-color: var(--success) !important; color: #155724; }
+        .option-btn.incorrect { background: #f8d7da !important; border-color: var(--error) !important; color: #721c24; }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e1f5fe;
+            border-left: 5px solid var(--accent);
+            display: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .marking-zone {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        /* Pantalla Final */
+        #result-screen { display: none; text-align: center; }
+        .summary-stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { padding: 15px; border-radius: 8px; background: #f8f9fa; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);}
+
+        /* Botón Scroll to Top */
+        #scrollTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 1000;
+        }
+        #scrollTopBtn:hover {
+            background-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar" style="display: none;"></div>
+
+    <div id="main-content">
+        <div class="container">
+            <div id="setup-screen" class="card-setup">
+                <h1>🧪 Xenobióticos y Metabolismo Hepático</h1>
+                <p>Bienvenido al cuestionario unificado de Xenobióticos y Toxicidad.</p>
+                <div style="margin: 30px 0;">
+                    <p>Selecciona el modo de orden:</p>
+                    <button class="btn" onclick="startQuiz(false)">Orden Preestablecido</button>
+                    <button class="btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" style="display: none;">
+                <div id="question-container"></div>
+                <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;">
+                    <button class="btn btn-finish" onclick="confirmFinish()">Finalizar Cuestionario</button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="card-setup">
+                <h1>Resultados Finales</h1>
+                <div class="summary-stats">
+                    <div class="stat-box"><h2 id="res-total">0</h2><p>Respondidas</p></div>
+                    <div class="stat-box" style="color: var(--success)"><h2 id="res-correct">0</h2><p>Correctas</p></div>
+                    <div class="stat-box" style="color: var(--error)"><h2 id="res-fail">0</h2><p>Falladas</p></div>
+                </div>
+                <h3>¿Qué quieres hacer ahora?</h3>
+                <div id="repeat-options">
+                    <button class="btn" onclick="repeatMode('all')">Repetir Todo</button>
+                    <button class="btn" onclick="repeatMode('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="repeatMode('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="repeatMode('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="scrollTopBtn" onclick="scrollToTop()" title="Subir al inicio">↑</button>
+
+<script>
+const rawData = [
+    { n: 1, q: "Según la definición dada en clase, ¿qué es un xenobiótico?", a: "c", ex: "La profesora aclara que los xenobióticos son sustancias ajenas al cuerpo humano; pueden ser fármacos, toxinas naturales, e incluso hormonas producidas por otros organismos.", opts: ["Exclusivamente un fármaco sintético creado en laboratorio.", "Cualquier sustancia tóxica generada por el propio metabolismo humano.", "Una sustancia que no existe de forma natural en nuestro cuerpo, pero es capaz de interferir en el metabolismo, pudiendo tener origen sintético o natural (de otros organismos).", "Únicamente los contaminantes ambientales que entran por vía respiratoria."] },
+    { n: 2, q: "Si una persona ingiere un xenobiótico que en su forma ORIGINAL es altamente tóxico, ¿en qué zona del lobulillo hepático observaremos predominantemente las primeras lesiones?", a: "b", ex: "La sangre entra por la zona periportal. Si la toxina ya es dañina per se, atacará primero a los hepatocitos de esta zona de entrada.", opts: ["En la zona pericentral, por ser la zona de salida.", "En la zona periportal, por ser el punto de entrada aferente y tener la primera exposición.", "En los conductos biliares exclusivamente.", "El daño será completamente uniforme en todo el hígado."] },
+    { n: 3, q: "Por el contrario, si un xenobiótico es inofensivo al entrar, pero durante su biotransformación en el hígado genera un METABOLITO TÓXICO, ¿dónde se concentrarán las lesiones?", a: "c", ex: "La zona pericentral es la de salida y donde predomina la biotransformación (Fase I). Si se genera un producto tóxico durante este proceso, se acumulará y causará daño en esta zona.", opts: ["En la zona periportal.", "En las células de Kupffer aferentes.", "En la zona pericentral (perivenosa).", "En la arteria hepática."] },
+    { n: 4, q: "La zona periportal recibe sangre rica en oxígeno, lo que crea un ambiente más pro-oxidativo. ¿Qué mecanismo principal utilizan los hepatocitos de esta zona para prevenir el daño por especies reactivas de oxígeno?", a: "b", ex: "La zona periportal tiene mayor capacidad antioxidante, destacando una producción mucho mayor de glutatión (GSH), que actúa como donante de electrones para neutralizar peróxidos.", opts: ["Tienen una baja concentración de mitocondrias.", "Producen el doble de concentración de Glutatión (GSH) que la zona pericentral.", "Inhiben completamente el citocromo P-450.", "Secretan grandes cantidades de ácido glucurónico."] },
+    { n: 5, q: "El Glutatión es un elemento clave en la detoxificación celular. ¿Cuál es su estructura bioquímica?", a: "c", ex: "Las diapositivas indican claramente que el GSH es un tripéptido compuesto por glutamato, cisteína y glicina.", opts: ["Es un lípido complejo.", "Es un esteroide derivado del colesterol.", "Es un tripéptido formado por glutamato, cisteína y glicina.", "Es una proteína de la familia del citocromo P450."] },
+    { n: 6, q: "¿Qué enzima se encarga específicamente de eliminar peróxidos utilizando glutatión en la zona periportal?", a: "c", ex: "La glutatión peroxidasa es la responsable de la eliminación de peróxidos, protegiendo a la célula del estrés oxidativo.", opts: ["γ-Glutamil transpeptidasa.", "Citocromo P-450 reductasa.", "Glutatión peroxidasa.", "Aldehído deshidrogenasa."] },
+    { n: 7, q: "Una enzima clave para recuperar aminoácidos tras la conjugación con xenobióticos es la γ-glutamil transpeptidasa (GGT). ¿Cómo es su distribución en el hígado?", a: "b", ex: "Al estar vinculada al metabolismo del glutatión, su actividad es significativamente mayor (x4) en la zona periportal.", opts: ["Es exclusiva de la zona pericentral.", "Tiene 4 veces más actividad en la zona periportal que en la pericentral.", "Su actividad es homogénea en todo el lobulillo.", "Solo se encuentra en la sangre venosa."] },
+    { n: 8, q: "En términos generales, ¿en qué zona del lobulillo hepático predominan las enzimas implicadas en el metabolismo (biotransformación) de los fármacos?", a: "c", ex: "La zona perivenosa/pericentral es donde predominan las enzimas de biotransformación de baja afinidad por el sustrato.", opts: ["Zona periportal.", "En las vías biliares.", "Zona perivenosa (pericentral).", "En los capilares sinusoides aferentes."] },
+    { n: 9, q: "¿Cuál es el principal desafío químico que enfrenta el hígado al intentar eliminar un xenobiótico administrado?", a: "c", ex: "Los fluidos excretores (orina/bilis) son acuosos. Si el fármaco es liposoluble, el hígado debe aumentar su polaridad para poder eliminarlo.", opts: ["Aumentar su tamaño molecular.", "Convertir fármacos hidrosolubles en liposolubles.", "Incrementar la polaridad de los fármacos liposolubles para hacerlos hidrosolubles y excretables en fluidos corporales.", "Integrar los xenobióticos en el ADN hepático."] },
+    { n: 10, q: "(¡Concepto fundamental!) Si un fármaco ya es HIDROSOLUBLE cuando llega al hígado, ¿cuál será su ruta metabólica normal?", a: "b", ex: "La Fase I sirve para dar polaridad. Si el fármaco ya es polar (hidrosoluble), se salta la Fase I y va directo a la Fase II.", opts: ["Debe pasar obligatoriamente por la Fase I de oxidación.", "Se saltará la Fase I y entrará directamente a la Fase II de conjugación para ser eliminado.", "Se almacenará en las células estrelladas.", "Se excretará como gas por los pulmones."] },
+    { n: 11, q: "La \"Fase I\" del metabolismo hepático consiste principalmente en:", a: "a", ex: "La Fase I incrementa la polaridad añadiendo grupos funcionales (hidroxilación, oxidación) a través del citocromo P450.", opts: ["Añadir un grupo funcional por oxidación o hidroxilación (ej. añadir un grupo -OH) usando el citocromo P-450.", "Conjugar el fármaco con ácido glucurónico.", "Romper el fármaco en aminoácidos simples.", "Excretar el fármaco intacto en la bilis."] },
+    { n: 12, q: "En la \"Fase II\" del metabolismo de fármacos, la reacción principal es la conjugación. ¿Qué moléculas se utilizan habitualmente para conjugar el fármaco modificado?", a: "b", ex: "En la Fase II, transferasas unen el fármaco a moléculas muy polares como el ácido glucurónico, sulfato o glutatión para permitir su excreción.", opts: ["Ácidos grasos y colesterol.", "Ácido glucurónico, sulfato o glutatión.", "Hemoglobina y albúmina.", "NADH y FADH2."] },
+    { n: 13, q: "Sobre la familia del Citocromo P-450, señala la afirmación CORRECTA:", a: "a", ex: "El citocromo P450 contiene un grupo hemo (Fe3+), actúa como monooxigenasa y se caracteriza por su baja especificidad y su alta inducibilidad por xenobióticos.", opts: ["Son proteínas que contienen un grupo hemo con hierro férrico (Fe3+) y actúan como monooxigenasas.", "Tienen una altísima especificidad funcional por un único sustrato.", "No pueden ser inducidas por la presencia de fármacos.", "No requieren cofactores para funcionar."] },
+    { n: 14, q: "¿Qué ocurre durante el ciclo catalítico del Citocromo P-450 justo después de que el fármaco se une a la enzima?", a: "b", ex: "El paso 2 del esquema clásico del P450 es la reducción del hierro férrico a ferroso mediada por la reductasa.", opts: ["Se libera una molécula de agua inmediatamente.", "Se produce la reducción del ion férrico (Fe3+ a Fe2+) gracias a la enzima NADPH-citocromo P-450 reductasa.", "Se oxida el fármaco antes de que el hierro cambie de estado.", "El fármaco se conjuga con glutatión."] },
+    { n: 15, q: "Clínicamente, el citocromo P-450 es susceptible a interacciones medicamentosas. Si un paciente toma ketoconazol (un fármaco que se une de forma estable al CYP450), ¿qué ocurrirá con un segundo fármaco que dependa de la misma enzima?", a: "c", ex: "La unión estable de un fármaco al citocromo P-450 impide competitivamente la unión y metabolismo de un segundo fármaco.", opts: ["Se metabolizará más rápido.", "Se metabolizará de forma normal, ya que el CYP450 es inagotable.", "Se impedirá su unión, ralentizando su metabolismo y pudiendo causar toxicidad por acumulación.", "El segundo fármaco pasará directamente a las heces sin absorberse."] },
+    { n: 16, q: "Aunque existen 12 familias génicas del Citocromo P-450, ¿cuántas familias intervienen de manera principal en el procesamiento de fármacos en humanos?", a: "c", ex: "Las familias CYP1, CYP2 y CYP3 (ej. CYP3A4, CYP2D6) son las encargadas del procesamiento de la inmensa mayoría de los fármacos.", opts: ["Las 12 familias participan equitativamente.", "Sólo 1 familia (CYP1).", "3 familias (CYP1, CYP2, CYP3).", "8 familias."] },
+    { n: 17, q: "(¡Pista de clase!) El Ácido Acetilsalicílico (Aspirina) es un fármaco APOLAR (liposoluble). Basándote en esto, ¿cuál será su metabolismo hepático?", a: "c", ex: "Al ser liposoluble, la aspirina es el ejemplo clásico que necesita la Fase I para ganar un hidroxilo y luego la Fase II para conjugar.", opts: ["Excreción directa en la orina sin alteraciones.", "Entrada directa a la Fase II de conjugación.", "Requiere pasar primero por la Fase I (hidroxilación por CYP450) para volverse polar, y luego por la Fase II (conjugación con ácido glucurónico).", "Se metaboliza exclusivamente en la mitocondria."] },
+    { n: 18, q: "El Ibuprofeno es un fármaco que, por su estructura química, YA ES POLAR (hidrosoluble). ¿Cuál es su vía de detoxificación hepática?", a: "b", ex: "La profesora explicó que el ibuprofeno, al ser hidrosoluble, se salta la Fase I y pasa directo a ser conjugado en la Fase II.", opts: ["Debe pasar forzosamente por el CYP450 (Fase I).", "Se salta la Fase I y entra directamente a la Fase II, donde se conjuga con ácido glucurónico.", "Inhibe la conjugación.", "Sufre reducción mitocondrial."] },
+    { n: 19, q: "El Paracetamol (acetaminofén) a dosis NORMALES es hidrosoluble y seguro. ¿Cuál es su metabolismo fisiológico estándar?", a: "b", ex: "En dosis terapéuticas, el paracetamol es metabolizado en un 95% por la Fase II (conjugación) de forma segura.", opts: ["Sufre oxidación agresiva por CYP450.", "No necesita Fase I; se metaboliza directamente en la Fase II mediante glucuronización o sulfatación.", "Se elimina a través de la respiración.", "Reacciona con el acetaldehído."] },
+    { n: 20, q: "(¡Muy importante!) ¿Qué ocurre a nivel molecular cuando un paciente ingiere una SOBREDOSIS de paracetamol?", a: "b", ex: "El problema de la sobredosis es la saturación de la Fase II. El paracetamol sobrante se fuerza a pasar por el CYP450 (Fase I), lo que es una \"vía de emergencia\" peligrosa.", opts: ["Se inhibe completamente la absorción gástrica del fármaco.", "La vía de conjugación (Fase II) se satura, y el exceso de paracetamol se desvía a la Fase I (oxidación por CYP450), generando un metabolito altamente tóxico.", "El paracetamol cristaliza en la bilis.", "Aumenta la glucuronización al 100%."] },
+    { n: 21, q: "El metabolito altamente tóxico y responsable de la necrosis centrolobulillar en la intoxicación por paracetamol se denomina:", a: "b", ex: "El CYP450 convierte el exceso de paracetamol en NAPQI, un intermediario que causa citotoxicidad mediada por radicales libres.", opts: ["Ácido salicílico.", "N-acetil-p-benzoquinoinamina (NAPQI).", "Acetaldehído.", "Glutatión oxidado."] },
+    { n: 22, q: "¿Por qué el NAPQI generado en la intoxicación por paracetamol provoca la muerte del hepatocito?", a: "b", ex: "El cuerpo intenta neutralizar el NAPQI uniéndolo al glutatión. En dosis altas, el glutatión se agota, permitiendo que el NAPQI destruya la célula.", opts: ["Porque bloquea los receptores de insulina.", "Porque agota drásticamente las reservas de Glutatión de la célula al intentar conjugarlo, dejándola desprotegida ante el estrés oxidativo.", "Porque se une al oxígeno impidiendo la respiración.", "Porque disuelve la pared celular."] },
+    { n: 23, q: "Basándote en el mecanismo fisiopatológico, ¿cuál es la \"piedra angular\" del tratamiento médico para la intoxicación aguda por paracetamol?", a: "c", ex: "El recuadro clínico de la diapositiva señala explícitamente a la N-acetilcisteína como tratamiento, ya que aporta cisteína para que el hígado fabrique más glutatión.", opts: ["Administración de Disulfiram.", "Dar dosis masivas de ibuprofeno.", "Administración de N-acetilcisteína, para reponer los precursores de glutatión y neutralizar el NAPQI.", "Transfusión de sangre."] },
+    { n: 24, q: "El metabolismo normal del etanol en el hígado (Vía 1) ocurre en dos pasos. ¿Cuál es el primer paso y qué enzima lo cataliza en el citoplasma?", a: "b", ex: "La ADH en el citoplasma oxida el etanol a acetaldehído, generando la primera molécula de NADH.", opts: ["Etanol a Acetato por la aldehído deshidrogenasa (ALDH).", "Etanol a Acetaldehído por la alcohol deshidrogenasa (ADH).", "Etanol a Glucosa por el CYP450.", "Etanol a Piruvato por la lactato deshidrogenasa."] },
+    { n: 25, q: "En el segundo paso de la detoxificación del alcohol (dentro de la mitocondria), el Acetaldehído se convierte en Acetato. ¿Qué enzima es responsable de esto?", a: "c", ex: "La ALDH mitocondrial transforma el acetaldehído tóxico en acetato, generando una segunda molécula de NADH.", opts: ["Alcohol deshidrogenasa (ADH).", "Citocromo P-450.", "Aldehído deshidrogenasa (ALDH).", "Catalasa."] },
+    { n: 26, q: "Como subproducto directo e inevitable del metabolismo de una molécula de etanol (a través de ADH y ALDH), el hígado produce grandes cantidades de:", a: "c", ex: "La profesora recalcó que la degradación del alcohol nos deja con tres cosas problemáticas: exceso de NADH, acetaldehído tóxico y exceso de acetato.", opts: ["Glucosa y ATP.", "FADH2 y Oxígeno.", "NADH, Acetaldehído y Acetato.", "Glutatión y NAPQI."] },
+    { n: 27, q: "(¡Efecto clínico clásico!) El exceso de NADH generado por beber alcohol altera el equilibrio metabólico. ¿Por qué el consumo agudo de alcohol puede causar HIPOGLUCEMIA?", a: "b", ex: "El hígado no puede hacer gluconeogénesis porque la alta relación NADH/NAD+ fuerza a que la reacción vaya hacia lactato, robando el piruvato necesario para fabricar glucosa.", opts: ["Porque el alcohol inhibe la secreción de insulina.", "Porque el exceso de NADH inhibe la conversión de lactato a piruvato, bloqueando el primer paso de la Gluconeogénesis.", "Porque el alcohol destruye las reservas de glucógeno físicamente.", "Porque el acetato se une a la glucosa y la excreta en la orina."] },
+    { n: 28, q: "Además de la hipoglucemia, la alteración del potencial redox (exceso de NADH) provoca otra emergencia clínica al desviar masivamente el piruvato disponible. ¿Cuál es?", a: "b", ex: "Al no poder usar el piruvato para la gluconeogénesis, el exceso de NADH obliga a la lactato deshidrogenasa a convertir el piruvato en lactato, acidificando la sangre.", opts: ["Alcalosis respiratoria.", "Acidosis láctica (aumento de lactato en la sangre).", "Hipercolesterolemia aguda.", "Intoxicación por amoníaco."] },
+    { n: 29, q: "El tercer subproducto, el Acetato, se convierte en Acetil-CoA en el hígado. Sin embargo, este Acetil-CoA NO puede entrar al Ciclo de Krebs. ¿Por qué ocurre esto y qué produce como consecuencia?", a: "b", ex: "La profesora explicó que el NADH y el acetato frenan el ciclo de Krebs. Al acumularse el Acetil-CoA, este se shunta hacia la vía cetogénica, causando cetoacidosis.", opts: ["No puede entrar porque no hay mitocondrias; produce NAPQI.", "No puede entrar porque el exceso de NADH inhibe enzimas clave del ciclo de Krebs; el Acetil-CoA acumulado se desvía entonces hacia la formación de Cuerpos Cetónicos (Cetoacidosis).", "No puede entrar por falta de oxígeno; produce bilirrubina.", "El Acetil-CoA inhibe a la ADH; produce coma instantáneo."] },
+    { n: 30, q: "El acetaldehído generado es altamente tóxico. A nivel celular, uno de sus efectos patogénicos principales es:", a: "b", ex: "El acetaldehído es un carcinógeno que se pega a enzimas, factores de transcripción y membranas, arruinando su funcionalidad.", opts: ["Disolver los cristales de calcio en el hueso.", "Formar aductos (uniones aberrantes) con proteínas y fosfolípidos, alterando su estructura y función.", "Activar masivamente el ciclo de Krebs.", "Mejorar la capacidad antioxidante del hígado."] },
+    { n: 31, q: "El consumo crónico de alcohol es la principal causa de Esteatosis Hepática (Hígado Graso). ¿Qué mecanismo genético/molecular explica esta acumulación de lípidos?", a: "c", ex: "Es un doble golpe. El hígado fabrica más grasa de la que debería (SREBP-1 activado) y además deja de quemarla (PPAR-α inhibido), lo que lleva inevitablemente a hígado graso.", opts: ["El acetaldehído inhibe el factor SREBP-1 y activa PPAR-alfa.", "El alcohol se cristaliza en forma de triglicéridos.", "El acetaldehído altera los factores de transcripción: ACTIVA al SREBP-1 (que estimula la lipogénesis/síntesis de grasas) e INHIBE al PPAR-α (que frena la oxidación de grasas).", "El alcohol destruye las lipasas intestinales."] },
+    { n: 32, q: "Si el abuso de alcohol continúa, el daño hepático progresa a través de varias fases. ¿Cuál es el orden histopatológico correcto de esta progresión?", a: "c", ex: "La diapositiva 14 y la explicación de la profesora trazan la línea evolutiva clara del daño: acúmulo de grasa, inflamación/leucocitos, cicatrices fibróticas, y finalmente necrosis cirrótica irreversible.", opts: ["Hígado graso → Cirrosis → Hepatitis alcohólica → Fibrosis.", "Fibrosis → Hepatitis → Hígado graso → Cirrosis.", "Hígado graso (esteatosis) → Hepatitis alcohólica (inflamación/muerte) → Hígado fibrótico (cicatrización) → Cirrosis (pérdida de función).", "Cirrosis → Hígado graso → Hepatitis."] },
+    { n: 33, q: "La \"Intolerancia al Alcohol\" que sufren ciertas personas produce un rubor facial intenso (flushing), taquicardia y malestar agudo al beber cantidades mínimas de alcohol. Genéticamente, ¿qué defecto enzimático es la causa MÁS común de este cuadro?", a: "c", ex: "Al tener una ALDH ineficiente, la conversión de acetaldehído a acetato es muy lenta. Esto provoca una rápida y tóxica acumulación de acetaldehído en sangre.", opts: ["Hiperactividad de la Alcohol deshidrogenasa (ADH).", "Ausencia total del citocromo P-450.", "Variantes génicas que producen una Aldehído deshidrogenasa (ALDH) con capacidad catalítica reducida o lenta.", "Falta de Glutatión."] },
+    { n: 34, q: "(¡Pista de clase!) ¿En qué grupo demográfico es significativamente más prevalente la presencia de estos alelos lentos de la enzima ALDH?", a: "b", ex: "La profesora hizo el comentario explícito sobre sus \"amigos japoneses o chinos\" que con dos copas sufren intoxicación rápida debido a estas variantes genéticas.", opts: ["Poblaciones caucásicas europeas.", "Poblaciones asiáticas (China, Japón, Corea).", "Poblaciones africanas.", "Indígenas sudamericanos."] },
+    { n: 35, q: "Aprovechando el conocimiento de las vías enzimáticas, la medicina ha desarrollado un fármaco llamado Disulfiram para tratar a pacientes con alcoholismo crónico. ¿Cuál es su mecanismo de acción?", a: "b", ex: "El disulfiram simula farmacológicamente la \"intolerancia asiática\" al bloquear el paso 2, causando una experiencia sumamente desagradable (resaca inmediata y severa) para disuadir del consumo.", opts: ["Destruye el etanol antes de que se absorba en el estómago.", "Inhibe específicamente a la Aldehído deshidrogenasa (ALDH), forzando a propósito la acumulación tóxica de acetaldehído si el paciente bebe, lo que le causa una gran aversión física.", "Aumenta la producción de glutatión hepático.", "Estimula masivamente al citocromo P-450."] },
+    { n: 36, q: "En individuos que consumen cantidades masivas de alcohol (ej. alcoholismo crónico), la Vía 1 (ADH y ALDH) se satura. ¿Qué sistema enzimático interviene como \"Vía 2\" o de emergencia para ayudar en la detoxificación del etanol?", a: "b", ex: "Al igual que el paracetamol usa el P450 como vía de emergencia, en altas dosis de alcohol, el CYP450 hepático interviene activamente para oxidar el exceso de etanol.", opts: ["El sistema de conjugación con glucurónico (Fase II).", "El Citocromo P-450.", "La lipogénesis de novo.", "Las transaminasas."] },
+    { n: 37, q: "Reuniendo conceptos de hepatotoxicidad: ¿Qué paciente tendría el RIESGO MÁXIMO de sufrir daño hepático fulminante si toma una sobredosis de Paracetamol?", a: "c", ex: "Aunque requiere deducir un poco de la transcripción, la profa menciona que la síntesis de P450 se induce por otros fármacos/alcohol. Si tienes el P450 muy activo, el paracetamol se convierte en el tóxico NAPQI a velocidad de vértigo.", opts: ["Una persona que haya desayunado mucha glucosa.", "Una persona que acaba de donar sangre.", "Un paciente alcohólico crónico o alguien que tome fármacos inductores del CYP450, ya que tendrán la Fase I hiperactiva, generando NAPQI mucho más rápido.", "Un paciente que carezca de la enzima ALDH."] },
+    { n: 38, q: "La progresión terminal del daño por alcohol (Cirrosis) se caracteriza por tener un hígado disfuncional. ¿Cuál de las siguientes es una causa letal directa de este fracaso hepático mencionada en las diapositivas?", a: "b", ex: "La diapositiva 14 (fases del daño hepático) señala explícitamente que la cirrosis conduce a un fallo en el ciclo de la urea, acumulando amoníaco que produce coma y muerte.", opts: ["Hipoglucemia leve.", "Acumulación de amoníaco en la sangre, llevando a coma y muerte.", "Exceso incontrolable de bilis en el intestino.", "Transformación del hígado en un riñón funcional."] },
+    { n: 39, q: "Sobre los factores de transcripción alterados por el alcohol: El factor SREBP-1, que es activado patológicamente por el acetaldehído, tiene como función fisiológica normal:", a: "b", ex: "La diapositiva indica que SREBP-1 es el regulador maestro de la síntesis de lípidos. Al sobreactivarse, el hígado se llena de grasa (lipogénesis).", opts: ["Inhibir la inflamación.", "Regular las enzimas responsables de la síntesis de colesterol y ácidos grasos.", "Promover la oxidación de grasas en la mitocondria.", "Activar la degradación de proteínas."] },
+    { n: 40, q: "Finalmente, en el entorno celular normal, ¿dónde se localiza la enzima Alcohol Deshidrogenasa (ADH)?", a: "c", ex: "La Vía 1 está dividida en dos compartimentos. La ADH (primer paso, a acetaldehído) está en el citoplasma, mientras que la ALDH (segundo paso, a acetato) está en la mitocondria.", opts: ["Únicamente en la mitocondria.", "En el núcleo celular.", "En el citoplasma.", "Flotando en el plasma sanguíneo."] }
+];
+
+let questions = [];
+let userAnswers = {}; 
+
+function startQuiz(isRandom) {
+    questions = [...rawData].map(q => {
+        const correctText = q.opts[q.a.charCodeAt(0) - 97];
+        const shuffledOpts = [...q.opts].sort(() => Math.random() - 0.5);
+        const newCorrectLetter = String.fromCharCode(97 + shuffledOpts.indexOf(correctText));
+        return { ...q, opts: shuffledOpts, a: newCorrectLetter };
+    });
+
+    if (isRandom) questions.sort(() => Math.random() - 0.5);
+
+    renderQuiz();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'flex';
+}
+
+function renderQuiz() {
+    const container = document.getElementById('question-container');
+    const sidebar = document.getElementById('sidebar');
+    container.innerHTML = '';
+    sidebar.innerHTML = '';
+
+    questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = `question-block qb-${i}`;
+        div.innerHTML = `
+            <h2>Pregunta ${i + 1}</h2>
+            <p>${q.q}</p>
+            <div class="options">
+                ${q.opts.map((opt, idx) => `
+                    <button class="option-btn" onclick="checkAnswer(${i}, '${String.fromCharCode(97 + idx)}', this)">
+                        ${String.fromCharCode(97 + idx)}) ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="explanation" id="ex-${i}">${q.ex}</div>
+            <div class="marking-zone">
+                <input type="checkbox" id="mark-${i}" onchange="toggleMark(${i})">
+                <label for="mark-${i}">Marcar pregunta para revisión 🚩</label>
+            </div>
+        `;
+        container.appendChild(div);
+
+        const item = document.createElement('div');
+        item.className = `index-item ii-${i}`;
+        item.innerText = i + 1;
+        item.onclick = () => {
+            document.querySelector(`.qb-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        sidebar.appendChild(item);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+function checkAnswer(qIdx, letter, btn) {
+    if (userAnswers[qIdx]) return; 
+
+    const isCorrect = letter === questions[qIdx].a;
+    userAnswers[qIdx] = { selected: letter, correct: isCorrect, marked: document.getElementById(`mark-${qIdx}`).checked };
+
+    const buttons = document.querySelectorAll(`.qb-${qIdx} .option-btn`);
+    buttons.forEach(b => {
+        b.disabled = true;
+        const bLetter = b.innerText.split(')')[0].trim();
+        if (bLetter === questions[qIdx].a) b.classList.add('correct');
+        else if (bLetter === letter) b.classList.add('incorrect');
+    });
+
+    const sideItem = document.querySelector(`.ii-${qIdx}`);
+    sideItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    document.getElementById(`ex-${qIdx}`).style.display = 'block';
+}
+
+function toggleMark(index) {
+    const sideItem = document.querySelector(`.ii-${index}`);
+    if (document.getElementById(`mark-${index}`).checked) {
+        sideItem.classList.add('marked');
+    } else {
+        sideItem.classList.remove('marked');
+    }
+}
+
+function confirmFinish() {
+    if (confirm("¿Estás seguro de que quieres finalizar el cuestionario?")) {
+        showResults();
+    }
+}
+
+function showResults() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main-content').scrollTop = 0;
+
+    let correct = 0, failed = 0;
+    Object.values(userAnswers).forEach(v => {
+        if (v.correct) correct++;
+        else failed++;
+    });
+
+    document.getElementById('res-total').innerText = Object.keys(userAnswers).length;
+    document.getElementById('res-correct').innerText = correct;
+    document.getElementById('res-fail').innerText = failed;
+}
+
+function repeatMode(mode) {
+    let subSet = [];
+    if (mode === 'all') {
+        subSet = [...rawData];
+    } else if (mode === 'failed') {
+        subSet = questions.filter((_, i) => userAnswers[i] && !userAnswers[i].correct);
+    } else if (mode === 'marked') {
+        subSet = questions.filter((_, i) => document.getElementById(`mark-${i}`).checked);
+    } else if (mode === 'mixed') {
+        subSet = questions.filter((_, i) => 
+            (userAnswers[i] && !userAnswers[i].correct) || document.getElementById(`mark-${i}`).checked
+        );
+    }
+
+    if (subSet.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        return;
+    }
+
+    userAnswers = {};
+    questions = subSet;
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('quiz-screen').style.display = 'block';
+    renderQuiz();
+}
+
+/* Lógica del botón Scroll to Top */
+const mainContent = document.getElementById('main-content');
+const scrollTopBtn = document.getElementById('scrollTopBtn');
+
+mainContent.addEventListener('scroll', () => {
+    if (mainContent.scrollTop > 300) {
+        scrollTopBtn.style.display = 'block';
+    } else {
+        scrollTopBtn.style.display = 'none';
+    }
+});
+
+function scrollToTop() {
+    mainContent.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+</script>
+</body>
+</html>

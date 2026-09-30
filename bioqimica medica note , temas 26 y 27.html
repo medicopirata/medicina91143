@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-width=1.0">
+<title>Quiz Interactivo</title>
+<style>
+    :root {
+        --primary: #2c3e50;
+        --secondary: #34495e;
+        --accent: #3498db;
+        --correct: #27ae60;
+        --correct-bg: #eaeded;
+        --incorrect: #e74c3c;
+        --incorrect-bg: #fdedec;
+        --marked: #f39c12;
+        --bg: #f8f9fa;
+        --card-bg: #ffffff;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        display: flex;
+        color: #333;
+    }
+
+    /* Sidebar - Índice numérico */
+    #sidebar {
+        width: 300px;
+        background-color: var(--primary);
+        color: white;
+        height: 100vh;
+        position: fixed;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+
+    #sidebar h2 {
+        text-align: center;
+        font-size: 1.2rem;
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .index-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .index-btn {
+        background-color: var(--secondary);
+        color: white;
+        border: 2px solid transparent;
+        padding: 10px 0;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        text-align: center;
+        text-decoration: none;
+    }
+
+    .index-btn:hover {
+        background-color: var(--accent);
+    }
+
+    .index-btn.answered-correct { background-color: var(--correct); }
+    .index-btn.answered-incorrect { background-color: var(--incorrect); }
+    .index-btn.is-marked { border-color: var(--marked); }
+
+    .finish-btn {
+        width: 100%;
+        padding: 15px;
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    .finish-btn:hover { background-color: #2980b9; }
+
+    /* Área Principal de Preguntas */
+    #main-content {
+        margin-left: 300px;
+        padding: 40px;
+        width: calc(100% - 300px);
+        box-sizing: border-box;
+    }
+
+    .question-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        scroll-margin-top: 20px;
+        position: relative;
+    }
+
+    .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .question-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.5;
+        flex-grow: 1;
+        padding-right: 20px;
+    }
+
+    .mark-toggle {
+        background: none;
+        border: 2px solid var(--marked);
+        color: var(--marked);
+        padding: 5px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .mark-toggle.active {
+        background-color: var(--marked);
+        color: white;
+    }
+
+    .options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .option-btn {
+        background-color: var(--bg);
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: left;
+        font-size: 1rem;
+        transition: all 0.2s;
+        line-height: 1.4;
+    }
+
+    .option-btn:hover:not(:disabled) {
+        background-color: #e9ecef;
+    }
+
+    .option-btn.correct {
+        background-color: var(--correct-bg);
+        border-color: var(--correct);
+        color: #1e8449;
+        font-weight: bold;
+    }
+
+    .option-btn.incorrect {
+        background-color: var(--incorrect-bg);
+        border-color: var(--incorrect);
+        color: #c0392b;
+    }
+
+    .option-btn:disabled {
+        cursor: default;
+        opacity: 0.8;
+    }
+
+    .explanation {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #eaf2f8;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 5px 5px 0;
+        display: none;
+        line-height: 1.5;
+    }
+
+    /* Modales */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-content h2 { margin-top: 0; }
+
+    .modal-btn {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        margin: 15px 0;
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .modal-btn:hover { background-color: #2980b9; }
+    
+    #end-modal .modal-btn { background-color: var(--primary); }
+    #end-modal .modal-btn:hover { background-color: var(--secondary); }
+
+    .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="sidebar" class="hidden">
+    <h2>Navegación</h2>
+    <div id="index-container" class="index-grid"></div>
+    <button class="finish-btn" onclick="showEndModal()">Finalizar Cuestionario</button>
+</div>
+
+<div id="main-content" class="hidden">
+    <div id="questions-container"></div>
+</div>
+
+<div id="start-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Configuración del Cuestionario</h2>
+        <p>¿Cómo deseas ordenar las preguntas para este intento?</p>
+        <button class="modal-btn" onclick="initQuiz(false)">Orden Preestablecido</button>
+        <button class="modal-btn" onclick="initQuiz(true)">Orden Aleatorio</button>
+    </div>
+</div>
+
+<div id="end-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2>Cuestionario Finalizado</h2>
+        <p id="results-summary"></p>
+        <p>Elige una opción para continuar:</p>
+        <button class="modal-btn" onclick="retakeQuiz('all')">Repetir TODO el cuestionario</button>
+        <button class="modal-btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir SOLO falladas</button>
+        <button class="modal-btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir SOLO marcadas</button>
+        <button class="modal-btn" id="btn-retake-mixed" onclick="retakeQuiz('failed_marked')">Repetir falladas + marcadas</button>
+    </div>
+</div>
+
+<script>
+// Base de datos de todas las preguntas extraídas literalmente
+const masterData = [
+    {
+        id: 1,
+        question: "1. El paso de una fase a otra del ciclo celular (ej. de G1 a S) está estrictamente controlado. ¿Cuál es el complejo enzimático desencadenante característico que regula estas transiciones?",
+        options: [
+            { text: "El complejo p53 / mdm2.", isCorrect: false },
+            { text: "El complejo Ciclina / Quinasa dependiente de ciclina (CDK).", isCorrect: true },
+            { text: "El complejo APC / β-catenina.", isCorrect: false },
+            { text: "El complejo Ras / MAPK.", isCorrect: false }
+        ],
+        explanation: "Explicación: Según el temario y el audio, cada transición del ciclo tiene como desencadenante un complejo formado por una Ciclina unida a su CDK distintiva."
+    },
+    {
+        id: 2,
+        question: "2. Respecto a los niveles de concentración de los componentes del complejo Ciclina/CDK durante el ciclo celular, señale la afirmación CORRECTA:",
+        options: [
+            { text: "Ambos varían drásticamente a lo largo de todas las fases.", isCorrect: false },
+            { text: "Los niveles de las ciclinas son estables, mientras que las CDK se sintetizan y degradan constantemente.", isCorrect: false },
+            { text: "Los niveles de las CDK son estables a lo largo del ciclo, mientras que los niveles de las ciclinas varían, subiendo y bajando en las distintas fases.", isCorrect: true },
+            { text: "Las ciclinas solo se expresan si el ADN está dañado.", isCorrect: false }
+        ],
+        explanation: "Explicación: Remarcado en clase. Las quinasas (CDKs) están siempre presentes (estables), pero solo se activan cuando la ciclina específica de esa fase eleva sus niveles y se une a ellas."
+    },
+    {
+        id: 3,
+        question: "3. Para que una Quinasa dependiente de ciclina (CDK) unida a su ciclina alcance su completa activación, requiere la acción de una tercera proteína. ¿Cuál es?",
+        options: [
+            { text: "La quinasa activadora de CDK (CAK).", isCorrect: true },
+            { text: "El factor de transcripción E2F.", isCorrect: false },
+            { text: "La proteína p21.", isCorrect: false },
+            { text: "La Caspasa 9.", isCorrect: false }
+        ],
+        explanation: "Explicación: El esquema del ciclo celular muestra que la unión de la ciclina no es suficiente; se requiere que la CAK (Quinasa Activadora de CDK) fosforile el complejo para activarlo totalmente."
+    },
+    {
+        id: 4,
+        question: "4. En la señalización celular, cuando un \"primer mensajero\" llega a la célula, su polaridad determina dónde se encuentra su receptor. Si el primer mensajero es NO POLAR (ej. hormonas esteroideas o el óxido nítrico), ¿dónde estará su receptor?",
+        options: [
+            { text: "En la cara externa de la membrana plasmática.", isCorrect: false },
+            { text: "Únicamente en el interior de los lisosomas.", isCorrect: false },
+            { text: "En el interior celular (citoplasma o núcleo), ya que puede atravesar la membrana lipídica libremente.", isCorrect: true },
+            { text: "En la matriz mitocondrial exclusivamente.", isCorrect: false }
+        ],
+        explanation: "Explicación: Pregunta conceptual de clase. Al ser no polares/liposolubles, atraviesan la membrana sin problemas y sus receptores son intracelulares."
+    },
+    {
+        id: 5,
+        question: "5. En los receptores transmembrana de 7 hélices (7TM) acoplados a Proteína G (PG), ¿cuál es el estado de la Proteína G en reposo (inactiva)?",
+        options: [
+            { text: "La subunidad α está disociada y unida a GTP.", isCorrect: false },
+            { text: "Las 3 subunidades (α,β,γ) están acopladas entre sí, y la subunidad α está unida a GDP.", isCorrect: true },
+            { text: "La subunidad α está unida irreversiblemente a la adenilato ciclasa.", isCorrect: false },
+            { text: "Las subunidades β y γ están unidas a ATP.", isCorrect: false }
+        ],
+        explanation: "Explicación: Repaso explícito de la profesora. En inactivo, el trímero está junto y la subunidad alfa lleva GDP."
+    },
+    {
+        id: 6,
+        question: "6. Cuando el primer mensajero se une al receptor 7TM y activa la vía de la Adenilato Ciclasa, ¿cuál es el segundo mensajero que se forma y qué proteína diana activa?",
+        options: [
+            { text: "Se forma IP3, que activa a la PKC.", isCorrect: false },
+            { text: "Se forma Calcio, que activa a la Calmodulina.", isCorrect: false },
+            { text: "Se forma AMPc (AMP cíclico), que activa a la Proteína Quinasa A (PKA).", isCorrect: true },
+            { text: "Se forma DAG, que inactiva a la PKA.", isCorrect: false }
+        ],
+        explanation: "Explicación: Vía clásica: Receptor -> PG-α-GTP -> Adenilato Ciclasa -> AMPc -> PKA."
+    },
+    {
+        id: 7,
+        question: "7. Si la Proteína G estimula alternativamente a la Fosfolipasa C, esta enzima hidroliza el fosfatidilinositol-bifosfato (PIP2) de la membrana. ¿Qué dos segundos mensajeros se generan en esta escisión?",
+        options: [
+            { text: "AMPc y GMPc.", isCorrect: false },
+            { text: "Inositol trifosfato (IP3) y Diacilglicerol (DAG).", isCorrect: true },
+            { text: "Sodio y Potasio.", isCorrect: false },
+            { text: "Ácido láctico y CO2.", isCorrect: false }
+        ],
+        explanation: "Explicación: La Fosfolipasa C rompe el lípido de membrana originando IP3 (que libera calcio del retículo) y DAG (que activa a la PKC junto con el calcio)."
+    },
+    {
+        id: 8,
+        question: "8. En la cascada del Fosfatidilinositol, el aumento de Calcio intracelular provocado por el IP3 permite que este catión se una a una proteína específica para producir fosforilaciones. ¿A qué proteína se une el Calcio?",
+        options: [
+            { text: "A la Calmodulina.", isCorrect: true },
+            { text: "Al factor de transcripción TCF.", isCorrect: false },
+            { text: "A la Ciclina D.", isCorrect: false },
+            { text: "A la p53.", isCorrect: false }
+        ],
+        explanation: "Explicación: Pregunta directa de la profesora en el audio. El calcio no actúa solo, se une a la calmodulina y el complejo Calcio-Calmodulina activa quinasas."
+    },
+    {
+        id: 9,
+        question: "9. La profesora describió patologías por alteraciones en la Proteína G. En la infección por Cólera, la toxina coleragenina modifica covalentemente a la subunidad α de la PG. ¿Qué consecuencia molecular tiene esto?",
+        options: [
+            { text: "Pierde toda su afinidad por el GTP, quedando permanentemente inactiva.", isCorrect: false },
+            { text: "Añade ADP-ribosa a un residuo de arginina estabilizando la forma α-GTP, por lo que la adenilato ciclasa se queda activada de forma constante y masiva.", isCorrect: true },
+            { text: "Destruye físicamente los canales de cloro.", isCorrect: false },
+            { text: "Inactiva la PKA irreversiblemente.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva y audio. El cólera estabiliza la forma activa (α-GTP), bloqueando su capacidad GTPasa para apagarse. El exceso de AMPc abre canales de cloro causando pérdida brutal de agua y electrolitos."
+    },
+    {
+        id: 10,
+        question: "10. Por el contrario, en la infección por Tosferina (Bordetella pertussis), ¿cuál es el mecanismo de acción de la toxina pertúsica sobre la Proteína G inhibidora (PGi)?",
+        options: [
+            { text: "Se añade ADP-ribosa a la subunidad α, perdiéndose toda la afinidad por el GTP, lo que la mantiene permanentemente inactiva y no puede frenar a la adenilato ciclasa.", isCorrect: true },
+            { text: "Aumenta la actividad GTPasa al 200%.", isCorrect: false },
+            { text: "Estabiliza la forma α-GTP.", isCorrect: false },
+            { text: "Destruye los receptores de membrana.", isCorrect: false }
+        ],
+        explanation: "Explicación: Al perder afinidad por el GTP, la subunidad inhibidora nunca se activa. Como resultado, se cierran canales de Ca2+ y se abren los de K+."
+    },
+    {
+        id: 11,
+        question: "11. Al hablar de los factores de proliferación y crecimiento celular, la profesora destacó los receptores tirosín-quinasa. ¿Qué suceso estructural debe ocurrir en estos receptores cuando se les une el ligando para poder transmitir la señal?",
+        options: [
+            { text: "Deben separarse en monómeros independientes.", isCorrect: false },
+            { text: "Sufren endocitosis inmediata para viajar al núcleo.", isCorrect: false },
+            { text: "Las moléculas se dimerizan (forman pareja) y los dominios intracelulares fosforilan mutuamente sus residuos de tirosina (autofosforilación cruzada).", isCorrect: true },
+            { text: "Intercambian GDP por GTP directamente en su dominio extracelular.", isCorrect: false }
+        ],
+        explanation: "Explicación: Explicado en el audio. Los receptores tirosín-quinasa se juntan (dimerizan) y un receptor fosforila la cola del otro, dejándolos listos para atraer proteínas de señalización."
+    },
+    {
+        id: 12,
+        question: "12. En la vía de las MAP quinasas mediada por receptores de factores de crecimiento, ¿qué función exacta cumplen las proteínas adaptadoras GRB2 y SOS?",
+        options: [
+            { text: "Son enzimas que rompen el ADN.", isCorrect: false },
+            { text: "Actúan sobre la proteína Ras estimulando el intercambio de GDP por GTP, transformándola en su forma activa.", isCorrect: true },
+            { text: "Fosforilan directamente los factores de transcripción.", isCorrect: false },
+            { text: "Degradan la subunidad alfa de la proteína G.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio. Los receptores autofosforilados reclutan a GRB2/SOS, las cuales \"obligan\" a Ras a soltar su GDP y coger un GTP para encender la cascada de proliferación."
+    },
+    {
+        id: 13,
+        question: "13. A nivel histológico, ¿cómo se denomina clínicamente a un tumor o neoplasia maligna que tiene su origen celular en un tejido conectivo o muscular?",
+        options: [
+            { text: "Carcinoma.", isCorrect: false },
+            { text: "Leucemia.", isCorrect: false },
+            { text: "Sarcoma.", isCorrect: true },
+            { text: "Adenoma.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 13. Las neoplasias de origen epitelial son carcinomas, las del sistema hematopoyético son leucemias, y las de tejido conectivo/muscular son sarcomas."
+    },
+    {
+        id: 14,
+        question: "14. El desarrollo de la tumorogénesis es escalonado. ¿En qué fase el tumor desarrolla la angiogénesis y viaja por circulación linfática/sanguínea a sitios distantes del tumor primario?",
+        options: [
+            { text: "Fase de Inducción.", isCorrect: false },
+            { text: "Tumor in situ.", isCorrect: false },
+            { text: "Fase Invasiva (local).", isCorrect: false },
+            { text: "Fase de Diseminación (Metástasis).", isCorrect: true }
+        ],
+        explanation: "Explicación: La Fase 4 o de Diseminación es donde ocurre la metástasis y la formación de nuevos vasos sanguíneos (angiogénesis) para nutrir a las colonias lejanas."
+    },
+    {
+        id: 15,
+        question: "15. Las células tumorales modifican su entorno creando el Microambiente Tumoral (MAT). Según la clase, ¿por qué este ambiente se caracteriza por tener un pH ácido (6,5-6,9)?",
+        options: [
+            { text: "Porque las células secretan ácido clorhídrico masivamente.", isCorrect: false },
+            { text: "Porque, debido a la hipoxia, las células tumorales realizan glucólisis anaeróbica, acumulando grandes cantidades de ácido láctico y CO2 que los capilares inmaduros no pueden evacuar.", isCorrect: true },
+            { text: "Porque los macrófagos vierten sus lisosomas al exterior.", isCorrect: false },
+            { text: "Porque el tumor absorbe todo el bicarbonato del plasma.", isCorrect: false }
+        ],
+        explanation: "Explicación: Explicado en el audio. Al faltar oxígeno, la célula tumoral tira de metabolismo anaeróbico, inundando el medio de ácido láctico. Este ácido destruye células sanas vecinas y protege al tumor."
+    },
+    {
+        id: 16,
+        question: "16. Los exosomas tumorales (TEXs) son nanovesículas clave en la malignidad. Si un TEX es captado por un Linfocito T del sistema inmunitario, ¿qué efecto biológico provocará en él?",
+        options: [
+            { text: "Lo convertirá en un macrófago.", isCorrect: false },
+            { text: "Multiplicará su capacidad de reconocer al tumor.", isCorrect: false },
+            { text: "Inhibirá su señalización, frenará su proliferación o incluso le inducirá la apoptosis, evadiendo así la respuesta inmune del cuerpo.", isCorrect: true },
+            { text: "Lo obligará a secretar anticuerpos monoclonales.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva y audio. Los TEXs son las \"armas\" del tumor para silenciar y destruir a los linfocitos T, permitiendo que el cáncer crezca sin oposición inmunológica."
+    },
+    {
+        id: 17,
+        question: "17. Existen múltiples mecanismos de transformación genética. ¿En qué mecanismo de transformación patológica se fundamenta el Mieloma Múltiple para generar células plasmáticas malignas hiperproliferativas?",
+        options: [
+            { text: "Infección por el virus del papiloma humano.", isCorrect: false },
+            { text: "Amplificación del gen CKS1B en el cromosoma 1 (hasta 4 copias), el cual controla la progresión del ciclo celular.", isCorrect: true },
+            { text: "Deleción total del cromosoma X.", isCorrect: false },
+            { text: "Translocación entre el cromosoma 9 y 22.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 18. El mieloma múltiple (donde se observa el pico de la banda monoclonal en el proteinograma) se debe a una amplificación génica que sobrerregula la división de las células plasmáticas B."
+    },
+    {
+        id: 18,
+        question: "18. Clínicamente, el \"Cromosoma de Filadelfia\" es la alteración genética causante de la Leucemia Mielógena Crónica (CML). ¿Cuál es el origen de este cromosoma anómalo?",
+        options: [
+            { text: "Una translocación recíproca entre los cromosomas 9 y 22, donde el gen abl se inserta junto al gen bcr.", isCorrect: true },
+            { text: "Una amplificación masiva de los receptores HER-2.", isCorrect: false },
+            { text: "La pérdida completa del cromosoma 22.", isCorrect: false },
+            { text: "La infección por el retrovirus de Epstein-Barr.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio y PDF. El gen abl (una tirosina quinasa normal) se mueve de su sitio en el chr 9 y se fusiona con bcr en el chr 22, creando un monstruo genético hiperactivo."
+    },
+    {
+        id: 19,
+        question: "19. ¿Cuál es la consecuencia metabólica directa de la formación de esta proteína de fusión Bcr-Abl en el paciente con leucemia?",
+        options: [
+            { text: "Crea una proteína con propiedades de quinasa hiperactiva que no responde a los controles normales, incrementando drásticamente la proliferación de leucocitos.", isCorrect: true },
+            { text: "Inhibe completamente la fosforilación oxidativa.", isCorrect: false },
+            { text: "Causa la lisis inmediata de todos los eritrocitos.", isCorrect: false },
+            { text: "Bloquea el complejo de destrucción APC.", isCorrect: false }
+        ],
+        explanation: "Explicación: La fusión genera una enzima quinasa que está constantemente \"encendida\", lo que manda una señal continua de división a las células hematopoyéticas."
+    },
+    {
+        id: 20,
+        question: "20. La profesora relató la historia del Virus del Sarcoma de Rous (1911). Este retrovirus captura un gen celular normal (protooncogén c-src) y lo muta a un oncogén (v-src). ¿Cuál es la pequeña diferencia estructural en la secuencia de aminoácidos que hace que el v-src sea cancerígeno?",
+        options: [
+            { text: "El v-src tiene 500 aminoácidos más que el normal.", isCorrect: false },
+            { text: "El oncogén v-src sustituye sus últimos 19 aminoácidos, perdiendo así el residuo de tirosina en el extremo carboxilo terminal que servía para inactivar a la proteína al fosforilarse.", isCorrect: true },
+            { text: "El v-src es incapaz de anclarse a la membrana plasmática.", isCorrect: false },
+            { text: "El v-src carece del dominio quinasa.", isCorrect: false }
+        ],
+        explanation: "Explicación: Chivatazo de clase (\"Esto lo pregunto yo\"). En la c-src normal, si se fosforila la tirosina terminal, la enzima se inactiva. El virus (v-src) \"corta\" ese extremo; al no tener tirosina, nunca se le puede poner el fosfato inhibidor, por lo que está activa de manera constante y sin regulación."
+    },
+    {
+        id: 21,
+        question: "21. Siguiendo con la enzima c-Src normal (no mutada), ¿cuál es su estado de actividad cuando el residuo de tirosina de su extremo carboxilo terminal SÍ está fosforilado?",
+        options: [
+            { text: "Se vuelve hiperactiva.", isCorrect: false },
+            { text: "Permanece en un estado inactivo.", isCorrect: true },
+            { text: "Se destruye en el proteasoma inmediatamente.", isCorrect: false },
+            { text: "Emite señales de apoptosis celular.", isCorrect: false }
+        ],
+        explanation: "Explicación: \"Fosforilada inactiva, sin fosfato activa\". Al revés de lo habitual. Por eso el virus, al robarle la zona donde iría el fosfato, la deja activa para siempre."
+    },
+    {
+        id: 22,
+        question: "22. Los tratamientos médicos contra el cáncer (Tumorogénesis) utilizan diferentes vías. La profesora comparó los fármacos citotóxicos con los que promueven la diferenciación celular. ¿Por qué es útil favorecer la diferenciación celular de un tumor?",
+        options: [
+            { text: "Porque las células diferenciadas tienen mayor capacidad de dividirse y expulsan al tumor.", isCorrect: false },
+            { text: "Porque a mayor diferenciación celular fisiológica, menor es su tasa de proliferación (capacidad de división).", isCorrect: true },
+            { text: "Porque las células diferenciadas son invisibles al sistema inmune.", isCorrect: false },
+            { text: "Porque bloquean el metabolismo de la glucosa.", isCorrect: false }
+        ],
+        explanation: "Explicación: Pregunta de razonamiento del audio. Si \"obligas\" a una célula tumoral inmadura y prolífica a diferenciarse (especializarse), pierde su capacidad natural para seguir dividiéndose compulsivamente."
+    },
+    {
+        id: 23,
+        question: "23. El Oncogén Ras es responsable de muchos tumores humanos. Sabiendo cómo funciona la proteína Ras normal (protooncogén), ¿cuál es la mutación patológica que la convierte en un oncogén?",
+        options: [
+            { text: "Pierde su dominio de unión a la membrana.", isCorrect: false },
+            { text: "Se vuelve incapaz de unirse a la molécula GTP.", isCorrect: false },
+            { text: "Pierde su actividad GTPásica intrínseca, por lo que no puede hidrolizar el GTP a GDP y se queda \"encendida\" permanentemente, enviando señales de división sin control.", isCorrect: true },
+            { text: "Muta transformándose en el receptor de insulina.", isCorrect: false }
+        ],
+        explanation: "Explicación: Al igual que la proteína G del cólera, si Ras pierde su capacidad de romper el GTP, no puede \"apagarse\" a sí misma y la cascada mitogénica no cesa."
+    },
+    {
+        id: 24,
+        question: "24. El oncogén HER-2/neu está implicado en un alto porcentaje (15-30%) de los cánceres de mama agresivos. ¿En qué consiste exactamente esta alteración oncogénica?",
+        options: [
+            { text: "En una inactivación total de la vía de las MAP quinasas.", isCorrect: false },
+            { text: "En una deleción del gen que causa la muerte de la glándula mamaria.", isCorrect: false },
+            { text: "En la amplificación del gen, lo que provoca una sobreproducción extrema de receptores de factores de proliferación en la superficie celular (pasando de 30.000 a 1 millón).", isCorrect: true },
+            { text: "En la mutación de la proteína p53.", isCorrect: false }
+        ],
+        explanation: "Explicación: Explicado gráficamente. La célula mutada amplifica el gen y se llena de receptores (\"antenas\"). Cualquier mínimo factor de crecimiento que flote por ahí es captado y manda señal de división. (Se trata bloqueando esos receptores con anticuerpos como Herceptina)."
+    },
+    {
+        id: 25,
+        question: "25. A diferencia de los protooncogenes que \"empujan\" el ciclo celular, los Genes Supresores de Tumores actúan como \"frenos\". Según el temario, ¿cuál de las siguientes acciones NO es realizada por un gen supresor de tumores normal?",
+        options: [
+            { text: "Detener o bloquear la progresión del ciclo celular ante un daño en el ADN.", isCorrect: false },
+            { text: "Estimular fuertemente la expresión de factores de crecimiento para regenerar el tejido.", isCorrect: true },
+            { text: "Permitir tiempo para la reparación del material genético.", isCorrect: false },
+            { text: "Promover la apoptosis si el ADN está demasiado dañado para repararse.", isCorrect: false }
+        ],
+        explanation: "Explicación: Estimular factores de crecimiento es función de los protooncogenes. Los genes supresores son los \"frenos\" (bloqueo, reparación o suicidio celular)."
+    },
+    {
+        id: 26,
+        question: "26. La Proteína APC (Adenomatous Polyposis Coli) es un gen supresor fundamental que regula la vía de señalización Wnt. Normalmente forma un \"Complejo de Destrucción\" en el citoplasma. ¿Qué enzima clave forma parte de este complejo junto con la Axina y la CK1α?",
+        options: [
+            { text: "La Adenilato Ciclasa.", isCorrect: false },
+            { text: "La GSK3β (Glucógeno Sintasa Quinasa 3 beta).", isCorrect: true },
+            { text: "La p53.", isCorrect: false },
+            { text: "La Caspasa 3.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva \"Complejo de destrucción\". El andamio lo forma APC y Axina, mientras que las enzimas GSK3β y CK1α se encargan de fosforilar al objetivo."
+    },
+    {
+        id: 27,
+        question: "27. ¿Cuál es el objetivo biológico principal de este complejo de destrucción mediado por APC en una célula en reposo (sin señal Wnt)?",
+        options: [
+            { text: "Destruir las mitocondrias viejas.", isCorrect: false },
+            { text: "Fosforilar a la proteína β-catenina, marcándola para su inmediata degradación e impidiendo así que viaje al núcleo a estimular la división celular.", isCorrect: true },
+            { text: "Activar factores de transcripción E2F.", isCorrect: false },
+            { text: "Destruir los exosomas tumorales.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio. El APC y su complejo son una \"trituradora\" constante de beta-catenina. Si la degradan, no hay proliferación. Esa es la situación normal de freno."
+    },
+    {
+        id: 28,
+        question: "28. ¿Qué ocurre fisiológicamente en la célula sana cuando SÍ llega la señal del factor de crecimiento Wnt a su receptor de membrana?",
+        options: [
+            { text: "El complejo de destrucción se hiperactiva.", isCorrect: false },
+            { text: "Se induce apoptosis inmediata.", isCorrect: false },
+            { text: "Se inhibe el complejo de destrucción de APC, por lo que la β-catenina no se degrada, se acumula, entra al núcleo, se une al factor TCF e induce la transcripción de genes de proliferación.", isCorrect: true },
+            { text: "La beta-catenina es exportada fuera de la célula en forma de exosoma.", isCorrect: false }
+        ],
+        explanation: "Explicación: La señal Wnt \"apaga\" temporalmente a la trituradora (APC), permitiendo que la beta-catenina sobreviva y cumpla su función de dividir la célula de forma controlada."
+    },
+    {
+        id: 29,
+        question: "29. En el desarrollo del Cáncer Colorrectal, el tejido acumula una serie de mutaciones secuenciales para pasar de un epitelio normal a un carcinoma metastásico. Según el esquema de clase, ¿cuál suele ser la PRIMERA mutación iniciadora que genera los pólipos adenomatosos?",
+        options: [
+            { text: "La pérdida del gen supresor p53.", isCorrect: false },
+            { text: "La mutación y pérdida de función del gen supresor APC, lo que permite que la β-catenina active la división sin control.", isCorrect: true },
+            { text: "La activación del oncogén HER-2.", isCorrect: false },
+            { text: "La translocación del cromosoma 9 y 22.", isCorrect: false }
+        ],
+        explanation: "Explicación: Esquema del cáncer colorrectal. El 80-90% de estos cánceres inician cuando falla el freno APC. Luego muta Ras (aumentando la velocidad) y finalmente se pierde p53 (impidiendo la apoptosis de las células deformes)."
+    },
+    {
+        id: 30,
+        question: "30. El gen p53 es conocido como el \"guardián del genoma\". En una célula sana y SIN ESTRÉS, ¿por qué los niveles de p53 activa son tan bajos en el citoplasma?",
+        options: [
+            { text: "Porque el ARN mensajero de p53 no puede salir del núcleo.", isCorrect: false },
+            { text: "Porque está regulada a la baja (inhibida y degradada) por la acción continua de la proteína mdm2.", isCorrect: true },
+            { text: "Porque se gasta rápidamente activando las caspasas.", isCorrect: false },
+            { text: "Porque la proteína Ras la destruye.", isCorrect: false }
+        ],
+        explanation: "Explicación: En condiciones de paz, la proteína mdm2 reconoce a p53, le pone etiquetas de ubiquitina y la manda al proteasoma para que no frene a la célula sin motivo."
+    },
+    {
+        id: 31,
+        question: "31. ¿Qué suceso molecular \"salva\" a la p53 de ser destruida por mdm2 cuando la célula sufre un daño en el ADN (Célula con estrés)?",
+        options: [
+            { text: "La hipoxia hace que p53 se esconda en la mitocondria.", isCorrect: false },
+            { text: "El daño al ADN activa quinasas que fosforilan a p53. Una vez fosforilada, mdm2 ya no puede reconocerla ni unirse a ella, lo que permite que p53 se acumule y viaje al núcleo.", isCorrect: true },
+            { text: "El gen de mdm2 sufre apoptosis.", isCorrect: false },
+            { text: "p53 se une a la ciclina D para ocultarse.", isCorrect: false }
+        ],
+        explanation: "Explicación: Pregunta clave del mecanismo. La fosforilación de estrés cambia la forma de p53, volviéndola \"invisible\" para su verdugo mdm2."
+    },
+    {
+        id: 32,
+        question: "32. Una vez que la p53 activa entra en el núcleo celular, actúa como factor de transcripción. Su diana genética más importante para detener el ciclo celular es incrementar la síntesis de una proteína inhibidora. ¿Cuál es?",
+        options: [
+            { text: "El factor E2F.", isCorrect: false },
+            { text: "El Retinoblastoma (RB).", isCorrect: false },
+            { text: "La proteína p21.", isCorrect: true },
+            { text: "La caspasa 8.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio. La p53 activa lee el genoma y manda a fabricar grandes cantidades de p21, que es la verdadera molécula \"freno\" del ciclo celular."
+    },
+    {
+        id: 33,
+        question: "33. ¿Cuál es el mecanismo bioquímico exacto por el cual esta proteína p21 detiene la progresión de la célula hacia la fase S de replicación?",
+        options: [
+            { text: "Rompe el ADN en pedazos.", isCorrect: false },
+            { text: "Inhibe la actividad del complejo Quinasa dependiente de Ciclina (Ciclina/CDK).", isCorrect: true },
+            { text: "Activa a la proteína Ras.", isCorrect: false },
+            { text: "Oxida el ATP a AMP.", isCorrect: false }
+        ],
+        explanation: "Explicación: Gráficos de clase. p21 abraza e inactiva a los complejos Ciclina E/CDK2 y Ciclina D/CDK4, cortando la cascada de señalización del ciclo."
+    },
+    {
+        id: 34,
+        question: "34. La cascada continúa: Al estar el complejo Ciclina/CDK inhibido por p21, ¿qué efecto final se observa sobre la proteína del Retinoblastoma (RB) y el factor de transcripción E2F?",
+        options: [
+            { text: "El RB es fosforilado masivamente y destruye al E2F.", isCorrect: false },
+            { text: "Se evita la fosforilación de RB; por tanto, RB permanece unido a E2F secuestrándolo, lo que imposibilita la transcripción de genes de división y la célula detiene su ciclo.", isCorrect: true },
+            { text: "El RB y el E2F viajan juntos a la mitocondria para iniciar apoptosis.", isCorrect: false },
+            { text: "E2F se fosforila a sí mismo e inicia la replicación.", isCorrect: false }
+        ],
+        explanation: "Explicación: Chivatazo de razonamiento de la profesora. Normalmente, la Ciclina/CDK fosforila al RB para que suelte al E2F (y la célula se divida). Si p21 apaga a la CDK, el RB no se fosforila, nunca suelta al E2F y la división se paraliza."
+    },
+    {
+        id: 35,
+        question: "35. Entrando en el bloque de muerte celular, la profesora remarcó visualmente la diferencia morfológica entre una célula necrótica y una apoptótica. Señale la afirmación CORRECTA:",
+        options: [
+            { text: "En la apoptosis la célula se hincha de agua hasta estallar, afectando a las células vecinas.", isCorrect: false },
+            { text: "En la necrosis hay condensación ordenada de la cromatina y fragmentación nuclear.", isCorrect: false },
+            { text: "En la apoptosis se produce una clara disminución del volumen celular, formación de cuerpos apoptóticos y un \"marcaje\" de membrana para ser fagocitada silenciosamente.", isCorrect: true },
+            { text: "La apoptosis siempre induce una respuesta inflamatoria sistémica severa.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio y PDF. La apoptosis (\"suicidio programado\") es un proceso limpio donde la célula encoge, se empaqueta en vesículas (cuerpos apoptóticos) y \"llama\" a los macrófagos para que se la coman sin dañar al tejido circundante."
+    },
+    {
+        id: 36,
+        question: "36. A nivel bioquímico, los ejecutores enzimáticos de la apoptosis son las CASPASAS. ¿A qué grupo enzimático pertenecen basándonos en la estructura de su centro activo y especificidad de corte?",
+        options: [
+            { text: "Metalo-proteasas dependientes de Zinc.", isCorrect: false },
+            { text: "Cisteína-Aspártico proteasas (Tienen cisteína en el centro activo y cortan las proteínas diana justo después de un residuo de ácido aspártico).", isCorrect: true },
+            { text: "Serín-proteasas de la cascada de coagulación.", isCorrect: false },
+            { text: "Fosfatasas ácidas.", isCorrect: false }
+        ],
+        explanation: "Explicación: El propio nombre C-ASP-ASA proviene de Cisteína (centro activo) y Ácido Aspártico (lugar de corte)."
+    },
+    {
+        id: 37,
+        question: "37. La cascada apoptótica divide a las caspasas en dos grupos jerárquicos funcionales. Señale la relación CORRECTA:",
+        options: [
+            { text: "Las caspasas 3, 6 y 7 son iniciadoras; las caspasas 8 y 9 son efectoras.", isCorrect: false },
+            { text: "Las caspasas 8 y 9 son INICIADORAS (reguladoras); mientras que las caspasas 3, 6 y 7 son las EFECTORAS (ejecutoras) que destruyen las estructuras celulares.", isCorrect: true },
+            { text: "Todas las caspasas actúan a la vez y de forma paralela.", isCorrect: false },
+            { text: "La caspasa 8 actúa exclusivamente en la mitocondria.", isCorrect: false }
+        ],
+        explanation: "Explicación: Las iniciadoras (8 y 9) son los \"generales\" que reciben la señal inicial. Las efectoras (3, 6, 7) son los \"soldados\" que ejecutan la destrucción."
+    },
+    {
+        id: 38,
+        question: "38. La profesora avisó textualmente que preguntaría sobre los mecanismos de activación de las caspasas. ¿Cómo se activan las caspasas EFECTORAS (ej. Caspasa 3 y 7) a partir de sus precursores inactivos (procaspasas)?",
+        options: [
+            { text: "Por cambio conformacional inducido por ATP.", isCorrect: false },
+            { text: "Por fosforilación en tirosina.", isCorrect: false },
+            { text: "Se activan por PROTEÓLISIS mediada por otra caspasa (la iniciadora corta un fragmento de la efectora para activarla).", isCorrect: true },
+            { text: "Por un aumento del pH intracelular.", isCorrect: false }
+        ],
+        explanation: "Explicación: Las efectoras se activan siempre al ser \"recortadas\" (proteólisis) por las caspasas iniciadoras que están por encima de ellas en la cascada."
+    },
+    {
+        id: 39,
+        question: "39. Por el contrario, la Caspasa Iniciadora 8 (Vía extrínseca o extracelular) no es activada por proteólisis inicialmente. ¿Cómo logra activarse a sí misma?",
+        options: [
+            { text: "Por proximidad o reclutamiento masivo. Al unirse el ligando al receptor de muerte (Fas/TNF), atrae a muchas procaspasas 8 juntas; su pequeña actividad intrínseca, al estar tan cerca unas de otras, es suficiente para que se recorten y activen mutuamente.", isCorrect: true },
+            { text: "Gracias a la unión con el Citocromo C.", isCorrect: false },
+            { text: "Absorbiendo radicales libres de oxígeno.", isCorrect: false },
+            { text: "Porque la fosforila la enzima PKA.", isCorrect: false }
+        ],
+        explanation: "Explicación: \"Activación por proximidad\" (Induced proximity). Al agruparse forzosamente en el dominio de muerte del receptor, logran activar la reacción en cadena."
+    },
+    {
+        id: 40,
+        question: "40. ¡Pregunta de Examen declarada! La Caspasa Iniciadora 9 (Vía intrínseca o mitocondrial) tiene un método de activación único que no requiere proteólisis. ¿Cuál es?",
+        options: [
+            { text: "Por unión covalente a la glucosa sanguínea.", isCorrect: false },
+            { text: "Por Activación por ASOCIACIÓN. Al formar parte del gran complejo multiproteico (Apoptosoma), la procaspasa 9 sufre un cambio conformacional que la vuelve enzimáticamente activa sin necesidad de ser cortada.", isCorrect: true },
+            { text: "Por la exposición directa a luz ultravioleta.", isCorrect: false },
+            { text: "Por la eliminación de su extremo carboxilo terminal mediado por el gen APC.", isCorrect: false }
+        ],
+        explanation: "Explicación: Lo repitió tres veces en clase: \"La procaspasa 9 se hace activa por cambio conformacional, no por proteólisis, dentro del apoptosoma\"."
+    },
+    {
+        id: 41,
+        question: "41. Estructural y bioquímicamente, ¿qué elementos conforman exactamente la estructura tridimensional del APOPTOSOMA?",
+        options: [
+            { text: "Caspasa 8 + Receptor Fas + Dominio de muerte TRADD.", isCorrect: false },
+            { text: "Perforina + Granzima B + Calcio.", isCorrect: false },
+            { text: "Citocromo C (liberado de la mitocondria) + Apaf-1 (Factor activador de proteasas) + Procaspasa 9 + Gasto de ATP.", isCorrect: true },
+            { text: "p53 + p21 + Retinoblastoma.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 35 y audio. La rueda de 7 aspas del apoptosoma requiere estas tres piezas maestras y energía (ATP) para ensamblarse y activar a la caspasa 9."
+    },
+    {
+        id: 42,
+        question: "42. La vía EXTRÍNSECA de la apoptosis se activa por ligandos externos (como el Factor de Necrosis Tumoral TNF o Fas-L). ¿Qué estructura proteica especial poseen sus receptores en la cara citoplasmática para iniciar la cascada?",
+        options: [
+            { text: "Dominios tirosín-quinasa.", isCorrect: false },
+            { text: "Canales de cloro activados por ligando.", isCorrect: false },
+            { text: "Un \"Dominio de Muerte\" (como FADD o TRADD) que actúa como imán para atraer a la procaspasa 8.", isCorrect: true },
+            { text: "Una enzima adenilato ciclasa acoplada.", isCorrect: false }
+        ],
+        explanation: "Explicación: El receptor Fas/TNF atraviesa la membrana y termina en el citosol con un \"Death Domain\" cuya única función es reclutar y agrupar las procaspasas 8."
+    },
+    {
+        id: 43,
+        question: "43. Los Linfocitos T citotóxicos tienen la capacidad de obligar a una célula tumoral o infectada a suicidarse. Además de activar receptores de muerte celular, vierten el contenido de sus gránulos hacia la célula diana. ¿Qué dos moléculas clave utilizan en este ataque y cómo funcionan?",
+        options: [
+            { text: "Colágeno y Elastina para solidificar la célula.", isCorrect: false },
+            { text: "Perforina (abre poros en la membrana de la célula diana) y Granzima B (entra por esos poros y actúa como una proteasa de destrucción masiva activando caspasas y cortando el citoesqueleto).", isCorrect: true },
+            { text: "Óxido nítrico y Prostaciclina para dilatar la membrana.", isCorrect: false },
+            { text: "Catalasa y Superóxido dismutasa para ahogar a la célula en peróxidos.", isCorrect: false }
+        ],
+        explanation: "Explicación: Audio y PDF. Es el mecanismo inmunitario celular: la perforina hace agujeros y la granzima entra como un \"asesino a sueldo\" a destrozar el interior e inducir apoptosis forzada."
+    },
+    {
+        id: 44,
+        question: "44. El equilibrio de la apoptosis está gobernado por la Familia de proteínas Bcl-2. De las siguientes opciones, ¿cuáles corresponden al grupo de proteínas ANTI-APOPTÓTICAS (favorecen la supervivencia celular impidiendo la salida del citocromo c)?",
+        options: [
+            { text: "BAX, BAK y BAD.", isCorrect: false },
+            { text: "p53, p21 y RB.", isCorrect: false },
+            { text: "Bcl-2, Bcl-XL y MCL-1.", isCorrect: true },
+            { text: "Caspasas 3, 6 y 7.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 37. La profesora pidió explícitamente conocer esta lista. Bcl-2 es la proteína de supervivencia por excelencia."
+    },
+    {
+        id: 45,
+        question: "45. ¿Cuál es el mecanismo de acción físico por el cual las proteínas PRO-APOPTÓTICAS (como BAX y BAK) consiguen liberar el Citocromo C al citoplasma?",
+        options: [
+            { text: "Destruyen los ribosomas impidiendo la síntesis de la membrana mitocondrial.", isCorrect: false },
+            { text: "Cuando reciben una señal de muerte, se oligomerizan (se juntan) e insertan en la membrana externa mitocondrial, abriendo grandes poros por donde escapa el citocromo C.", isCorrect: true },
+            { text: "Se unen al citocromo C en la matriz y lo transportan en vesículas de clatrina.", isCorrect: false },
+            { text: "Oxidan el hierro del citocromo C inactivándolo.", isCorrect: false }
+        ],
+        explanation: "Explicación: BAX y BAK son los ejecutores mitocondriales. Al librarse del freno de Bcl-2, se agrupan formando agujeros literales en la pared de la mitocondria."
+    },
+    {
+        id: 46,
+        question: "46. La cascada de supervivencia mediada por Factores de Crecimiento puede bloquear la apoptosis celular. ¿Qué quinasa es activada por estos factores y cuál es su diana para lograr la supervivencia?",
+        options: [
+            { text: "Activan a la quinasa Akt, la cual fosforila a la proteína pro-apoptótica BAD. Al estar fosforilada, BAD se inactiva y suelta a las proteínas anti-apoptóticas (Bcl-2), permitiéndoles frenar la salida del citocromo C.", isCorrect: true },
+            { text: "Activan a la GSK3β, que destruye al citocromo C.", isCorrect: false },
+            { text: "Activan a la PKA, que cierra los poros de la membrana plasmática.", isCorrect: false },
+            { text: "Activan a las caspasas iniciadoras de forma anómala.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 38. El factor de crecimiento enciende Akt. Akt le pone un fósforo a BAD. BAD fosforilado es \"neutralizado\" y el Bcl-2 queda libre para hacer su trabajo de proteger a la mitocondria."
+    },
+    {
+        id: 47,
+        question: "47. En varias enfermedades hematológicas, como los linfomas foliculares de células B (y leucemias), se produce una alteración que confiere a las células tumorales \"inmortalidad\" biológica. ¿Cuál es el mecanismo subyacente según lo explicado en clase?",
+        options: [
+            { text: "Una deleción masiva que elimina todas las caspasas de la célula B.", isCorrect: false },
+            { text: "Una translocación genética (14:18) que reubica el gen anti-apoptótico Bcl-2 bajo un promotor muy activo, provocando una sobreexpresión masiva de Bcl-2 que inhibe toda señal de apoptosis a pesar del daño en el ADN.", isCorrect: true },
+            { text: "Una hiperproducción hereditaria de la proteína pro-apoptótica BAX.", isCorrect: false },
+            { text: "Un fallo en la maduración del complejo p53 que estalla la célula.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 40 y audio. Al sobreexpresar Bcl-2, la célula B tiene un \"escudo\" permanente de supervivencia. Acumula mutaciones pero el sistema no puede obligarla a suicidarse, generando el linfoma."
+    },
+    {
+        id: 48,
+        question: "48. Si la p53 decide que el ADN de una célula epitelial sometida a estrés extremo por radiación UV no puede ser reparado a tiempo, ¿cuál es la orden final que ejecutará para preservar la homeostasis del organismo?",
+        options: [
+            { text: "Inducirá la necrosis celular vertiendo los lisosomas.", isCorrect: false },
+            { text: "Favorecerá la diferenciación celular hacia tejido queratinizado.", isCorrect: false },
+            { text: "Ordenará la detención celular permanente (senescencia) pero no la muerte.", isCorrect: false },
+            { text: "Promoverá y activará irreversiblemente la vía de la APOPTOSIS celular.", isCorrect: true }
+        ],
+        explanation: "Explicación: El papel definitivo de p53 cuando el daño es insalvable es inducir el suicidio celular programado para evitar que esa célula mutada prolifere y origine un tumor."
+    },
+    {
+        id: 49,
+        question: "49. La Subunidad α de las Proteínas G y la proteína Ras tienen un mecanismo de \"apagado\" intrínseco y vital para no mantener las vías de señalización activas para siempre. ¿Qué propiedad bioquímica define este apagado?",
+        options: [
+            { text: "Su actividad GTPasa, que hidroliza el GTP activo a GDP inactivo.", isCorrect: true },
+            { text: "Su alta solubilidad en lípidos que las expulsa de la membrana.", isCorrect: false },
+            { text: "Su capacidad para fosforilarse recíprocamente con una quinasa.", isCorrect: false },
+            { text: "La unión de iones Calcio a su centro alostérico que cambia su conformación a inactiva.", isCorrect: false }
+        ],
+        explanation: "Explicación: Recalcado en clase. Ambas proteínas son \"temporizadores\"; una vez se encienden con GTP, ellas mismas lo van cortando a GDP para apagarse. Perder esta capacidad (ej. cólera o mutación Ras) causa patologías graves por hiperactivación."
+    },
+    {
+        id: 50,
+        question: "50. En el contexto de la Teoría del Envejecimiento y el Microambiente Tumoral (MAT), ¿qué consecuencia metabólica primaria provoca la rápida tasa de proliferación del tejido neoplásico combinada con la falta inicial de vasos sanguíneos (hipoxia local)?",
+        options: [
+            { text: "El bloqueo temporal del ciclo de Krebs para entrar en fase G0.", isCorrect: false },
+            { text: "La dependencia de la Glucólisis anaeróbica, lo que provoca la acumulación extracelular tóxica e inmunosupresora de Ácido Láctico, acidificando el microambiente.", isCorrect: true },
+            { text: "Un aumento exponencial en la oxidación de lípidos vía beta-oxidación.", isCorrect: false },
+            { text: "La alcalinización brusca del líquido intersticial peritumoral.", isCorrect: false }
+        ],
+        explanation: "Explicación: Al no tener oxígeno, las células cancerosas usan la ruta láctica para obtener energía rápida. El residuo es el ácido láctico, que baja el pH y crea un escudo ácido que debilita a los linfocitos que intentan atacar."
+    },
+    {
+        id: 51,
+        question: "51. Los receptores tirosín-quinasa no sólo median los factores de proliferación como EGF o PDGF. Existe una hormona metabólica clave, estudiada en seminarios previos, cuyo receptor celular pertenece también a esta familia de receptores. ¿De qué hormona se trata?",
+        options: [
+            { text: "Glucagón.", isCorrect: false },
+            { text: "Insulina.", isCorrect: true },
+            { text: "Adrenalina.", isCorrect: false },
+            { text: "Cortisol.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 10. La insulina y el IGF-1 (factor de crecimiento insulínico) actúan a través de receptores tirosín-quinasa que se dimerizan y autofosforilan al unirse la hormona."
+    },
+    {
+        id: 52,
+        question: "52. ¿Cuál es el criterio clínico o biológico que marca la diferencia fundamental entre un \"Tumor in situ\" (Benigno/Localizado) y el verdadero \"Cáncer\" (Tumor Maligno)?",
+        options: [
+            { text: "La velocidad de su división celular (siempre mayor en los benignos).", isCorrect: false },
+            { text: "El tamaño bruto del tumor en centímetros cúbicos.", isCorrect: false },
+            { text: "Su capacidad biológica e histológica de invadir tejidos adyacentes y de diseminarse por vía linfática o sanguínea (metástasis).", isCorrect: true },
+            { text: "La ausencia de vasos sanguíneos en el tumor maligno.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 13. Las células neoplásicas que permanecen recluidas en una cápsula forman tumores benignos. El cáncer se define por la invasión de la membrana basal y la colonización metastásica de órganos lejanos."
+    },
+    {
+        id: 53,
+        question: "53. Los exosomas tumorales (TEXs) son vesículas que transmiten \"información\" de la célula madre tumoral a las sanas. En el contexto de la farmacología oncológica, ¿qué peligro grave presentan estos TEXs durante el curso de un tratamiento con quimioterapia?",
+        options: [
+            { text: "Destruyen directamente las moléculas del fármaco citotóxico en el plasma.", isCorrect: false },
+            { text: "Pueden transferir ácidos nucleicos y proteínas que confieren \"resistencia al medicamento\" de una célula cancerosa que ya es resistente a otra que aún no lo era, extendiendo la inmunidad al tratamiento.", isCorrect: true },
+            { text: "Inducen vómitos incontrolables en el paciente al estimular el nervio vago.", isCorrect: false },
+            { text: "Convierten la quimioterapia en factores de proliferación.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 15. Los exosomas funcionan como un \"internet\" celular donde las células tumorales expertas \"enseñan\" (mediante ARN o proteínas de bombeo) a las novatas cómo sobrevivir al fármaco quimioterápico."
+    },
+    {
+        id: 54,
+        question: "54. En la vía de señalización del AMPc (adenilato ciclasa), el AMPc se une a las subunidades reguladoras de una quinasa para activarla. ¿A qué hace referencia exactamente la letra \"P\" en las siglas PKA?",
+        options: [
+            { text: "A que depende exclusivamente del ion Potasio para funcionar.", isCorrect: false },
+            { text: "Proteína Quinasa dependiente de fosfolípidos (P).", isCorrect: false },
+            { text: "Proteína Quinasa A (dependiente de AMPc).", isCorrect: true },
+            { text: "Proteína Kinasa Apoptótica.", isCorrect: false }
+        ],
+        explanation: "Explicación: Concepto base de señalización. PKA = Protein Kinase A (activada por AMP Cíclico). PKC = Protein Kinase C (activada por Calcio y diacilglicerol)."
+    },
+    {
+        id: 55,
+        question: "55. En la vía de la Fosfolipasa C, se genera un segundo mensajero lipídico que permanece anclado en la membrana plasmática, cuya función es activar a la PKC una vez que ésta se ha unido al calcio. ¿Cómo se llama este mensajero?",
+        options: [
+            { text: "Inositol trifosfato (IP3).", isCorrect: false },
+            { text: "Colesterol libre.", isCorrect: false },
+            { text: "Ácido Araquidónico.", isCorrect: false },
+            { text: "Diacilglicerol (DAG).", isCorrect: true }
+        ],
+        explanation: "Explicación: Diapositiva 7 y 8. Mientras el IP3 viaja al retículo a liberar calcio, el DAG se queda en la membrana \"esperando\" a la PKC para acoplarse a ella y activarla plenamente."
+    },
+    {
+        id: 56,
+        question: "56. Volviendo a la vía Wnt y el cáncer colorrectal. Si consideramos una célula sana donde la señal extracelular Wnt NO está presente de forma activa, ¿cuál será el destino de la β-catenina endógena recién sintetizada?",
+        options: [
+            { text: "Será transportada intacta hasta el núcleo para transcribir el gen de la ciclina D.", isCorrect: false },
+            { text: "Quedará atrapada de forma reversible en el interior de los lisosomas para uso futuro.", isCorrect: false },
+            { text: "Será fosforilada y marcada para su degradación por el Complejo de Destrucción (APC-Axina-GSK3β).", isCorrect: true },
+            { text: "Saldrá de la célula a través de canales de calcio.", isCorrect: false }
+        ],
+        explanation: "Explicación: Situación base descrita en la diapositiva 27. Sin Wnt, el complejo APC funciona como una máquina trituradora constante, manteniendo los niveles de beta-catenina próximos a cero para evitar proliferaciones indeseadas."
+    },
+    {
+        id: 57,
+        question: "57. ¿Qué ocurriría a nivel celular si un individuo nace con una mutación hereditaria homocigótica deletérea en el gen que codifica para la proteína p53 (Síndrome de Li-Fraumeni)?",
+        options: [
+            { text: "El individuo sería inmune a todos los tumores.", isCorrect: false },
+            { text: "Sus células perderían la capacidad de frenar el ciclo celular ante daños graves del ADN, resultando en la acumulación descontrolada de mutaciones, escasa inducción de apoptosis y una altísima propensión genética a desarrollar múltiples tipos de cáncer a edades tempranas.", isCorrect: true },
+            { text: "El ciclo celular se paralizaría permanentemente en la primera división cigótica y el embrión sería inviable.", isCorrect: false },
+            { text: "La síntesis de ATP mitocondrial caería al 0% y el individuo fallecería de paro cardíaco neonatal.", isCorrect: false }
+        ],
+        explanation: "Explicación: Al fallar el \"guardián del genoma\", las células no pueden detectar ni reparar los fallos, por lo que toda división anómala prospera, causando múltiples neoplasias."
+    },
+    {
+        id: 58,
+        question: "58. Durante las etapas finales del proceso de apoptosis (muerte celular programada), ¿con qué objetivo fisiológico se produce el característico \"marcaje\" o exteriorización de fosfolípidos específicos en la membrana plasmática de los cuerpos apoptóticos?",
+        options: [
+            { text: "Para emitir factores de proliferación que repongan el hueco dejado por la célula muerta.", isCorrect: false },
+            { text: "Para servir como señal \"Cómeme\" (Eat-me signal) destinada a los fagocitos locales, permitiendo que engullan los restos celulares rápidamente y sin provocar inflamación en el tejido.", isCorrect: true },
+            { text: "Para envenenar y destruir a las células sanas vecinas.", isCorrect: false },
+            { text: "Para anclar la célula firmemente a la matriz de colágeno y evitar que circule por la sangre.", isCorrect: false }
+        ],
+        explanation: "Explicación: La célula apoptótica voltea hacia el exterior fosfolípidos que normalmente están ocultos en la capa interna (como la fosfatidilserina), lo que actúa como un reclamo quimiotáctico para que los macrófagos limpien la zona de manera pulcra y sin alarmar al sistema inmune (sin inflamación)."
+    },
+    {
+        id: 59,
+        question: "59. Dentro del grupo de las cisteína-aspártico proteasas, hay una enzima en concreto que actúa como el gran \"ejecutor final\" de la vía apoptótica, encargada de la hidrólisis masiva de proteínas estructurales vitales del citoesqueleto y la envoltura nuclear tras ser activada por proteólisis. Se trata de:",
+        options: [
+            { text: "Caspasa 8.", isCorrect: false },
+            { text: "Caspasa 9.", isCorrect: false },
+            { text: "Caspasa 3.", isCorrect: true },
+            { text: "Retinoblastoma.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 33 y 34. Las caspasas 3 (y en menor medida la 6 y 7) son las efectoras primarias que realizan el trabajo sucio de demolición intracelular, siendo la Caspasa 3 el nexo común y el ejecutor principal de ambas vías (intrínseca y extrínseca)."
+    },
+    {
+        id: 60,
+        question: "60. A nivel histopatológico, se ha demostrado que ciertos virus oncogénicos (como algunos adenovirus o el virus de Epstein-Barr) pueden causar tumores en humanos. De acuerdo con el temario, ¿qué truco molecular utilizan estos virus para aumentar agresivamente su supervivencia dentro de la célula infectada?",
+        options: [
+            { text: "Bloquean la síntesis de ácido fólico en las mitocondrias.", isCorrect: false },
+            { text: "Sintetizan enzimas líticas que perforan la membrana de los linfocitos T.", isCorrect: false },
+            { text: "Codifican en su propio genoma viral unas proteínas homólogas (muy similares) a la proteína celular Bcl-2. Al producirlas, potencian artificialmente la inhibición de la apoptosis y mantienen con vida a su célula \"huésped\" a pesar de estar infectada.", isCorrect: true },
+            { text: "Inducen un hipermetabolismo oxidativo que destruye las defensas por reacción de Fenton.", isCorrect: false }
+        ],
+        explanation: "Explicación: Diapositiva 40. Los virus necesitan que la célula no se suicide mientras ellos usan su maquinaria para replicarse. Por ello, han evolucionado para fabricar \"falsas\" Bcl-2 que se acoplan al sistema de la célula, blindándola contra la apoptosis y facilitando la formación del cáncer asociado a la infección vírica."
+    }
+];
+
+// Estado global
+let activeQuestions = [];
+let quizState = {}; // { id: { answered: bool, correct: bool, marked: bool } }
+
+// Inicializar el estado de masterData la primera vez
+masterData.forEach(q => {
+    quizState[q.id] = { answered: false, correct: false, marked: false };
+});
+
+function shuffleArray(array) {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+function initQuiz(randomize) {
+    document.getElementById('start-modal').classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+    
+    // Preparar lista de preguntas activas
+    if (!activeQuestions.length) {
+        activeQuestions = [...masterData]; // Si está vacío, cargar todo
+    }
+
+    if (randomize) {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    renderQuiz();
+}
+
+function renderQuiz() {
+    const indexContainer = document.getElementById('index-container');
+    const questionsContainer = document.getElementById('questions-container');
+    
+    indexContainer.innerHTML = '';
+    questionsContainer.innerHTML = '';
+
+    activeQuestions.forEach((q, loopIndex) => {
+        const visualNum = loopIndex + 1;
+        
+        // --- 1. Crear Botón Índice ---
+        const idxBtn = document.createElement('a');
+        idxBtn.href = `#q-${q.id}`;
+        idxBtn.className = 'index-btn';
+        idxBtn.id = `idx-${q.id}`;
+        idxBtn.textContent = visualNum;
+        
+        // Restaurar estilos de estado anterior
+        if (quizState[q.id].marked) idxBtn.classList.add('is-marked');
+        if (quizState[q.id].answered) {
+            idxBtn.classList.add(quizState[q.id].correct ? 'answered-correct' : 'answered-incorrect');
+        }
+        indexContainer.appendChild(idxBtn);
+
+        // --- 2. Crear Tarjeta de Pregunta ---
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.id}`;
+
+        const header = document.createElement('div');
+        header.className = 'question-header';
+        
+        const title = document.createElement('h3');
+        title.className = 'question-title';
+        // Reemplazar el número original por el de la secuencia actual
+        title.textContent = `Pregunta ${visualNum}: ${q.question.replace(/^\d+\.\s*/, '')}`;
+        
+        const markBtn = document.createElement('button');
+        markBtn.className = `mark-toggle ${quizState[q.id].marked ? 'active' : ''}`;
+        markBtn.textContent = quizState[q.id].marked ? '★ Desmarcar' : '☆ Marcar';
+        markBtn.onclick = () => toggleMark(q.id, markBtn, idxBtn);
+
+        header.appendChild(title);
+        header.appendChild(markBtn);
+        card.appendChild(header);
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'options-list';
+        optionsDiv.id = `opts-${q.id}`;
+
+        // Mezclar opciones
+        const shuffledOptions = shuffleArray(q.options);
+        
+        shuffledOptions.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt.text;
+            
+            // Si ya fue respondida en una sesión anterior pero se volvió a cargar sin resetear su state
+            if (quizState[q.id].answered) {
+                btn.disabled = true;
+                if (opt.isCorrect) btn.classList.add('correct');
+            } else {
+                btn.onclick = () => handleAnswer(q.id, opt.isCorrect, btn, optionsDiv);
+            }
+            optionsDiv.appendChild(btn);
+        });
+        
+        card.appendChild(optionsDiv);
+
+        // Explicación
+        const expDiv = document.createElement('div');
+        expDiv.className = 'explanation';
+        expDiv.id = `exp-${q.id}`;
+        expDiv.textContent = q.explanation;
+        if (quizState[q.id].answered) expDiv.style.display = 'block';
+        card.appendChild(expDiv);
+
+        questionsContainer.appendChild(card);
+    });
+}
+
+function toggleMark(qId, btnEl, idxEl) {
+    quizState[qId].marked = !quizState[qId].marked;
+    if (quizState[qId].marked) {
+        btnEl.classList.add('active');
+        btnEl.textContent = '★ Desmarcar';
+        idxEl.classList.add('is-marked');
+    } else {
+        btnEl.classList.remove('active');
+        btnEl.textContent = '☆ Marcar';
+        idxEl.classList.remove('is-marked');
+    }
+}
+
+function handleAnswer(qId, isCorrect, clickedBtn, optionsDiv) {
+    quizState[qId].answered = true;
+    quizState[qId].correct = isCorrect;
+
+    // Deshabilitar botones y mostrar colores
+    const buttons = optionsDiv.querySelectorAll('.option-btn');
+    buttons.forEach(b => {
+        b.disabled = true;
+        // Buscar cuál era la correcta en los datos
+        const qData = masterData.find(x => x.id === qId);
+        const correctText = qData.options.find(o => o.isCorrect).text;
+        
+        if (b.textContent === correctText) {
+            b.classList.add('correct');
+        } else if (b === clickedBtn && !isCorrect) {
+            b.classList.add('incorrect');
+        }
+    });
+
+    // Mostrar explicación
+    document.getElementById(`exp-${qId}`).style.display = 'block';
+
+    // Actualizar índice numérico
+    const idxBtn = document.getElementById(`idx-${qId}`);
+    idxBtn.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+}
+
+function showEndModal() {
+    const total = activeQuestions.length;
+    let correctCount = 0;
+    let answeredCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (quizState[q.id].answered) answeredCount++;
+        if (quizState[q.id].correct) correctCount++;
+    });
+
+    document.getElementById('results-summary').textContent = 
+        `Has respondido ${answeredCount} de ${total} preguntas. Aciertos: ${correctCount}.`;
+    
+    // Calcular si hay falladas o marcadas en general para habilitar/deshabilitar botones
+    const hasFailed = masterData.some(q => quizState[q.id].answered && !quizState[q.id].correct);
+    const hasMarked = masterData.some(q => quizState[q.id].marked);
+
+    document.getElementById('btn-retake-failed').disabled = !hasFailed;
+    document.getElementById('btn-retake-marked').disabled = !hasMarked;
+    document.getElementById('btn-retake-mixed').disabled = !(hasFailed || hasMarked);
+
+    document.getElementById('end-modal').classList.remove('hidden');
+}
+
+function retakeQuiz(mode) {
+    document.getElementById('end-modal').classList.add('hidden');
+    
+    // Filtrar masterData según el modo
+    if (mode === 'all') {
+        activeQuestions = [...masterData];
+    } else if (mode === 'failed') {
+        activeQuestions = masterData.filter(q => quizState[q.id].answered && !quizState[q.id].correct);
+    } else if (mode === 'marked') {
+        activeQuestions = masterData.filter(q => quizState[q.id].marked);
+    } else if (mode === 'failed_marked') {
+        activeQuestions = masterData.filter(q => quizState[q.id].marked || (quizState[q.id].answered && !quizState[q.id].correct));
+    }
+
+    // Resetear el estado 'answered' solo para las preguntas activas
+    activeQuestions.forEach(q => {
+        quizState[q.id].answered = false;
+        quizState[q.id].correct = false;
+        // No reseteamos 'marked' para que no pierdan la marca si la quieren conservar
+    });
+
+    // Volver a preguntar el orden
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('main-content').classList.add('hidden');
+    document.getElementById('start-modal').classList.remove('hidden');
+}
+
+// Iniciar
+window.onload = () => {
+    document.getElementById('start-modal').classList.remove('hidden');
+};
+</script>
+</body>
+</html>

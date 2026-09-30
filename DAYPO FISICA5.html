@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Termodinámica y Biofísica</title>
+    
+    <style>
+        :root {
+            --primary: #d35400; /* Naranja quemado del diseño original */
+            --secondary: #2c3e50;
+            --bg: #f4f4f9;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }
+
+        .question-card {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 5px solid transparent;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .question-card:hover {
+            border-left: 5px solid var(--primary);
+        }
+
+        /* --- NUEVO: Estilos para el Checkbox --- */
+        .mark-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: var(--secondary);
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .mark-container input {
+            margin-right: 8px;
+            transform: scale(1.3);
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+        .mark-container label {
+            cursor: pointer;
+        }
+
+        .question-header {
+            font-size: 0.85em;
+            color: #95a5a6;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .question-text {
+            font-weight: 600;
+            font-size: 1.15em;
+            margin-bottom: 15px;
+            color: var(--secondary);
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 1em;
+            color: #444;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background-color: #fdf2e9;
+            border-color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .option-btn:disabled {
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        .correct {
+            background-color: #d4edda !important;
+            border-color: #28a745 !important;
+            color: #155724 !important;
+            font-weight: bold;
+        }
+
+        .incorrect {
+            background-color: #f8d7da !important;
+            border-color: #dc3545 !important;
+            color: #721c24 !important;
+        }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            border-radius: 0 4px 4px 0;
+            display: none;
+            font-size: 0.95em;
+        }
+        .explanation.visible {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Estilos para el área de controles finales --- */
+        #controls-area {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .action-btn {
+            background: var(--secondary); color: white; border: none;
+            padding: 12px 24px; font-size: 1em; border-radius: 6px;
+            cursor: pointer; margin: 5px;
+            transition: background 0.3s;
+        }
+        .action-btn:hover { background: #34495e; }
+        
+        .restart-options {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .restart-options button {
+            background: var(--primary);
+        }
+        .restart-options button:hover { background: #e67e22; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Examen de Termodinámica</h1>
+    
+    <div id="quiz-container"></div>
+
+    <div id="controls-area">
+        <button id="finish-btn" class="action-btn" onclick="showEndOptions()">🏁 Finalizar revisión</button>
+        
+        <div id="restart-menu" class="restart-options">
+            <h3>¿Cómo deseas continuar?</h3>
+            <p id="stats-summary"></p>
+            <button class="action-btn" onclick="restartQuiz('all')">🔄 Rehacer el cuestionario entero</button>
+            <button class="action-btn" onclick="restartQuiz('marked')">🔖 Hacer solo las preguntas marcadas</button>
+            <button class="action-btn" onclick="restartQuiz('failed')">❌ Hacer solo las preguntas falladas</button>
+            <button class="action-btn" onclick="restartQuiz('failed_marked')">⚠️ Hacer falladas y marcadas</button>
+        </div>
+    </div>
+
+<script>
+    // BANCO DE PREGUNTAS
+    const quizData = [
+        { q: "Las unidades de la entropía en el SI son:", opts: ["Kcal/ºC", "J/ºC", "Kj/h.m²", "J/K"], a: "J/K" },
+        { q: "El calor se mide en:", opts: ["Watios", "Julios", "Caballos de vapor", "Grados centígrados"], a: "Julios" },
+        { q: "La ecuación de transmisión del calor entre dos medios, indica que el calor trasmitido es:", opts: ["Directamente proporcional a la resistencia térmica", "Muy elevado", "Inversamente proporcional a la diferencia de temperaturas", "Inversamente proporcional a la resistencia térmica"], a: "Inversamente proporcional a la resistencia térmica" },
+        { q: "Los escalofríos pertenecen a la zona o nivel de regulación:", opts: ["Vasomotora", "Sudomotora", "Voluntaria", "Metabólica"], a: "Metabólica" },
+        { q: "En cualquier proceso en que un sistema termodinámicamente aislado cambia de un estado a otro:", opts: ["Su entropía aumenta", "Su entalpia disminuye", "Su entalpia aumenta", "Su entropía disminuye"], a: "Su entropía aumenta" },
+        { q: "En Termodinámica Clásica, un estado se caracteriza por las magnitudes:", opts: ["Presión(P), Volumen(V) y tiempo(t)", "Presión(P), Tiempo(t) y Temperatura(T)", "Presión(P), Potencia(W) y Temperatura(T)", "Presión(P), Volumen(V) y Temperatura(T)"], a: "Presión(P), Volumen(V) y Temperatura(T)" },
+        { q: "La temperatura:", opts: ["La cualidad que permite determinar si dos sistemas están o no en equilibrio térmico", "Es lo que sube o baja en un termómetro", "Es lo que regula el sol", "Se mide en calorías"], a: "La cualidad que permite determinar si dos sistemas están o no en equilibrio térmico" },
+        { q: "El ser vivo es un:", opts: ["Sistema termodinámico Ordenado", "Sistema termodinámico Estable", "Sistema termodinámico Sano", "Sistema termodinámico Instable"], a: "Sistema termodinámico Instable" },
+        { q: "En los cambios de estado se modifica:", opts: ["No se modifica la temperatura", "La temperatura inicial y final del sistema", "La temperatura final", "La temperatura inicial"], a: "No se modifica la temperatura" },
+        { q: "¿Para que sudamos cuando la temperatura corporal es elevada?", opts: ["Para eliminar toxinas", "Para evaporar, consumir energía y bajar la temperatura de la superficie corporal", "Para usar los ventiladores", "Para oler mal"], a: "Para evaporar, consumir energía y bajar la temperatura de la superficie corporal" },
+        { q: "El primer principio de la termodinámica introduce el concepto de:", opts: ["Temperatura", "Energía interna", "Entropía", "Entalpia"], a: "Energía interna" },
+        { q: "Una función de estado en termodinámica es aquella que:", opts: ["Solo depende del sentido en el que se realicen las transformaciones independientemente de los estados", "Me gusta mi carrera", "Álvaro Condón es el mejor", "Depende solo del estado inicial y final"], a: "Depende solo del estado inicial y final" },
+        { q: "El segundo principio de la termodinámica introduce el concepto de:", opts: ["Energía interna", "Entalpia", "Calor", "Entropia"], a: "Entropia" },
+        { q: "El primer principio de la termodinámica es:", opts: ["La energía ni se crea ni se destruye", "El calor", "La entalpia", "La entropia"], a: "La energía ni se crea ni se destruye" },
+        { q: "El segundo principio de la termodinámica determina que:", opts: ["Es imposible obtener un proceso cíclico cuyo único efecto sea la transformación de calor en trabajo", "Es posible obtener dicho proceso", "Es posible obtener dicho proceso en determinadas condiciones de presión", "Es posible obtener dicho proceso en determinadas condiciones de temperatura"], a: "Es imposible obtener un proceso cíclico cuyo único efecto sea la transformación de calor en trabajo" },
+        { q: "¿A que concepto se llega en el principio cero de la termodinámica?", opts: ["Equilibrio térmico / Temperatura", "Entropia", "Trabajo", "Entalpia"], a: "Equilibrio térmico / Temperatura" },
+        { q: "En relación a los dos principios de la termodinámica usted diría:", opts: ["El primero es probabilístico y el segundo rígido", "Ambos son probabilísticos", "El segundo es probabilístico y el primero rígido", "Ambos son rígidos"], a: "El segundo es probabilístico y el primero rígido" },
+        { q: "En cualquier proceso donde un sistema termodinámicamente aislado pasa de un estado a otro:", opts: ["Su entropía aumenta", "Su entropía disminuye", "Su entalpia aumenta", "Su entalpia disminuye"], a: "Su entropía aumenta" },
+        { q: "¿Qué no es una función de estado?", opts: ["Presión", "Temperatura", "Entropía", "Trabajo"], a: "Trabajo" },
+        { q: "¿Cómo regula el ser humano su temperatura corporal?", opts: ["Cediendo calor al exterior", "Tomando calor del exterior", "Variando su resistencia térmica", "Manteniendo todos los puntos del cuerpo a la misma temperatura"], a: "Variando su resistencia térmica" },
+        { q: "¿Cómo regulan ciertos mamíferos y aves sometidas a bajas temperaturas el flujo de calor para sus extremidades?", opts: ["Variando su resistencia térmica", "Variando su temperatura corporal", "Dejando que se congelen", "Con un sistema de circulación contracorriente"], a: "Con un sistema de circulación contracorriente" },
+        { q: "La entropía en un sistema aislado:", opts: ["No varia", "Disminuye siempre", "Aumenta siempre", "Es reversible"], a: "Aumenta siempre" },
+        { q: "En condiciones normales de 25 grados. ¿Por que mecanismo pierde el cuerpo mas calor?", opts: ["Radiación", "Convección", "Transpiración", "Respiración"], a: "Radiación" },
+        { q: "El primer experimento de Joule establece relación entre:", opts: ["Calor y temperatura", "Energía y materia", "Calor y trabajo", "Trabajo mecánico y estabilidad"], a: "Calor y trabajo" },
+        { q: "La entropía relaciona:", opts: ["Calor absorbido por las transformaciones con la temperatura", "Energía interna con la presión y el volumen", "El calor con el trabajo util", "El calor con el trabajo"], a: "Calor absorbido por las transformaciones con la temperatura" },
+        { q: "Un sistema es estable si:", opts: ["La temperatura es -273,5", "No emite radiación", "Alcanza un valor máximo de entropía", "Alcanza un valor mínimo de entropía"], a: "Alcanza un valor máximo de entropía" },
+        { q: "La unidad entropía es:", opts: ["Julio", "Clausius", "Caloría", "Todas las anteriores"], a: "Clausius" },
+        { q: "El metabolismo se suele expresar en:", opts: ["Caloría por cm² y minuto", "Kilocalorías", "Kilocalorías por m²", "Kilocalorías por m² u hora"], a: "Kilocalorías por m² u hora" },
+        { q: "El calor transformado en sangre se hace mediante:", opts: ["Convección", "Conducción", "Emisión", "Refrigeración"], a: "Convección" },
+        { q: "Los animales de sangre fría son:", opts: ["Poiquilotermos", "Homeotermos", "Endergónicos", "Exergónicos"], a: "Poiquilotermos" },
+        { q: "Los animales de sangre caliente son:", opts: ["Poiquilotermos", "Homeotermos", "Endergónicos", "Exergónicos"], a: "Homeotermos" },
+        { q: "Las transformaciones isotermas son:", opts: ["A presión constante", "A volumen constante", "A temperatura constante", "Presión y volumen constante"], a: "A temperatura constante" },
+        { q: "El primer principio de la termodinámica es:", opts: ["La energía ni se crea ni se destruye, se transforma", "El calor", "Entalpia", "Entropía"], a: "La energía ni se crea ni se destruye, se transforma" },
+        { q: "En una transformación reversible a presión y temperatura constante:", opts: ["La variación de energía libre es nula", "La variación de energía libre es positiva", "La variación de energía libre es negativa si no hay trabajo útil", "La variación de energía libre es nula si no hay trabajo útil"], a: "La variación de energía libre es nula si no hay trabajo útil" },
+        { q: "Las transformaciones adiabáticas se realizan:", opts: ["A presión constante", "Sin intercambio de trabajo util", "Sin intercambio de energía", "Sin intercambio de calor"], a: "Sin intercambio de calor" },
+        { q: "El cuerpo al alimentarse:", opts: ["Toma energía", "Toma materia", "Disminuye su entropia", "Aumenta S"], a: "Disminuye su entropia" },
+        { q: "Al verdadero concepto de temperatura se llega por:", opts: ["Primer principio", "Segundo principio", "Principio cero", "Teoría cinética"], a: "Principio cero" },
+        { q: "La circulación venosa intercambia temperatura con la arteria cuando:", opts: ["Hace frio", "Hace calor", "Se liberan hormonas", "Se produce una isquemia"], a: "Hace frio" },
+        { q: "El temblor o escalofrío es una manera de propagación del calor por:", opts: ["Convección", "Radiación", "Conducción", "No es una manera de propagación"], a: "No es una manera de propagación" },
+        { q: "Si aumenta la entropia:", opts: ["Aumenta el desorden", "Aumenta el orden", "Disminuye la temperatura", "Disminuye el calor"], a: "Aumenta el desorden" },
+        { q: "Las transformaciones adiabáticas (diabáticas en texto original) son aquellas:", opts: ["Que intercambian calor y trabajo con el exterior", "Que solo intercambia calor", "Que no intercambia calor con el exterior", "Que no intercambia trabajo con el exterior"], a: "Que no intercambia calor con el exterior" },
+        { q: "Se llama calor de reacción al calor que absorbe o desprende al:", opts: ["Formarse un mol de una sustancia compuesta a partir de las sustancias simples correspondientes", "Reaccionar varias sustancias", "Quemarse totalmente una sustancia cualquiera", "Oxidarse una sustancia determinada"], a: "Formarse un mol de una sustancia compuesta a partir de las sustancias simples correspondientes" },
+        { q: "El metabolismo básico o basal es la cantidad de calor que produce un sujeto por metro cuadrado y por hora cuando:", opts: ["El sujeto esta en su actividad habitual a temperatura no agresiva", "El sujeto esta en reposo físico y mental a cualquier temperatura", "El sujeto esta en reposo físico y mental a temperatura agradable", "El sujeto desarrolla su actividad habitual a temperatura agradable"], a: "El sujeto esta en reposo físico y mental a temperatura agradable" },
+        { q: "La principal reacción química que se analiza para el estudio del valor calórico del oxígeno es:", opts: ["C6H12O6 + O2", "NH2 + CH", "C6H6 + O2", "H2 + O2"], a: "C6H12O6 + O2" },
+        { q: "La ley de Hess es fundamental para determinar:", opts: ["La cantidad de proteínas de los alimentos", "El valor calórico de los alimentos", "La energía interna de los componentes químicos", "La cantidad de grasa de los alimentos"], a: "El valor calórico de los alimentos" },
+        { q: "La cantidad de calor desprendido por la combustión completa de un alimento determinado se denomina:", opts: ["Energía interna del alimento", "Energía libre del alimento", "Valor calórico del alimento", "Corriente calórica"], a: "Valor calórico del alimento" },
+        { q: "El valor calórico de los alimentos será exactamente igual al calor desprendido de la combustión de los mismos si:", opts: ["Se produjera trabajo útil además de calor", "Solamente se produjera trabajo útil", "Nunca se produjera trabajo útil", "Se diera otra circunstancia"], a: "Nunca se produjera trabajo útil" },
+        { q: "A que concepto se llega con el primer principio de la termodinámica:", opts: ["Energía interna", "Entalpía", "Entropía", "Temperatura"], a: "Energía interna" },
+        { q: "En un sistema reversible:", opts: ["S aumenta", "S disminuye", "S permanece constante", "Ninguna de las anteriores"], a: "S permanece constante" },
+        { q: "La cantidad de calor Q transmitida por conducción en una unidad de tiempo se define por:", opts: ["Q/t = K * S/1 * (T1-T2)", "Q/t = K * S/1 * (T2-T1)", "Q= K * S/1 * (T1-T2)", "Q/t = K * (T1-T2)"], a: "Q/t = K * S/1 * (T1-T2)" },
+        { q: "La importancia de la magnitud física de la energía radica en:", opts: ["Su permanencia", "No se puede crear", "No se puede destruir", "Todas son ciertas"], a: "Todas son ciertas" },
+        { q: "En una transformación isoterma e isobárica la función de Gibbs:", opts: ["Aumenta", "Disminuye para procesos irreversibles", "Es igual", "Ninguna es cierta"], a: "Disminuye para procesos irreversibles" },
+        { q: "¿Va en contra del primer principio la vida y sus procesos biológicos?", opts: ["Si, porque cada vez hay especies más complejas", "No, porque es un subsistema", "No, porque disminuye la entropia", "Si, porque aumenta la energía"], a: "No, porque es un subsistema" },
+        { q: "En una reacción reversible el trabajo útil es:", opts: ["Máximo", "Mínimo", "Igual", "No hay"], a: "Máximo" },
+        { q: "En una reacción irreversible la entropía es:", opts: ["Mayor que cero (en el universo)", "Menor que cero", "Igual que cero", "Menor o igual que cero"], a: "Mayor que cero (en el universo)" },
+        { q: "En un proceso reversible la entropía es:", opts: ["Mayor que cero", "Menor que cero", "Igual a cero (Variación neta)"], a: "Igual a cero (Variación neta)" },
+        { q: "Por que un barco no puede navegar usando la energía del mar:", opts: ["Va en contra del primer principio", "Va en contra del segundo principio", "No es posible mecanicamente", "No seria rentable"], a: "Va en contra del segundo principio" },
+        { q: "El verdadero concepto de temperatura se alcanza con:", opts: ["Teoría de la información", "Teoría nuclear", "Teoría cinética", "Teoría kinética"], a: "Teoría cinética" },
+        { q: "La transmisión de calor por contacto físico entre dos cuerpos se denomina:", opts: ["Convección", "Conducción", "Difusión", "Radiación"], a: "Conducción" },
+        { q: "Alimentarse consiste en:", opts: ["Adquirir entropía negativa", "Adquirir entropía positiva o igual a cero", "Adquirir energía en forma de calor", "Adquirir entalpia"], a: "Adquirir entropía negativa" },
+        { q: "Una pieza helada pasa a líquida, implicando un aumento de:", opts: ["Entropía", "Entalpía", "Función de Gibbs", "Función de Helmholtz"], a: "Entropía" },
+        { q: "El calor en el vacío:", opts: ["Se propaga por convección", "Se propaga por conducción", "No se propaga", "Se propaga por radiación"], a: "Se propaga por radiación" },
+        { q: "La forma mas baja o degradada de energía es:", opts: ["El calor", "La temperatura", "La energía cinética", "La energía potencial"], a: "El calor" },
+        { q: "La entalpía:", opts: ["Es una función de estado", "No es una función de estado", "Es trabajo", "Es calor"], a: "Es una función de estado" },
+        { q: "El calor que se transfiere de un sistema a otro:", opts: ["Es una función de estado", "No es una función de estado", "Se mide en watios", "Es constante"], a: "No es una función de estado" },
+        { q: "La transferencia de calor que se produce en los fluidos por desplazamiento de partículas es debido a una corriente de:", opts: ["Conducción", "Radiación", "Convección", "Desplazante"], a: "Convección" },
+        { q: "Las transformaciones isotermas son aquellas en las que:", opts: ["La T aumenta", "La T disminuye", "No hay transferencia de calor, el calor es constante", "La Temperatura es constante"], a: "La Temperatura es constante" },
+        { q: "En un proceso real:", opts: ["La entropía del universo aumenta", "La entropía del universo disminuye", "La entropía del universo se mantiene constante", "El trabajo es máximo"], a: "La entropía del universo aumenta" },
+        { q: "Una función de estado es aquella que depende de:", opts: ["Del estado físico inicial y final", "Del estado final", "De varias variables que varían", "Ninguna de las anteriores"], a: "Del estado físico inicial y final" },
+        { q: "La entalpia del organismo es:", opts: ["Máxima", "Mínima", "Equilibrada (sin contexto claro)", "Todas son falsas"], a: "Equilibrada (sin contexto claro)" },
+        { q: "La energía interna relaciona:", opts: ["Entropía con trabajo", "Calor con trabajo útil", "Calor con entropia", "Calor con trabajo"], a: "Calor con trabajo" },
+        { q: "El hipotálamo al aumentar la temperatura a 37 grados (desde hipotermia) o por encima de 37 (fiebre/calor):", opts: ["Produce temblor", "Produce sudor", "Produce vaso dilatación", "Produce respuestas de termorregulación"], a: "Produce respuestas de termorregulación" },
+        { q: "Es inherente al aumento de entropía:", opts: ["La disminución de información", "El aumento de información", "El aumento de energía", "Nada"], a: "La disminución de información" },
+        { q: "La posibilidad de invertir calor en trabajo es lo mismo que:", opts: ["Aumento de entropía", "Disminución de entropía", "Aumento de entalpía", "Disminución de entalpía"], a: "Disminución de entropía" },
+        { q: "Si el incremento de la función de Gibbs y Helmholtz se iguala, diremos que la transformación es:", opts: ["Adiabática", "Isobara", "Isocora", "Isoterma"], a: "Isocora" },
+        { q: "¿Qué tipo de perdida de calor favorece el sudor?", opts: ["Convección", "Conducción", "Radiación", "Evaporación (La pregunta es falsa en sus opciones)"], a: "Evaporación (La pregunta es falsa en sus opciones)" },
+        { q: "Consecuencia de que principio es la inaccesibilidad al cero absoluto:", opts: ["Primero", "Segundo", "Tercero", "Cero"], a: "Tercero" },
+        { q: "En los cambios de estado se modifica:", opts: ["La temperatura inicial", "La temperatura final", "No se modifica la temperatura", "La temperatura inicial y final"], a: "No se modifica la temperatura" },
+        { q: "La ecuación fundamental de transmisión de calor entre dos medios indica que el calor es:", opts: ["Inversamente proporcional a la resistencia termica", "Inversamente proporcional a la diferencia de temperatura", "Muy elevado", "Directamente proporcional a la resistencia termina"], a: "Inversamente proporcional a la resistencia termica" },
+        { q: "La temperatura es la magnitud que permite:", opts: ["Determinar si dos cuerpos están o no en equilibrio termico", "Es lo que subo o baja en un termometro", "Se mide en calorias", "Regular el sol"], a: "Determinar si dos cuerpos están o no en equilibrio termico" },
+        { q: "¿Para que sudamos cuando la temperatura es elevada?", opts: ["Para refrigerarnos", "Para eliminar toxinas", "Para usar ventilacion", "Para evaporar el sudor, consumiendo energía y bajando la temperatura de la superficie corporal"], a: "Para evaporar el sudor, consumiendo energía y bajando la temperatura de la superficie corporal" },
+        { q: "Los escalofríos perteneces a la zona de regulación de la temperatura:", opts: ["Sudomotora", "Voluntaria", "Metabólica", "Vasomotora"], a: "Metabólica" },
+        { q: "En cualquier proceso donde un sistema termodinámicamente aislado pasa de un estado a otro:", opts: ["Su entropía aumenta", "Su entropía disminuye", "Su entalpía aumenta", "Su entalpía disminuye"], a: "Su entropía aumenta" },
+        { q: "El ser vivo es un sistema:", opts: ["Ordenado", "Estable", "Inestable (Termodinámicamente)", "Sano"], a: "Inestable (Termodinámicamente)" },
+        { q: "El calor se mide en:", opts: ["Grados", "Vatios", "Caballos de vapor", "Julios"], a: "Julios" },
+        { q: "Las unidades de la entropía en el SI son:", opts: ["J/K", "KJ/h*m²", "J/Celsius", "Kcal./Celsius"], a: "J/K" },
+        { q: "Se denomina ecuación de estado:", opts: ["Las propiedades de la materia afectadas por Q y T", "Relación matemática que liga las magnitudes P,V y T", "Al consiente: P,V y T", "Relación matemática que liga las magnitudes que definen el estado de un sistema"], a: "Relación matemática que liga las magnitudes que definen el estado de un sistema" },
+        { q: "Se dice que un sistema es estable, si:", opts: ["Si energía es muy elevada", "Esta en estado de máxima entropía", "La entalpía es mínima", "La entalpía es máxima"], a: "Esta en estado de máxima entropía" },
+        { q: "Aplicando la función de Gibbs a la evolución de la energía contenida en un mol de glucosa:", opts: ["La energía libre obtenida es igual a la entropía generada", "La energía libre obtenida es menor que la entalpía", "La energía libre obtenida es mayor que la entalpía", "La entropía generada es mayor que la energía libre"], a: "La energía libre obtenida es menor que la entalpía" },
+        { q: "Para que el organismo vivo se mantenga en equilibrio térmico, es preciso que:", opts: ["El calor transmitido sea igual a calor producido", "El calor trasmitido sea menor a calor producido", "El calor transmitido sea mayor al calor producido", "Debe estar muy bien alimentado"], a: "El calor transmitido sea igual a calor producido" },
+        { q: "¿Cuál de las siguientes pérdidas por calor, es la más importante en el ser humano?", opts: ["Conducción", "Conversión", "Radiación", "Transpiración"], a: "Radiación" },
+        { q: "La ecuación fundamental de transmisión del calor entre dos medios, nos dice que el calor transmitido es:", opts: ["Directamente proporcional a la resistencia térmica", "Inversamente proporcional a la temperatura corporal", "Directamente proporcional a la diferencia entre la temperatura corporal y la exterior", "No depende de la temperatura exterior"], a: "Directamente proporcional a la diferencia entre la temperatura corporal y la exterior" },
+        { q: "El detector en el mecanismo de control de T del cuerpo humano está en:", opts: ["La piel", "El hipotalamo", "El sistema circulatorio", "A y B son detectores"], a: "El hipotalamo" },
+        { q: "La criobiología estudia:", opts: ["Las células cancerígenas", "Los efectos de las temperaturas bajas en biología y medicina", "La producción y el uso de temperaturas bajas", "El calentamiento de tejidos"], a: "Los efectos de las temperaturas bajas en biología y medicina" },
+        { q: "El primer principio de la termodinámica es:", opts: ["Una ley indeterminista", "Una ley determinista y flexible", "Una ley determinista y rígida", "Una función exponencial"], a: "Una ley determinista y rígida" },
+        { q: "El primer experimento de Joule establece la relación entre:", opts: ["Calor y temperatura", "Energía y materia", "Calor y trabajo", "Trabajo mecánico y estabilidad"], a: "Calor y trabajo" },
+        { q: "En un sistema irreversible:", opts: ["S aumenta", "S disminuye", "S permanece constante", "Ninguna de las anteriores"], a: "S aumenta" },
+        { q: "La temperatura es:", opts: ["Una energía", "Una magnitud", "Una sensación", "Calor"], a: "Una magnitud" },
+        { q: "Los puntos fijos del termómetro son:", opts: ["0 y 100", "Dos puntos tomados al azar y ulteriormente estandarizados", "Dos puntos que corresponden con la dilatación del mercurio en la fusión del hielo y en la ebullición del agua", "Todas son ciertas"], a: "Todas son ciertas" },
+        { q: "El enunciado “es imposible obtener un proceso cíclico cuando el único efecto sea la transformación de calor en trabajo” (entropía).", opts: ["Es el enunciado del primer principio", "Es el enunciado del segundo", "Es falso", "Es el tercero"], a: "Es el enunciado del segundo" },
+        { q: "A la relación matemática f(P,V,T)=0 se la denomina:", opts: ["Función de estado", "Equilibrio termodínamico", "Ecuación de estado", "Estado en equilibrio"], a: "Ecuación de estado" },
+        { q: "¿A quien deberías seguir en Instagram?", opts: ["Not_yisuss", "Santibenvenuty", "Susoocalderoon", "Ignbartel (elmejordandocharlasmotivadoras)", "Antonioarroyoo19", "Pepegarridoo", "Álvaro Condón, no tiene insta pero Álvaro Condón"], a: "Álvaro Condón, no tiene insta pero Álvaro Condón" },
+        { q: "El mecanismo de las aves de unir el seno venoso con el arterial para ganar calor lo realizan:", opts: ["Cuando las pérdidas son grandes", "Cuando el clima es húmedo y caluroso", "Cuando hace mucho frío", "Cuando las pérdidas son grandes y hace mucho frio"], a: "Cuando las pérdidas son grandes y hace mucho frio" },
+        { q: "Quieres ser el novi@ de Bartel?", opts: ["SI", "Si", "si", "sI"], a: "SI" },
+        { q: "A escala molecular la temperatura es:", opts: ["Inversamente proporcional a la masa del cuerpo", "Inversamente proporcional a la constante de Stefan-Boltzmann", "Similar al calor", "Directamente proporcional a la velocidad de las partículas que forman el cuerpo"], a: "Directamente proporcional a la velocidad de las partículas que forman el cuerpo" },
+        { q: "Una variable termodinámica que no depende del tamaño ni de la cantidad de materia se denomina:", opts: ["Intensiva", "Extensiva", "Adiabática", "Fija"], a: "Intensiva" },
+        { q: "Si la variación de energía interna es igual a cero, entonces decimos que se trata de un proceso:", opts: ["Adiabático", "Isotermo", "Isobaro", "Isocoro"], a: "Isotermo" },
+        { q: "La energía transferida del cuerpo a otro debido a una diferencia entre sus temperaturas se denomina:", opts: ["Calor", "Energía interna", "Trabajo calórico", "Trabajo"], a: "Calor" },
+        { q: "¿Cuál de lo siguientes sistemas termodinámicos puede transmitir materia a los alrededores?", opts: ["Sistema Adiabático", "Sistema Cerrado", "Sistema Aislado", "Sistema Abierto"], a: "Sistema Abierto" },
+        { q: "Se denomina energía:", opts: ["A la temperatura alcanzada", "Al producto escalar de la fuerza por el espacio recorrido", "A la cantidad de trabajo producido o consumida por unidad de tiempo", "A la capacidad que tienen los cuerpos para producir cambios para realizar un trabajo"], a: "A la capacidad que tienen los cuerpos para producir cambios para realizar un trabajo" },
+        { q: "El proceso en el cual la energía interna se incrementa en la misma proporción que el trabajo mecánico se denomina:", opts: ["Adiabático", "Isocoro", "Isotermo", "Isobaro"], a: "Adiabático" },
+        { q: "El proceso en el cual la energía interna se incrementa en la misma proporción que el trabajo mecánico se denomina (Repetida):", opts: ["Isotermo", "Isócoro", "Adiabático", "Isobaro"], a: "Adiabático" },
+        { q: "Si en un sistema reversible a 300 K la entropía se incrementa en 200 J/K, ¿Cuánto calor se agrego al sistema?", opts: ["500 calorías", "2.090 Julios", "60.000 calorías", "60.000 Julios"], a: "60.000 Julios" },
+        { q: "La energía transferida de un cuerpo a otro debido a una diferencia entre sus temperaturas se denomina:", opts: ["Calor", "Energía interna", "Trabajo", "Trabajo calorico"], a: "Calor" },
+        { q: "Una función o variable de estado puede definirse como:", opts: ["Aquella que define la forma del sistema", "Aquella cuyas variaciones NO DEPENDEN solamente de los estados inicial y final del sistema", "Aquella cuyas variaciones dependen exclusivamente de los estados inicial y final del sistema", "Aquella que nos indica el estado físico del sistema"], a: "Aquella cuyas variaciones dependen exclusivamente de los estados inicial y final del sistema" },
+        { q: "Un gas contenido en un sistema cilíndrico provisto de un pistón sufre una expansión al absorber calor. Si la energía interna no experimenta ninguna variación, entonces el trabajo realizo por el gas es:", opts: ["Mayor que el calor absorbido", "Igual que el calor absorbido", "Menor que el calor absorbido", "Cero"], a: "Igual que el calor absorbido" }
+    ];
+
+    // --- ASIGNAR IDs ÚNICOS (NECESARIO PARA EL TRACKING) ---
+    quizData.forEach((item, index) => {
+        item.id = index;
+    });
+
+    // --- GESTIÓN DE ESTADO ---
+    let markedQuestions = new Set();
+    let failedQuestions = new Set();
+
+    // Fisher-Yates Shuffle
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    const container = document.getElementById('quiz-container');
+
+    // Función principal para renderizar el quiz
+    function renderQuiz(questionsToLoad = quizData) {
+        container.innerHTML = "";
+
+        // Ocultar menú de reinicio y mostrar botón de finalizar
+        document.getElementById("restart-menu").style.display = "none";
+        document.getElementById("finish-btn").style.display = "inline-block";
+
+        if(questionsToLoad.length === 0) {
+            container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay preguntas para mostrar en esta selección.</p>";
+            return;
+        }
+
+        questionsToLoad.forEach((item, displayIndex) => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+
+            // --- SECCIÓN: Checkbox de Marcar para revisar ---
+            const markContainer = document.createElement("div");
+            markContainer.className = "mark-container";
+            
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `mark-${item.id}`;
+            // Si ya estaba marcada en la sesión global, mantener el check
+            if(markedQuestions.has(item.id)) checkbox.checked = true;
+
+            checkbox.onchange = (e) => {
+                if(e.target.checked) {
+                    markedQuestions.add(item.id);
+                } else {
+                    markedQuestions.delete(item.id);
+                }
+            };
+
+            const label = document.createElement("label");
+            label.htmlFor = `mark-${item.id}`;
+            label.innerText = "Marcar para revisar";
+
+            markContainer.appendChild(checkbox);
+            markContainer.appendChild(label);
+            card.appendChild(markContainer);
+            // ------------------------------------------------
+
+            const header = document.createElement('div');
+            header.className = 'question-header';
+            header.textContent = `Pregunta ${item.id + 1}`; 
+            card.appendChild(header);
+
+            const questionText = document.createElement('div');
+            questionText.className = 'question-text';
+            questionText.textContent = item.q;
+            card.appendChild(questionText);
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options-container';
+
+            // Preparamos opciones
+            let optionsObj = item.opts.map(opt => ({
+                text: opt,
+                isCorrect: opt === item.a
+            }));
+
+            // Barajamos opciones
+            optionsObj = shuffleArray(optionsObj);
+
+            // Explicación
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'explanation';
+            explanationDiv.innerHTML = `<strong>Respuesta Correcta:</strong> ${item.a}`;
+
+            optionsObj.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt.text;
+
+                btn.onclick = () => {
+                    const allBtns = optionsDiv.querySelectorAll('.option-btn');
+                    allBtns.forEach(b => b.disabled = true);
+
+                    if (opt.isCorrect) {
+                        btn.classList.add('correct');
+                    } else {
+                        btn.classList.add('incorrect');
+                        // --- REGISTRAR FALLO ---
+                        failedQuestions.add(item.id);
+                        
+                        // marcar la correcta visualmente
+                        allBtns.forEach(b => {
+                            if (b.textContent === item.a) {
+                                b.classList.add('correct');
+                            }
+                        });
+                    }
+                    explanationDiv.classList.add('visible');
+                };
+                optionsDiv.appendChild(btn);
+            });
+
+            card.appendChild(optionsDiv);
+            card.appendChild(explanationDiv);
+            container.appendChild(card);
+        });
+    }
+
+    // --- FUNCIONES DE CONTROL FINAL ---
+
+    function showEndOptions() {
+        document.getElementById("finish-btn").style.display = "none";
+        document.getElementById("restart-menu").style.display = "flex";
+        
+        // Scroll al final
+        document.getElementById("controls-area").scrollIntoView({behavior: "smooth"});
+        
+        // Mostrar estadísticas
+        document.getElementById("stats-summary").innerHTML = `
+            Preguntas marcadas: <strong>${markedQuestions.size}</strong><br>
+            Preguntas falladas en esta sesión: <strong>${failedQuestions.size}</strong>
+        `;
+    }
+
+    function restartQuiz(mode) {
+        let subset = [];
+        
+        // Filtramos usando el 'id'
+        if (mode === 'all') {
+            subset = quizData;
+        } else if (mode === 'marked') {
+            subset = quizData.filter(q => markedQuestions.has(q.id));
+        } else if (mode === 'failed') {
+            subset = quizData.filter(q => failedQuestions.has(q.id));
+        } else if (mode === 'failed_marked') {
+            subset = quizData.filter(q => failedQuestions.has(q.id) || markedQuestions.has(q.id));
+        }
+
+        // Limpiamos los fallos de la sesión anterior
+        if(mode !== 'all') {
+            failedQuestions.clear(); 
+        } else {
+            failedQuestions.clear();
+            markedQuestions.clear(); // Reset completo
+        }
+
+        renderQuiz(subset);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Iniciar
+    renderQuiz();
+</script>
+
+</body>
+</html>

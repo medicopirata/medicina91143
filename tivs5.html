@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIVS 5 - Quiz</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #f1c40f;
+            --success: #27ae60;
+            --error: #c0392b;
+            --text: #333;
+            --bg: #f4f6f7;
+            --sidebar-width: 160px; /* Barra ancha para agrupar */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (Índice) */
+        #sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px;
+            flex-shrink: 0;
+            z-index: 100;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            width: 100%;
+            padding-bottom: 10px;
+        }
+
+        /* Contenedor Grid para los números */
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columnas */
+            gap: 8px;
+            width: 100%;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        #nav-grid::-webkit-scrollbar { width: 5px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .nav-item {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-item:hover { transform: scale(1.1); background-color: rgba(255,255,255,0.2); }
+        .nav-item.active { border-color: white; background-color: rgba(255,255,255,0.25); }
+        .nav-item.correct { background-color: var(--success); }
+        .nav-item.incorrect { background-color: var(--error); }
+        
+        .nav-mark {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            color: var(--accent);
+            font-size: 14px;
+            display: none;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
+            z-index: 2;
+        }
+        .nav-item.marked .nav-mark { display: block; }
+
+        /* MAIN CONTENT */
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        /* PANTALLAS */
+        .screen {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        h1, h2 { color: var(--primary); }
+        h1 { font-size: 2.5em; margin-bottom: 0.5em; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.2s;
+            font-weight: 600;
+        }
+        .btn:hover { background-color: #2980b9; }
+        .btn-outline { background: transparent; border: 2px solid var(--secondary); color: var(--secondary); }
+        .btn-outline:hover { background: var(--secondary); color: white; }
+
+        /* TARJETA DE PREGUNTA */
+        .question-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 6px solid var(--secondary);
+            position: relative;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .q-text { font-size: 1.15em; font-weight: 600; width: 90%; line-height: 1.5; }
+        
+        .mark-toggle {
+            cursor: pointer;
+            font-size: 24px;
+            color: #ccc;
+            background: none;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .mark-toggle:hover { transform: scale(1.2); }
+        .mark-toggle.active { color: var(--accent); }
+
+        .options-list { list-style: none; padding: 0; }
+        
+        .option-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+        }
+
+        .option-item:hover:not(.disabled) { background: #e2e6ea; transform: translateX(5px); }
+
+        .option-item.correct { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option-item.wrong { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .option-item.disabled { cursor: default; pointer-events: none; opacity: 0.8; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-radius: 5px;
+            color: #0c5460;
+            display: none;
+            font-size: 0.95em;
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* BARRA FIJA DE FINALIZAR */
+        #finish-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: calc(100% - var(--sidebar-width));
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: flex-end;
+            box-sizing: border-box;
+            z-index: 90;
+        }
+        
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            :root { --sidebar-width: 0px; }
+            #sidebar { display: none; }
+            #finish-bar { width: 100%; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-title">TIVS 5</div>
+        <div id="nav-grid">
+            </div>
+    </div>
+
+    <div id="main">
+        <div class="container">
+            
+            <div id="start-screen" class="screen">
+                <h1>TIVS 5</h1>
+                <h3>Quiz: Colágeno, Renal y Metabolismo</h3>
+                <p>Selecciona el modo de ordenación:</p>
+                <button class="btn" onclick="initQuiz(false)">Orden Preestablecido</button>
+                <button class="btn" onclick="initQuiz(true)">Orden Aleatorio (Mezcladas)</button>
+            </div>
+
+            <div id="quiz-container" class="hidden">
+            </div>
+
+            <div id="results-screen" class="screen hidden">
+                <h2>Resultados TIVS 5</h2>
+                <p id="score-display" style="font-size: 1.5em; margin: 20px 0; font-weight: bold; color: var(--primary);"></p>
+                <hr>
+                <p>¿Qué deseas hacer ahora?</p>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                    <button class="btn" onclick="restartQuiz('all')">Repetir Completo</button>
+                    <button class="btn" onclick="restartQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn" onclick="restartQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn" onclick="restartQuiz('mixed')">Repetir Falladas + Marcadas</button>
+                </div>
+                <br>
+                <button class="btn btn-outline" onclick="location.reload()">Volver al Inicio</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="finish-bar" class="hidden">
+        <button class="btn" style="background-color: var(--error);" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+<script>
+    // Listas reutilizables para emparejar
+    const optionsPresion = ["aumentada", "disminuida"];
+    const optionsIones = ["potasio", "sodio"];
+    const optionsGluco = ["glucogenolisis muscular", "glucogenolisis hepática"];
+    const optionsRefKNa = ["3,4-4,9 mmol/L", "135-145 mmol/L"];
+
+    // BASE DE DATOS DE PREGUNTAS
+    const rawQuestions = [
+        {
+            text: "¿Qué enzima cataliza la hidroxilación de la prolina de las cadenas de colágeno?",
+            options: [
+                "Hidroxiprolina sintasa",
+                "Prolil 4- hidroxilasa",
+                "Prolil 5-hidroxilasa",
+                "Lisil 4- hidroxilasa",
+                "Prolil hidroxitransferasa"
+            ],
+            correct: "Prolil 4- hidroxilasa",
+            explanation: "La respuesta correcta es: Prolil 4- hidroxilasa"
+        },
+        {
+            text: "La O-glucosilación de las cadenas de colágeno se produce en los residuos de OH de las hidroxiprolinas",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "Las proteínas fibrosas son solubles en agua",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+        {
+            text: "La mayor proporción de agua en el organismo se encuentra en el espacio intersticial",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "¿Cuál es el principal aminoácido empleado por la célula neoplásica?",
+            options: ["glutamina", "fenilalanina", "glicina", "cisteína"],
+            correct: "glutamina",
+            explanation: "La respuesta correcta es: glutamina"
+        },
+        {
+            text: "¿El escorbuto se produce por un déficit de...?",
+            options: ["Vitamina A", "Vitamina C", "Vitamina K", "Vitamina E", "Vitamina D"],
+            correct: "Vitamina C",
+            explanation: "La respuesta correcta es: Vitamina C"
+        },
+        
+        // Emparejar Presiones
+        {
+            text: "¿Cómo está la presión hidrostática respecto a la osmótica a nivel de los capilares arteriales?",
+            options: optionsPresion,
+            correct: "aumentada",
+            explanation: "En capilares arteriales: hidrostática > osmótica (aumentada)"
+        },
+        {
+            text: "¿Cómo está la presión osmótica respecto a la hidrostática a nivel de los capilares venosos?",
+            options: optionsPresion,
+            correct: "aumentada",
+            explanation: "En capilares venosos: osmótica > hidrostática (aumentada)"
+        },
+
+        {
+            text: "La creatina es un buen marcador de función renal",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso' (Es la creatinina)"
+        },
+        {
+            text: "La triple hélice dextrógira de procolágeno se estabiliza mediante enlaces covalentes como los puentes disulfuro",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+        {
+            text: "Los propéptidos son eliminados de la moléculas de procolágeno en el espacio extracelular por peptidasas específicas",
+            options: ["Verdadero", "Falso"],
+            correct: "Verdadero",
+            explanation: "La respuesta correcta es ‘Verdadero'"
+        },
+
+        // Emparejar Aldosterona
+        { text: "La acción de la aldosterona en el túbulo contorneado distal favorece la excreción de", options: optionsIones, correct: "potasio", explanation: "Excreción de → potasio" },
+        { text: "La acción de la aldosterona en el túbulo contorneado distal favorece la reabsorción de", options: optionsIones, correct: "sodio", explanation: "Reabsorción de → sodio" },
+
+        {
+            text: "La vitamina D, en relación con el metabolismo del calcio:",
+            options: [
+                "Inhibe la resorción ósea",
+                "Inhibe a la hormona partiroidea",
+                "Favorece la absorción de calcio en el intestino delgado"
+            ],
+            correct: "Favorece la absorción de calcio en el intestino delgado",
+            explanation: "La respuesta correcta es: Favorece la absorción de calcio en el intestino delgado"
+        },
+        {
+            text: "En ayuno temprano, se favorece la proteolisis",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "Tras casi dos horas de la realización de un ejercicio físico moderado, ¿qué porcentaje de oxígeno se emplea para la oxidación de los ácidos grasos en el músculo?",
+            options: ["25", "75", "30", "50"],
+            correct: "75",
+            explanation: "La respuesta correcta es: 75"
+        },
+        {
+            text: "La hidroxilación y la glucosilación de las cadenas de colágeno ocurre en:",
+            options: [
+                "Espacio extracelular",
+                "Aparato de Golgi",
+                "Citosol",
+                "Mitocondrias",
+                "Retículo endoplasmático"
+            ],
+            correct: "Retículo endoplasmático",
+            explanation: "La respuesta correcta es: Retículo endoplasmático"
+        },
+        {
+            text: "Cuando la osmolaridad del espacio extracelular aumenta, el agua entra en la célula",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+
+        // Emparejar Ejercicio
+        { text: "Cuando pasan unos 15 minutos de un ejercicio de moderada intensidad, la glucosa que consume el músculo es sobre todo a expensas de:", options: optionsGluco, correct: "glucogenolisis muscular", explanation: "15 min → glucogenolisis muscular" },
+        { text: "Cuando pasan unos 35 minutos de un ejercicio de moderada intensidad, la glucosa que consume el músculo es sobre todo a expensas de:", options: optionsGluco, correct: "glucogenolisis hepática", explanation: "35 min → glucogenolisis hepática" },
+
+        {
+            text: "En la nefrona, el agua se reabsorbe a nivel de la rama ascendente del asa de Henle",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es 'Falso'"
+        },
+
+        // Emparejar ATPasa
+        { text: "La subunidad catalítica E2 de la enzima ATPasa tiene afinidad por el ión", options: optionsIones, correct: "potasio", explanation: "E2 → potasio" },
+        { text: "La subunidad catalítica E1 de la enzima ATPasa tiene afinidad por el ión", options: optionsIones, correct: "sodio", explanation: "E1 → sodio" },
+
+        {
+            text: "La hormona paratiroidea:",
+            options: [
+                "Se secreta cuando la concentración de calcio aumenta en sangre",
+                "Estimula la reabsorción ósea",
+                "Favorece la activación de los osteoblastos"
+            ],
+            correct: "Estimula la reabsorción ósea",
+            explanation: "La respuesta correcta es: Estimula la reabsorción ósea"
+        },
+        {
+            text: "¿ Que células realizan la reabsorción ósea?",
+            options: ["Osteoclastos", "Osteoblastos"],
+            correct: "Osteoclastos",
+            explanation: "La respuesta correcta es: Osteoclastos"
+        },
+        {
+            text: "Respecto a las hidroxilaciones de la vitamina D, antes de ejercer su función en el intestino, son;",
+            options: [
+                "Hidroxilación en el carbono 25 en el riñón",
+                "Hidroxilación en el carbono 1 en el hígado",
+                "Hidroxilación en el carbono 1 en el riñón"
+            ],
+            correct: "Hidroxilación en el carbono 1 en el riñón",
+            explanation: "La respuesta correcta es: Hidroxilación en el carbono 1 en el riñón"
+        },
+        {
+            text: "El efecto Warburg en la célula neoplásica se caracteriza por derivar el piruvato hacia la formación de:",
+            options: ["citrato", "acetil-CoA", "lactato", "malato"],
+            correct: "lactato",
+            explanation: "La respuesta correcta es: lactato"
+        },
+        {
+            text: "Las acuoporinas tipo 2 se activan por acción de la hormona:",
+            options: ["vasopresina", "aldosterona", "angiotensina II", "oxitocina"],
+            correct: "vasopresina",
+            explanation: "La respuesta correcta es: vasopresina"
+        },
+        {
+            text: "¿Cuál de los siguientes aminoácidos es usado principalmente por lo enterocitos?",
+            options: ["glutamina", "citrulina", "lisina", "prolina", "arginina"],
+            correct: "glutamina",
+            explanation: "La respuesta correcta es: glutamina"
+        },
+
+        // Emparejar Valores ref
+        { text: "Valores de referencia del potasio plasmático", options: optionsRefKNa, correct: "3,4-4,9 mmol/L", explanation: "Potasio → 3,4-4,9 mmol/L" },
+        { text: "Valores de referencia del sodio plasmático", options: optionsRefKNa, correct: "135-145 mmol/L", explanation: "Sodio → 135-145 mmol/L" },
+
+        {
+            text: "La hidroxilación a nivel renal de la vitamina D se produce en posición 25",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        {
+            text: "La formación de la triple hélice de procolágeno ocurre.......",
+            options: [
+                "Comienzan por los extremos N y C terminales y terminan de formarse en el centro de las cadenas de colágeno",
+                "Comienzan en el punto central de las cadenas de colágeno y se forman bidireccionalmente hasta los extremos N y C teminales",
+                "Desde el extremo N-terminal en dirección al C-terminal de las cadenas de colágeno",
+                "Desde el extremo C-terminal en dirección al extremo N-terminal de las cadenas de colágeno"
+            ],
+            correct: "Desde el extremo C-terminal en dirección al extremo N-terminal de las cadenas de colágeno",
+            explanation: "La respuesta correcta es: Desde el extremo C-terminal en dirección al extremo N-terminal de las cadenas de colágeno"
+        },
+        {
+            text: "En estado de buena alimentación se inhibe la glucogenogénesis",
+            options: ["Verdadero", "Falso"],
+            correct: "Falso",
+            explanation: "La respuesta correcta es ‘Falso'"
+        },
+        // Pregunta de selección múltiple (adaptada a 2 preguntas para este motor)
+        {
+            text: "De las siguientes moléculas, indique cuál funciona como proteína de adhesión en la matriz extracelular (1)",
+            options: ["Colágeno", "Fibronectina", "Elastina", "Glucosaminoglucanos", "Fibrilina"],
+            correct: "Fibronectina",
+            explanation: "Las respuestas correctas son: Fibronectina y Laminina"
+        },
+        {
+            text: "De las siguientes moléculas, indique cuál funciona como proteína de adhesión en la matriz extracelular (2)",
+            options: ["Colágeno", "Elastina", "Laminina", "Fibrilina", "Glucosaminoglucanos"],
+            correct: "Laminina",
+            explanation: "Las respuestas correctas son: Fibronectina y Laminina"
+        }
+    ];
+
+    // ESTADO DE LA APLICACIÓN
+    let currentQuestions = [];
+    let markedQuestions = new Set(); 
+    let answersStatus = {}; // { id: true/false/null }
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function initQuiz(randomOrder) {
+        rawQuestions.forEach((q, index) => { if(!q.id) q.id = index; });
+        
+        currentQuestions = [...rawQuestions];
+        
+        if (randomOrder) {
+            shuffle(currentQuestions);
+        }
+
+        markedQuestions.clear();
+        answersStatus = {};
+        
+        renderQuiz();
+    }
+
+    function restartQuiz(mode) {
+        let pool = [];
+
+        if (mode === 'all') {
+            pool = [...rawQuestions];
+        } else if (mode === 'failed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false);
+        } else if (mode === 'marked') {
+            pool = rawQuestions.filter(q => markedQuestions.has(q.id));
+        } else if (mode === 'mixed') {
+            pool = rawQuestions.filter(q => answersStatus[q.id] === false || markedQuestions.has(q.id));
+        }
+
+        if (pool.length === 0) {
+            alert("No hay preguntas que cumplan ese criterio.");
+            return;
+        }
+
+        currentQuestions = shuffle(pool);
+        answersStatus = {}; 
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('results-screen').classList.add('hidden');
+        document.getElementById('quiz-container').classList.remove('hidden');
+        document.getElementById('finish-bar').classList.remove('hidden');
+
+        const container = document.getElementById('quiz-container');
+        const navGrid = document.getElementById('nav-grid'); // Usamos Grid
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        currentQuestions.forEach((q, index) => {
+            // 1. Crear Tarjeta
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-card-${index}`;
+
+            let optionsObj = q.options.map(opt => ({ 
+                text: opt, 
+                isCorrect: opt.trim() === q.correct.trim() 
+            }));
+            shuffle(optionsObj);
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'q-header';
+            
+            const title = document.createElement('div');
+            title.className = 'q-text';
+            title.innerHTML = `${index + 1}. ${q.text}`;
+            
+            const markBtn = document.createElement('button');
+            markBtn.className = 'mark-toggle';
+            markBtn.innerHTML = '★'; 
+            markBtn.title = "Marcar para revisar luego";
+            if(markedQuestions.has(q.id)) markBtn.classList.add('active');
+            
+            markBtn.onclick = () => toggleMark(q.id, markBtn, index);
+
+            header.appendChild(title);
+            header.appendChild(markBtn);
+            card.appendChild(header);
+
+            // Opciones
+            const ul = document.createElement('ul');
+            ul.className = 'options-list';
+
+            optionsObj.forEach(opt => {
+                const li = document.createElement('li');
+                li.className = 'option-item';
+                li.innerText = opt.text;
+                li.onclick = function() {
+                    handleAnswer(q, opt.isCorrect, li, card, index);
+                };
+                ul.appendChild(li);
+            });
+            card.appendChild(ul);
+
+            // Explicación
+            const expl = document.createElement('div');
+            expl.className = 'explanation';
+            expl.innerHTML = `<strong></strong><br>${q.explanation}`;
+            expl.id = `expl-${index}`;
+            card.appendChild(expl);
+
+            container.appendChild(card);
+
+            // 2. Sidebar Grid Item
+            const nav = document.createElement('div');
+            nav.className = 'nav-item';
+            nav.innerText = index + 1;
+            nav.id = `nav-${index}`;
+            nav.onclick = () => {
+                document.getElementById(`q-card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            
+            const markInd = document.createElement('div');
+            markInd.className = 'nav-mark';
+            markInd.innerText = '★';
+            nav.appendChild(markInd);
+            
+            if(markedQuestions.has(q.id)) nav.classList.add('marked');
+
+            navGrid.appendChild(nav); // Añadimos al grid
+        });
+    }
+
+    function toggleMark(originalId, btnElement, index) {
+        if (markedQuestions.has(originalId)) {
+            markedQuestions.delete(originalId);
+            btnElement.classList.remove('active');
+            document.getElementById(`nav-${index}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(originalId);
+            btnElement.classList.add('active');
+            document.getElementById(`nav-${index}`).classList.add('marked');
+        }
+    }
+
+    function handleAnswer(questionObj, isCorrect, liElement, cardElement, index) {
+        if (cardElement.classList.contains('answered')) return;
+        cardElement.classList.add('answered');
+
+        answersStatus[questionObj.id] = isCorrect;
+
+        const options = cardElement.querySelectorAll('.option-item');
+        options.forEach(opt => {
+            opt.classList.add('disabled'); 
+            if (opt.innerText.trim() === questionObj.correct.trim()) {
+                opt.classList.add('correct');
+            }
+        });
+
+        if (!isCorrect) {
+            liElement.classList.add('wrong');
+        }
+
+        const expl = document.getElementById(`expl-${index}`);
+        expl.style.display = 'block';
+        expl.style.backgroundColor = isCorrect ? '#d4edda' : '#f8d7da';
+        expl.style.color = isCorrect ? '#155724' : '#721c24';
+        expl.style.borderColor = isCorrect ? '#c3e6cb' : '#f5c6cb';
+        expl.querySelector('strong').innerText = isCorrect ? "¡Correcto!" : "Incorrecto";
+
+        const navItem = document.getElementById(`nav-${index}`);
+        navItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function finishQuiz() {
+        document.getElementById('quiz-container').classList.add('hidden');
+        document.getElementById('finish-bar').classList.add('hidden');
+        document.getElementById('results-screen').classList.remove('hidden');
+        // No limpiamos sidebar aquí
+        
+        let total = currentQuestions.length;
+        let correct = 0;
+        let answered = 0;
+
+        currentQuestions.forEach(q => {
+            if (answersStatus.hasOwnProperty(q.id)) {
+                answered++;
+                if (answersStatus[q.id]) correct++;
+            }
+        });
+
+        const scoreText = `Has acertado ${correct} de ${total} preguntas (${answered < total ? 'Cuestionario incompleto' : 'Completado'}).`;
+        document.getElementById('score-display').innerText = scoreText;
+    }
+
+</script>
+
+</body>
+</html>

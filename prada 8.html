@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Anatomía - Tema 21: Estómago</title>
+    <style>
+        :root {
+            --primary-color: #e74c3c; /* Rojo/Naranja para Estómago */
+            --secondary-color: #c0392b;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --background-color: #fdedec;
+            --card-background: #ffffff;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #bdc3c7;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            text-align: center;
+            background-color: #1a252f;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 { margin: 0; font-size: 1.1rem; }
+        
+        .sidebar-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sidebar-stats { font-size: 0.9rem; color: #bdc3c7; }
+
+        .finish-btn-side {
+            background-color: #f1c40f;
+            border: none;
+            border-radius: 4px;
+            color: #2c3e50;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            width: 80%;
+            transition: 0.2s;
+        }
+        .finish-btn-side:hover { background-color: #f39c12; }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 5px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); }
+        .nav-btn.correct { background-color: var(--success-color); }
+        .nav-btn.incorrect { background-color: var(--error-color); }
+        .nav-btn.marked { border: 2px solid #f1c40f; color: #f1c40f; font-weight: bold; }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h1 { color: var(--primary-color); border-bottom: 3px solid var(--secondary-color); padding-bottom: 10px; }
+
+        .question-card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--secondary-color);
+            scroll-margin-top: 20px;
+        }
+
+        .question-header-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .bookmark-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #95a5a6;
+            padding: 2px 8px;
+        }
+        .bookmark-btn.active { color: #f39c12; border-color: #f39c12; background: #fef9e7; }
+
+        .question-text { font-size: 1.1rem; color: #2c3e50; margin-bottom: 15px; font-weight: 600; line-height: 1.4; }
+
+        .options-grid { display: flex; flex-direction: column; gap: 8px; }
+
+        .option-btn {
+            padding: 10px 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(.disabled) { background-color: #fadbd8; border-color: var(--primary-color); }
+        
+        .option-btn.correct { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.incorrect { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .option-btn.disabled { cursor: default; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background-color: #e8f8f5; color: #0e6251; }
+        .feedback.error { background-color: #fdedec; color: #78281f; }
+
+        /* RESULT PANEL */
+        .results-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 40px;
+            display: none;
+            margin-bottom: 50px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            background: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { background: #922b21; transform: scale(1.05); }
+        .action-btn:active { transform: scale(0.95); }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: 170px; border-right: none; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            .sidebar-nav { grid-template-columns: repeat(8, 1fr); max-height: 150px; }
+            .main-content { overflow: visible; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Tema 21: Estómago</h2>
+        <div class="sidebar-controls">
+            <div class="sidebar-stats"><span id="progress-text">0/108</span> respondidas</div>
+            <button class="finish-btn-side" onclick="showResults(true)">Finalizar Test</button>
+        </div>
+    </div>
+    <div id="sidebar-nav" class="sidebar-nav"></div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h1>Anatomía del Estómago 
+
+[Image of stomach anatomy]
+</h1>
+        <div id="questions-list"></div>
+        
+        <div id="results-panel" class="results-panel">
+            <h2>Test Finalizado</h2>
+            <p id="score-text" style="font-size: 1.4rem; margin: 15px 0;"></p>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="resetQuiz('all')">Repetir Todo</button>
+                <button class="action-btn" onclick="resetQuiz('wrong')">Repetir Falladas</button>
+                <button class="action-btn" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                <button class="action-btn" onclick="resetQuiz('wrong_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // BASE DE DATOS - TEMA 21 ESTÓMAGO
+    const dbQuestions = [
+        { id: 1, original: "Extra", q: "El nervio vago izquierdo se sitúa en el estómago en:", options: ["Curvatura mayor", "Curvatura menor (por su cara anterior)", "Bulbo antral", "Cara posterior"], correct: 1, exp: "El Vago Izquierdo se hace Anterior (Regla mnemotécnica: L-A Left-Anterior)." },
+        { id: 2, original: "Extra", q: "El peritoneo visceral que une estómago y bazo se denomina:", options: ["Ligamento gastrorenal", "Ligamento esplenorenal", "Ligamento gastroesplénico", "Ligamento pancreático-esplénico"], correct: 2, exp: "Une la curvatura mayor del estómago con el hilio del bazo." },
+        { id: 3, original: "1", q: "Se relaciona con la curvatura mayor del estómago:", options: ["Arterias gastroomentales izquierda y derecha", "Epiplón mayor", "A y C son correctas", "Arteria gástrica izquierda"], correct: 2, exp: "Por la curvatura mayor discurren los vasos gastroepiploicos (gastroomentales) y de ella pende el epiplón mayor." },
+        { id: 4, original: "2", q: "Cuál de las siguientes estructuras es superior al cardias:", options: ["Cuerpo", "Antro", "Fundus", "Píloro"], correct: 2, exp: "El fundus gástrico es la cúpula que sobresale por encima del nivel del cardias." },
+        { id: 5, original: "3", q: "La arteria pilórica (gástrica derecha) es rama de la arteria:", options: ["Gastroduodenal", "Hepática común", "Esplénica", "Coronaria estomáquica"], correct: 1, exp: "Generalmente nace de la hepática propia, pero la opción literal dada en el texto para esta pregunta es 'hepática común' o simplemente 'hepática'." },
+        { id: 6, original: "Extra", q: "La curvatura menor del estómago está irrigada por:", options: ["Las arterias gastroduodenales derecha e izquierda", "Las arterias gastroepiploicas derecha e izquierda", "La arteria epiploica (gástrica derecha) y coronaria estomáquica (gástrica izquierda)", "Los troncos cardioesofagotuberculositarios anterior y posterior"], correct: 2, exp: "Forman el arco arterial de la curvatura menor." },
+        { id: 7, original: "Extra", q: "La arteria gastroepiploica derecha es rama de la arteria", options: ["Esplénica", "Gástrica izquierda", "Gastroduodenal (rama de la hepática)", "Mesentérica superior"], correct: 2, exp: "Rama terminal de la gastroduodenal." },
+        { id: 8, original: "Extra", q: "Las ramas del tronco celíaco son las arterias", options: ["Esplénica, pilórica, cística", "Coronaria estomáquica (gástrica izq.), esplénica, cística", "Coronaria estomáquica (gástrica izquierda), esplénica, hepática", "Gastroduodenal, esplénica y hepática"], correct: 2, exp: "Trípode de Haller: Gástrica Izquierda, Hepática Común, Esplénica." },
+        { id: 9, original: "Extra", q: "La arteria de la cual se origina la gastroepiplóica derecha es:", options: ["Gástrica izquierda", "Gastroduodenal", "Pancreatoduodenal superior", "Cólica media"], correct: 1, exp: "Repetida." },
+        { id: 10, original: "Extra", q: "El ángulo de His es la región del ángulo entre:", options: ["Fundus y cardias (esófago)", "Cuerpo y antro", "Curvatura mayor y antro", "Bulbo antral y píloro"], correct: 0, exp: "Ángulo cardioesofágico." },
+        { id: 11, original: "13", q: "La curvatura mayor del estómago está irrigada por:", options: ["Gástricas derecha e izquierda", "Ramas directas tronco celíaco", "Ramas mesentérica superior", "Art. gastroepiploicas derecha e izquierda y gástricas cortas"], correct: 3, exp: "Arco de la curvatura mayor." },
+        { id: 12, original: "14", q: "Es rama de la arteria esplénica:", options: ["Gástrica izquierda", "Gástrica derecha", "Suprarrenales medias", "Gastroepiploica izquierda"], correct: 3, exp: "Nace de la esplénica cerca del hilio del bazo." },
+        { id: 13, original: "15", q: "La arteria de la cual se origina la gástrica izquierda es:", options: ["Mesentérica inferior", "Tronco celíaco", "Mesentérica superior", "Gástrica izquierda"], correct: 1, exp: "Rama más pequeña del tronco celíaco." },
+        { id: 14, original: "16", q: "¿Qué vena se conforma dorsal al páncreas para formar parte del pedículo hepático?", options: ["Vena hepática de Arancio", "Vena cística", "Vena porta", "Venas suprahepáticas"], correct: 2, exp: "La Porta se forma detrás del cuello del páncreas." },
+        { id: 15, original: "17", q: "En esta porción se fija el epiplón menor:", options: ["Fundus", "Curvatura menor", "Curvatura mayor", "Píloro"], correct: 1, exp: "Ligamento gastrohepático." },
+        { id: 16, original: "18", q: "¿Qué porción del tubo digestivo se sitúa bajo la cúpula diafragmática izquierda?", options: ["Fundus gástrico", "Glándula hepática", "Duodeno", "Antro gástrico"], correct: 0, exp: "El fundus se adapta a la concavidad diafragmática." },
+        { id: 17, original: "19", q: "Se anastomosa con la arteria gástrica izquierda:", options: ["Esplénica", "Suprarrenales medias", "Gastroepiploica izquierda", "Gástrica derecha"], correct: 3, exp: "Formando el arco de la curvatura menor." },
+        { id: 18, original: "20", q: "La curvatura mayor del estómago está irrigada por: (Repetida)", options: ["Gástricas derecha e izquierda", "Ramas directas tronco celíaco", "Ramas mesentérica superior", "Art gastroepiploicas derecha e izquierda y gástricas cortas"], correct: 3, exp: "Repetida." },
+        { id: 19, original: "22", q: "El hipocondrio izquierdo NO contiene:", options: ["Bazo", "Colon transverso", "Estómago", "Colon sigmoideo"], correct: 3, exp: "El sigmoideo está en fosa ilíaca izquierda." },
+        { id: 20, original: "23", q: "La cara posterior del estómago se relaciona con:", options: ["El hígado", "La arteria mesentérica inferior", "El páncreas", "El esófago"], correct: 2, exp: "A través de la transcavidad de los epiplones." },
+        { id: 21, original: "24", q: "La arteria pilórica (gástrica derecha) es rama de la arteria:", options: ["Gastroduodenal", "Hepática", "Esplénica", "Coronaria estomáquica"], correct: 1, exp: "Hepática (Propia o Común)." },
+        { id: 22, original: "25", q: "La curvatura menor del estómago está irrigada por:", options: ["Gastroduodenales", "Gastroepiploicas", "Las arterias pilórica (gástrica derecha) y coronaria estomáquica (gástrica izquierda)", "Troncos cardioesofágicos"], correct: 2, exp: "Repetida." },
+        { id: 23, original: "26", q: "La arteria gastroepiploica derecha es rama de la arteria:", options: ["Esplénica", "Gástrica izquierda", "Gastroduodenal", "Mesentérica superior"], correct: 2, exp: "Repetida." },
+        { id: 24, original: "27", q: "Relacione: Esfínter pilórico", options: ["Zona más craneal", "Llegada esófago", "Es la desembocadura del estómago en el duodeno", "Incisura angular", "Zona voluminosa"], correct: 2, exp: "Esfínter de salida." },
+        { id: 25, original: "28", q: "Relacione: Cardias", options: ["Zona más craneal", "Es la llegada del esófago al estómago en forma de labios", "Desembocadura", "Incisura", "Voluminosa"], correct: 1, exp: "Orificio de entrada." },
+        { id: 26, original: "29", q: "Relacione: Fundus", options: ["Es la zona más craneal del estómago y en placas radiológicas suele aparecer con aire", "Llegada esófago", "Desembocadura", "Incisura", "Voluminosa"], correct: 0, exp: "Cámara gástrica." },
+        { id: 27, original: "30", q: "Relacione: Antro", options: ["Zona craneal", "Llegada esófago", "Desembocadura", "En el se encuentra la incisura angular (Límite)", "Es la zona más voluminosa del estómago (Cuerpo) - Nota: En este contexto de opciones limitadas, el Antro se define por exclusión o relación con la incisura"], correct: 3, exp: "La incisura angular marca el inicio del antro." },
+        { id: 28, original: "31", q: "De que arteria es rama la arteria gástrica derecha:", options: ["Hepática común", "Hepática propia", "Pancreaticoduodenales superiores", "Es directa del tronco celiaco", "Ninguna es cierta"], correct: 1, exp: "Anatómicamente: Hepática Propia." },
+        { id: 29, original: "32", q: "De que arteria es rama la arteria gástrica izquierda:", options: ["Hepática común", "Hepática propia", "Pancreaticoduodenales superiores", "Es directa del tronco celiaco", "Ninguna es cierta"], correct: 3, exp: "Tronco celíaco." },
+        { id: 30, original: "33", q: "Relacione: Cara anterior del estómago", options: ["Cara visceral del hígado", "Se relaciona con el bazo", "Fascia de Told", "Transcavidad de los epiplones", "Ninguna"], correct: 0, exp: "La cara anterior se relaciona con el hígado, diafragma y pared abdominal." },
+        { id: 31, original: "34", q: "Relacione: Curvatura mayor del estómago", options: ["Hígado", "Se relaciona con el bazo (mediante ligamento gastroesplénico)", "Fascia de Told", "Transcavidad", "Ninguna"], correct: 1, exp: "Relación esplénica a través del ligamento." },
+        { id: 32, original: "35", q: "Relacione: Cara posterior del estómago", options: ["Hígado", "Bazo", "Fascia de Told", "Transcavidad de los epiplones", "Ninguna"], correct: 3, exp: "Forma la pared anterior de la transcavidad." },
+        { id: 33, original: "36", q: "Uno de los siguientes ligamentos procede de la fusión del peritoneo anterior y posterior que recubre el estómago:", options: ["Hepatoduodenal", "Gastrohepático", "Suspensorio", "Gastroesplénico", "Esplenorrenal"], correct: 3, exp: "El ligamento gastroesplénico nace de la curvatura mayor." },
+        { id: 34, original: "37", q: "Es rama de la arteria esplénica", options: ["Gástrica derecha", "Gástrica izquierda", "Gastroepiploica izquierda", "Esplénica", "Suprarrenales medias"], correct: 2, exp: "Repetida." },
+        { id: 35, original: "38", q: "Se anastomosa en la curvatura mayor con la gastroepiploica derecha", options: ["Gástrica derecha", "Gástrica izquierda", "Gastroepiploica izquierda", "Esplénica", "Suprarrenales"], correct: 2, exp: "Repetida." },
+        { id: 36, original: "39", q: "Es rama de la arteria hepática común:", options: ["Gástrica derecha (Pilórica)", "Gástrica izquierda", "Gastroepiploica izq", "Esplénica", "Suprarrenales"], correct: 0, exp: "Nota: A veces nace de la común, a veces de la propia. En este contexto de opciones, es la única posible." },
+        { id: 37, original: "40", q: "Desciende a lo largo de la curvatura menor del estómago, siendo rama del tronco celíaco", options: ["Gástrica derecha", "Gástrica izquierda", "Gastroepiploica izquierda", "Esplénica", "Suprarrenales"], correct: 1, exp: "Repetida." },
+        { id: 38, original: "41", q: "Se anastomosa con la gástrica izquierda", options: ["Gástrica derecha", "Gástrica izquierda", "Gastroepiploica", "Esplénica", "Suprarrenales"], correct: 0, exp: "Repetida." },
+        { id: 39, original: "42", q: "La arteria de la cual se origina la gastroepiploica izquierda es", options: ["Cólica media", "Grastroduodenal", "Esplénica", "Gástrica izquierda"], correct: 2, exp: "Repetida." },
+        { id: 40, original: "43", q: "¿Cuál es la rama de la arteria hipogástrica (ilíaca interna) que a través de su evolución embriológica se encuentra fibrosada en el adulto?", options: ["Glútea superior", "Obturatriz", "Arteria umbilical (porción distal)", "Epigástrica"], correct: 2, exp: "Arteria umbilical." },
+        { id: 41, original: "44", q: "La arteria hipogástrica (ilíaca interna), entre otras ramas, da la arteria:", options: ["Hemorroidal (rectal) superior", "Epigástrica (inferior)", "Vesical superior (desde umbilical)", "Circunfleja ilíaca"], correct: 2, exp: "Vesical superior." },
+        { id: 42, original: "45", q: "Es rama de la arteria esplénica: (Repetida)", options: ["Gástrica der", "Gástrica izq", "Gastroepiplótica izquierda", "Esplénica", "Suprarrenales"], correct: 2, exp: "Repetida." },
+        { id: 43, original: "46", q: "Se anastosoma en la curvatura mayor con la gastroepiplótica derecha: (Repetida)", options: ["Gástrica der", "Gástrica izq", "Gastroepiplótica izquierda", "Esplénica", "Suprarrenales"], correct: 2, exp: "Repetida." },
+        { id: 44, original: "47", q: "Es rama de la arteria hepática común: (Repetida)", options: ["Gástrica derecha", "Gástrica izq", "Gastroepiplótica izq", "Esplénica", "Suprarrenales"], correct: 0, exp: "Repetida." },
+        { id: 45, original: "48", q: "Desciende a lo largo de la curvatura menor del estómago, siendo rama del tronco celíaco: (Repetida)", options: ["Gástrica der", "Gástrica izquierda", "Gastroepiplótica izq", "Esplénica", "Suprarrenales"], correct: 1, exp: "Repetida." },
+        { id: 46, original: "49", q: "Se anastosoma con la gástrica izquierda: (Repetida)", options: ["Gástrica derecha", "Gástrica izq", "Gastroepiplótica izq", "Esplénica", "Suprarrenales"], correct: 0, exp: "Repetida." },
+        { id: 47, original: "50", q: "Cuál es el límite posterior del orificio de entrada a la transcavidad de los epiplones:", options: ["Vena cava inferior", "Vena porta", "Duodeno", "Caudado", "Ninguna"], correct: 0, exp: "Repetida: VCI." },
+        { id: 48, original: "51", q: "Cuál es límite anterior del orificio de entrada a la transcavidad de los epiplones:", options: ["VCI", "Vena porta, arteria hepática y conducto biliar", "Duodeno", "Caudado", "Ninguna"], correct: 1, exp: "Repetida: Pedículo hepático." },
+        { id: 49, original: "52", q: "Cuál es el límite superior del orificio de entrada a la transcavidad de los epiplones:", options: ["VCI", "Porta", "Duodeno", "Lóbulo caudado del hígado", "Ninguna"], correct: 3, exp: "Repetida: Lóbulo de Spiegel." },
+        { id: 50, original: "53", q: "Se relacionan con la curvatura mayor del estómago:", options: ["Arterias gastroomentales izquierda y derecha", "Epigástrica izq", "Epiplon mayor", "A y C son ciertas", "Todas son ciertas"], correct: 3, exp: "Repetida." },
+        { id: 51, original: "54", q: "Qué ligamento es límite anterior del epiplón menor y qué estructuras discurren por el:", options: ["Gastrohepático", "Ligamento hepatoduodenal (Vena porta, arteria hepática y conducto biliar)", "Hepatorenal", "Gastroduodenal", "Gastrohepático"], correct: 1, exp: "Repetida." },
+        { id: 52, original: "55", q: "Cuál de las siguientes estructuras es superior al cardias:", options: ["Canal pilórico", "Antro", "Cuerpo", "Fundus", "Incisura"], correct: 3, exp: "Repetida." },
+        { id: 53, original: "56", q: "la entrada a la bolsa omental se encuentra:", options: ["Superior fundus", "dorsal al borde libre del epiplón menor (Hiato Winslow)", "Curvatura mayor", "Mesocolon"], correct: 1, exp: "Repetida." },
+        { id: 54, original: "57", q: "la incisura angularis separa la región antral del estómago de:", options: ["Cuerpo", "Curvatura mayor", "Píloro", "Cardias"], correct: 0, exp: "Cuerpo gástrico." },
+        { id: 55, original: "6", q: "Desciende a lo largo de la curvatura menor del estómago... (Repetida)", options: ["Gástrica Derecha", "Gástrica izquierda", "Gastroepiplótica", "Esplénica", "Suprarrenales"], correct: 1, exp: "Repetida." },
+        { id: 56, original: "48", q: "la curvatura mayor del estómago está irrigada por (Repetida)", options: ["Gástrica der/izq", "Directas tronco", "Mesentérica", "arterias gastroepiploicas derecha (rama de la arteria gastroduodenal) e izquierda y gástricas cortas"], correct: 3, exp: "Repetida." },
+        { id: 57, original: "69", q: "la arteria cística nace, más frecuentemente de:", options: ["Tronco celíaco", "Coronaria estomáquica", "Esplénica", "la arteria hepática derecha (propia)"], correct: 3, exp: "Rama de la Hepática Derecha." },
+        { id: 58, original: "73", q: "las ramas del tronco celíaco son las arterias:", options: ["Esplénica, pilórica, cística", "Coronaria, esplénica, cística", "Coronaria estomáquica (gástrica izquierda), esplénica, hepática", "Gastroduodenal..."], correct: 2, exp: "Repetida." },
+        { id: 59, original: "86", q: "de qué arteria es rama la arteria gástrica derecha: (Repetida)", options: ["Hepática común", "Hepática propia", "Pancreaticoduodenales", "Directa tronco", "Ninguna"], correct: 1, exp: "Repetida." },
+        { id: 60, original: "87", q: "de qué arteria es rama la arteria gástrica izquierda: (Repetida)", options: ["Hepática común", "Hepática propia", "Pancreaticoduodenales", "Es directa del tronco celíaco", "Ninguna"], correct: 3, exp: "Repetida." },
+        { id: 61, original: "88", q: "relacione las siguientes estructuras (cara anterior del estómago): (Repetida)", options: ["Hígado", "Bazo", "Told", "Transcavidad", "Ninguna"], correct: 0, exp: "Repetida." },
+        { id: 62, original: "58", q: "¿Cuál de los siguientes nódulos linfáticos estará muy probablemente afectado en una neoplasia maligna del estómago?:", options: ["Celíaco", "Inguinal", "Axilar", "Poplíteo"], correct: 0, exp: "Drenaje linfático principal al tronco celíaco." },
+        { id: 63, original: "59", q: "Con respecto a las relaciones del estómago indique cuál de las siguientes afirmaciones ES CIERTA:", options: ["El cardias se relaciona por detrás con el pilar izquierdo del diafragma", "Cardias anterior a pilar", "Relación riñón derecho", "Relación colon ascendente"], correct: 0, exp: "Pilar izquierdo posterior al cardias." },
+        { id: 64, original: "60", q: "Con respecto a la estructura y orificios ductales de la segunda porción del duodeno indique que afirmación ES CIERTA:", options: ["La papila menor se encuentra en un nivel más proximal que la mayor", "Mayor proximal a menor", "Están al mismo nivel", "Solo hay una papila"], correct: 0, exp: "Santorini (menor) desemboca por encima de Wirsung/Colédoco (mayor)." },
+        { id: 65, original: "61", q: "Con respecto a la vascularización del estómago indique que afirmación ES FALSA:", options: ["Gástrica izquierda rama del tronco celíaco", "Gástricas cortas ramas esplénica", "La arteria gástrica derecha es una de las ramas del tronco celiaco (directa)", "Gastroepiploica derecha rama gastroduodenal"], correct: 2, exp: "Falsa: La gástrica derecha NO es rama directa del tronco celíaco (es de la hepática)." },
+        { id: 66, original: "62", q: "La arteria epigástrica caudal procede de:", options: ["Arteria iliaca externa", "Iliaca interna", "Femoral", "Aorta"], correct: 0, exp: "Rama de la iliaca externa antes del ligamento inguinal." },
+        { id: 67, original: "63", q: "qué elemento NO participa de la confluencia que va a formar la vena porta:", options: ["Vena esplénica", "Vena mesentérica superior", "Vena cólica media", "Vena mesentérica inferior (drena en esplénica)"], correct: 2, exp: "Nota: La vena mesentérica inferior suele unirse a la esplénica antes. La cólica media drena en la mesentérica superior. Técnicamente la porta es Esplénica + Mesentérica Superior. La opción 'cólica media' es una tributaria distal." },
+        { id: 68, original: "64", q: "Es rama de la arteria esplénica: (Repetida)", options: ["Gástrica izquierda", "Gástrica derecha", "Suprarrenales medias", "Gastroepiploica izquierda"], correct: 3, exp: "Repetida." },
+        { id: 69, original: "65", q: "La arteria de la cual se origina la gástrica izquierda es: (Repetida)", options: ["Mesentérica inferior", "Tronco celiaco", "Mesentérica superior", "Gástrica izquierda"], correct: 1, exp: "Repetida." },
+        { id: 70, original: "66", q: "En esta porción se fija el epiplón menor: (Repetida)", options: ["Fundus", "Curvatura menor", "Curvatura mayor", "Píloro"], correct: 1, exp: "Repetida." },
+        { id: 71, original: "67", q: "¿Qué porción del tubo digestivo se sitúa bajo la cúpula diafragmática izquierda? (Repetida)", options: ["Fundus gástrico", "Glándula hepática", "Duodeno", "Antro gástrico"], correct: 0, exp: "Repetida." },
+        { id: 72, original: "68", q: "Se anastosoma con la arteria gástrica izquierda: (Repetida)", options: ["Esplénica", "Suprarrenales", "Gastroepiploica", "Gástrica derecha"], correct: 3, exp: "Repetida." },
+        { id: 73, original: "69", q: "Sobre las relaciones del estómago, ¿qué estructura del peritoneo la une al hígado?", options: ["Epiplón menor", "Bolsa omental", "Ligamento gastroesplénico", "Epiplón mayor"], correct: 0, exp: "Ligamento gastrohepático (epiplón menor)." },
+        { id: 74, original: "70", q: "Cual es el límite posterior del orificio de entrada a la transcavidad de los epiplones: (Repetida)", options: ["Vena cava inferior", "Porta", "Duodeno", "Caudado", "Ninguna"], correct: 0, exp: "Repetida." },
+        { id: 75, original: "71", q: "Cual es el límite anterior del orificio de entrada a la transcavidad de los epiplones: (Repetida)", options: ["VCI", "Vena porta, arteria hepática y conducto biliar", "Duodeno", "Caudado", "Ninguna"], correct: 1, exp: "Repetida." },
+        { id: 76, original: "72", q: "¿Qué elemento no se encuentra entre las estructuras que engloban las dos láminas del epiplón menor?", options: ["Arteria hepática propia", "Vena porta", "Vena hepática (suprahepática)", "Colédoco"], correct: 2, exp: "Las venas suprahepáticas están en la cara posterior/superior del hígado desembocando en la cava, no en el epiplón menor." },
+        { id: 77, original: "73", q: "Cual es el límite superior del orificio de entrada a la transcavidad de los epiplones: (Repetida)", options: ["VCI", "Porta", "Duodeno", "Lóbulo caudado del hígado", "Ninguna"], correct: 3, exp: "Repetida." },
+        { id: 78, original: "74", q: "Se relacionan con la curvatura mayor del estómago: (Repetida)", options: ["Arterias gastroomentales izquierda y derecha", "Gástrica izq", "Epiplon mayor", "A y C son ciertas", "Todas"], correct: 3, exp: "Repetida." },
+        { id: 79, original: "75", q: "Qué ligamento es límite anterior del epiplón menor y que estructuras discurren por el: (Repetida)", options: ["Gastrohepático", "ligamento hepatoduodenal (Vena porta, arteria hepática y conducto biliar)", "Hepatorenal", "Gastroduodenal", "Gastrohepático"], correct: 1, exp: "Repetida." },
+        { id: 80, original: "76", q: "Cuál de las siguiente estructuras es superior al cardias: (Repetida)", options: ["Piloro", "Antro", "cuerpo", "Fundus", "Incisura"], correct: 3, exp: "Repetida." },
+        { id: 81, original: "77", q: "Relacione: Arteria cólica media", options: ["Arteria mesentérica inferior", "Arteria mesentérica superior", "Arteria gastroduodenal", "Arteria esplénica", "Arteria pudenda"], correct: 1, exp: "Rama de la AMS." },
+        { id: 82, original: "78", q: "La vena porta es la unión de los siguientes vasos:", options: ["Esplénica y MI", "MS y MI", "Las venas mesénterica superior y esplénica", "Ninguna", "A y C"], correct: 2, exp: "Unión esplenomesentérica." },
+        { id: 83, original: "65", q: "La curvatura mayor del estómago posee los siguientes ligamentos de fijación EXCEPTO:", options: ["Epiplón menor", "Epiplón mayor", "Gastroesplénico", "Gastrocólico"], correct: 0, exp: "El epiplón menor está en la curvatura menor." },
+        { id: 84, original: "79", q: "Se anastomosa con la arteria gástrica izquierda (Repetida)", options: ["Gástrica derecha", "Gástrica izquierda", "Gastroepiploica izquierda", "Esplénica", "Suprarrenales"], correct: 0, exp: "Repetida." },
+        { id: 85, original: "80", q: "Con respecto a la capa muscular del estómago NO SE CUMPLE:", options: ["Tiene oblicua", "Tiene circular", "Tiene longitudinal", "Forma la válvula cardioesofágica (Falso, es mucosa/funcional)", "Contiene el plexo de Meissmer (Falso, es submucosa)"], correct: 3, exp: "Nota: El texto indica que ambas son falsas (d y e), error examen. Selecciona 'Forma válvula' como principal error anatómico macroscópico." },
+        { id: 86, original: "48", q: "El aire deglutido se localiza normalmente en el estómago en la región del:", options: ["Fundus", "Antro", "Cuerpo", "Cardias"], correct: 0, exp: "Cámara de aire gástrica." },
+        { id: 87, original: "7", q: "La arteria torácica interna es rama de", options: ["Art. Subclavia", "Torácica int", "Carótida", "Vertebral", "Epigástrica"], correct: 0, exp: "Repetida." },
+        { id: 88, original: "21", q: "Qué arteria está obliterada en el adulto", options: ["Pudenda", "Arteria umbilical", "Epigástrica", "Rectal", "Uterina"], correct: 1, exp: "Repetida." },
+        { id: 89, original: "22", q: "El suelo de la transcavidad de los epiplones se sitúa sobre:", options: ["Vasos MS", "Hilio esplénico", "Mesocolon transverso", "Ligamento suspensorio"], correct: 2, exp: "El mesocolon transverso separa la transcavidad de la cavidad infracólica." },
+        { id: 90, original: "23", q: "El peritoneo visceral que une estómago y bazo se denomina:", options: ["Esplenorrenal", "Gastrorenal", "Pancreático-esplénico", "Lig gastroesplénico"], correct: 3, exp: "Repetida." },
+        { id: 91, original: "24", q: "Cuál de estas estructuras no se relacionan con la cara dorsal del páncreas", options: ["Suprarrenal izq", "Riñón izq", "Aorta", "Vena esplénica (Relación íntima)", "Estómago (Ventral) - Nota: Pregunta sacada de contexto Páncreas pero válida aquí"], correct: 4, exp: "El estómago es anterior al páncreas." },
+        { id: 92, original: "25", q: "El mesogastrio ventral que organiza el ligamento falciforme separa los lóbulos hepáticos en", options: ["Cara visceral", "Lóbulos cuadrado y caudado", "Área desnuda", "Parietocostal"], correct: 1, exp: "Divide anatómicamente el hígado (izquierdo/derecho) pero funcionalmente define cuadrado/caudado." },
+        { id: 93, original: "26", q: "El nervio vago izquierdo de sitúa en el estómago sobre su", options: ["Curvatura menor", "Cara posterior", "Curvatura mayor", "Cara anterior"], correct: 3, exp: "Repetida: Anterior." },
+        { id: 94, original: "27", q: "El plano transpilórico, que pasa por la primera porción del duodeno, está a nivel", options: ["L4", "L2", "L1", "T11"], correct: 2, exp: "L1." },
+        { id: 95, original: "28", q: "La arteria cística es en última instancia rama de", options: ["Hepática común", "Gastroduodenal", "Renal", "A hepática propia"], correct: 3, exp: "Repetida." },
+        { id: 96, original: "3", q: "El nervio vago izquierdo de sitúa en el estómago sobre su (Repetida)", options: ["Cara anterior", "Cara posterior", "Curvatura menor", "Curvatura mayor"], correct: 0, exp: "Repetida." },
+        { id: 97, original: "9", q: "La incisura angularis separa la región antral del estómago de:", options: ["Curvatura mayor", "Cuerpo", "Píloro", "Cardias"], correct: 1, exp: "Repetida." },
+        { id: 98, original: "28", q: "Es rama de la arteria esplénica: (Repetida)", options: ["Gástrica izquierda", "Gástrica derecha", "Suprarrenales medias", "Gastroepiploica izquierda"], correct: 3, exp: "Repetida." },
+        { id: 99, original: "30", q: "La arteria de la cual se origina la gástrica izquierda es: (Repetida)", options: ["Mesentérica inferior", "Tronco celíaco", "Mesentérica superior", "Gástrica izquierda"], correct: 1, exp: "Repetida." },
+        // Añado las de relacionar que faltan para llegar al total
+        { id: 100, original: "77-B", q: "Relacione: Arteria pancreáticoduodenal superior", options: ["AMS", "AMI", "Arteria gastroduodenal", "Esplénica", "Pudenda"], correct: 2, exp: "Rama de la gastroduodenal." },
+        { id: 101, original: "77-C", q: "Relacione: Arteria iliocólica", options: ["Arteria mesentérica superior", "AMI", "Gastroduodenal", "Esplénica", "Pudenda"], correct: 0, exp: "Rama de la AMS." },
+        { id: 102, original: "77-D", q: "Relacione: Arteria gastroomental derecha", options: ["AMS", "AMI", "Arteria gastroduodenal", "Esplénica", "Pudenda"], correct: 2, exp: "Rama de la gastroduodenal." },
+        { id: 103, original: "77-E", q: "Relacione: Arteria gastroomental izquierda", options: ["AMS", "AMI", "Gastroduodenal", "Arteria esplénica", "Pudenda"], correct: 3, exp: "Rama de la esplénica." },
+        { id: 104, original: "77-F", q: "Relacione: Arteria pancreáticoduodenal inferior", options: ["Arteria mesentérica superior", "AMI", "Gastroduodenal", "Esplénica", "Pudenda"], correct: 0, exp: "Rama de la AMS." },
+        { id: 105, original: "Extra", q: "El ligamento gastroesplénico contiene:", options: ["Arteria gástrica izquierda", "Arterias gástricas cortas y gastroepiploica izquierda", "Arteria esplénica principal", "Conducto colédoco"], correct: 1, exp: "Contiene los vasos que van al fondo y curvatura mayor desde el bazo." },
+        { id: 106, original: "Extra", q: "La irrigación de la cara posterior del estómago proviene principalmente de:", options: ["Arteria mesentérica superior", "Arcada de la curvatura mayor y menor (ramas posteriores)", "Aorta directa", "Arteria esplénica directa"], correct: 1, exp: "Las arterias gástricas y gastroepiploicas dan ramas anteriores y posteriores." },
+        { id: 107, original: "Extra", q: "¿Cuál es la función principal del esfínter pilórico?", options: ["Evitar reflujo esofágico", "Controlar el vaciamiento gástrico", "Absorber nutrientes", "Secretar ácido"], correct: 1, exp: "Regula el paso del quimo al duodeno." },
+        { id: 108, original: "Extra", q: "La capa muscular interna del estómago es:", options: ["Longitudinal", "Circular", "Oblicua", "Transversa"], correct: 2, exp: "El estómago tiene una tercera capa muscular (oblicua) interna, a diferencia del resto del tubo digestivo." }
+    ];
+
+    let currentQuestions = [...dbQuestions];
+    let markedIds = new Set();
+    let userAnswers = {};
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function renderQuiz() {
+        const list = document.getElementById('questions-list');
+        const nav = document.getElementById('sidebar-nav');
+        const resultsPanel = document.getElementById('results-panel');
+        
+        list.innerHTML = '';
+        nav.innerHTML = '';
+        resultsPanel.style.display = 'none';
+
+        if(currentQuestions.length === 0) {
+            list.innerHTML = `<div class="question-card"><p>No hay preguntas para los criterios seleccionados.</p></div>`;
+            return;
+        }
+
+        currentQuestions.forEach((q, index) => {
+            const btn = document.createElement('a');
+            btn.href = `#q-${q.id}`;
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            btn.id = `nav-btn-${q.id}`;
+            
+            if (userAnswers[q.id] === true) btn.classList.add('correct');
+            if (userAnswers[q.id] === false) btn.classList.add('incorrect');
+            if (markedIds.has(q.id)) btn.classList.add('marked');
+
+            nav.appendChild(btn);
+
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+
+            const originalOptions = q.options.map((text, i) => ({ text: text, isCorrect: i === q.correct }));
+            const finalOptions = shuffle(originalOptions);
+
+            let optionsHTML = '';
+            finalOptions.forEach(opt => {
+                const safeText = opt.text.replace(/'/g, "&#39;"); 
+                optionsHTML += `<button class="option-btn" onclick="handleAnswer(${q.id}, ${opt.isCorrect}, this)">${opt.text}</button>`;
+            });
+
+            const isMarked = markedIds.has(q.id);
+
+            card.innerHTML = `
+                <div class="question-header-row">
+                    <span>Pregunta ${index + 1} (Ref: ${q.original})</span>
+                    <button class="bookmark-btn ${isMarked ? 'active' : ''}" onclick="toggleMark(${q.id}, this)">
+                        ${isMarked ? '★ Marcada' : '☆ Marcar'}
+                    </button>
+                </div>
+                <div class="question-text">${q.q}</div>
+                <div class="options-grid" id="opts-${q.id}">
+                    ${optionsHTML}
+                </div>
+                <div class="feedback" id="feed-${q.id}"></div>
+            `;
+            list.appendChild(card);
+        });
+        updateProgress();
+    }
+
+    function handleAnswer(id, isCorrect, btn) {
+        if (userAnswers.hasOwnProperty(id)) return;
+        
+        userAnswers[id] = isCorrect;
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        const feedback = document.getElementById(`feed-${id}`);
+        const container = document.getElementById(`opts-${id}`);
+        const qData = dbQuestions.find(x => x.id === id);
+
+        const allBtns = container.querySelectorAll('.option-btn');
+        allBtns.forEach(b => {
+            b.classList.add('disabled');
+            b.onclick = null;
+            const correctText = qData.options[qData.correct];
+            if (b.innerText === correctText) b.classList.add('correct');
+        });
+
+        if (isCorrect) {
+            feedback.innerHTML = `<strong>¡Correcto!</strong><br>${qData.exp}`;
+            feedback.className = 'feedback success show';
+            if(navBtn) navBtn.classList.add('correct');
+        } else {
+            btn.classList.add('incorrect');
+            feedback.innerHTML = `<strong>Incorrecto.</strong><br>${qData.exp}`;
+            feedback.className = 'feedback error show';
+            if(navBtn) navBtn.classList.add('incorrect');
+        }
+        updateProgress();
+    }
+
+    function toggleMark(id, btn) {
+        const navBtn = document.getElementById(`nav-btn-${id}`);
+        if (markedIds.has(id)) {
+            markedIds.delete(id);
+            btn.innerHTML = '☆ Marcar';
+            btn.classList.remove('active');
+            if(navBtn) navBtn.classList.remove('marked');
+        } else {
+            markedIds.add(id);
+            btn.innerHTML = '★ Marcada';
+            btn.classList.add('active');
+            if(navBtn) navBtn.classList.add('marked');
+        }
+    }
+
+    function updateProgress() {
+        const count = Object.keys(userAnswers).length;
+        const total = currentQuestions.length;
+        document.getElementById('progress-text').innerText = `${count}/${total} respondidas`;
+        
+        if (count === total && total > 0) {
+            showResults(false);
+        }
+    }
+
+    function showResults(manualFinish = false) {
+        const panel = document.getElementById('results-panel');
+        let correct = 0;
+        Object.values(userAnswers).forEach(v => { if(v) correct++; });
+        
+        const total = currentQuestions.length;
+        
+        document.getElementById('score-text').innerText = `Has acertado ${correct} de ${total}`;
+        panel.style.display = 'block';
+        
+        if(manualFinish) {
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setTimeout(() => panel.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
+
+    function resetQuiz(mode) {
+        let nextIds = [];
+
+        if (mode === 'all') {
+            nextIds = dbQuestions.map(q => q.id);
+        } else if (mode === 'wrong') {
+            nextIds = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+        } else if (mode === 'marked') {
+            nextIds = Array.from(markedIds);
+        } else if (mode === 'wrong_marked') {
+            const wrong = Object.keys(userAnswers).filter(id => userAnswers[id] === false).map(Number);
+            const marked = Array.from(markedIds);
+            nextIds = [...new Set([...wrong, ...marked])];
+        }
+
+        if (nextIds.length === 0) {
+            alert("No hay preguntas para los criterios seleccionados.");
+            return;
+        }
+
+        userAnswers = {};
+        currentQuestions = dbQuestions.filter(q => nextIds.includes(q.id));
+        renderQuiz();
+        document.querySelector('.main-content').scrollTop = 0;
+    }
+
+    renderQuiz();
+</script>
+</body>
+</html>

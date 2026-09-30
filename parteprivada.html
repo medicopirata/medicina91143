@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script src="acceso.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icono-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Médico Pirata">
+<meta name="mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control · Médico Pirata</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #1a252f;
+            --accent: #3498db;
+            --accent-hover: #2980b9;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --shadow: 0 10px 25px rgba(0,0,0,0.05);
+            --radius: 12px;
+            
+            /* Colores por asignatura */
+            --color-anato: #3498db;
+            --color-bioq: #e74c3c;
+            --color-fisio: #f39c12;
+            --color-histo: #2ecc71;
+            --color-medint: #db2777;
+            --color-genetica: #8b5cf6;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .category-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 10px;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-item {
+            margin-bottom: 12px;
+        }
+
+        .file-link {
+            text-decoration: none;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .file-link:hover {
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .anato-link:hover { background: var(--color-anato); border-color: #2980b9; }
+        .bioq-link:hover { background: var(--color-bioq); border-color: #c0392b; }
+        .fisio-link:hover { background: var(--color-fisio); border-color: #d35400; }
+        .histo-link:hover { background: var(--color-histo); border-color: #27ae60; }
+        .medint-link:hover { background: var(--color-medint); border-color: #9d174d; }
+        .genetica-link:hover { background: var(--color-genetica); border-color: #6d28d9; }
+
+        .badge {
+            margin-left: auto;
+            font-size: 0.7rem;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .file-link:hover .badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .icon-quiz::before { content: "📝"; }
+        .icon-bioq::before { content: "🧪"; }
+        .icon-fisio::before { content: "⚡"; }
+        .icon-atlas::before { content: "📖"; }
+        .icon-histo::before { content: "🔬"; }
+        .icon-medint::before { content: "🩺"; }
+        .icon-genetica::before { content: "🧬"; }
+
+        .curso-titulo {
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 45px 0 22px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--accent);
+            letter-spacing: -0.5px;
+        }
+        .curso-titulo:first-of-type { margin-top: 0; }
+        .curso-titulo .curso-badge {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-left: 10px;
+        }
+    
+    /* ===== Móvil: ajustes para usarla como aplicación en el teléfono ===== */
+    @media (max-width: 700px) {
+      /* La barra de sesión era position:fixed y se quedaba flotando sobre el
+         contenido al hacer scroll, tapando el título y las tarjetas. */
+      /* El position:fixed viene en un atributo style= del propio HTML, así que
+         hace falta !important para ganarle; si no, la regla no se aplica. */
+      #fb-bar { position: absolute !important; padding: 4px 10px !important; }
+      #fb-login-area button { font-size: 0.72rem !important; padding: 5px 11px !important; }
+
+      /* Las cinco tarjetas de estadísticas se comían la primera pantalla. */
+      .stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+      .stat-card { padding: 10px 6px; }
+      .stat-card .num { font-size: 1.4rem; }
+      .stat-card .lbl { font-size: 0.68rem; line-height: 1.25; }
+
+      /* Los modos de estudio caían en una sola columna: demasiado scroll
+         hasta llegar a los temas, que es a lo que se entra. */
+      .mode-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .mode-btn { padding: 12px 11px; }
+      .mode-btn .icon { font-size: 1.4rem; margin-bottom: 6px; }
+      .mode-btn .title { font-size: 0.86rem; }
+      .mode-btn .desc { font-size: 0.72rem; line-height: 1.3; }
+      /* "descartar" flotaba a la derecha y se amontonaba con el título
+         al estrechar la tarjeta a dos columnas. */
+      .mode-btn .discard { float: none; display: inline-block; font-size: 0.66rem;
+                           padding: 2px 6px; margin-top: 6px; }
+      /* El título cabe en una línea en pantallas de 390 px. */
+      .home-header h1 { font-size: 1.32rem; }
+    }
+  </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>☠️ Médico Pirata</h1>
+            <p class="subtitle">Repositorio de Anatomía II, Bioquímica y Fisiología Humana</p>
+            <div id="instalar-zona" style="margin-top:16px"></div>
+        </header>
+
+        <h2 class="curso-titulo">Segundo <span class="curso-badge">2º curso · 1er cuatrimestre</span></h2>
+        <div class="grid">
+            <div class="category-card">
+                <h2><span class="icon-genetica"></span> Genética Médica</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_genetica.html" target="_blank" rel="noopener noreferrer" class="file-link genetica-link" style="border-left: 3px solid var(--color-genetica); background: #f5f3ff;">
+                            Plataforma de Genética Médica · 793 preguntas <span class="badge" style="background:var(--color-genetica); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-medint"></span> Medicina Interna (IMI)</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_medint.html" target="_blank" rel="noopener noreferrer" class="file-link medint-link" style="border-left: 3px solid var(--color-medint); background: #fdf2f8;">
+                            Plataforma de Medicina Interna · 6686 preguntas <span class="badge" style="background:var(--color-medint); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-quiz"></span> Anatomía 3 (Neuroanatomía)</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_anatomia3.html" target="_blank" rel="noopener noreferrer" class="file-link anato-link" style="border-left: 3px solid var(--color-anato); background: #f0f8ff;">
+                            Plataforma de Anatomía 3 · 1626 preguntas <span class="badge" style="background:var(--color-anato); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-histo"></span> Histología Especial Humana I</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_histologia2.1.html" target="_blank" rel="noopener noreferrer" class="file-link histo-link" style="border-left: 3px solid var(--color-histo); background: #f5fff8;">
+                            Plataforma Histología 2.1 · 3046 preguntas <span class="badge" style="background:var(--color-histo); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-fisio"></span> Fisiología Humana I</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_fisio1.html" target="_blank" rel="noopener noreferrer" class="file-link fisio-link" style="border-left: 3px solid var(--color-fisio); background: #fffaf0;">
+                            Plataforma de Fisiología I · 790 preguntas <span class="badge" style="background:var(--color-fisio); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="category-card">
+                <h2><span class="icon-histo"></span> Histología Especial Humana II</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_histoesp2.html" target="_blank" rel="noopener noreferrer" class="file-link histo-link" style="border-left: 3px solid var(--color-histo); background: #f0fff4;">
+                            Plataforma de Histología Especial II · 1968 preguntas <span class="badge" style="background:var(--color-histo); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-fisio"></span> Fisiología Humana II</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_fisio2.html" target="_blank" rel="noopener noreferrer" class="file-link fisio-link" style="border-left: 3px solid var(--color-fisio); background: #fffaf0;">
+                            Plataforma de Fisiología II · 906 preguntas <span class="badge" style="background:var(--color-fisio); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <h2 class="curso-titulo">Primero <span class="curso-badge">1er curso</span></h2>
+        <div class="grid">
+            <div class="category-card">
+                <h2><span class="icon-quiz"></span> Anatomía Humana II</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_anatomia2.html" target="_blank" rel="noopener noreferrer" class="file-link anato-link" style="border-left: 3px solid var(--color-anato); background: #f0f8ff;">
+                            Índice de Anatomía II <span class="badge" style="background:var(--color-anato); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="anato%202,%201,%2024-25.html" class="file-link anato-link">
+                            Bloque 1: 160 Preguntas <span class="badge">LITERAL</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="anato%202,%202,%2024-25.html" class="file-link anato-link">
+                            Bloque 2: Repaso Completo <span class="badge">HTML</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="anato%202,%203,%2024-25.html" class="file-link anato-link">
+                            Bloque 3: Anatomía Integral <span class="badge">TEST</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="anato%202,%204,%2024-25.html" class="file-link anato-link">
+                            Bloque 4: Quizz Final <span class="badge">24-25</span>
+                        </a>
+                    </li>
+                    <li class="file-item" style="margin-top: 15px;">
+                        <a href="porrero.html" class="file-link anato-link">
+                            <span class="icon-atlas"></span> Atlas García-Porrero <span class="badge">INTERACTIVO</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-bioq"></span> Bioquímica Médica</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_bioquimica.html" target="_blank" rel="noopener noreferrer" class="file-link bioq-link" style="border-left: 3px solid var(--color-bioq); background: #fff5f5;">
+                            Índice de Bioquímica Médica <span class="badge" style="background:var(--color-bioq); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="bioq%20med%20claude.html" target="_blank" rel="noopener noreferrer" class="file-link bioq-link">
+                            BioQuiz: 974 Preguntas (Claude) <span class="badge">TEST</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="bioquimica%20medica%20final.html" class="file-link bioq-link">
+                            Batería Extendida <span class="badge">&gt;215 PREGS</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="plan_estudio_bioquimica.html" target="_blank" rel="noopener noreferrer" class="file-link bioq-link" style="border-left: 3px solid var(--color-bioq); background: #fff5f5;">
+                            Plan de Estudio Bioquímica Médica <span class="badge" style="background:var(--color-bioq); color:white;">21 DÍAS</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <span class="file-link" style="cursor: default; opacity: 0.6;">
+                            Manual PDF Complementario <span class="badge">PRÓXIMAMENTE</span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-fisio"></span> Fisiología Humana</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_fisio.html" target="_blank" rel="noopener noreferrer" class="file-link fisio-link" style="border-left: 3px solid var(--color-fisio); background: #fffaf0;">
+                            Índice de Fisiología <span class="badge" style="background:var(--color-fisio); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="fisio%20claude.html" target="_blank" rel="noopener noreferrer" class="file-link fisio-link">
+                            FisioQuiz: Repaso General (Claude) <span class="badge">TEST</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="6%20de%20abril%20fisiologia.html" class="file-link fisio-link">
+                            Master Quiz: Fisiología Integral <span class="badge">200 PREGS</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="plan_estudio_fisiologia.html" target="_blank" rel="noopener noreferrer" class="file-link fisio-link" style="border-left: 3px solid var(--color-fisio); background: #fffaf0;">
+                            Plan de Estudio Fisiología <span class="badge" style="background:var(--color-fisio); color:white;">21 DÍAS</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <span class="file-link" style="cursor: default; opacity: 0.6;">
+                            Guía de Conceptos Bloque 1-11 <span class="badge">INFO</span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <h2><span class="icon-histo"></span> Histología y Embriología</h2>
+                <ul class="file-list">
+                    <li class="file-item">
+                        <a href="plataforma_histoemb.html" target="_blank" rel="noopener noreferrer" class="file-link histo-link" style="border-left: 3px solid var(--color-histo); background: #f5fff8;">
+                            Índice de Histología y Embriología <span class="badge" style="background:var(--color-histo); color:white;">NUEVO</span>
+                        </a>
+                    </li>
+                    <li class="file-item">
+                        <a href="quiz.html" target="_blank" rel="noopener noreferrer" class="file-link histo-link">
+                            Quiz: Histología y Embriología <span class="badge">191 PREGS</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <footer>
+            &copy; 2026 Médico Pirata · Acceso Restringido para Estudiantes de Medicina
+        </footer>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCg86OLSle_1InlGjQYWbAPephJSoWH3DU",
+            authDomain: "quiz-fisio.firebaseapp.com",
+            projectId: "quiz-fisio",
+            storageBucket: "quiz-fisio.firebasestorage.app",
+            messagingSenderId: "260077805780",
+            appId: "1:260077805780:web:91c23126b9b65eb34fdb41",
+            measurementId: "G-T3X8N7YSQ6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        firebase.analytics();
+    </script>
+<script>
+// Registro del service worker: sin él, Chrome no ofrece instalar la aplicación.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+
+<style>
+  #instalar-app { font: inherit; font-size: 0.95rem; font-weight: 600; padding: 11px 20px;
+    background: #34d399; color: #0f1923; border: none; border-radius: 9px; cursor: pointer; }
+  #instalar-app:hover { filter: brightness(1.08); }
+  #instalar-ayuda { font-size: 0.85rem; line-height: 1.5; opacity: 0.85; max-width: 440px;
+    margin: 0 auto; border: 1px dashed rgba(255,255,255,0.25); border-radius: 9px; padding: 10px 14px; }
+  @media (max-width: 700px) { #instalar-app { width: 100%; padding: 14px 20px; } }
+</style>
+<script>
+// Instalación como aplicación.
+//
+// En Android/Chrome el navegador avisa con beforeinstallprompt cuando la página
+// cumple los requisitos, y entonces se puede lanzar el diálogo desde un botón.
+// En iPhone no existe ese evento: Safari solo deja instalar a mano desde
+// Compartir → Añadir a pantalla de inicio, así que ahí se explica el camino.
+(function () {
+  var zona = document.getElementById('instalar-zona');
+  if (!zona) return;
+
+  var yaInstalada = window.matchMedia('(display-mode: standalone)').matches
+                 || window.navigator.standalone === true;
+  if (yaInstalada) return;          // ya se está usando como aplicación
+
+  var pendiente = null;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    pendiente = e;
+    zona.innerHTML = '<button id="instalar-app">📲 Instalar como aplicación</button>';
+    document.getElementById('instalar-app').addEventListener('click', function () {
+      if (!pendiente) return;
+      pendiente.prompt();
+      pendiente.userChoice.then(function (r) {
+        if (r.outcome === 'accepted') zona.innerHTML = '';
+        pendiente = null;
+      });
+    });
+  });
+
+  window.addEventListener('appinstalled', function () { zona.innerHTML = ''; });
+
+  var esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+           || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (esIOS) {
+    zona.innerHTML = '<p id="instalar-ayuda">📲 <strong>Para instalarla en el iPhone:</strong> '
+      + 'toca <strong>Compartir</strong> abajo y luego '
+      + '<strong>Añadir a pantalla de inicio</strong>.</p>';
+  }
+})();
+</script>
+</body>
+</html>

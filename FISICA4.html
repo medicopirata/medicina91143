@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Física Médica (Bloque 2)</title>
+
+    <style>
+        :root {
+            --primary: #00796b; /* Teal Dark */
+            --secondary: #e0f2f1;
+            --accent: #009688;
+            --success: #388e3c;
+            --error: #d32f2f;
+            --text: #263238;
+            --bg-color: #f1f8e9;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding-top: 110px;
+            padding-bottom: 60px;
+        }
+
+        /* HEADER FIJO */
+        #header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(135deg, #004d40, #00796b);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .header-content {
+            width: 90%;
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
+        
+        .score-board {
+            background: rgba(0,0,0,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* PROGRESS BAR */
+        #progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            margin-top: 10px;
+        }
+        #progress-fill {
+            height: 100%;
+            background: #b2dfdb;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* CONTAINER */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* CARD */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 6px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .card:hover { transform: translateY(-2px); }
+        .card.correct { border-left-color: var(--success); }
+        .card.incorrect { border-left-color: var(--error); }
+
+        .question-header {
+            font-size: 0.85rem;
+            color: #78909c;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #263238;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        /* OPTIONS */
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #fff;
+            border: 2px solid #eceff1;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .option-btn:hover:not(.disabled) {
+            border-color: var(--accent);
+            background-color: #e0f2f1;
+        }
+
+        .option-btn.correct {
+            background-color: #e8f5e9;
+            border-color: var(--success);
+            color: #1b5e20;
+            font-weight: 600;
+        }
+
+        .option-btn.incorrect {
+            background-color: #ffebee;
+            border-color: var(--error);
+            color: #b71c1c;
+        }
+
+        .option-btn.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        /* FEEDBACK */
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e0f2f1;
+            border-radius: 6px;
+            border: 1px solid #b2dfdb;
+            color: #004d40;
+            font-size: 0.95rem;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* RESET BUTTON */
+        .btn-reset {
+            display: block;
+            width: 200px;
+            margin: 40px auto;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,77,64,0.3);
+        }
+        .btn-reset:hover { background: #004d40; }
+
+    </style>
+</head>
+<body>
+
+    <div id="header-bar">
+        <div class="header-content">
+            <h1>Física Médica (66-160)</h1>
+            <div class="score-board">
+                <span id="score">0</span> / <span id="total">0</span>
+            </div>
+        </div>
+        <div id="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="container" id="quiz-container">
+        </div>
+
+    <div class="container">
+        <button class="btn-reset" onclick="location.reload()">Reiniciar Test</button>
+    </div>
+
+    <script>
+        const questionsDB = [
+            {id: "66", q: "Para conseguir reflexiones importantes en la superficie que separa dos medios:", opts: {a:"Las impedancias acústicas deben ser muy distintas", b:"Impedancias similares", c:"Densidades elevadas", d:"Densidades pequeñas"}, ans: "a", note: "La reflexión depende de la diferencia de impedancia (Z)."},
+            {id: "67", q: "Cuando una onda se propaga en un medio disipativo, su intensidad:", opts: {a:"Permanece constante", b:"Decrece exponencialmente con la distancia", c:"Inversamente proporcional cuadrado", d:"Se anula"}, ans: "b", note: "Ley de Beer-Lambert (atenuación)."},
+            {id: "68", q: "¿Se puede propagar la luz y el sonido en el vacío?", opts: {a:"Ambos", b:"Ninguno", c:"La luz sí, el sonido no", d:"Luz no, sonido sí"}, ans: "c", note: "Luz es EM (sí), Sonido es mecánico (no)."},
+            {id: "69", q: "Cuando duplicamos la frecuencia de un sonido, el nuevo sonido tendrá:", opts: {a:"Un tono más agudo", b:"Timbre diferente", c:"Tono más grave", d:"Doble fones"}, ans: "a", note: "Frecuencia = Tono."},
+            {id: "70", q: "El gel en ultrasonidos se usa para:", opts: {a:"Desplazamiento", b:"Acoplar las impedancias acústicas", c:"(Repetida)", d:"Discontinuidad"}, ans: "b", note: "Elimina el aire para evitar reflexión total."},
+            {id: "71", q: "Para la realización de ecografías se suele utilizar:", opts: {a:"Dos sondas", b:"La misma sonda para la emisión y la captación de los ultrasonidos reflejados", c:"Placa sensible", d:"Sonda a 50cm"}, ans: "b", note: "Transductor emisor-receptor pulsado."},
+            {id: "72", q: "La obtención de imágenes ecográficas de tipo Doppler se basa en:", opts: {a:"Movimiento sonda", b:"La variación de frecuencia debida al movimiento del objeto que refleja la onda", c:"Impedancia", d:"Densidad"}, ans: "b", note: "Efecto Doppler."},
+            {id: "73", q: "Recibe el nombre de Onda o Movimiento ondulatorio:", opts: {a:"Cuerda", b:"Agua", c:"Una perturbación que se propaga", d:"Antena"}, ans: "c", note: "Definición física."},
+            {id: "74", q: "Una onda transversal es:", opts: {a:"Direcciones iguales", b:"Atraviesa", c:"Sonido", d:"Aquella en la que la dirección de la perturbación y la de propagación son perpendiculares"}, ans: "d", note: "Ej: Luz."},
+            {id: "75", q: "Cuando una onda se propaga en un medio material:", opts: {a:"Sin alteración", b:"Hace que las partículas del medio oscilen", c:"MUA", d:"Velocidad cte"}, ans: "b", note: "Transporte de energía mediante oscilación."},
+            {id: "76", q: "Indicar cuál de las siguientes afirmaciones puede ser verdadera:", opts: {a:"El periodo de una onda es de 5s", b:"Periodo 5m", c:"Periodo 5Hz", d:"Proporcional"}, ans: "a", note: "Periodo es tiempo."},
+            {id: "77", q: "La frecuencia de las ondas sonoras disminuye cuando la fuente y el receptor:", opts: {a:"Cte", b:"Se acercan", c:"Reposo", d:"Se alejan"}, ans: "d", note: "Efecto Doppler (corrimiento al rojo/grave)."},
+            {id: "78", q: "Debido a su tono distinguimos entre sonidos:", opts: {a:"Complejos", b:"Fuertes", c:"Rápidos", d:"Agudos y Graves"}, ans: "d", note: "Tono = Frecuencia."},
+            {id: "79", q: "El periodo de una onda:", opts: {a:"Espacio", b:"Es el tiempo que tarda en completar un ciclo", c:"Div pi", d:"Ninguna"}, ans: "b", note: "T = 1/f."},
+            {id: "80", q: "La función del oído humano es:", opts: {a:"Eléctrico a sonoro", b:"Nervioso a sonoro", c:"Convertir las ondas sonoras en impulsos eléctricos", d:"Mecánico a sonoro"}, ans: "c", note: "Transducción."},
+            {id: "81", q: "Oído externo alcanza finalmente:", opts: {a:"Pabellón", b:"Conducto", c:"El Tímpano", d:"Vestíbulo"}, ans: "c", note: "Límite con oído medio."},
+            {id: "82", q: "Huesecillos oído medio:", opts: {a:"El yunque", b:"Vestíbulo", c:"Tímpano", d:"Conducto"}, ans: "a", note: "Martillo, Yunque, Estribo."},
+            {id: "83", q: "La oreja es parte constitutiva del:", opts: {a:"Oído externo", b:"Medio", c:"Interno", d:"Musical"}, ans: "a", note: "Pabellón auricular."},
+            {id: "84", q: "Las distintas frecuencias son recogidas en puntos distintos de:", opts: {a:"La membrana basilar", b:"Pabellón", c:"Oval", d:"Vestíbulo"}, ans: "a", note: "Tonotopía coclear."},
+            {id: "85", q: "El oído medio se encuentra limitado por la base de la cóclea y:", opts: {a:"Pabellón", b:"Conducto", c:"El tímpano", d:"Vestíbulo"}, ans: "c", note: "Pared lateral."},
+            {id: "86", q: "Las vibraciones de la ventana oval son transformadas en impulsos nerviosos en:", opts: {a:"Ventana redonda", b:"Martillo", c:"Tímpano", d:"La cóclea"}, ans: "d", note: "Órgano de Corti."},
+            {id: "87", q: "Cuando una persona habla con voz más aguda que otra significa que:", opts: {a:"Amplitud", b:"Lambda", c:"Produce sonidos de mayor frecuencia", d:"Menor frecuencia"}, ans: "c", note: "Agudo = Alta frecuencia."},
+            {id: "88", q: "f=10Hz, L=3m. Velocidad:", opts: {a:"10/3", b:"10", c:"3", d:"30 m/s"}, ans: "d", note: "v = f * L = 10 * 3 = 30."},
+            {id: "89", q: "L=3m, v=3m/s. Frecuencia:", opts: {a:"1 Hz", b:"1 rad", c:"1 m", d:"1 s"}, ans: "a", note: "f = v / L = 3 / 3 = 1."},
+            {id: "90", q: "Las ondas mecánicas se propagan:", opts: {a:"Vacío", b:"Con materia", c:"Sin energía", d:"En un medio material"}, ans: "d", note: "Necesitan medio."},
+            {id: "91", q: "Razón entre longitud de onda y periodo:", opts: {a:"Número", b:"Frecuencia", c:"Angular", d:"La velocidad de propagación de la onda"}, ans: "d", note: "L / T = v."},
+            {id: "92", q: "Medir velocidad sangre:", opts: {a:"Eco A", b:"Eco B", c:"Una ecografía Doppler", d:"Eco TM"}, ans: "c", note: "Efecto Doppler."},
+            {id: "93", q: "Funcionalismo cardiaco:", opts: {a:"A", b:"B", c:"La ecografía TM (Modo M)", d:"Espiro"}, ans: "c", note: "Time-Motion."},
+            {id: "94", q: "Sodio (Na+) membrana:", opts: {a:"Entrar Eq", b:"Salir Memb", c:"Salir Eq", d:"La a y la b"}, ans: "d", note: "Tanto el gradiente químico como el eléctrico favorecen la entrada. *Nota: Texto original da 'd' como correcta (ambas fuerzas).*"},
+            {id: "95", q: "Potasio (K+) membrana:", opts: {a:"Entrar Eq", b:"Salir Memb", c:"Salir Eq", d:"La a y b"}, ans: "d", note: "Fuerzas opuestas mantienen el equilibrio. Químico saca, Eléctrico mete."},
+            {id: "96", q: "Energía potencial al salir es positivo (cuesta energía):", opts: {a:"Salir", b:"Entrar", c:"...", d:"La a y c"}, ans: "b", note: "Si salir cuesta energía, tiende a quedarse/entrar."},
+            {id: "97", q: "Suma potencial membrana y equilibrio positiva:", opts: {a:"El ión tiene tendencia a salir si el ión es positivo", b:"Entrar", c:"...", d:"..."}, ans: "a", note: "Fuerza neta hacia fuera."},
+            {id: "98", q: "Velocidad fibras mielínicas:", opts: {a:"Longitud", b:"Existencia de un menor número de cargas susceptibles de ser transportadas", c:"Mayor número", d:"Resistencia"}, ans: "b", note: "Menor capacitancia = Menos carga a mover."},
+            {id: "99", q: "Inicio sístole ventricular:", opts: {a:"Final P", b:"Inicio P", c:"Final T", d:"Al final de la onda R"}, ans: "d", note: "Pico R del QRS."},
+            {id: "100", q: "Pico PA (+30mV). E_Na (-60?), E_K (+97?):", opts: {a:"Eq", b:"El sodio tiende a entrar", c:"Potasio entrar", d:"Eq"}, ans: "b", note: "Asumiendo valores estándar fisiológicos corregidos (o lógica de fuerzas relativas)."},
+            {id: "101", q: "Contracción ventricular:", opts: {a:"P", b:"Desde el inicio del QRS hasta el final de la onda T", c:"...", d:"..."}, ans: "b", note: "Sístole eléctrica."},
+            {id: "102", q: "Nervios mielínicos:", opts: {a:"Avance rápido", b:"...", c:"...", d:"Las tres anteriores (o solo a)"}, ans: "a", note: "Conducción saltatoria rápida."},
+            {id: "103", q: "Electromiografía registra:", opts: {a:"Miocardio", b:"Corazón", c:"Cerebro", d:"Músculo"}, ans: "d", note: "Músculo esquelético."},
+            {id: "104", q: "Transmisión información órganos:", opts: {a:"Mecánico", b:"Termo", c:"Eléctrico", d:"Ondulatorio"}, ans: "c", note: "Impulsos eléctricos."},
+            {id: "105", q: "Base impulso nervioso:", opts: {a:"Diferentes concentraciones de iones a ambos lados", b:"Temperatura", c:"Electrodos", d:"Radio"}, ans: "a", note: "Gradientes iónicos."},
+            {id: "106", q: "Reposo (-90mV):", opts: {a:"Ext neg", b:"El interior cargado negativamente respecto del exterior", c:"Int pos", d:"A y C"}, ans: "b", note: "Polarización normal."},
+            {id: "107", q: "Sodio membrana:", opts: {a:"Entrar conc", b:"Salir pot", c:"Entrar pot", d:"La a y la c"}, ans: "d", note: "Ambos gradientes lo meten."},
+            {id: "108", q: "Transporte activo (Bomba):", opts: {a:"Saca K", b:"Se extrae Na+ y se introduce K+", c:"...", d:"..."}, ans: "b", note: "3 Na fuera, 2 K dentro."},
+            {id: "109", q: "Potencial de acción:", opts: {a:"Reposo", b:"Tensión tubo", c:"ECG", d:"Los cambios del potencial de membrana como consecuencia de un estímulo"}, ans: "d", note: "Definición."},
+            {id: "110", q: "Estímulo célula excitable:", opts: {a:"Impermeabilidad", b:"Inalterable", c:"Se producen variaciones en la permeabilidad de la membrana", d:"..."}, ans: "c", note: "Apertura canales."},
+            {id: "111", q: "Campo B0 RM:", opts: {a:"Variación", b:"Que los spines de los núcleos de hidrógeno se orienten", c:"Impulso", d:"Señal"}, ans: "b", note: "Alineación."},
+            {id: "112", q: "Objetivo pulso RF:", opts: {a:"...", b:"...", c:"Generar un pulso de excitación", d:"..."}, ans: "c", note: "Perturbar el equilibrio."},
+            {id: "113", q: "Efecto RF en RM:", opts: {a:"Disminuye Mz", b:"Crea Mxy", c:"Precesión", d:"La a y la b"}, ans: "d", note: "Resonancia."},
+            {id: "114", q: "Bobina receptora:", opts: {a:"...", b:"...", c:"...", d:"Detectar una señal de relajación"}, ans: "d", note: "Recoge la señal FID/Eco."},
+            {id: "115", q: "Constante giromagnética:", opts: {a:"q/m", b:"m/q", c:"Proporcional Larmor", d:"La a y c"}, ans: "d", note: "Fundamental en Larmor."},
+            {id: "116", q: "Núcleos para RM:", opts: {a:"Par p", b:"Impar e", c:"Un número impar de nucleones", d:"Par n"}, ans: "c", note: "Espín neto."},
+            {id: "117", q: "Temperatura molecular:", opts: {a:"Masa", b:"Boltzmann", c:"Calor", d:"Directamente proporcional a la velocidad de las partículas"}, ans: "d", note: "Energía cinética."},
+            {id: "118", q: "Criobiología:", opts: {a:"Cáncer", b:"Los efectos de las temperaturas bajas en Biología y Medicina", c:"Producción", d:"Calentamiento"}, ans: "b", note: "Estudio del frío."},
+            {id: "119", q: "f(P,V,T)=0:", opts: {a:"Estado", b:"Función", c:"Ecuación de estado", d:"Equilibrio"}, ans: "c", note: "Relación variables."},
+            {id: "120", q: "Primer principio:", opts: {a:"Indet", b:"Flex", c:"Una ley determinista y rígida (Conservación)", d:"Exp"}, ans: "c", note: "Energía se conserva."},
+            {id: "121", q: "Inversión postural:", opts: {a:"Giro", b:"Traslación", c:"Marea", d:"Una traslación del centro de gravedad del cuerpo y alineación"}, ans: "d", note: "Terapia."},
+            {id: "122", q: "Ejercicio isotónico:", opts: {a:"Varía la longitud del músculo sin variar la tensión muscular", b:"Bebida", c:"Tensión varia", d:"Empuja"}, ans: "a", note: "Tensión constante, cambio longitud."},
+            {id: "123", q: "Uso de bastón:", opts: {a:"...", b:"...", c:"Reducir la fuerza muscular sobre la cadera de la pierna sana (Apoyo contralateral)", d:"..."}, ans: "c", note: "Reduce carga."},
+            {id: "124", q: "Suspensoterapia:", opts: {a:"...", b:"...", c:"...", d:"Elimina la gravedad y los rozamientos"}, ans: "d", note: "Rehabilitación."},
+            {id: "125", q: "Fluido ideal estrechamiento:", opts: {a:"...", b:"...", c:"Aumenta su velocidad y disminuye su presión", d:"..."}, ans: "c", note: "Bernoulli."},
+            {id: "126", q: "Velocidad disminuye A->B:", opts: {a:"Necesariamente el diámetro del tubo ha aumentado en B", b:"...", c:"...", d:"..."}, ans: "a", note: "Continuidad."},
+            {id: "127", q: "Continuidad en sangre:", opts: {a:"No", b:"Se puede aplicar en promedio", c:"No capilares", d:"Siempre"}, ans: "b", note: "Flujo pulsátil."},
+            {id: "128", q: "Resistencia hidrodinámica:", opts: {a:"...", b:"Crece al aumentar la longitud y decrece al aumentar el radio", c:"...", d:"..."}, ans: "b", note: "Poiseuille."},
+            {id: "129", q: "Transición turbulento:", opts: {a:"...", b:"B", c:"En la parte A (si es más estrecha)", d:"..."}, ans: "c", note: "Mayor velocidad = Mayor Reynolds."},
+            {id: "130", q: "Sangre órganos:", opts: {a:"...", b:"...", c:"Aumenta radio vasos periféricos...", d:"Disminuye radio..."}, ans: "c", note: "Vasodilatación."},
+            {id: "131", q: "Velocidad sección vaso:", opts: {a:"Igual", b:"Nula", c:"Nula junto a las paredes y máxima en el centro", d:"Max paredes"}, ans: "c", note: "Perfil parabólico."},
+            {id: "132", q: "Velocidad aorta vs capilares:", opts: {a:"...", b:"Por ser la sección conjunta de todos los capilares 800 veces mayor", c:"...", d:"..."}, ans: "b", note: "Área total."},
+            {id: "133", q: "Viscosidad sangre:", opts: {a:"...", b:"...", c:"...", d:"La b y la c (5x agua, depende eritrocitos)"}, ans: "d", note: "Hematocrito."},
+            {id: "134", q: "Presión horizontal:", opts: {a:"Es igual a la presión del nivel del corazón", b:"...", c:"...", d:"..."}, ans: "a", note: "Equipotencial."},
+            {id: "135", q: "Tensión pared (Laplace):", opts: {a:"Prop radio", b:"Indep", c:"Prop presión", d:"La a y la c"}, ans: "d", note: "T = P*r."},
+            {id: "136", q: "Presión cerebro nula:", opts: {a:"...", b:"Se produciría una isquemia cerebral", c:"...", d:"..."}, ans: "b", note: "Síncope."},
+            {id: "137", q: "Dif presión altura:", opts: {a:"Altura", b:"Gravedad", c:"Densidad", d:"Depende de las tres"}, ans: "d", note: "Hidrostática."},
+            {id: "138", q: "Tensión superficial:", opts: {a:"Característica", b:"Perpendicular", c:"Fuerzas paralelas", d:"La a y la c"}, ans: "d", note: "Tangencial."},
+            {id: "139", q: "Surfactantes:", opts: {a:"...", b:"Varían su tensión superficial según el espacio que ocupan", c:"...", d:"..."}, ans: "b", note: "Dinámicos."},
+            {id: "140", q: "Ventilación:", opts: {a:"Sangre", b:"Suministro de aire a la superficie alveolar", c:"...", d:"..."}, ans: "b", note: "Aire."},
+            {id: "141", q: "Pulmonía:", opts: {a:"Pobre perfusión", b:"Buena vent", c:"Pobre ventilación", d:"..."}, ans: "c", note: "Alveolo ocupado."},
+            {id: "142", q: "Sup NO surfactante aumenta:", opts: {a:"...", b:"...", c:"Permanece constante", d:"..."}, ans: "c", note: "Agua."},
+            {id: "143", q: "Sup Surfactante aumenta:", opts: {a:"Aumenta", b:"Disminuye", c:"...", d:"..."}, ans: "a", note: "Menos moléculas por área -> Tensión sube."},
+            {id: "144", q: "Cociente R:", opts: {a:"CO2/O2", b:"O2/CO2", c:"<1", d:"La a y la c"}, ans: "d", note: "Fisiológico."},
+            {id: "145", q: "Capilaridad:", opts: {a:"Ángulo", b:"Laplace", c:"Bernouilli", d:"La b y la c (Error origen, probablemente A y B)"}, ans: "d", note: "Interacción fuerzas."},
+            {id: "146", q: "Espirómetro no mide:", opts: {a:"Ins", b:"Esp", c:"La capacidad funcional residual (VR)", d:"..."}, ans: "c", note: "Volumen Residual no sale."},
+            {id: "147", q: "Lentes:", opts: {a:"Bicóncava converge (F)", b:"Biconvexas convergen los rayos de luz", c:"...", d:"..."}, ans: "b", note: "Convergente."},
+            {id: "148", q: "Punto remoto miope:", opts: {a:"Lejano", b:"Igual", c:"Más cercano que el ojo normal", d:"No tiene"}, ans: "c", note: "Finito."},
+            {id: "149", q: "Hipermétrope corrige:", opts: {a:"...", b:"Con una lente convergente", c:"...", d:"..."}, ans: "b", note: "Positiva."},
+            {id: "150", q: "Miope corrige:", opts: {a:"Con una lente divergente", b:"...", c:"...", d:"..."}, ans: "a", note: "Negativa."},
+            {id: "151", q: "Aberraciones cromáticas:", opts: {a:"...", b:"...", c:"A que los distintos colores viajan a distinta velocidad en las lentes", d:"..."}, ans: "c", note: "Dispersión."},
+            {id: "152", q: "Remoto emétrope conjugado:", opts: {a:"...", b:"...", c:"En la retina", d:"..."}, ans: "c", note: "Imagen nítida."},
+            {id: "153", q: "Remoto emétrope está:", opts: {a:"...", b:"En el infinito", c:"...", d:"..."}, ans: "b", note: "Visión lejana relajada."},
+            {id: "154", q: "Remoto +2 metros:", opts: {a:"Miopía de -0,5 dioptrías (Hipermetropía +0.5 en convención estricta)", b:"...", c:"Hipermetropía de 0,5 dioptrías", d:"..."}, ans: "c", note: "Signo + suele ser Hipermetropía. 1/2 = 0.5D."},
+            {id: "155", q: "Astigmatismo:", opts: {a:"...", b:"...", c:"...", d:"Falta de simetría de revolución de la córnea"}, ans: "d", note: "Cilindro."},
+            {id: "156", q: "Miopía producida por:", opts: {a:"Ser la potencia del ojo mayor que la potencia del ojo emétrope", b:"Menor", c:"...", d:"..."}, ans: "a", note: "Exceso potencia."},
+            {id: "157", q: "Presbicia producida por:", opts: {a:"...", b:"...", c:"Falta de acomodación del ojo", d:"..."}, ans: "c", note: "Cristalino rígido."},
+            {id: "158", q: "Responsables visión escotópica:", opts: {a:"Conos", b:"Los bastones", c:"...", d:"..."}, ans: "b", note: "Noche."},
+            {id: "159", q: "Tricromatopías (Anomalías):", opts: {a:"...", b:"...", c:"Cuando se utiliza la mezcla de los primarios en condiciones diferentes", d:"..."}, ans: "c", note: "Tienen los 3 conos pero anómalos."},
+            {id: "160", q: "Blanco diagrama:", opts: {a:"El centro del diagrama", b:"...", c:"...", d:"..."}, ans: "a", note: "Equienergético."},
+            {id: "O-1", q: "Onda:", opts: {a:"...", b:"...", c:"Una perturbación que se propaga", d:"..."}, ans: "c", note: "Definición."},
+            {id: "O-2", q: "Luz/Sonido Vacío:", opts: {a:"Luz sí, sonido no", b:"...", c:"...", d:"..."}, ans: "a", note: "EM vs Mecánica."},
+            {id: "O-3", q: "Transversal:", opts: {a:"...", b:"...", c:"...", d:"Dirección perturbación perpendicular a propagación"}, ans: "d", note: "Ej: Luz."},
+            {id: "O-4", q: "Propagación medio:", opts: {a:"...", b:"Hace que las partículas del medio oscilen", c:"...", d:"..."}, ans: "b", note: "Vibración."},
+            {id: "O-5", q: "Afirmación verdadera:", opts: {a:"El periodo de una onda es de 5s", b:"5m", c:"5Hz", d:"..."}, ans: "a", note: "Periodo es tiempo."}
+        ];
+
+        // LOGIC
+        const quizContainer = document.getElementById('quiz-container');
+        const scoreSpan = document.getElementById('score');
+        const totalSpan = document.getElementById('total');
+        const progressFill = document.getElementById('progress-fill');
+        
+        let score = 0;
+        let answeredCount = 0;
+
+        function renderQuiz() {
+            totalSpan.textContent = questionsDB.length;
+
+            questionsDB.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `q-${item.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'question-header';
+                header.textContent = `Pregunta ${item.id}`;
+                card.appendChild(header);
+
+                const text = document.createElement('div');
+                text.className = 'question-text';
+                text.textContent = item.q;
+                card.appendChild(text);
+
+                const grid = document.createElement('div');
+                grid.className = 'options-grid';
+
+                for (const [key, value] of Object.entries(item.opts)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerHTML = `<strong>${key.toUpperCase()})</strong> ${value}`;
+                    btn.onclick = () => checkAnswer(item, key, btn, card, grid);
+                    grid.appendChild(btn);
+                }
+                card.appendChild(grid);
+
+                const feedback = document.createElement('div');
+                feedback.className = 'feedback';
+                feedback.innerHTML = `<strong>Respuesta Correcta: ${item.ans.toUpperCase()}</strong><br>${item.note}`;
+                card.appendChild(feedback);
+
+                quizContainer.appendChild(card);
+            });
+        }
+
+        function checkAnswer(question, selected, btn, card, grid) {
+            if (card.dataset.answered) return;
+            card.dataset.answered = 'true';
+            answeredCount++;
+
+            const allBtns = grid.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.classList.add('disabled'));
+
+            if (selected === question.ans) {
+                score++;
+                btn.classList.add('correct');
+                card.classList.add('correct');
+            } else {
+                btn.classList.add('incorrect');
+                card.classList.add('incorrect');
+                allBtns.forEach(b => {
+                    if (b.innerText.startsWith(question.ans.toUpperCase() + ')')) {
+                        b.classList.add('correct');
+                    }
+                });
+            }
+
+            card.querySelector('.feedback').style.display = 'block';
+            scoreSpan.textContent = score;
+            const progress = (answeredCount / questionsDB.length) * 100;
+            progressFill.style.width = `${progress}%`;
+        }
+
+        renderQuiz();
+    </script>
+</body>
+</html>

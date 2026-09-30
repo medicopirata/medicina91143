@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Fisiología: Membrana y Músculo</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f4f7f6;
+            overflow: hidden;
+        }
+
+        /* Configuración Inicial */
+        #setup-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-content button {
+            display: block;
+            width: 100%;
+            margin: 15px 0;
+            padding: 15px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: var(--secondary);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .modal-content button:hover { transform: scale(1.02); background: #2980b9; }
+
+        /* Sidebar de navegación */
+        #sidebar {
+            width: 90px;
+            background: var(--primary);
+            color: white;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+
+        .nav-btn {
+            width: 55px;
+            height: 55px;
+            margin: 8px 0;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active { border-color: white; background: rgba(255,255,255,0.2); transform: scale(1.1); }
+        .nav-btn.answered-correct { background: var(--success); border-color: var(--success); }
+        .nav-btn.answered-wrong { background: var(--danger); border-color: var(--danger); }
+        .nav-btn.marked { border-color: var(--warning); box-shadow: inset 0 0 10px var(--warning); }
+
+        /* Contenedor Principal */
+        #main-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .question-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+
+        .mark-toggle {
+            background: #f1c40f22;
+            border: 1px solid var(--warning);
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 20px;
+            color: #d35400;
+            font-size: 14px;
+        }
+
+        .mark-toggle.active { background: var(--warning); color: white; }
+
+        .option {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            margin: 12px 0;
+            border: 2px solid #edeff0;
+            border-radius: 10px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 17px;
+            transition: 0.2s;
+            background: white;
+        }
+
+        .option:hover:not(.disabled) { border-color: var(--secondary); background: #f7fbff; }
+        .option.correct { background: #d4edda; border-color: var(--success); color: #155724; font-weight: bold; }
+        .option.wrong { background: #f8d7da; border-color: var(--danger); color: #721c24; }
+        .option.disabled { cursor: default; }
+
+        .explanation-box {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #e8f4fd;
+            border-left: 6px solid var(--secondary);
+            display: none;
+            line-height: 1.6;
+        }
+
+        .footer-nav {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+        }
+
+        .btn-ui { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; }
+        .btn-prev { background: #95a5a6; color: white; }
+        .btn-next { background: var(--dark); color: white; }
+        .btn-finish { background: var(--danger); color: white; }
+
+        /* Pantalla Final */
+        #results-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .retry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 600px;
+            margin-top: 30px;
+        }
+
+        .retry-grid button {
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        .retry-grid button:hover { background: var(--secondary); }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+    <div id="setup-modal">
+        <div class="modal-content">
+            <h1>Configuración del Test</h1>
+            <p>Selecciona el modo de estudio para estas 40 preguntas:</p>
+            <button onclick="initQuiz(false)">Orden Literal (1-40)</button>
+            <button onclick="initQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <main id="main-container">
+        <div id="question-area"></div>
+        <div class="footer-nav">
+            <button class="btn-ui btn-finish" onclick="confirmFinish()">Finalizar Test</button>
+            <div>
+                <button class="btn-ui btn-prev" onclick="changeQ(-1)">Anterior</button>
+                <button class="btn-ui btn-next" onclick="changeQ(1)">Siguiente</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="results-screen">
+        <h1>Cuestionario Finalizado</h1>
+        <div id="final-stats" style="font-size: 24px; margin: 20px 0;"></div>
+        <h3>Opciones de Repetición:</h3>
+        <div class="retry-grid">
+            <button onclick="reloadTest('all')">Repetir Todo el Test</button>
+            <button onclick="reloadTest('failed')">Repetir Solo las Falladas</button>
+            <button onclick="reloadTest('marked')">Repetir Solo las Marcadas</button>
+            <button onclick="reloadTest('failed-marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <script>
+        const database = [
+            { 
+                n: 1, 
+                q: "Según la transcripción de la clase, hay moléculas liposolubles que atraviesan la bicapa lipídica sin necesidad de transportadores mediante difusión simple. ¿Cuál de las siguientes moléculas NO se mueve por este mecanismo?", 
+                a: ["Oxígeno ($O_2$)", "Óxido nítrico", "Glucosa", "Colesterol"], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 16-17]. El profesor explica que el $O_2$, $CO_2$, óxido nítrico, benceno y colesterol difunden libremente. Sin embargo, la glucosa, al ser hidrosoluble y 'grandota', necesita un transportador específico." 
+            },
+            { 
+                n: 2, 
+                q: "(¡Concepto remarcado en clase!). En un proceso de difusión simple a través de una membrana, cuando se igualan las concentraciones a ambos lados de la bicapa lipídica, ¿qué ocurre físicamente con las moléculas?", 
+                a: ["Las moléculas se detienen completamente al carecer de energía cinética.", "El movimiento neto de las moléculas a través de la membrana es cero, pero las moléculas siguen moviéndose en ambas direcciones por igual.", "Las moléculas son expulsadas activamente mediante gasto de ATP.", "Se invierte el gradiente electroquímico."], 
+                c: 1, 
+                e: "[Fuente: Transcripción, 18-19]. El profesor insistió mucho en la diferencia: 'No es que el movimiento sea cero... hay movimiento, pero el flujo NETO a través de la membrana es cero'." 
+            },
+            { 
+                n: 3, 
+                q: "Según la Ley de Fick ('el simpático de Fick' del Kahoot), la velocidad o flujo de difusión simple a través de la membrana depende de varios factores. Fisiológicamente, ¿qué factor suele ignorarse o considerarse constante en la ecuación al comparar distintas células del organismo?", 
+                a: ["El gradiente de concentración del soluto.", "La liposolubilidad de la molécula.", "El tamaño de la molécula.", "El grosor de la bicapa lipídica."], 
+                c: 3, 
+                e: "[Fuente: Transcripción, 21-22]. El profesor explica que, como el grosor de la membrana celular suele ser constante (unos 7,5 nm) en todas las células, este factor 'se ignora o se quita de la ecuación'." 
+            },
+            { 
+                n: 4, 
+                q: "Ocurre una alteración de la barrera endotelial que la vuelve excesivamente permeable, permitiendo que las proteínas plasmáticas escapen hacia el líquido intersticial. Según lo explicado en clase, este cambio en la presión oncótica o coloidosmótica provocará:", 
+                a: ["Una deshidratación celular severa.", "La contracción isométrica del vaso.", "Un flujo de agua desde el plasma hacia el intersticio, produciendo un edema.", "Un coma etílico."], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 27-28]. El profe usa este ejemplo exacto: al pasar la proteína, el agua la sigue por osmosis, acumulándose en el intersticio (edema)." 
+            },
+            { 
+                n: 5, 
+                q: "(¡Pista clave de clase!). Una solución de Urea de 300 mOsmolar tiene exactamente la misma osmolaridad que el líquido intracelular (es isosmolar). Sin embargo, si sumergimos un glóbulo rojo en ella, ¿qué le ocurrirá a su volumen celular?", 
+                a: ["No cambiará, porque la solución es isotónica.", "Disminuirá (crenación), porque la urea expulsa el agua.", "Aumentará (se hinchará), porque la urea permea a favor de gradiente hacia el interior arrastrando agua consigo, por lo que fisiológicamente es una solución HIPOTÓNICA.", "Se producirá un edema intersticial."], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 34]. Es la advertencia más fuerte de la clase: igualar osmolaridad con tonicidad es un error si el soluto es penetrante (como la urea o el etanol). Entra el soluto, entra el agua, y la célula se hincha." 
+            },
+            { 
+                n: 6, 
+                q: "Si inyectamos por vía intravenosa a un paciente una solución hipertónica (con solutos no penetrantes), el efecto inmediato a nivel tisular será:", 
+                a: ["Salida de agua desde el interior de las células hacia el líquido extracelular para igualar osmolaridades, provocando deshidratación celular.", "Entrada masiva de agua a las células hasta reventarlas.", "El bloqueo de los canales de potasio.", "Disminución del potencial de membrana a 0 mV."], 
+                c: 0, 
+                e: "[Fuente: Transcripción, 25-26]. Si aumenta la osmolaridad del LEC, el agua intracelular sale por osmosis. 'Puede ser mortal', advirtió." 
+            },
+            { 
+                n: 7, 
+                q: "Al hablar de 'difusión pasiva' a través de proteínas formadoras de poros (canales iónicos), el profesor subraya que los iones, al estar cargados, no se mueven solo por concentración. Siempre lo hacen a favor de su:", 
+                a: ["Gradiente osmótico.", "Gradiente eléctrico exclusivo.", "Gradiente químico exclusivo.", "Gradiente electroquímico (la suma del gradiente químico y el gradiente eléctrico)."], 
+                c: 3, 
+                e: "[Fuente: Transcripción, 35-37]. Al tener carga, sufren atracción/repulsión eléctrica además de la diferencia de concentración química." 
+            },
+            { 
+                n: 8, 
+                q: "Referente a la localización de los canales iónicos celulares, el profesor hizo una distinción categórica. Es CIERTO que:", 
+                a: ["Los canales de fuga (siempre abiertos) son exclusivos del sistema nervioso.", "Los canales activados por voltaje están expresados en todas las células del organismo.", "Los canales de fuga se expresan en todas las células del organismo, mientras que los canales activados por voltaje SOLO se expresan en células excitables (neuronas, músculo, etc.).", "Los canales activados por ligando no existen en el músculo."], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 37-39]. Los canales background mantienen el potencial en toda célula viva. Los de voltaje son exclusivos del tejido excitable." 
+            },
+            { 
+                n: 9, 
+                q: "En la estructura de un canal activado por voltaje, la apertura o cierre de la compuerta se produce por un cambio tridimensional en una hélice transmembrana. ¿Qué propiedad tiene esta hélice para ser sensible al voltaje?", 
+                a: ["Está unida a un cinocilio elástico.", "Contiene aminoácidos cargados eléctricamente (picaporte/bisagra) que sufren atracción o repulsión electrostática ante cambios en el potencial.", "Tiene receptores de nucleótidos cíclicos.", "Solo se mueve si hay ATPasa."], 
+                c: 1, 
+                e: "[Fuente: Transcripción, 41-42]. El cambio de voltaje intra/extracelular atrae o repele la hélice cargada, abriendo el poro." 
+            },
+            { 
+                n: 10, 
+                q: "Los canales activados por deformación mecánica (estiramiento o presión) son fundamentales para varios sentidos. ¿En qué sistema mencionó el profesor que intervienen canales cuyas compuertas están físicamente unidas por proteínas elásticas a un 'cinocilio'?", 
+                a: ["Fototransducción retiniana.", "Sistemas vestibulares (equilibrio) y auditivo.", "Placa neuromuscular motora.", "Receptores gustativos."], 
+                c: 1, 
+                e: "[Fuente: Transcripción, 40]. Al moverse los estereocilios por el líquido del oído interno, el muelle tira de la compuerta y abre el canal de calcio." 
+            },
+            { 
+                n: 11, 
+                q: "Ciertos canales activados por ligando intracelular responden a nucleótidos cíclicos como el GMPc o AMPc. ¿En qué proceso fisiológico específico destacó el profesor que están implicados de forma fundamental este tipo de canales?", 
+                a: ["Secreción pancreática.", "Equilibrio postural.", "Transmisión de la unión neuromuscular.", "La fototransducción."], 
+                c: 3, 
+                e: "[Fuente: Transcripción, 42-43]. Advirtió que es el mecanismo clásico que 'vais a estudiar en más profundidad' en el ojo." 
+            },
+            { 
+                n: 12, 
+                q: "Los poros de los canales iónicos no dejan pasar a cualquier ión. El 'filtro de selectividad' discrimina a los iones basándose estrictamente en dos parámetros:", 
+                a: ["Liposolubilidad y gradiente de concentración.", "Consumo de ATP y velocidad.", "Tamaño del ión y atracción/repulsión de carga.", "Osmolaridad y tonicidad."], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 43-44]. Ejemplo del profesor: si el poro tiene cargas negativas, atrae cationes (potasio) y repele aniones (cloro), y discrimina sodio de potasio por el radio/tamaño del ión." 
+            },
+            { 
+                n: 13, 
+                q: "Pasando a las propiedades mecánicas (PDF de Músculo). ¿Cuál de las siguientes afirmaciones define correctamente una CONTRACCIÓN ISOMÉTRICA?", 
+                a: ["El músculo genera tensión, cambia de longitud y mueve una carga constante.", "El músculo genera tensión, pero su longitud externa total no cambia y no logra mover la carga.", "Los sarcómeros se relajan mientras el tendón se contrae.", "La velocidad de acortamiento es máxima."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 2]. 'Iso-métrica' = igual medida. Hay fuerza/tensión, pero no hay acortamiento visible ni movimiento de la carga." 
+            },
+            { 
+                n: 14, 
+                q: "(Diagrama conceptual del PDF). A nivel de los microfilamentos internos, durante una contracción puramente ISOMÉTRICA (sin acortamiento del músculo entero), ocurre lo siguiente:", 
+                a: ["Los sarcómeros se estiran pasivamente.", "Los elementos contráctiles se bloquean y no consumen ATP.", "Los sarcómeros (elementos contráctiles) se acortan generando fuerza, mientras que simultáneamente los elementos elásticos en serie se estiran, compensando la longitud.", "Se rompen los puentes cruzados de miosina."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 2]. ¡Es una trampa visual clásica! Por dentro, el sarcómero SÍ se acorta, pero como tira del 'muelle' elástico, la longitud exterior del músculo queda igual." 
+            },
+            { 
+                n: 15, 
+                q: "De acuerdo con la curva Carga-Velocidad (Load-Velocity) del músculo esquelético mostrada en el PDF:", 
+                a: ["La velocidad de acortamiento es máxima cuando la carga es máxima.", "La velocidad máxima de acortamiento ocurre cuando NO hay carga sobre el músculo (Carga = 0).", "La contracción se vuelve isotónica cuando la carga supera la capacidad del músculo.", "La velocidad es constante independientemente del peso a mover."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 3]. Cuanto menor es el peso a mover, más rápido se contrae el músculo. Al vacío (sin peso), la velocidad es tope." 
+            },
+            { 
+                n: 16, 
+                q: "Siguiendo con la curva Carga-Velocidad, ¿qué sucede fisiológicamente cuando la carga aplicada excede la capacidad máxima de generar fuerza del músculo?", 
+                a: ["El músculo sufre una rotura tendinosa inmediata.", "La velocidad de acortamiento se hace máxima.", "La velocidad de acortamiento se hace cero y la contracción pasa a ser estrictamente isométrica.", "El músculo cambia de fibras rápidas a lentas en el momento."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 3]. Si no puedes levantar la pesa porque pesa demasiado (carga > fuerza), la velocidad es 0 y se convierte en una contracción estática/isométrica." 
+            },
+            { 
+                n: 17, 
+                q: "Según las diapositivas de las Fases de la Contracción Muscular, cualquier contracción isotónica (donde hay movimiento y acortamiento) está SIEMPRE precedida por:", 
+                a: ["Un tétanos incompleto.", "Una fase de relajación pasiva.", "Una fase inicial de contracción isométrica.", "Una hiperpolarización muscular."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 3 'Muscle Contraction Phases']. Antes de que el músculo logre vencer el peso y acortarse (isotónica), primero tiene que acumular la fuerza suficiente sin moverse (isométrica)." 
+            },
+            { 
+                n: 18, 
+                q: "En el registro de una 'contracción simple' (twitch), ¿cómo se denomina al breve intervalo de tiempo que transcurre entre la llegada del potencial de acción al sarcolema y el inicio del desarrollo de tensión muscular?", 
+                a: ["Tétanos.", "Periodo de relajación.", "Periodo de latencia.", "Fase isotónica excéntrica."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 1 y 5]. Es el tiempo en el que ocurre el acoplamiento excitación-contracción (liberación de calcio) antes del tirón mecánico." 
+            },
+            { 
+                n: 19, 
+                q: "Observando la gráfica de 'Tensión en función de la longitud del sarcómero' (Curva longitud-tensión), la 'Tensión Activa' máxima que puede desarrollar un músculo se logra cuando:", 
+                a: ["El músculo está estirado al máximo extremo de su capacidad.", "El músculo está contraído al máximo antes del estímulo.", "El músculo se encuentra en su longitud de reposo normal (Lo), donde existe el grado óptimo de solapamiento y puentes cruzados entre actina y miosina.", "Faltan los discos Z."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 1]. La máxima fuerza contráctil (activa) ocurre en el punto medio de estiramiento natural, ni muy encogido ni muy estirado." 
+            },
+            { 
+                n: 20, 
+                q: "Si seguimos estirando un músculo pasivamente mucho más allá de su longitud de reposo, la Tensión Activa cae drásticamente. Sin embargo, la Tensión 'Total' vuelve a subir. ¿Qué genera esta nueva tensión en el músculo súper-estirado?", 
+                a: ["Un aumento de calcio intracelular.", "El reclutamiento masivo de unidades motoras.", "La 'Tensión Pasiva' almacenada en los componentes elásticos (como la titina) que se resisten al estiramiento, actuando como una goma elástica tensa.", "La hipertrofia de las fibras glucolíticas."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 1]. La curva roja de 'tensión pasiva' se dispara en el extremo derecho del gráfico al tensarse los tejidos elásticos por el estiramiento extremo." 
+            },
+            { 
+                n: 21, 
+                q: "¿Qué es exactamente una 'Unidad Motora'?", 
+                a: ["Un fascículo entero de tejido muscular.", "Una única fibra muscular estriada junto a sus mitocondrias.", "Una motoneurona somática individual y todas las fibras musculares esqueléticas a las que inerva.", "La sinapsis entre una interneurona y una neurona piramidal."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 3]. Es la unidad funcional básica. 'La activación de una motoneurona desencadena la contracción de todas las fibras que inerva'." 
+            },
+            { 
+                n: 22, 
+                q: "Según las tablas del PDF sobre los Tipos de Fibras, las fibras musculares Rojas Lentas (Tipo I, oxidativas) se caracterizan por:", 
+                a: ["Su gran tamaño diametral y metabolismo anaerobio.", "Ser capaces de generar inmensa fuerza, pero fatigarse en segundos.", "Tener un diámetro pequeño, metabolismo aeróbico (mucha mioglobina) y ser extremadamente resistentes a la fatiga.", "Carecer de capilares sanguíneos."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 4]. Al estar diseñadas para la resistencia, necesitan mucho O2 (aerobio/rojo) y son delgadas." 
+            },
+            { 
+                n: 23, 
+                q: "Por el contrario, las fibras Blancas Rápidas (Tipo II, glucolíticas) son ideales para:", 
+                a: ["Mantener la postura del cuerpo durante horas.", "Esfuerzos de gran fuerza e intensidad explosiva, utilizando un metabolismo anaerobio rápido pero siendo muy fatigables.", "Recorrer largas distancias en maratones.", "Consumir el ácido láctico acumulado."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 4]. Son blancas, grandes, anaerobias y generan mucha fuerza rápidamente, pero se agotan enseguida." 
+            },
+            { 
+                n: 24, 
+                q: "(¡Pregunta directa de las diapositivas!). Fisiológicamente, ¿quién determina si una fibra muscular en desarrollo adopta el 'fenotipo' de fibra lenta o fibra rápida?", 
+                a: ["La cantidad de glucosa en la sangre de la madre.", "El tipo de motoneurona que la inerva.", "La hormona de crecimiento.", "El estiramiento de los tendones óseos."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 4]. Literalmente: 'El fenotipo de las diferentes fibras musculares viene determinado por el tipo de motoneurona que las inerva'." 
+            },
+            { 
+                n: 25, 
+                q: "El Sistema Nervioso Central puede controlar y graduar la tensión total que ejerce un músculo. Uno de los dos mecanismos principales para lograr esto es aumentando la Frecuencia de Disparo de la motoneurona. Esto da lugar al fenómeno de:", 
+                a: ["Relajación refleja.", "Sumación temporal (que puede progresar a un tétanos fundido o completo).", "Tensión pasiva extrema.", "Deshidratación celular."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 5 y 6]. Si los estímulos eléctricos llegan rápido, las contracciones individuales se suman en el tiempo, aumentando la tensión (tétanos)." 
+            },
+            { 
+                n: 26, 
+                q: "El segundo mecanismo del SNC para aumentar gradualmente la fuerza muscular es el 'Reclutamiento' (reclutamiento espacial). Esto significa:", 
+                a: ["Aumentar la velocidad del potencial de acción dentro del mismo axón.", "Activar secuencialmente unidades motoras adicionales que estaban en reposo.", "Aumentar la cantidad de calcio dentro de las fibras lisas.", "Liberar adrenalina localmente en el músculo."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 6]. 'El incremento en la tensión muscular generalmente implica el 'reclutamiento' de unidades motoras adicionales'." 
+            },
+            { 
+                n: 27, 
+                q: "En el contexto del control de la fuerza, el 'Principio del Tamaño' dicta una secuencia ordenada irrefutable de reclutamiento de las unidades motoras. ¿Qué unidades son las PRIMERAS en reclutarse cuando se requiere poca tensión?", 
+                a: ["Las unidades motoras formadas por fibras rápidas glucolíticas (grandes).", "Las unidades motoras formadas por fibras lentas oxidativas, que están inervadas por motoneuronas de pequeño tamaño.", "Todas las unidades se reclutan al mismo tiempo, sin orden.", "Las fibras musculares blancas inervadas por axones amielínicos."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 7 y 8]. Según la gráfica del Principio del Tamaño, las motoneuronas pequeñas (que inervan fibras lentas/posturales) tienen el umbral más bajo y disparan primero." 
+            },
+            { 
+                n: 28, 
+                q: "Desde un punto de vista biofísico, ¿por qué las motoneuronas pequeñas (inervan fibras lentas) alcanzan el umbral de disparo y se activan ANTES que las motoneuronas grandes ante un estímulo sináptico idéntico?", 
+                a: ["Porque tienen menor resistencia de membrana y fugan la corriente.", "Porque tienen una alta resistencia de membrana ($R_{high}$), lo que permite que una pequeña corriente sináptica (I) genere un cambio de voltaje (EPSP) grande ($V = I \cdot R$), superando el umbral.", "Porque no tienen canales de sodio.", "Porque no poseen mielina."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 7]. La Ley de Ohm aplicada: neurona pequeña = mucha resistencia = poco estímulo produce mucho potencial excitador." 
+            },
+            { 
+                n: 29, 
+                q: "En una gráfica secuencial de reclutamiento muscular por el incremento de tensión requerida, ¿cuál es el orden correcto de activación desde el mínimo hasta el esfuerzo máximo absoluto?", 
+                a: ["Rápidas glucolíticas → Lentas → Rápidas oxidativas.", "Rápidas oxidativas → Rápidas glucolíticas → Lentas.", "Lentas (Tipo I) → Rápidas resistentes a la fatiga (Tipo IIa) → Rápidas fatigables (Tipo IIx/b).", "Todas a la vez por reflejo miotático."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 7 y 8]. Orden clásico del principio del tamaño de menor a mayor exigencia de tensión." 
+            },
+            { 
+                n: 30, 
+                q: "Siguiendo el esquema de actividades motoras (Diapositiva 7), un individuo que se encuentra de pie, manteniendo la postura (Stand) sin apenas movimiento, estará utilizando predominantemente:", 
+                a: ["El 100% de su reserva muscular total.", "Fibras rápidas fatigables (Fast fatigable).", "Solo las fibras Lentas (Slow).", "Fibras rápidas resistentes a la fatiga (Fast fatigue-resistant)."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 7]. Acciones de baja tensión mantenidas (pararse o caminar lento) reclutan la primera franja del 'pool': las fibras lentas oxidativas." 
+            },
+            { 
+                n: 31, 
+                q: "Si ese mismo individuo arranca a hacer un 'sprint' explosivo corriendo a máxima velocidad (Run/Gallop), o da un gran salto, se habrán reclutado obligatoriamente en último lugar:", 
+                a: ["Las motoneuronas parasimpáticas.", "Las fibras lisas multiunitarias.", "Las fibras Rápidas Fatigables (Fast fatigable), completando casi el 100% de la actividad del pool motor.", "El tejido adiposo."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 7]. El pico del gráfico de fuerza máxima recae en el reclutamiento final de las grandes motoneuronas de fibras blancas (esfuerzo intenso pero breve)." 
+            },
+            { 
+                n: 32, 
+                q: "¿Qué ventaja proporciona que los músculos encargados de la postura (como el sóleo en la pierna) tengan unidades motoras compuestas predominantemente por fibras Lentas Oxidativas?", 
+                a: ["Pueden contraerse a velocidades extremas.", "Carecen de periodo de latencia.", "Pueden mantener la tensión (tetanización parcial) durante tiempos prolongados sin llegar a la fatiga muscular gracias a su metabolismo aeróbico.", "Pueden generar una fuerza de tracción isométrica de 1000 kg."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 4]. La resistencia a la fatiga (aerobia) es la característica clave para los músculos antigravitatorios o posturales." 
+            },
+            { 
+                n: 33, 
+                q: "Volviendo brevemente al transporte de membrana analizado por el profesor. Nos pone el ejemplo de una célula inmersa en una solución que contiene una alta concentración de un soluto X. Si el soluto X entra a la célula, e inmediatamente después el agua le sigue, hinchando la célula. Fisiológicamente, la solución externa era:", 
+                a: ["Hipertónica.", "Isotónica pero hiperosmolar.", "Hipotónica, ya que ha provocado un aumento del volumen celular al final del proceso.", "Diurética."], 
+                c: 2, 
+                e: "[Fuente: Transcripción, 34]. La clave del concepto del profesor: la 'Tonicidad' solo describe qué le pasa al volumen. Si la célula se hincha, da igual la osmolaridad inicial, la solución se clasifica como hipotónica." 
+            },
+            { 
+                n: 34, 
+                q: "Respecto a la contracción Isotónica, si observamos que un músculo genera tensión mientras al mismo tiempo se ESTIRA controladamente frente a una carga mayor (por ejemplo, al bajar una caja pesada lentamente), hablamos de una contracción isotónica:", 
+                a: ["Concéntrica.", "Excéntrica.", "Tétanos isométrico.", "Paralítica."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 3]. En la diapositiva se observa 'Isotonic, eccentric contraction': el músculo se alarga manteniendo la tensión (frenando la carga)." 
+            },
+            { 
+                n: 35, 
+                q: "Cuando levantas activamente una caja del suelo (venciendo el peso), la longitud del bíceps disminuye mientras la tensión se mantiene constante durante el movimiento. Esto corresponde a:", 
+                a: ["Contracción isotónica concéntrica.", "Contracción isotónica excéntrica.", "Periodo de latencia absoluto.", "Relajación isométrica."], 
+                c: 0, 
+                e: "[Fuente: PDF, Diapositiva 3]. 'Isotonic, concentric contraction': el músculo se acorta moviendo la carga a su favor." 
+            },
+            { 
+                n: 36, 
+                q: "El profesor mencionó el concepto del 'Efecto Escalera' o 'Treppe'. Esto se refiere en fisiología muscular a:", 
+                a: ["La incapacidad total de sumar potenciales de acción.", "Una fase inicial donde contracciones simples sucesivas generan progresivamente un poco más de fuerza máxima en cada 'escalón' debido al calcio acumulado residual.", "El paso brusco de contracción isométrica a isotónica excéntrica.", "La disminución progresiva de la tensión por fatiga láctica inminente."], 
+                c: 1, 
+                e: "[Fuente: PDF, Diapositiva 6]. Al ver el gráfico 'treppe' antes de la sumación temporal, los picos de las contracciones simples van escalando en fuerza gradualmente." 
+            },
+            { 
+                n: 37, 
+                q: "¿A qué se denomina 'Tétanos completo o fundido' en la gráfica de control de tensión muscular?", 
+                a: ["Al estado de relajación máxima del músculo.", "Al momento de velocidad máxima de acortamiento sin carga.", "A la tensión máxima y sostenida lograda cuando la frecuencia de potenciales de acción es tan altísima que no existe ninguna fase de relajación entre los estímulos, fundiéndose en una línea recta.", "A la enfermedad autoinmune contra la placa motora."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 6]. Gráficamente, el tétanos fundido ('complete tetanus') carece de dientes de sierra porque el calcio nunca baja lo suficiente para relajar la actina." 
+            },
+            { 
+                n: 38, 
+                q: "La difusión simple de gases en los tejidos (ej. entrada de $O_2$ y salida de $CO_2$) se fundamenta biofísicamente en que:", 
+                a: ["El $CO_2$ es atraído activamente por bombas extracelulares que gastan ATP.", "Existe un flujo NETO a favor de su gradiente de concentración, desde el sitio de mayor presión parcial al de menor presión parcial, hasta alcanzar el equilibrio termodinámico.", "Ambos gases compiten por el mismo canal iónico voltaje-dependiente.", "Los gases se mueven siempre en contra de la presión osmótica de las proteínas."], 
+                c: 1, 
+                e: "[Fuente: Transcripción, 19-20]. Es el ejemplo clásico de la clase para explicar el movimiento termodinámico de las moléculas por gradiente sin gasto de energía." 
+            },
+            { 
+                n: 39, 
+                q: "Sobre los requerimientos del transporte de membrana, ¿qué diferencia estructural crítica existe entre la difusión simple y los mecanismos de transporte denominados 'mediados'?", 
+                a: ["La difusión simple utiliza poros gigantes de actina.", "El transporte mediado requiere obligatoriamente de una proteína integral de membrana (transportador/bomba) o la fusión de vesículas, mientras que la difusión simple solo requiere de la bicapa lipídica pura.", "La difusión simple siempre hidroliza GTP, el mediado ATP.", "No existe diferencia real, ambos pasan por la matriz lipídica desnuda."], 
+                c: 1, 
+                e: "[Fuente: Transcripción, 17]. 'Si necesitan proteína o no, o si necesitan fusión de membranas o no...'. La difusión simple no necesita nada estructural, solo la bicapa." 
+            },
+            { 
+                n: 40, 
+                q: "De las Cuestiones (Objetivos/Questions) del final del PDF: Si estiramos excesivamente un músculo (por encima de su longitud de reposo), ¿por qué exactamente DISMINUYE su 'Tensión Activa' generada durante la contracción posterior?", 
+                a: ["Porque se hipertrofian los componentes elásticos.", "Porque se rompe la inervación de la motoneurona por tracción.", "Porque al separar físicamente los discos Z, disminuye el grado de solapamiento óptimo entre los filamentos de Actina y Miosina, formándose muchos menos puentes cruzados durante el estímulo eléctrico.", "Porque el músculo entra instantáneamente en isometría patológica."], 
+                c: 2, 
+                e: "[Fuente: PDF, Diapositiva 1 y Cuestión 2, Diap. 8]. La tensión activa es proporcional al número de 'agarres' de miosina sobre la actina. Estirar de más los 'desengancha', reduciendo la fuerza traccional celular." 
+            }
+        ];
+
+        let questions = [];
+        let curIdx = 0;
+        let userAnswers = {}; // { qIndex: {selected, correct} }
+        let markedQs = new Set(); // Stores original question ID (n)
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initQuiz(isRandom) {
+            document.getElementById('setup-modal').style.display = 'none';
+            questions = isRandom ? shuffle([...database]) : [...database];
+            curIdx = 0;
+            userAnswers = {};
+            // Shuffle options for each question
+            questions.forEach(q => {
+                const opts = q.a.map((txt, i) => ({txt, originalIdx: i}));
+                q.shuffledA = shuffle(opts);
+            });
+            renderSidebar();
+            showQuestion(0);
+        }
+
+        function renderSidebar() {
+            const side = document.getElementById('sidebar');
+            side.innerHTML = '';
+            questions.forEach((_, i) => {
+                const b = document.createElement('button');
+                b.className = 'nav-btn';
+                b.id = `nav-${i}`;
+                b.innerText = i + 1;
+                b.onclick = () => showQuestion(i);
+                side.appendChild(b);
+            });
+        }
+
+        function showQuestion(idx) {
+            curIdx = idx;
+            const q = questions[idx];
+            const area = document.getElementById('question-area');
+            const isAnswered = userAnswers[idx] !== undefined;
+
+            // Nav UI
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`nav-${idx}`).classList.add('active');
+
+            let optionsHtml = '';
+            q.shuffledA.forEach(opt => {
+                let stateClass = '';
+                if (isAnswered) {
+                    if (opt.originalIdx === q.c) stateClass = 'correct';
+                    else if (opt.originalIdx === userAnswers[idx].selected) stateClass = 'wrong';
+                    stateClass += ' disabled';
+                }
+                optionsHtml += `<button class="option ${stateClass}" onclick="checkAnswer(${opt.originalIdx})">${opt.txt}</button>`;
+            });
+
+            area.innerHTML = `
+                <div class="question-card">
+                    <div class="q-header">
+                        <span>Pregunta ${idx + 1} de ${questions.length}</span>
+                        <button class="mark-toggle ${markedQs.has(q.n) ? 'active' : ''}" onclick="toggleMark(${q.n})">
+                            ${markedQs.has(q.n) ? '★ Marcada' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <h2>${q.q}</h2>
+                    <div>${optionsHtml}</div>
+                    <div class="explanation-box" id="exp-${idx}">${q.e}</div>
+                </div>
+            `;
+
+            if (isAnswered) {
+                document.getElementById(`exp-${idx}`).style.display = 'block';
+            }
+            
+            // Re-render MathJax
+            if (window.MathJax) MathJax.typeset();
+        }
+
+        function checkAnswer(selectedIdx) {
+            if (userAnswers[curIdx] !== undefined) return;
+
+            const q = questions[curIdx];
+            const correct = selectedIdx === q.c;
+            userAnswers[curIdx] = { selected: selectedIdx, correct };
+
+            const navBtn = document.getElementById(`nav-${curIdx}`);
+            navBtn.classList.add(correct ? 'answered-correct' : 'answered-wrong');
+
+            showQuestion(curIdx);
+        }
+
+        function toggleMark(n) {
+            if (markedQs.has(n)) markedQs.delete(n);
+            else markedQs.add(n);
+            
+            document.getElementById(`nav-${curIdx}`).classList.toggle('marked', markedQs.has(n));
+            const btn = document.querySelector('.mark-toggle');
+            btn.classList.toggle('active');
+            btn.innerText = markedQs.has(n) ? '★ Marcada' : '☆ Marcar';
+        }
+
+        function changeQ(step) {
+            const next = curIdx + step;
+            if (next >= 0 && next < questions.length) showQuestion(next);
+        }
+
+        function confirmFinish() {
+            if (confirm("¿Estás seguro de que deseas finalizar el cuestionario ahora?")) {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'none';
+            const screen = document.getElementById('results-screen');
+            screen.style.display = 'flex';
+
+            let correctCount = 0;
+            Object.values(userAnswers).forEach(v => { if (v.correct) correctCount++; });
+
+            document.getElementById('final-stats').innerHTML = `
+                Has acertado <strong>${correctCount}</strong> de <strong>${questions.length}</strong> preguntas.<br>
+                <small>Marcadas: ${markedQs.size}</small>
+            `;
+        }
+
+        function reloadTest(mode) {
+            let newSet = [];
+            if (mode === 'all') {
+                newSet = [...database];
+            } else if (mode === 'failed') {
+                newSet = questions.filter((q, i) => userAnswers[i] && !userAnswers[i].correct);
+            } else if (mode === 'marked') {
+                newSet = questions.filter(q => markedQs.has(q.n));
+            } else if (mode === 'failed-marked') {
+                newSet = questions.filter((q, i) => (userAnswers[i] && !userAnswers[i].correct) || markedQs.has(q.n));
+            }
+
+            if (newSet.length === 0) {
+                alert("No hay preguntas en esta categoría.");
+                return;
+            }
+
+            // Reset
+            questions = newSet;
+            curIdx = 0;
+            userAnswers = {};
+            questions.forEach(q => {
+                const opts = q.a.map((txt, i) => ({txt, originalIdx: i}));
+                q.shuffledA = shuffle(opts);
+            });
+
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('main-container').style.display = 'flex';
+            document.getElementById('sidebar').style.display = 'flex';
+            renderSidebar();
+            // Update sidebar marked status
+            questions.forEach((q, i) => {
+                if (markedQs.has(q.n)) document.getElementById(`nav-${i}`).classList.add('marked');
+            });
+            showQuestion(0);
+        }
+    </script>
+</body>
+</html>

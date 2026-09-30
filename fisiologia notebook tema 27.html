@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen: Hemostasia y Coagulación</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --success: #27ae60;
+            --error: #c0392b;
+            --bg: #f4f7f6;
+            --text: #333;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Pantalla Inicial --- */
+        #setup-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .btn-setup {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.2s;
+        }
+
+        .btn-setup:hover { transform: scale(1.05); }
+
+        /* --- Sidebar / Índice --- */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: #fff;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        #sidebar h3 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+
+        #index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .index-item {
+            background: #eee;
+            border: none;
+            padding: 10px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .index-item:hover { background: #ddd; }
+        .index-item.active { background: var(--primary); color: white; }
+        .index-item.correct { background: var(--success); color: white; }
+        .index-item.wrong { background: var(--error); color: white; }
+        .index-item.marked { border: 2px solid #f1c40f; box-shadow: inset 0 0 5px #f1c40f; }
+
+        /* --- Contenido Principal --- */
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .mark-btn {
+            background: #f1c40f;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .options-list { list-style: none; padding: 0; }
+
+        .option-item {
+            margin-bottom: 10px;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option-item:hover:not(.locked) { border-color: var(--accent); background: #fffcf9; }
+        .option-item.locked { cursor: default; }
+        .option-item.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option-item.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e9ecef;
+            border-left: 5px solid var(--primary);
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        /* --- Pantalla Resultados --- */
+        #results-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(44, 62, 80, 0.98);
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .btn-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+
+        /* --- Botón Flotante --- */
+        #finish-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>Hemostasia y Coagulación</h1>
+        <p>¿Cómo deseas realizar el test?</p>
+        <button class="btn-setup" onclick="initQuiz(false)">Orden Preestablecido</button>
+        <button class="btn-setup" onclick="initQuiz(true)">Orden Aleatorio</button>
+    </div>
+
+    <div id="sidebar">
+        <h3>Preguntas</h3>
+        <div id="index-grid"></div>
+    </div>
+
+    <main id="main-content">
+        <div id="quiz-container"></div>
+    </main>
+
+    <button id="finish-btn" onclick="showResults()">Finalizar Cuestionario</button>
+
+    <div id="results-screen">
+        <h2>Resultados</h2>
+        <div id="score-box" style="font-size: 2rem; margin-bottom: 20px;"></div>
+        <p>Selecciona cómo quieres continuar:</p>
+        <div class="btn-group">
+            <button class="btn-setup" onclick="restart('all')">Repetir Todo</button>
+            <button class="btn-setup" onclick="restart('failed')" id="btn-rep-failed">Repetir Falladas</button>
+            <button class="btn-setup" onclick="restart('marked')" id="btn-rep-marked">Repetir Marcadas</button>
+            <button class="btn-setup" onclick="restart('both')" id="btn-rep-both">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            { id: 1, q: "1. Fisiológicamente, un endotelio vascular intacto y sano posee una superficie antitrombótica. ¿Qué dos potentes sustancias vasodilatadoras y antiagregantes secreta constantemente para evitar la formación de trombos?", opts: ["Tromboxano A2 y Serotonina.", "Factor von Willebrand y ADP.", "Óxido nítrico (NO) y Prostaciclina (PGI2).", "Endotelina y Trombina."], ans: "Óxido nítrico (NO) y Prostaciclina (PGI2).", exp: "Según el PDF y la clase, el endotelio sano secreta PGI2 (inhibe agregación subiendo el AMPc) y NO (relaja músculo liso subiendo el GMPc)." },
+            { id: 2, q: "2. A nivel molecular, ¿cómo consigue la Prostaciclina (PGI2) inhibir la agregación de las plaquetas?", opts: ["Bloqueando los receptores de serotonina.", "Activando la adenilato ciclasa, lo que aumenta el AMPc y disminuye el Calcio intracitoplásmico en la plaqueta.", "Inhibiendo directamente a la enzima ciclooxigenasa (COX).", "Destruyendo la malla de fibrina."], ans: "Activando la adenilato ciclasa, lo que aumenta el AMPc y disminuye el Calcio intracitoplásmico en la plaqueta.", exp: "Diapositiva 3. La PGI2 se une a un receptor de proteína G, activa la adenilato ciclasa, sube el AMPc, baja el calcio libre y frena la función plaquetaria." },
+            { id: 3, q: "3. Cuando se produce la rotura de un vaso, se inicia la hemostasia primaria. En la fase de ADHESIÓN (la plaqueta se pega al vaso roto), ¿qué receptor de la membrana plaquetaria es el principal implicado al unirse al Factor von Willebrand subendotelial?", opts: ["Receptor GP IIb-IIIa.", "Receptor GP Ib-IX.", "Receptor de Trombina.", "Receptor de Tromboxano A2."], ans: "Receptor GP Ib-IX.", exp: "Diapositiva 6. El receptor GP Ib-IX tiene un papel básico en la adhesión uniéndose al vWF. (El GP IIb-IIIa es para la agregación entre plaquetas)." },
+            { id: 4, q: "4. Una vez adheridas, las plaquetas se activan y liberan sus gránulos para llamar a más plaquetas (AGREGACIÓN). En esta fase, el receptor GP IIb-IIIa se expone y actúa como 'velcro' uniendo unas plaquetas con otras. ¿Qué molécula plasmática utiliza como 'pegamento' o puente entre estos receptores?", opts: ["Fibrinógeno.", "Plasmina.", "Óxido nítrico.", "Calcio iónico puro."], ans: "Fibrinógeno.", exp: "Diapositiva 6 y 7. El complejo GP IIb-IIIa interactúa con el fibrinógeno (y vWF) uniendo plaquetas en grupo para formar el tapón." },
+            { id: 5, q: "5. Al hablar de las plaquetas, la profesora remarcó su naturaleza citológica. Señale la afirmación CORRECTA:", opts: ["Son los leucocitos más abundantes de la sangre.", "Tienen una vida media de 120 días.", "Son fragmentos anucleados derivados de los megacariocitos de la médula ósea.", "Se sintetizan exclusivamente en el hígado."], ans: "Son fragmentos anucleados derivados de los megacariocitos de la médula ósea.", exp: "Las plaquetas son fragmentos de megacariocitos carentes de núcleo. Su vida media es de apenas unos 10 días." },
+            { id: 6, q: "6. Durante la activación plaquetaria, la hidrólisis de fosfolípidos libera ácido araquidónico. A través de la ciclooxigenasa y tromboxano sintetasa, se produce un potente agente vasoconstrictor y agregante. ¿Cuál es?", opts: ["Prostaciclina.", "Tromboxano A2 (TXA2).", "Heparina.", "Calicreína."], ans: "Tromboxano A2 (TXA2).", exp: "Diapositiva 6. El TXA2 es el principal promotor de la agregación plaquetaria y vasoconstricción local tras una herida." },
+            { id: 7, q: "7. Iniciando la Cascada de Coagulación (Hemostasia Secundaria), la Vía Intrínseca se desencadena cuando la sangre entra en contacto con las superficies aniónicas del tejido subendotelial expuesto. ¿Qué factor de coagulación es el primero en unirse a estas superficies aniónicas, cambiando su conformación para activarse?", opts: ["Factor VII.", "Factor XII.", "Factor X.", "Protrombina."], ans: "Factor XII.", exp: "Audio y PDF. El Factor XII (factor de contacto) es el detonante de la vía intrínseca al unirse a las superficies aniónicas." },
+            { id: 8, q: "8. En esta Vía Intrínseca, el Factor XII necesita la ayuda de un complejo para amplificar su activación. ¿Qué enzima, derivada de su forma precursora unida al Quininógeno de alto peso molecular (HMWK), tiene un sitio catalítico para romper y activar masivamente al Factor XII?", opts: ["Plasmina.", "Calicreína.", "Ciclooxigenasa.", "Trombina."], ans: "Calicreína.", exp: "Audio. El XII activa un poco de precalicreína a calicreína. Esta calicreína se vuelve hacia el factor XII y lo rompe/activa retroactivamente de forma potente." },
+            { id: 9, q: "9. Siguiendo la secuencia de la Vía Intrínseca relatada en clase: una vez activado el Factor XIIa, este activa a su vez al Factor XI (XIa). ¿Sobre qué factor actúa a continuación este Factor XIa en presencia de calcio?", opts: ["Sobre el Factor VII.", "Sobre el Factor IX, activándolo a IXa.", "Directamente sobre el Fibrinógeno.", "Sobre el Factor V."], ans: "Sobre el Factor IX, activándolo a IXa.", exp: "Audio. La cascada intrínseca es: 12 -> 11 -> 9. El XIa (junto con Ca2+) activa al Factor IX a IXa." },
+            { id: 10, q: "10. El objetivo final de la Vía Intrínseca es activar al Factor X. Para ello, se forma el complejo 'Diez-asa (X-asa) Intrínseco'. ¿Qué componentes forman exactamente este complejo sobre los fosfolípidos plaquetarios?", opts: ["Factor VIIa + Factor III + Calcio.", "Factor IXa + Factor VIIIa + Calcio.", "Factor XIIa + Precalicreína + HMWK.", "Trombina + Fibrinógeno."], ans: "Factor IXa + Factor VIIIa + Calcio.", exp: "Audio. El factor IXa se une a su cofactor activado (VIIIa), calcio y fosfolípidos para formar el complejo diezasa intrínseco que activa al X." },
+            { id: 11, q: "11. Dentro del complejo diez-asa intrínseco mencionado, el Factor VIII actúa como un cofactor vital. La profesora preguntó repetidamente en clase: '¿Quién activa al factor VIII?'. La respuesta correcta es:", opts: ["La Calicreína.", "El Factor VII.", "La Trombina.", "La Plasmina."], ans: "La Trombina.", exp: "Audio. La trombina, a la que llamó 'el perejil de todas las salsas', es la encargada de activar al factor VIII (liberándolo de su transportador, el factor vWF)." },
+            { id: 12, q: "12. En relación a la Vía Extrínseca, la profesora dio la mnemotecnia matemática '3 + 7 = 10'. ¿Qué significa biológicamente esta regla?", opts: ["Que el Factor III inhibe al VII para bloquear al X.", "Que el Factor VIIa se une al Factor III (Factor Tisular) en presencia de calcio para formar un complejo capaz de activar al Factor X.", "Que hacen falta 3 moléculas de Factor VII para hacer 10 de fibrina.", "Que se coagula en 10 segundos."], ans: "Que el Factor VIIa se une al Factor III (Factor Tisular) en presencia de calcio para formar un complejo capaz de activar al Factor X.", exp: "Audio. En la vía extrínseca intervienen el factor Tisular (III) y el factor VII. Se unen para activar al X. 3+7=10." },
+            { id: 13, q: "13. Un detalle crucial de la Vía Extrínseca remarcado en clase: ¿Puede el Factor VII activado (VIIa) iniciar la coagulación o activar al factor X circulando solo y libre por el plasma?", opts: ["Sí, es la enzima más potente del plasma.", "No, el Factor VIIa disociado del Factor III (tisular) es catalíticamente inactivo; necesita unirse obligatoriamente a él.", "Sí, pero necesita al menos 24 horas para hacer efecto.", "Solo si previamente ha sido activado por la plasmina."], ans: "No, el Factor VIIa disociado del Factor III (tisular) es catalíticamente inactivo; necesita unirse obligatoriamente a él.", exp: "Audio y PDF. 'El siete activado solo no puede activar al factor 10. Necesitamos a los dos juntos en amor y compañía'. Requiere el anclaje del factor tisular celular." },
+            { id: 14, q: "14. Ambas vías (Intrínseca y Extrínseca) confluyen en la Vía Común al lograr formar el Factor X activado (Xa). A partir de aquí, se forma el complejo Protrombinasa. ¿Qué elementos constituyen este complejo?", opts: ["Factor Xa + Factor Va + Calcio + Fosfolípidos.", "Factor IXa + Factor VIIIa + Calcio.", "Factor XIIa + Factor XIa + Trombina.", "Únicamente Factor Xa puro."], ans: "Factor Xa + Factor Va + Calcio + Fosfolípidos.", exp: "Audio. El factor Xa necesita de su cofactor (Factor Va), calcio y fosfolípidos para formar la protrombinasa, capaz de convertir la protrombina en trombina." },
+            { id: 15, q: "15. ¡PREGUNTA ESTRELLA DE CLASE! La profesora enfatizó el doble papel paradójico de la Trombina dependiendo de un ión específico. Señale la afirmación CORRECTA:", opts: ["Con Magnesio coagula, con Hierro anticoagula.", "En presencia de Calcio coagula, en presencia de Cloro fibrinolisa.", "En presencia de Sodio (Na+) favorece la conversión de fibrinógeno a fibrina (Coagulante); en ausencia de Sodio, favorece su unión a la trombomodulina para activar a la Proteína C (Anticoagulante).", "La trombina siempre es anticoagulante."], ans: "En presencia de Sodio (Na+) favorece la conversión de fibrinógeno a fibrina (Coagulante); en ausencia de Sodio, favorece su unión a la trombomodulina para activar a la Proteína C (Anticoagulante).", exp: "Chivatazo de examen. 'En función del sodio que hay en el medio, la trombina tiene una acción coagulante o una acción anticoagulante. Luego lo pregunto en el examen, por favor, tener las ideas claras'." },
+            { id: 16, q: "16. Una vez que la Trombina escinde los fibrinopéptidos A y B del fibrinógeno, los monómeros resultantes se ensamblan de forma espontánea. Sin embargo, esta malla inicial es frágil. ¿Qué enzima se encarga de crear enlaces covalentes cruzados para formar una red de fibrina dura y estable?", opts: ["Plasmina.", "Antitrombina III.", "Factor XIIIa (Transglutamidasa).", "Factor V."], ans: "Factor XIIIa (Transglutamidasa).", exp: "Audio. El factor XIII es activado por la trombina y actúa como una transglutamidasa que 'cose' los polímeros de fibrina mediante enlaces covalentes, estabilizando el coágulo frente al flujo sanguíneo." },
+            { id: 17, q: "17. La profesora enumeró una lista de funciones de la Trombina ('el perejil de todas las salsas'). ¿Cuál de las siguientes acciones NO es realizada por la Trombina?", opts: ["Activar a los cofactores V y VIII.", "Convertir el Fibrinógeno en Fibrina y activar al Factor XIII.", "Promover fuertemente la agregación plaquetaria mediante sus receptores.", "Sintetizar óxido nítrico en el endotelio para disolver el coágulo."], ans: "Sintetizar óxido nítrico en el endotelio para disolver el coágulo.", exp: "La trombina es un potente agente procoagulante y activador de factores/plaquetas. El NO es sintetizado por la eNOS del endotelio como mecanismo de defensa anticoagulante." },
+            { id: 18, q: "18. La cascada de coagulación requiere que muchos factores circulen en la sangre inactivos para evitar trombosis masivas. ¿Cómo se denomina genéricamente a estas formas precursoras inactivas?", opts: ["Citocinas.", "Zimógenos de proteasas de serina.", "Inmunoglobulinas de coagulación.", "Polímeros alostéricos."], ans: "Zimógenos de proteasas de serina.", exp: "Audio. 'Se sintetizan en el hígado como procimógenos... y luego ya por ruptura se activa a forma activa'. La mayoría son serín-proteasas." },
+            { id: 19, q: "19. Existen cuatro factores de coagulación que son dependientes de la Vitamina K. La profesora dio la regla '2+7=9 y 1'. ¿Cuáles son estos factores?", opts: ["I, III, V y VIII.", "II, VII, IX y X.", "XI, XII, Precalicreína y HMWK.", "Únicamente el Factor XIII."], ans: "II, VII, IX y X.", exp: "Audio. '2+7 son 9, y 1 (o sea 10)'. Los factores dependientes de vitamina K son el II (Protrombina), VII, IX y X." },
+            { id: 20, q: "20. A nivel bioquímico, ¿qué papel juega exactamente la Vitamina K en la síntesis de esos factores (II, VII, IX y X) en el hígado?", opts: ["Es un cofactor para la γ-carboxilación de los residuos de ácido glutámico, lo que les permite unir Calcio (Ca2+).", "Es la enzima que rompe la protrombina.", "Oxida irreversiblemente el anillo pirrólico.", "Bloquea la acción del factor tisular."], ans: "Es un cofactor para la γ-carboxilación de los residuos de ácido glutámico, lo que les permite unir Calcio (Ca2+).", exp: "Audio y PDF. La vitamina K es cofactor de la carboxilasa que añade un grupo carboxilo extra a los glutamatos del extremo N-terminal. Esto crea una carga muy negativa capaz de quelar calcio para anclarse a los fosfolípidos plaquetarios." },
+            { id: 21, q: "21. Al hilo de lo anterior, mencionó el fármaco Sintrom® (Acenocumarol), usado por muchos pacientes cardiópatas. ¿Cómo actúa este anticoagulante oral?", opts: ["Destruye las plaquetas circulantes en 24 horas.", "Degrada la red de fibrina como si fuera plasmina.", "Inhibe a la enzima quinona reductasa (VKORC1), impidiendo el reciclaje de la Vitamina K y bloqueando la maduración de los factores II, VII, IX y X.", "Bloquea el receptor de trombina en las células endoteliales."], ans: "Inhibe a la enzima quinona reductasa (VKORC1), impidiendo el reciclaje de la Vitamina K y bloqueando la maduración de los factores II, VII, IX y X.", exp: "Diapositiva 19 y audio. Los cumarínicos como el Sintrom bloquean la enzima que reduce/recicla la vitamina K (epóxido reductasa/quinona reductasa), dejándola oxidada e inútil." },
+            { id: 22, q: "22. Pregunta de nomenclatura clínica. Advirtió que para el MIR es vital saberse los nombres clásicos. El Factor X es mundialmente conocido como:", opts: ["Factor Hageman.", "Factor Stuart-Prower.", "Proconvertina.", "Factor antihemofílico A."], ans: "Factor Stuart-Prower.", exp: "Audio. 'El 10, que es el fantástico que todos queremos activar por las dos vías, es el factor de Stuart-Prower'. Hageman es el XII, Proconvertina el VII, Antihemofílico A el VIII." },
+            { id: 23, q: "23. ¿Cómo se conoce tradicionalmente al Factor I y al Factor II de la coagulación, respectivamente?", opts: ["Fibrinógeno y Protrombina.", "Tromboplastina y Calcio.", "Fibrina y Trombina.", "Plasminógeno y Plasmina."], ans: "Fibrinógeno y Protrombina.", exp: "PDF. Factor I = Fibrinógeno. Factor II = Protrombina. (Fibrina y trombina son sus formas activadas finales)." },
+            { id: 24, q: "24. El organismo dispone de frenos naturales para no coagular toda la sangre ante una herida pequeña. El inhibidor de la ruta del factor tisular (TFPI o Anticonvertina) bloquea la vía extrínseca. ¿A qué complejo inhibe exactamente?", opts: ["Complejo Precalicreína-HMWK.", "Complejo Factor III - Factor VIIa.", "Complejo Diez-asa intrínseco (IXa-VIIIa).", "Únicamente a la Trombina libre."], ans: "Complejo Factor III - Factor VIIa.", exp: "Audio. Como el Factor VII se llama Proconvertina, la 'Anticonvertina' (TFPI) inhibe al complejo iniciador de la vía extrínseca (Factor Tisular/III + VIIa)." },
+            { id: 25, q: "25. Otro anticoagulante fisiológico importantísimo es la Antitrombina III (AT3). Su principal función como 'serpina' (inhibidor de proteasas de serina) es inactivar a:", opts: ["Únicamente al factor XII.", "Al Plasminógeno y a la Plasmina.", "Principalmente a la Trombina y al Factor Xa.", "Al fibrinógeno circulante."], ans: "Principalmente a la Trombina y al Factor Xa.", exp: "Audio y PDF. AT3 bloquea los dos pivotes fundamentales de la fase común: el 10 activado y la trombina (2 activado)." },
+            { id: 26, q: "26. El sistema de la Proteína C es otro mecanismo anticoagulante endógeno. Para activarse, la Proteína C necesita que la trombina se una a un receptor endotelial específico. ¿Cómo se llama esa proteína que 'cambia el chip' de la trombina de coagulante a anticoagulante?", opts: ["Heparina.", "Trombomodulina.", "Plasmina.", "Colágeno."], ans: "Trombomodulina.", exp: "Audio. La Trombomodulina del endotelio se une a la trombina y juntas activan a la Proteína C. (Recuerda que esto se ve favorecido en ausencia de Sodio)." },
+            { id: 27, q: "27. Una vez que tenemos la Proteína C activada (y unida a su cofactor, la Proteína S), ¿cuáles son sus dianas moleculares para frenar la cascada de coagulación?", opts: ["Degrada al fibrinógeno.", "Inactiva a los cofactores vitales Factor Va y Factor VIIIa.", "Destruye irreversiblemente al Calcio.", "Bloquea la acción del factor von Willebrand."], ans: "Inactiva a los cofactores vitales Factor Va y Factor VIIIa.", exp: "Audio. La proteína C activada actúa como unas tijeras que rompen los cofactores V y VIII activados, desarmando los complejos protrombinasa y diezasa intrínseco, respectivamente." },
+            { id: 28, q: "28. Cuando el tejido ha sanado, es necesario eliminar el coágulo para restituir el flujo normal. Este proceso se llama Fibrinólisis. ¿Cuál es la enzima final encargada de degradar la malla de fibrina?", opts: ["Trombina.", "Calicreína.", "Plasmina.", "Endonucleasa."], ans: "Plasmina.", exp: "Audio. La plasmina deriva de la activación del plasminógeno y es la enzima lítica encargada de disolver la red de fibrina." },
+            { id: 29, q: "29. Para que ocurra la fibrinólisis, el plasminógeno debe activarse a plasmina. El cuerpo tiene varios activadores. Según la profesora, ¿cuál de estos activadores se asocia médicamente con procesos de cáncer y metástasis por su capacidad de degradar matriz extracelular?", opts: ["El tPA (activador del plasminógeno tisular).", "El factor XII.", "El uPA (activador del plasminógeno urinario / uroquinasa).", "La antitrombina III."], ans: "El uPA (activador del plasminógeno urinario / uroquinasa).", exp: "Audio. El uPA (descubierto primero en la orina) degrada matriz extracelular y está altamente implicado/asociado en la capacidad de las células neoplásicas para hacer metástasis." },
+            { id: 30, q: "30. La fibrinólisis también tiene sus propios inhibidores para no destruir el coágulo prematuramente. ¿Cuál de los siguientes es el inhibidor tipo 1 del activador del plasminógeno?", opts: ["PAI-1.", "TAFI.", "α2-antiplasmina.", "Antitrombina 3."], ans: "PAI-1.", exp: "Audio y PDF. PAI-1 significa Plasminogen Activator Inhibitor-1. (La α2-antiplasmina inhibe a la plasmina ya formada, no al activador)." },
+            { id: 31, q: "31. La profesora mencionó que existe un PAI-2 (Inhibidor del activador del plasminógeno 2) que solo suele verse clínicamente en una situación fisiológica específica. ¿Cuál es?", opts: ["Durante un infarto de miocardio.", "Producido por la placenta, especialmente en los últimos meses de embarazo.", "Exclusivamente en varones durante la pubertad.", "Durante una hipoxia en alta montaña."], ans: "Producido por la placenta, especialmente en los últimos meses de embarazo.", exp: "Audio. 'Hay un PAI 2... lo produce la placenta y sobre todo en los últimos meses de embarazo'. Mecanismo de protección fisiológico." },
+            { id: 32, q: "32. Al degradarse la red de fibrina cruzada, se liberan a la sangre los Productos de Degradación de la Fibrina (FDP). El más famoso de ellos se utiliza en urgencias. ¿Cuál es?", opts: ["Fragmento A1.", "Dímero D.", "Polímero de trombina.", "Plasminógeno inactivo."], ans: "Dímero D.", exp: "Audio. Al cortar la fibrina estabilizada por enlaces covalentes, la plasmina libera fragmentos característicos con dos dominios D unidos, llamado Dímero D." },
+            { id: 33, q: "33. ¡CASO CLÍNICO DE CLASE! Un paciente llega a urgencias ahogándose, con dolor torácico y síncope. Sospechas de un Tromboembolismo Pulmonar (TEP) y pides un Dímero D. La profesora advirtió sobre el significado diagnóstico de esta prueba:", opts: ["Es 100% específica; si sale alta, confirma indiscutiblemente el TEP y no hay que hacer más pruebas.", "Si sale alta indica que hay hemorragia interna severa.", "Es muy poco específica pero MUY SENSIBLE (96%). Si sale alta indica que hay degradación de trombos, pero obliga a pedir una prueba de imagen (AngioTAC) para confirmarlo.", "Solo sirve para descartar deficiencias de vitamina K."], ans: "Es muy poco específica pero MUY SENSIBLE (96%). Si sale alta indica que hay degradación de trombos, pero obliga a pedir una prueba de imagen (AngioTAC) para confirmarlo.", exp: "Chivatazo clínico del audio. El Dímero D elevado indica que el sistema fibrinolítico está actuando sobre coágulos en el cuerpo (alta sensibilidad), pero no te dice DÓNDE (baja especificidad). Es ideal para descartar el TEP si es negativo, pero si es positivo exige imagen confirmatoria." },
+            { id: 34, q: "34. Existe un freno final en la fibrinólisis llamado TAFI (Inhibidor de la fibrinolisis activable por trombina). A nivel molecular, ¿qué impide exactamente que haga el TAFI?", opts: ["Destruye al plasminógeno circulante de forma irreversible.", "Se une al calcio e impide la formación del coágulo inicial.", "Actúa como carboxipeptidasa cortando residuos e inhibiendo que el plasminógeno logre unirse a la fibrina y se active a plasmina.", "Bloquea las vías aéreas en el tromboembolismo pulmonar."], ans: "Actúa como carboxipeptidasa cortando residuos e inhibiendo que el plasminógeno logre unirse a la fibrina y se active a plasmina.", exp: "Audio y PDF. TAFI quita aminoácidos terminales de la fibrina, eliminando los sitios de anclaje necesarios para que el plasminógeno se una y se convierta en plasmina (protege al coágulo)." },
+            { id: 35, q: "35. La profesora contó una anécdota médica que motivó la creación del 'Modelo Celular de la Coagulación'. Relató que ciertos pacientes con déficit congénito del Factor XII presentaban una paradoja letal. ¿Cuál era?", opts: ["No coagulaban en absoluto y morían desangrados por pequeños cortes.", "Transformaban todo su fibrinógeno en colágeno.", "En vez de sufrir sangrados (como cabría esperar por bloquear la vía intrínseca), fallecían por trombosis masivas.", "Eran completamente inmunes al veneno de serpiente."], ans: "En vez de sufrir sangrados (como cabría esperar por bloquear la vía intrínseca), fallecían por trombosis masivas.", exp: "Audio. Como el factor XIIa también activa el sistema fibrinolítico (activa plasminógeno), la falta de factor XII impide disolver los trombos normales del día a día, matando al paciente por trombosis, no por sangrado. Esto demostró que el modelo clásico de cascada en probeta estaba incompleto fisiológicamente." },
+            { id: 36, q: "36. Debido a esta paradoja, el modelo moderno propuesto para la fisiología in vivo es el Modelo Celular de la Coagulación, el cual explica el proceso en tres fases dependientes de membranas celulares. ¿Cuáles son esas tres fases?", opts: ["Vasoconstricción, Agregación y Fibrinólisis.", "Iniciación, Amplificación y Propagación.", "Intrínseca, Extrínseca y Común.", "Adhesión, Activación y Apoptosis."], ans: "Iniciación, Amplificación y Propagación.", exp: "Diapositiva 22 y Audio. El modelo celular tiene fase de iniciación (forma poca trombina), amplificación (activa plaquetas y cofactores) y propagación (explosión masiva de trombina)." },
+            { id: 37, q: "37. En la enfermedad hereditaria de von Willebrand, el paciente carece de este factor vital. ¿Cuál será la consecuencia principal esperada basándonos en lo explicado en clase?", opts: ["Un incremento en la velocidad de degradación de la fibrina.", "Una incapacidad severa de las plaquetas para realizar la ADHESIÓN inicial al subendotelio vascular dañado, lo que cursa con trastornos hemorrágicos (sangrados).", "Un aumento patológico en los niveles de Trombina.", "Trombosis recurrentes espontáneas."], ans: "Una incapacidad severa de las plaquetas para realizar la ADHESIÓN inicial al subendotelio vascular dañado, lo que cursa con trastornos hemorrágicos (sangrados).", exp: "Audio y PDF. Sin el 'ancla' del vWF, el receptor plaquetario GP Ib no puede pegarse al vaso roto, fallando el primerísimo paso del tapón plaquetario y provocando sangrados." },
+            { id: 38, q: "38. La profesora mencionó un factor de la coagulación que no es una proteína, sino un ion, imprescindible en casi todos los complejos de activación de la cascada (ej. complejo diez-asa y protrombinasa). Este ión conforma el Factor IV. ¿De cuál se trata?", opts: ["Sodio (Na+).", "Potasio (K+).", "Magnesio (Mg2+).", "Calcio (Ca2+)."], ans: "Calcio (Ca2+).", exp: "Audio. El calcio (Factor IV) forma puentes entre los residuos gamma-carboxiglutamato de los factores dependientes de VitK y los fosfolípidos aniónicos de la membrana plaquetaria." },
+            { id: 39, q: "39. En relación con las moléculas inhibidoras de la coagulación, existe una proteína dependiente de vitamina K que carece de actividad proteasa (no corta nada por sí misma), pero que sirve de anclaje para potenciar a un inhibidor del Factor Xa. ¿Cuál es?", opts: ["Proteína S.", "Proteína Z.", "Antitrombina III.", "Proconvertina."], ans: "Proteína Z.", exp: "Diapositiva 20 y Audio. La Proteína Z no tiene actividad catalítica, pero se une al ZPI (inhibidor de la proteasa dependiente de proteína Z) para poder bloquear al Factor Xa." },
+            { id: 40, q: "40. Repaso anatómico/histológico del inicio de la hemostasia: la pared de los vasos sanguíneos tiene distintas capas. ¿Cuál es la capa celular que, en condiciones normales, está en contacto directo con la sangre evitando la trombosis y cuyo daño desencadena todo el proceso hemostático?", opts: ["La túnica media muscular.", "La lámina elástica interna.", "Las células endoteliales (Endotelio vascular).", "La adventicia."], ans: "Las células endoteliales (Endotelio vascular).", exp: "PDF Diapositiva 1 y 2. El revestimiento vascular o endotelio es la lámina lisa monocelular que mantiene el fenotipo antitrombótico (secreta NO y PGI2) hasta que se daña." }
+        ];
+
+        let state = {
+            currentData: [],
+            answers: {}, // { id: { correct: bool } }
+            marked: new Set(),
+            isRandom: false
+        };
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initQuiz(random) {
+            state.isRandom = random;
+            document.getElementById('setup-screen').style.display = 'none';
+            renderQuiz(rawData);
+        }
+
+        function renderQuiz(dataList) {
+            state.currentData = [...dataList];
+            if (state.isRandom) shuffle(state.currentData);
+
+            const container = document.getElementById('quiz-container');
+            const grid = document.getElementById('index-grid');
+            container.innerHTML = '';
+            grid.innerHTML = '';
+
+            state.currentData.forEach((item, index) => {
+                // Card
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${item.id}`;
+                
+                // Mezclar opciones
+                const shuffledOpts = shuffle([...item.opts]);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <strong>Pregunta ${index + 1}</strong>
+                        <button class="mark-btn" onclick="toggleMark(${item.id})">${state.marked.has(item.id) ? 'Desmarcar' : 'Marcar'}</button>
+                    </div>
+                    <p>${item.q}</p>
+                    <div class="options-list">
+                        ${shuffledOpts.map(opt => `
+                            <div class="option-item" onclick="selectOption(this, ${item.id}, '${opt.replace(/'/g, "\\'")}', '${item.ans.replace(/'/g, "\\'")}')">
+                                ${opt}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${item.id}">
+                        <strong>Respuesta correcta: ${item.ans}</strong><br><br>
+                        ${item.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Index item
+                const idx = document.createElement('button');
+                idx.className = 'index-item';
+                if (state.marked.has(item.id)) idx.classList.add('marked');
+                if (state.answers[item.id]) {
+                    idx.classList.add(state.answers[item.id].correct ? 'correct' : 'wrong');
+                }
+                idx.id = `idx-${item.id}`;
+                idx.innerText = index + 1;
+                idx.onclick = () => document.getElementById(`q-${item.id}`).scrollIntoView();
+                grid.appendChild(idx);
+            });
+        }
+
+        function selectOption(el, qId, selected, correct) {
+            if (el.classList.contains('locked')) return;
+
+            const isCorrect = selected === correct;
+            state.answers[qId] = { correct: isCorrect };
+
+            // UI Feedback
+            const parent = el.parentElement;
+            const options = parent.querySelectorAll('.option-item');
+            options.forEach(opt => {
+                opt.classList.add('locked');
+                if (opt.innerText.trim() === correct) opt.classList.add('correct');
+            });
+
+            if (!isCorrect) el.classList.add('wrong');
+
+            // Mostrar explicación
+            document.getElementById(`exp-${qId}`).style.display = 'block';
+
+            // Actualizar índice
+            const idx = document.getElementById(`idx-${qId}`);
+            idx.classList.add(isCorrect ? 'correct' : 'wrong');
+        }
+
+        function toggleMark(id) {
+            const idx = document.getElementById(`idx-${id}`);
+            const btn = document.querySelector(`#q-${id} .mark-btn`);
+
+            if (state.marked.has(id)) {
+                state.marked.delete(id);
+                idx.classList.remove('marked');
+                btn.innerText = 'Marcar';
+            } else {
+                state.marked.add(id);
+                idx.classList.add('marked');
+                btn.innerText = 'Desmarcar';
+            }
+        }
+
+        function showResults() {
+            const total = state.currentData.length;
+            const corrects = state.currentData.filter(q => state.answers[q.id]?.correct).length;
+            
+            const scoreBox = document.getElementById('score-box');
+            scoreBox.innerText = `${corrects} / ${total}`;
+
+            // Controlar visibilidad de botones de repetición
+            const failedCount = state.currentData.filter(q => state.answers[q.id] && !state.answers[q.id].correct).length;
+            const markedCount = state.marked.size;
+
+            document.getElementById('btn-rep-failed').style.display = failedCount > 0 ? 'inline-block' : 'none';
+            document.getElementById('btn-rep-marked').style.display = markedCount > 0 ? 'inline-block' : 'none';
+            document.getElementById('btn-rep-both').style.display = (failedCount > 0 || markedCount > 0) ? 'inline-block' : 'none';
+
+            document.getElementById('results-screen').style.display = 'flex';
+        }
+
+        function restart(mode) {
+            let nextData = [];
+            
+            if (mode === 'all') {
+                nextData = rawData;
+                state.answers = {};
+                state.marked = new Set();
+            } else if (mode === 'failed') {
+                const failedIds = Object.keys(state.answers).filter(id => !state.answers[id].correct).map(Number);
+                nextData = rawData.filter(item => failedIds.includes(item.id));
+                // Limpiamos solo las falladas para re-intentar
+                failedIds.forEach(id => delete state.answers[id]);
+            } else if (mode === 'marked') {
+                nextData = rawData.filter(item => state.marked.has(item.id));
+            } else if (mode === 'both') {
+                const failedIds = Object.keys(state.answers).filter(id => !state.answers[id].correct).map(Number);
+                nextData = rawData.filter(item => state.marked.has(item.id) || failedIds.includes(item.id));
+            }
+
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('main-content').scrollTop = 0;
+            renderQuiz(nextData);
+        }
+    </script>
+</body>
+</html>

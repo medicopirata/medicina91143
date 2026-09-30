@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Monográfico Inervación - Dr. Vivero</title>
+    
+    <style>
+        :root {
+            --primary: #2c3e50; /* Azul oscuro elegante */
+            --secondary: #ecf0f1;
+            --accent: #e67e22; /* Naranja para resaltar */
+            --success: #27ae60;
+            --error: #c0392b;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--secondary);
+            color: var(--text);
+            margin: 0;
+            padding-top: 90px;
+            line-height: 1.6;
+        }
+
+        /* Marcador Superior */
+        #header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .header-content {
+            width: 90%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1.1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .score-display { font-size: 1.2rem; font-weight: bold; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
+
+        /* Barra de Progreso */
+        #progress-container {
+            width: 100%;
+            height: 5px;
+            background: rgba(255,255,255,0.1);
+            margin-top: 10px;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Contenedor de Preguntas */
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+            border-top: 4px solid transparent;
+        }
+
+        .card.correct { border-top-color: var(--success); }
+        .card.incorrect { border-top-color: var(--error); }
+
+        .question-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #34495e;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .btn-option {
+            background: white;
+            border: 2px solid #bdc3c7;
+            padding: 12px 15px;
+            border-radius: 8px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .btn-option:hover:not(.disabled) {
+            border-color: var(--primary);
+            background-color: #f7f9f9;
+        }
+
+        .btn-option.correct {
+            background-color: #d5f5e3;
+            border-color: var(--success);
+            color: #186a3b;
+            font-weight: 600;
+        }
+
+        .btn-option.incorrect {
+            background-color: #fadbd8;
+            border-color: var(--error);
+            color: #78281f;
+        }
+
+        .btn-option.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        /* Feedback (Razonamiento) */
+        .feedback-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .feedback-title {
+            font-weight: bold;
+            color: var(--accent);
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Botón Reiniciar */
+        .btn-reset {
+            display: block;
+            width: 100%;
+            max-width: 200px;
+            margin: 40px auto;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(44, 62, 80, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .btn-reset:hover {
+            transform: scale(1.05);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="header-bar">
+        <div class="header-content">
+            <h1>Inervación - Dr. Vivero</h1>
+            <div class="score-display">
+                <span id="current-score">0</span> / <span id="total-questions">60</span>
+            </div>
+        </div>
+        <div id="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="container" id="quiz-container">
+        </div>
+
+    <div class="container">
+        <button class="btn-reset" onclick="location.reload()">↻ Reiniciar Test</button>
+    </div>
+
+    <script>
+        const questionsDB = [
+            {
+                id: 1,
+                q: "Un paciente presenta imposibilidad total para realizar la pronación del antebrazo. Al explorar la mano, observamos la 'mano del predicador'. ¿Dónde localiza la lesión?",
+                opts: {
+                    a: "Nervio Mediano, después de atravesar el pronador redondo.",
+                    b: "Nervio Mediano, antes de inervar al pronador redondo (nivel del codo o superior).",
+                    c: "Nervio Radial, a nivel del canal de torsión.",
+                    d: "Nervio Cubital, a nivel del canal de Guyon."
+                },
+                ans: "b",
+                reason: "Si el corte es antes del pronador redondo, se pierde la inervación de este músculo, por lo que la pronación queda totalmente abolida. Si fuera después, el pronador redondo estaría salvado."
+            },
+            {
+                id: 2,
+                q: "Tras una fractura de diáfisis humeral, un paciente presenta 'mano caída' y anestesia en el dorso de la mano, pero conserva la extensión del antebrazo. ¿Qué nivel de lesión sospecha?",
+                opts: {
+                    a: "Nervio Radial, antes de inervar al tríceps (axila).",
+                    b: "Nervio Radial, corte 'a mitad' (canal de torsión) o después de inervar al tríceps.",
+                    c: "Nervio Radial, después de la rama sensitiva.",
+                    d: "Nervio Musculocutáneo, rama terminal."
+                },
+                ans: "b",
+                reason: "El tríceps se inerva antes del canal de torsión. Si el corte es en la diáfisis, el tríceps funciona, pero todo lo distal falla (mano caída)."
+            },
+            {
+                id: 3,
+                q: "¿Qué nervio es el responsable de la sensibilidad de la cara lateral (externa) del antebrazo y qué ocurriría si se secciona su tronco principal en la axila?",
+                opts: {
+                    a: "Nervio Radial; anestesia posterior y parálisis extensora.",
+                    b: "Nervio Musculocutáneo; anestesia lateral del antebrazo y debilidad en la flexión del codo.",
+                    c: "Nervio Mediano; anestesia palmar y debilidad pronadora.",
+                    d: "Nervio Axilar; anestesia del hombro."
+                },
+                ans: "b",
+                reason: "El musculocutáneo inerva los flexores del brazo y termina como nervio cutáneo lateral del antebrazo."
+            },
+            {
+                id: 4,
+                q: "Un paciente presenta 'mano en garra', anestesia en el 5º dedo y flexión cubital del carpo conservada. ¿Dónde está la lesión?",
+                opts: {
+                    a: "Nervio Cubital, a nivel del codo.",
+                    b: "Nervio Cubital, a nivel de la muñeca (canal de Guyon).",
+                    c: "Nervio Mediano, a nivel del carpo.",
+                    d: "Nervio Radial, rama profunda."
+                },
+                ans: "b",
+                reason: "Si conserva la flexión cubital del carpo, la lesión es distal a la inervación de este músculo. Por tanto, es en la muñeca."
+            },
+            {
+                id: 5,
+                q: "¿Qué signo clínico nos permite diferenciar una lesión del nervio mediano 'alta' (antes del pronador) de una lesión 'baja' (túnel del carpo)?",
+                opts: {
+                    a: "La presencia de 'mano en garra'.",
+                    b: "La pérdida de sensibilidad en el 5º dedo.",
+                    c: "La capacidad de pronación y la sensibilidad de la palma de la mano.",
+                    d: "La capacidad de extensión de la muñeca."
+                },
+                ans: "c",
+                reason: "En la lesión alta se pierde la pronación y sensibilidad palmar. En la baja (túnel), la pronación está intacta y la palma suele conservar sensibilidad (rama palmar sale antes)."
+            },
+            {
+                id: 6,
+                q: "Si seccionamos el nervio radial DESPUÉS de que haya emitido su rama sensitiva superficial, ¿cuál será la clínica predominante?",
+                opts: {
+                    a: "Anestesia del dorso de la mano sin déficit motor.",
+                    b: "Déficit motor de los extensores (rama motora) sin anestesia asociada en esa zona.",
+                    c: "Mano caída con anestesia dorsal completa.",
+                    d: "Pérdida de extensión del codo."
+                },
+                ans: "b",
+                reason: "Afectamos solo a la rama motora profunda (interóseo posterior), paralizando extensores, pero la sensibilidad ya se salvó."
+            },
+            {
+                id: 7,
+                q: "Paciente con debilidad para la rotación externa del hombro y anestesia en la cara lateral del deltoides. ¿Qué nervio está afectado?",
+                opts: {
+                    a: "Nervio Supraescapular.",
+                    b: "Nervio Radial en la axila.",
+                    c: "Nervio Axilar (Circunflejo) al pasar por el cuadrilátero de Velpeau.",
+                    d: "Nervio Musculocutáneo."
+                },
+                ans: "c",
+                reason: "El nervio axilar pasa por el cuadrilátero de Velpeau e inerva deltoides y redondo menor."
+            },
+            {
+                id: 8,
+                q: "¿Qué nervio está lesionado si el paciente conserva la extensión del codo y la muñeca, pero es incapaz de separar los dedos (abducción/aducción) y tiene atrofia interósea?",
+                opts: {
+                    a: "Nervio Radial.",
+                    b: "Nervio Mediano.",
+                    c: "Nervio Musculocutáneo.",
+                    d: "Nervio Cubital."
+                },
+                ans: "d",
+                reason: "La musculatura fina de la mano (interóseos) está inervada por el Cubital."
+            },
+            {
+                id: 9,
+                q: "En una lesión del nervio mediano DENTRO del túnel del carpo, ¿qué hallazgo sensitivo esperamos encontrar?",
+                opts: {
+                    a: "Anestesia de la palma de la mano y de los 3 primeros dedos.",
+                    b: "Sensibilidad de la palma conservada, pero parestesias/anestesia en dedos 1º, 2º, 3º y mitad del 4º.",
+                    c: "Anestesia del dorso de los dedos 1º y 2º.",
+                    d: "Sensibilidad normal en toda la mano."
+                },
+                ans: "b",
+                reason: "La rama cutánea palmar sale ANTES del túnel, por lo que se respeta la palma pero se afectan los dedos."
+            },
+            {
+                id: 10,
+                q: "¿Qué movimiento NO se vería abolido completamente tras una sección alta del nervio musculocutáneo?",
+                opts: {
+                    a: "Supinación.",
+                    b: "Flexión del codo.",
+                    c: "Flexión del hombro.",
+                    d: "Sensibilidad lateral del antebrazo."
+                },
+                ans: "b",
+                reason: "El braquiorradial (inervado por el Radial) ayuda a la flexión del codo, conservando cierto movimiento."
+            },
+            {
+                id: 11,
+                q: "¿Qué nervio se encarga de la extensión de las articulaciones metacarpofalángicas?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Cubital.",
+                    c: "Radial.",
+                    d: "Musculocutáneo."
+                },
+                ans: "c",
+                reason: "Todos los extensores están inervados por el Radial."
+            },
+            {
+                id: 12,
+                q: "Un corte en el nervio cubital a nivel del codo provocará:",
+                opts: {
+                    a: "Pérdida de flexión cubital del carpo y afectación parcial de flexión profunda de dedos 4 y 5.",
+                    b: "Únicamente parálisis de interóseos.",
+                    c: "Pérdida de la pronación.",
+                    d: "Mano caída."
+                },
+                ans: "a",
+                reason: "A nivel del codo aún no se ha inervado al cubital anterior ni a la parte medial del flexor profundo."
+            },
+            {
+                id: 13,
+                q: "Paciente con anestesia posterior del antebrazo y mano caída. Extensión del codo normal. ¿Dónde está la lesión del Radial?",
+                opts: {
+                    a: "En la axila.",
+                    b: "En el canal de torsión.",
+                    c: "En el codo.",
+                    d: "En la muñeca."
+                },
+                ans: "b",
+                reason: "El corte en el canal de torsión respeta al tríceps (inervado antes) pero afecta a todo lo distal."
+            },
+            {
+                id: 14,
+                q: "¿Qué ocurre si el nervio mediano se corta después del pronador redondo pero antes del pronador cuadrado?",
+                opts: {
+                    a: "Pronación conservada.",
+                    b: "Pronación disminuida pero no abolida.",
+                    c: "Pérdida de fuerza de agarre.",
+                    d: "Abolición total de la pronación."
+                },
+                ans: "b",
+                reason: "El pronador redondo sigue funcionando, pero el cuadrado (interóseo anterior) no. La pronación es posible pero débil."
+            },
+            {
+                id: 15,
+                q: "¿Qué nervio está afectado si hay pérdida de sensibilidad en el dorso del primer espacio interóseo?",
+                opts: {
+                    a: "Rama superficial del Radial.",
+                    b: "Rama digital del Mediano.",
+                    c: "Rama dorsal del Cubital.",
+                    d: "Nervio Musculocutáneo."
+                },
+                ans: "a",
+                reason: "La rama superficial del radial recoge la sensibilidad del dorso del pulgar e índice."
+            },
+            {
+                id: 16,
+                q: "¿Cuál de los siguientes músculos NO se verá afectado en una lesión completa del nervio mediano a nivel del codo?",
+                opts: {
+                    a: "Pronador redondo.",
+                    b: "Flexor cubital del carpo.",
+                    c: "Flexor radial del carpo.",
+                    d: "Flexor superficial de los dedos."
+                },
+                ans: "b",
+                reason: "El flexor cubital del carpo es territorio del nervio Cubital."
+            },
+            {
+                id: 17,
+                q: "Si un paciente sufre una sección del nervio musculocutáneo DESPUÉS de haber inervado a los músculos del brazo, ¿qué síntoma presentará?",
+                opts: {
+                    a: "Parálisis del bíceps.",
+                    b: "Imposibilidad para supinar.",
+                    c: "Solo anestesia en la cara lateral del antebrazo.",
+                    d: "Mano caída."
+                },
+                ans: "c",
+                reason: "La función motora se conserva, solo se afecta la rama sensitiva terminal."
+            },
+            {
+                id: 18,
+                q: "¿Qué nervio permite la aducción del pulgar?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Radial.",
+                    c: "Cubital.",
+                    d: "Musculocutáneo."
+                },
+                ans: "c",
+                reason: "El Aductor del pulgar es inervado por el Cubital (signo de Froment)."
+            },
+            {
+                id: 19,
+                q: "Un corte del nervio radial a nivel de la axila provoca:",
+                opts: {
+                    a: "Abolición de la extensión del antebrazo y mano caída.",
+                    b: "Extensión del antebrazo conservada y mano caída.",
+                    c: "Solo pérdida sensitiva posterior.",
+                    d: "Debilidad en flexión del codo."
+                },
+                ans: "a",
+                reason: "Al ser proximal a las ramas del tríceps, se pierde TODA la función extensora."
+            },
+            {
+                id: 20,
+                q: "¿Qué nervio inerva sensitivamente la cara palmar del 5º dedo?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Radial.",
+                    c: "Cubital.",
+                    d: "Cutáneo antebraquial medial."
+                },
+                ans: "c",
+                reason: "El cubital recoge la sensibilidad del 5º dedo y mitad del 4º."
+            },
+            {
+                id: 21,
+                q: "¿Qué músculo ayuda a la flexión del codo y está inervado por el nervio Radial?",
+                opts: {
+                    a: "Braquial anterior.",
+                    b: "Ancóneo.",
+                    c: "Braquiorradial.",
+                    d: "Pronador redondo."
+                },
+                ans: "c",
+                reason: "El braquiorradial es un flexor inervado por el Radial. Es la 'excepción' funcional."
+            },
+            {
+                id: 22,
+                q: "En el síndrome del túnel del carpo, ¿qué función motora se ve principalmente comprometida?",
+                opts: {
+                    a: "La aducción del pulgar.",
+                    b: "La oposición del pulgar.",
+                    c: "La extensión del pulgar.",
+                    d: "La flexión del carpo."
+                },
+                ans: "b",
+                reason: "El mediano inerva la musculatura tenar responsable de la oposición."
+            },
+            {
+                id: 23,
+                q: "¿Qué nervio pasa por el cuadrilátero de Velpeau?",
+                opts: {
+                    a: "Radial.",
+                    b: "Axilar (Circunflejo).",
+                    c: "Supraescapular.",
+                    d: "Musculocutáneo."
+                },
+                ans: "b",
+                reason: "El Axilar y la arteria circunfleja humeral posterior pasan por ahí."
+            },
+            {
+                id: 24,
+                q: "Si un paciente tiene 'mano caída' pero sensibilidad normal en el dorso de la mano, ¿dónde está la lesión?",
+                opts: {
+                    a: "Radial, axila.",
+                    b: "Radial, diáfisis.",
+                    c: "Radial, corte después de la rama sensitiva (interóseo posterior).",
+                    d: "Mediano, codo."
+                },
+                ans: "c",
+                reason: "Se afecta la rama motora pero se respeta la sensitiva que salió antes."
+            },
+            {
+                id: 25,
+                q: "¿Qué nervio inerva al Serrato Mayor y qué provoca su lesión?",
+                opts: {
+                    a: "Dorsal Ancho; dificultad trepar.",
+                    b: "Torácico Largo; Escápula alada.",
+                    c: "Axilar; atrofia.",
+                    d: "Supraescapular; dolor."
+                },
+                ans: "b",
+                reason: "Lesión clásica del torácico largo: escápula alada."
+            },
+            {
+                id: 26,
+                q: "Un corte en el nervio mediano ANTES de la rama sensitiva palmar (pero después del pronador) provocará:",
+                opts: {
+                    a: "Anestesia de la palma y disminución de la pronación.",
+                    b: "Sensibilidad palmar conservada y abolición pronación.",
+                    c: "Mano en garra.",
+                    d: "Imposibilidad extensión codo."
+                },
+                ans: "a",
+                reason: "Se pierde la sensibilidad palmar (rama aún no ha salido) y la pronación está disminuida (solo actúa el cuadrado, inervado más abajo)."
+            },
+            {
+                id: 27,
+                q: "¿Qué nervio inerva la piel de la región deltoidea ('zona del parche')?",
+                opts: {
+                    a: "Radial.",
+                    b: "Musculocutáneo.",
+                    c: "Axilar.",
+                    d: "Supraclavicular."
+                },
+                ans: "c",
+                reason: "Es la zona sensitiva autónoma del nervio Axilar."
+            },
+            {
+                id: 28,
+                q: "¿Qué nervio inerva los músculos de la región posterior del antebrazo (extensores)?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Cubital.",
+                    c: "Radial.",
+                    d: "Musculocutáneo."
+                },
+                ans: "c",
+                reason: "El Radial es el nervio de la extensión."
+            },
+            {
+                id: 29,
+                q: "Si un paciente tiene anestesia en el borde medial del antebrazo, ¿qué nervio está afectado?",
+                opts: {
+                    a: "Cubital.",
+                    b: "Cutáneo antebraquial medial.",
+                    c: "Mediano.",
+                    d: "Radial."
+                },
+                ans: "b",
+                reason: "El cutáneo antebraquial medial es rama directa del plexo, no del cubital."
+            },
+            {
+                id: 30,
+                q: "¿Qué ocurriría en una lesión combinada de mediano y cubital a nivel de la muñeca?",
+                opts: {
+                    a: "Mano caída completa.",
+                    b: "Mano en garra total y pérdida de oposición.",
+                    c: "Pérdida de pronación y supinación.",
+                    d: "Parálisis del tríceps."
+                },
+                ans: "b",
+                reason: "Parálisis de toda la musculatura intrínseca: mano simiesca plana y garra total."
+            },
+            {
+                id: 31,
+                q: "Signo de Froment positivo (flexiona pulgar al hacer pinza). ¿Qué músculo falla?",
+                opts: {
+                    a: "Flexor largo del pulgar.",
+                    b: "Oponente.",
+                    c: "Aductor del pulgar (Nervio Cubital).",
+                    d: "Primer interóseo."
+                },
+                ans: "c",
+                reason: "Al no poder aducir (Cubital), compensa flexionando con el flexor largo (Mediano)."
+            },
+            {
+                id: 32,
+                q: "Si seccionamos el nervio Radial en el canal de torsión, ¿qué músculo NO se verá afectado?",
+                opts: {
+                    a: "Extensor común.",
+                    b: "Extensor cubital del carpo.",
+                    c: "Ancóneo.",
+                    d: "Cabeza larga del Tríceps."
+                },
+                ans: "d",
+                reason: "Las ramas del tríceps salen en la axila, antes del canal de torsión."
+            },
+            {
+                id: 33,
+                q: "Paciente con debilidad para pronar (puede, pero débil). ¿Dónde está la lesión del Mediano?",
+                opts: {
+                    a: "Túnel carpo.",
+                    b: "Codo, antes del pronador redondo.",
+                    c: "Antebrazo proximal, después del pronador redondo pero antes del cuadrado.",
+                    d: "Axila."
+                },
+                ans: "c",
+                reason: "El pronador redondo funciona (lesión distal a su rama), pero el cuadrado no."
+            },
+            {
+                id: 34,
+                q: "¿Qué déficit distingue una lesión cubital en muñeca de una en codo?",
+                opts: {
+                    a: "Anestesia falange distal 5º.",
+                    b: "Anestesia del dorso de la mano (zona cubital).",
+                    c: "Anestesia hipotenar.",
+                    d: "Anestesia palmar 5º dedo."
+                },
+                ans: "b",
+                reason: "La rama dorsal sale antes de la muñeca. En lesión de muñeca, el dorso se 'salva'."
+            },
+            {
+                id: 35,
+                q: "Paradoja cubital: la garra es MENOS evidente si la lesión es ALTA. ¿Por qué?",
+                opts: {
+                    a: "Se paraliza también el flexor profundo de dedos 4 y 5.",
+                    b: "Se paralizan extensores.",
+                    c: "Se paralizan lumbricales.",
+                    d: "Se preserva flexor cubital."
+                },
+                ans: "a",
+                reason: "Sin flexor profundo, no hay quien flexione las puntas de los dedos, haciendo la garra menos visible."
+            },
+            {
+                id: 36,
+                q: "¿Qué nervio inerva al Braquiorradial y qué hace?",
+                opts: {
+                    a: "Musculocutáneo; flexión.",
+                    b: "Radial; flexión del codo.",
+                    c: "Radial; extensión.",
+                    d: "Mediano; pronación."
+                },
+                ans: "b",
+                reason: "Es un flexor inervado por el extensor (Radial)."
+            },
+            {
+                id: 37,
+                q: "Paciente con mano caída pero puede extender las falanges distales. ¿Quién lo permite?",
+                opts: {
+                    a: "Extensor común.",
+                    b: "Lumbricales e Interóseos (Mediano/Cubital).",
+                    c: "Extensor propio.",
+                    d: "Flexor superficial."
+                },
+                ans: "b",
+                reason: "Los intrínsecos extienden las interfalángicas."
+            },
+            {
+                id: 38,
+                q: "Lesión del interóseo posterior (cabeza radio). ¿Qué se conserva vs lesión alta?",
+                opts: {
+                    a: "Extensión dedos.",
+                    b: "Extensión pulgar.",
+                    c: "Extensión de la muñeca (radialización).",
+                    d: "Supinación."
+                },
+                ans: "c",
+                reason: "Los extensores radiales (1º y 2º) se inervan antes, permitiendo extender la muñeca (con desviación radial)."
+            },
+            {
+                id: 39,
+                q: "¿Cuál es el único músculo de la eminencia tenar inervado por el Cubital?",
+                opts: {
+                    a: "Flexor corto (superficial).",
+                    b: "Aductor del pulgar.",
+                    c: "Oponente.",
+                    d: "Abductor corto."
+                },
+                ans: "b",
+                reason: "El aductor del pulgar es territorio Cubital."
+            },
+            {
+                id: 40,
+                q: "¿Qué nervio se vería afectado en una fractura del cuello del peroné?",
+                opts: {
+                    a: "Tibial.",
+                    b: "Ciático poplíteo interno.",
+                    c: "Ciático poplíteo externo (Peroneo común).",
+                    d: "Sural."
+                },
+                ans: "c",
+                reason: "El nervio peroneo rodea el cuello del peroné."
+            },
+            {
+                id: 41,
+                q: "¿Qué nervio inerva la piel de la 'tabaquera anatómica'?",
+                opts: {
+                    a: "Rama superficial del nervio Radial.",
+                    b: "Rama dorsal Cubital.",
+                    c: "Cutáneo antebraquial lateral.",
+                    d: "Rama palmar Mediano."
+                },
+                ans: "a",
+                reason: "Es territorio exclusivo del Radial superficial."
+            },
+            {
+                id: 42,
+                q: "Anestesia en la cara interna del brazo. ¿Qué nervio es?",
+                opts: {
+                    a: "Cubital.",
+                    b: "Nervio Cutáneo Braquial Medial.",
+                    c: "Cutáneo Antebraquial Medial.",
+                    d: "Intercostobraquial."
+                },
+                ans: "b",
+                reason: "El cutáneo braquial medial inerva la piel medial del brazo (spoil: a veces junto con el D)."
+            },
+            {
+                id: 43,
+                q: "¿Cuál es la manifestación clínica de una lesión del nervio Torácico Largo?",
+                opts: {
+                    a: "Dificultad abducción.",
+                    b: "Escápula alada.",
+                    c: "Hombro caído.",
+                    d: "Incapacidad trepar."
+                },
+                ans: "b",
+                reason: "Parálisis del Serrato Anterior."
+            },
+            {
+                id: 44,
+                q: "Corte profundo palma mano (base 4º y 5º meta). ¿Qué peligra?",
+                opts: {
+                    a: "Arco superficial.",
+                    b: "Rama motora profunda del nervio Cubital.",
+                    c: "Rama recurrente Mediano.",
+                    d: "Radial."
+                },
+                ans: "b",
+                reason: "La rama profunda del cubital pasa por ahí para inervar los intrínsecos."
+            },
+            {
+                id: 45,
+                q: "¿Qué nervio inerva al pronador redondo y dónde se origina?",
+                opts: {
+                    a: "Radial; posterior.",
+                    b: "Nervio Mediano; fascículos lateral y medial.",
+                    c: "Musculocutáneo; lateral.",
+                    d: "Cubital; medial."
+                },
+                ans: "b",
+                reason: "El mediano se forma por la unión de los fascículos lateral y medial."
+            },
+            {
+                id: 46,
+                q: "En la 'Mano de Simio', ¿qué movimiento está abolido?",
+                opts: {
+                    a: "Aducción pulgar.",
+                    b: "Extensión pulgar.",
+                    c: "La oposición del pulgar.",
+                    d: "Flexión distal pulgar."
+                },
+                ans: "c",
+                reason: "Se pierde la oposición por parálisis del oponente (Mediano)."
+            },
+            {
+                id: 47,
+                q: "¿Qué nervio pasa inmediatamente por detrás de la epitróclea?",
+                opts: {
+                    a: "Radial.",
+                    b: "Mediano.",
+                    c: "Cubital.",
+                    d: "Musculocutáneo."
+                },
+                ans: "c",
+                reason: "Canal epitrocleo-olecraneano."
+            },
+            {
+                id: 48,
+                q: "Síndrome del Pronador vs Túnel Carpiano. ¿Diferencia?",
+                opts: {
+                    a: "Parestesias dedos.",
+                    b: "Atrofia tenar.",
+                    c: "Pérdida de sensibilidad en la eminencia tenar (palma).",
+                    d: "Phalen positivo."
+                },
+                ans: "c",
+                reason: "En lesión alta (pronador) se afecta la palma. En túnel carpiano (baja) la palma se respeta."
+            },
+            {
+                id: 49,
+                q: "¿Qué inerva el nervio Interóseo Anterior?",
+                opts: {
+                    a: "Flexor radial y palmar.",
+                    b: "Flexor largo pulgar, Pronador cuadrado y mitad lateral Flexor profundo.",
+                    c: "Lumbricales.",
+                    d: "Pronador redondo."
+                },
+                ans: "b",
+                reason: "Es la rama motora profunda del mediano."
+            },
+            {
+                id: 50,
+                q: "¿Qué inervación recibe el Flexor Profundo de los Dedos?",
+                opts: {
+                    a: "Solo Mediano.",
+                    b: "Solo Cubital.",
+                    c: "Mitad lateral (Mediano) y mitad medial (Cubital).",
+                    d: "Radial."
+                },
+                ans: "c",
+                reason: "Tiene inervación dual."
+            },
+            {
+                id: 51,
+                q: "¿Qué nervio discurre satélite a la arteria humeral profunda?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Axilar.",
+                    c: "Radial.",
+                    d: "Cubital."
+                },
+                ans: "c",
+                reason: "En el canal de torsión."
+            },
+            {
+                id: 52,
+                q: "¿Qué estructura inerva sensitivamente la cara medial del brazo?",
+                opts: {
+                    a: "Cubital.",
+                    b: "Nervio Cutáneo Braquial Medial.",
+                    c: "Rama Radial.",
+                    d: "Axilar."
+                },
+                ans: "b",
+                reason: "Rama directa del fascículo medial."
+            },
+            {
+                id: 53,
+                q: "Fractura diáfisis cúbito/radio. ¿Qué membrana y nervio se afectan?",
+                opts: {
+                    a: "Membrana interósea; Nervio interóseo anterior.",
+                    b: "Sinovial; Mediano.",
+                    c: "Anular; Radial.",
+                    d: "Fascia; Cutáneo."
+                },
+                ans: "a",
+                reason: "El interóseo anterior corre sobre la membrana."
+            },
+            {
+                id: 54,
+                q: "¿Qué nervio inerva al Supraespinoso?",
+                opts: {
+                    a: "Axilar.",
+                    b: "Nervio Supraescapular.",
+                    c: "Subescapular.",
+                    d: "Dorsal escápula."
+                },
+                ans: "b",
+                reason: "Inerva supra e infraespinoso."
+            },
+            {
+                id: 55,
+                q: "¿Cuál es el punto de corte nº 2 del nervio Musculocutáneo y qué implica?",
+                opts: {
+                    a: "Después de musculatura.",
+                    b: "Corte antes de inervar musculatura; afectación flexión/supinación + anestesia.",
+                    c: "Axila; solo coracobraquial.",
+                    d: "Codo."
+                },
+                ans: "b",
+                reason: "Si es alto, se pierde todo: motor (bíceps/braquial) y sensitivo."
+            },
+            {
+                id: 56,
+                q: "En lesión del Radial, ¿se pierde la supinación totalmente?",
+                opts: {
+                    a: "Sí.",
+                    b: "No, porque el Bíceps Braquial (Musculocutáneo) es un potente supinador.",
+                    c: "Sí, inerva todo posterior.",
+                    d: "No, pronador compensa."
+                },
+                ans: "b",
+                reason: "El bíceps es el principal supinador (con codo flexionado)."
+            },
+            {
+                id: 57,
+                q: "¿Qué nervio se lesiona en fractura del cuello quirúrgico del húmero?",
+                opts: {
+                    a: "Radial.",
+                    b: "Axilar.",
+                    c: "Mediano.",
+                    d: "Cubital."
+                },
+                ans: "b",
+                reason: "Rodea el cuello quirúrgico."
+            },
+            {
+                id: 58,
+                q: "¿Qué nervio inerva al Ancóneo?",
+                opts: {
+                    a: "Cubital.",
+                    b: "Radial.",
+                    c: "Mediano.",
+                    d: "Musculocutáneo."
+                },
+                ans: "b",
+                reason: "Es un extensor auxiliar, familia del tríceps."
+            },
+            {
+                id: 59,
+                q: "¿Qué nervio inerva los lumbricales 3º y 4º?",
+                opts: {
+                    a: "Mediano.",
+                    b: "Radial.",
+                    c: "Cubital.",
+                    d: "Interóseo posterior."
+                },
+                ans: "c",
+                reason: "Los mediales (3 y 4) son Cubital. Los laterales (1 y 2) son Mediano."
+            },
+            {
+                id: 60,
+                q: "Paciente con 'Hombro caído'. ¿Lesión?",
+                opts: {
+                    a: "Axilar.",
+                    b: "Nervio Espinal (Accesorio) / Trapecio.",
+                    c: "Torácico largo.",
+                    d: "Dorsal ancho."
+                },
+                ans: "b",
+                reason: "El trapecio sostiene el hombro. Su parálisis lo deja caer."
+            }
+        ];
+
+        let currentScore = 0;
+        let answeredCount = 0;
+
+        function initQuiz() {
+            const container = document.getElementById('quiz-container');
+            const totalSpan = document.getElementById('total-questions');
+            
+            totalSpan.textContent = questionsDB.length;
+            container.innerHTML = '';
+
+            questionsDB.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `q-${item.id}`;
+
+                const title = document.createElement('div');
+                title.className = 'question-title';
+                title.textContent = `${item.id}. ${item.q}`;
+                card.appendChild(title);
+
+                const optionsGrid = document.createElement('div');
+                optionsGrid.className = 'options-grid';
+
+                for (const [key, text] of Object.entries(item.opts)) {
+                    const btn = document.createElement('div');
+                    btn.className = 'btn-option';
+                    btn.textContent = `${key}) ${text}`;
+                    btn.onclick = () => checkAnswer(item, key, btn, card, optionsGrid);
+                    optionsGrid.appendChild(btn);
+                }
+                card.appendChild(optionsGrid);
+
+                const feedback = document.createElement('div');
+                feedback.className = 'feedback-box';
+                feedback.innerHTML = `<span class="feedback-title">Análisis Dr. Vivero:</span> ${item.reason}<br><br><strong>Solución: ${item.ans.toUpperCase()}</strong>`;
+                card.appendChild(feedback);
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkAnswer(questionObj, selectedKey, btnElement, card, grid) {
+            if (card.dataset.answered) return; // Evitar doble respuesta
+            card.dataset.answered = 'true';
+            
+            answeredCount++;
+            
+            const feedbackBox = card.querySelector('.feedback-box');
+            const allBtns = grid.querySelectorAll('.btn-option');
+
+            // Deshabilitar botones
+            allBtns.forEach(btn => btn.classList.add('disabled'));
+
+            if (selectedKey === questionObj.ans) {
+                // Correcto
+                btnElement.classList.add('correct');
+                card.classList.add('correct');
+                currentScore++;
+            } else {
+                // Incorrecto
+                btnElement.classList.add('incorrect');
+                card.classList.add('incorrect');
+                
+                // Marcar la correcta
+                allBtns.forEach(btn => {
+                    if (btn.textContent.startsWith(questionObj.ans + ')')) {
+                        btn.classList.add('correct');
+                    }
+                });
+            }
+
+            // Mostrar feedback
+            feedbackBox.style.display = 'block';
+
+            // Actualizar marcador
+            document.getElementById('current-score').textContent = currentScore;
+            
+            // Barra de progreso
+            const percent = (answeredCount / questionsDB.length) * 100;
+            document.getElementById('progress-fill').style.width = percent + '%';
+        }
+
+        // Iniciar
+        initQuiz();
+
+    </script>
+</body>
+</html>

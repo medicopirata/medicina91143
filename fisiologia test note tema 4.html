@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Fisiología: Transporte Vesicular</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22; 
+            --success: #27ae60;
+            --error: #c0392b;
+            --bg: #f4f6f7;
+        }
+
+        body {
+            font-family: sans-serif;
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Pantallas de Inicio y Fin */
+        #start-screen, #results-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Botones */
+        .btn-container { display: flex; gap: 10px; margin-top: 20px; }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-danger { background: var(--error); color: white; }
+
+        /* Layout */
+        #app { display: flex; flex: 1; overflow: hidden; }
+
+        #sidebar {
+            width: 60px;
+            background: var(--primary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .dot.correct { background: var(--success); }
+        .dot.wrong { background: var(--error); }
+
+        #content { flex: 1; overflow-y: auto; padding: 20px; scroll-behavior: smooth; }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 0 auto 30px auto;
+            max-width: 800px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .opt {
+            display: block; width: 100%;
+            text-align: left;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+        }
+        .opt.correct { background: #d4edda !important; border-color: var(--success); }
+        .opt.wrong { background: #f8d7da !important; border-color: var(--error); }
+
+        .exp {
+            margin-top: 15px; padding: 12px;
+            background: #e8f6f3;
+            border-left: 4px solid var(--success);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>Fisiología: Transporte Vesicular</h1>
+        <p>50 Preguntas Literales</p>
+        <div class="btn-container">
+            <button class="btn-primary" onclick="start(false)">Orden Normal</button>
+            <button class="btn-accent" onclick="start(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="app" class="hidden">
+        <div id="sidebar"></div>
+        <div id="content"></div>
+        <button id="finish" class="btn-danger" style="position:fixed; bottom:20px; right:20px;" onclick="finish()">Finalizar</button>
+    </div>
+
+    <div id="results-modal" class="hidden">
+        <h2>Resultados</h2>
+        <p id="score" style="font-size: 24px;"></p>
+        <button class="btn-primary" onclick="location.reload()">Reiniciar</button>
+    </div>
+
+    <script>
+        const rawData = [
+            { id: 1, q: "El profesor explica que la fagocitosis se diferencia mecanísticamente de la endocitosis convencional en que:", options: ["La fagocitosis no requiere ATP.", "La fagocitosis implica una reorganización activa del citoesqueleto de actina para emitir pseudópodos.", "La fagocitosis ocurre por simple invaginación sin cambios en el citoesqueleto.", "La fagocitosis la realizan todas las células."], ans: 1, exp: "Respuesta: B." },
+            { id: 2, q: "¿Qué tipos celulares son los únicos capacitados fisiológicamente para realizar fagocitosis?", options: ["Todas las células epiteliales.", "Eritrocitos y plaquetas.", "Células del sistema inmune: macrófagos, neutrófilos y células dendríticas.", "Neuronas."], ans: 2, exp: "Respuesta: C" },
+            { id: 3, q: "¿Cuál es el destino final del fagosoma tras la internalización de una bacteria?", options: ["Se recicla a la membrana.", "Se fusiona con el Golgi.", "Se fusiona con lisosomas que contienen enzimas hidrolíticas.", "Se expulsa por transcitosis."], ans: 2, exp: "Respuesta: C" },
+            { id: 4, q: "El proceso de fagocitosis es descrito en el audio como un proceso:", options: ["Inespecífico y aleatorio.", "Selectivo, requiriendo unión a receptores específicos.", "Pasivo.", "Exclusivo de bacterias muertas."], ans: 1, exp: "Respuesta: B" },
+            { id: 5, q: "¿Cuántos eritrocitos envejecidos debe eliminar un macrófago al día según el profesor?", options: ["100.", "10 elevado a 11.", "1 millón.", "Ninguno."], ans: 1, exp: "Respuesta: B" },
+            { id: 6, q: "En la endocitosis mediada por receptor, ¿qué proteína forma la estructura de \"jaula\"?", options: ["Actina.", "Caveolina.", "Clatrina.", "Tubulina."], ans: 2, exp: "Respuesta: C" },
+            { id: 7, q: "En el proceso de endocitosis de LDL, ¿cuál es la función de la adaptina?", options: ["Unir el colesterol.", "Servir de puente entre el receptor de LDL y la clatrina.", "Degradar el LDL.", "Acidificar."], ans: 1, exp: "Respuesta: B" },
+            { id: 8, q: "¿Qué ocurre con la cubierta de clatrina tras separarse la vesícula de la membrana?", options: ["Se degrada.", "Se fusiona con el núcleo.", "Se desensambla y se recicla.", "Permanece unida."], ans: 2, exp: "Respuesta: C" },
+            { id: 9, q: "En la hipercolesterolemia familiar, ¿cuál es el defecto molecular mencionado?", options: ["Fallo en unión a colesterol.", "El receptor carece del sitio de unión a la adaptina.", "No se forma clatrina.", "Fallo lisosomal."], ans: 1, exp: "Respuesta: B" },
+            { id: 10, q: "Diferencia CRUCIAL entre el ciclo del LDL y de la Transferrina:", options: ["LDL se recicla, transferrina se degrada.", "En LDL se recicla el receptor; en Transferrina se reciclan tanto receptor como ligando.", "Transferrina no usa clatrina.", "LDL usa caveolas."], ans: 1, exp: "Respuesta: B" },
+            { id: 11, q: "¿Qué factor provoca la liberación del hierro de la transferrina en el endosoma?", options: ["Calcio.", "pH ácido (5.0 - 6.0).", "Temperatura.", "Presión."], ans: 1, exp: "Respuesta: B" },
+            { id: 12, q: "Una vez que la transferrina libera el hierro, ¿qué le sucede?", options: ["Se degrada.", "Permanece unida al receptor y ambos se reciclan.", "Va al núcleo.", "Ferritina."], ans: 1, exp: "Respuesta: B" },
+            { id: 13, q: "El LDL es endocitado principalmente para:", options: ["Eliminar basura.", "Proporcionar colesterol para síntesis de membranas.", "Presión oncótica.", "Generar ATP."], ans: 1, exp: "Respuesta: B" },
+            { id: 14, q: "La exocitosis constitutiva se caracteriza por:", options: ["Solo en neuronas.", "Proceso continuo de aporte de lípidos/proteínas y secreción basal.", "Señal de Calcio.", "Regulación hormonal."], ans: 1, exp: "Respuesta: B" },
+            { id: 15, q: "La exocitosis regulada se diferencia de la constitutiva en que:", options: ["En todas las células.", "Las vesículas esperan una señal específica (Ca2+) para fusionarse.", "No gasta ATP.", "Solo estructural."], ans: 1, exp: "Respuesta: B" },
+            { id: 16, q: "¿Qué ión actúa como \"gatillo\" para la exocitosis regulada?", options: ["Sodio.", "Potasio.", "Calcio (Ca2+).", "Cloro."], ans: 2, exp: "Respuesta: C" },
+            { id: 17, q: "El equilibrio entre endocitosis y exocitosis sirve para:", options: ["Mantener la superficie de la membrana constante.", "Energía.", "División celular.", "ADN."], ans: 0, exp: "Respuesta: A" },
+            { id: 18, q: "La transcitosis se define como:", options: ["Núcleo-Cito.", "Endocitosis en un polo y exocitosis en el opuesto.", "Degradación.", "Organelas."], ans: 1, exp: "Respuesta: B" },
+            { id: 19, q: "Ejemplo clásico de transcitosis:", options: ["Glucosa.", "IgA de leche materna al bebé.", "Colesterol.", "Bomba Na/K."], ans: 1, exp: "Respuesta: B" },
+            { id: 20, q: "Endocitosis en estructuras ricas en colesterol llamadas:", options: ["Pseudópodos.", "Caveolas (caveolina).", "Desmosomas.", "Ribosomas."], ans: 1, exp: "Respuesta: B" },
+            { id: 21, q: "Las caveolas son abundantes en:", options: ["Endoteliales y musculares lisas.", "Rojos.", "Bacterias.", "Neuronas."], ans: 0, exp: "Respuesta: A" },
+            { id: 22, q: "Insulina y GLUT4 ilustran:", options: ["Endocitosis.", "Aumento de Vmax reclutando transportadores vía exocitosis regulada.", "Degradación.", "Activo primario."], ans: 1, exp: "Respuesta: B" },
+            { id: 23, q: "En la célula beta, ¿qué inicia la secreción de insulina?", options: ["Entrada de glucosa y aumento ATP/ADP.", "Calcio directo.", "Salida Na.", "Lípidos."], ans: 0, exp: "Respuesta: A" },
+            { id: 24, q: "El aumento de ATP en célula beta cierra el canal:", options: ["Na voltaje.", "Potasio sensible a ATP (K-ATP).", "Cloro.", "Calcio."], ans: 1, exp: "Respuesta: B" },
+            { id: 25, q: "El cierre de K-ATP lleva a:", options: ["Hiperpolarización.", "Repolarización.", "Despolarización.", "Apoptosis."], ans: 2, exp: "Respuesta: C" },
+            { id: 26, q: "La despolarización abre canales de:", options: ["Potasio.", "Sodio.", "Calcio (Ca2+).", "Magnesio."], ans: 2, exp: "Respuesta: C" },
+            { id: 27, q: "La entrada masiva de Calcio señala:", options: ["ADN.", "Fusión de vesículas de insulina (exocitosis).", "Cerrar glucosa.", "Muerte."], ans: 1, exp: "Respuesta: B" },
+            { id: 28, q: "En Diabetes Tipo 1:", options: ["Receptor falla.", "Destrucción autoinmune de células beta.", "K mutado.", "Dieta."], ans: 1, exp: "Respuesta: B" },
+            { id: 29, q: "En Diabetes Tipo 2:", options: ["Sin insulina.", "Resistencia a la insulina en tejidos diana.", "Falta glucosa.", "Exceso beta."], ans: 1, exp: "Respuesta: B" },
+            { id: 30, q: "Sulfonilureas actúan:", options: ["Inhibiendo insulina.", "Cerrando K-ATP para estimular secreción.", "Hiperpolarizando.", "Matando beta."], ans: 1, exp: "Respuesta: B" },
+            { id: 31, q: "Pinocitosis vs Receptor:", options: ["Pinocitosis es inespecífica y constitutiva.", "Pino es sólido.", "Pino usa receptor.", "Pino sin energía."], ans: 0, exp: "Respuesta: A" },
+            { id: 32, q: "¿Qué proteína corta el cuello de la vesícula de clatrina?", options: ["Actina.", "Dinamina.", "Miosina.", "Tubulina."], ans: 1, exp: "Respuesta: B" },
+            { id: 33, q: "Balsas lipídicas ricas en:", options: ["Fosfolípidos.", "Colesterol y esfingolípidos.", "Proteínas.", "Agua."], ans: 1, exp: "Respuesta: B" },
+            { id: 34, q: "\"Potocitosis\" es:", options: ["Beber agua.", "Endocitosis por caveolas para moléculas pequeñas.", "Muerte.", "Exocitosis."], ans: 1, exp: "Respuesta: B" },
+            { id: 35, q: "Proteínas SNARE vitales para fusión:", options: ["Clatrina.", "v-SNARE y t-SNARE.", "Actina.", "Kinesina."], ans: 1, exp: "Respuesta: B" },
+            { id: 36, q: "Toxina botulínica impide:", options: ["Receptores.", "Exocitosis de acetilcolina cortando SNARE.", "Abre calcio.", "ATP."], ans: 1, exp: "Respuesta: B" },
+            { id: 37, q: "Energía en transporte vesicular:", options: ["Pasivo.", "Facilitada.", "Activo (ATP).", "Osmosis."], ans: 2, exp: "Respuesta: C" },
+            { id: 38, q: "Para secretar proteínas, la célula usa:", options: ["Simple.", "Canales.", "Exocitosis.", "Bombas."], ans: 2, exp: "Respuesta: C" },
+            { id: 39, q: "Ejemplo de fagocito profesional:", options: ["Fibroblasto.", "Adipocito.", "Neutrófilo.", "Miocito."], ans: 2, exp: "Respuesta: C" },
+            { id: 40, q: "Experimento de Loewi demostró:", options: ["Sinapsis eléctrica.", "Naturaleza química de la transmisión.", "Voltaje.", "Fagocitosis."], ans: 1, exp: "Respuesta: B" },
+            { id: 41, q: "Si se inhibe acidificación del endosoma:", options: ["Falla entrada.", "Falla liberación del hierro de transferrina.", "Falla clatrina.", "Falla fusión."], ans: 1, exp: "Respuesta: B" },
+            { id: 42, q: "Opsonización facilita:", options: ["Exocitosis.", "Pinocitosis.", "Fagocitosis.", "Transcitosis."], ans: 2, exp: "Respuesta: C" },
+            { id: 43, q: "FALSA sobre endocitosis por receptor:", options: ["Saturable.", "Específica.", "Ligandos bajos.", "Es pasiva."], ans: 3, exp: "Respuesta: D" },
+            { id: 44, q: "Reciclaje de receptores es:", options: ["Regulada.", "Constitutiva.", "Fagocitosis.", "Apoptosis."], ans: 1, exp: "Respuesta: B" },
+            { id: 45, q: "Molécula que induce GLUT4:", options: ["Adrenalina.", "Glucagón.", "Insulina.", "Acetilcolina."], ans: 2, exp: "Respuesta: C" },
+            { id: 46, q: "Células espumosas tienen exceso de:", options: ["Glucosa.", "Colesterol (LDL) en macrófagos.", "Proteínas.", "Hierro."], ans: 1, exp: "Respuesta: B" },
+            { id: 47, q: "Digestión fagosómica ocurre en fusión con:", options: ["RE.", "Lisosoma.", "Mitocondria.", "Núcleo."], ans: 1, exp: "Respuesta: B" },
+            { id: 48, q: "Ventaja de Receptor frente a Pino:", options: ["Rápida.", "Concentra ligandos hasta 1000 veces.", "Sin membrana.", "Sin proteínas."], ans: 1, exp: "Respuesta: B" },
+            { id: 49, q: "Recuperar membrana de exocitosis:", options: ["Compensatoria.", "Endocitosis acoplada.", "Lisis.", "Plasmólisis."], ans: 1, exp: "Respuesta: B" },
+            { id: 50, q: "¿Qué detiene proteasas si lisosoma se rompe?", options: ["Falta ATP.", "pH neutro del citosol.", "Inhibidores.", "Calor."], ans: 1, exp: "Respuesta: B" }
+        ];
+
+        function start(shuffleItems) {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            
+            let quizData = [...rawData];
+            if(shuffleItems) quizData.sort(() => Math.random() - 0.5);
+
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+
+            quizData.forEach(q => {
+                // Crear Punto
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.id = `dot-${q.id}`;
+                dot.innerText = q.id;
+                dot.onclick = () => document.getElementById(`card-${q.id}`).scrollIntoView();
+                sidebar.appendChild(dot);
+
+                // Crear Tarjeta
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `card-${q.id}`;
+                card.innerHTML = `<h3>${q.id}. ${q.q}</h3>`;
+
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'opt';
+                    btn.innerText = opt;
+                    btn.onclick = () => {
+                        if(card.dataset.done) return;
+                        card.dataset.done = "true";
+                        
+                        const expBox = card.querySelector('.exp');
+                        expBox.style.display = "block";
+                        
+                        const dotEl = document.getElementById(`dot-${q.id}`);
+                        if(idx === q.ans) {
+                            btn.classList.add('correct');
+                            dotEl.classList.add('correct');
+                        } else {
+                            btn.classList.add('wrong');
+                            dotEl.classList.add('wrong');
+                            card.querySelectorAll('.opt')[q.ans].classList.add('correct');
+                        }
+                    };
+                    card.appendChild(btn);
+                });
+
+                const exp = document.createElement('div');
+                exp.className = 'exp';
+                exp.innerHTML = `<strong>Explicación:</strong><br>${q.exp}`;
+                card.appendChild(exp);
+
+                content.appendChild(card);
+            });
+        }
+
+        function finish() {
+            const corrects = document.querySelectorAll('.dot.correct').length;
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('results-modal').classList.remove('hidden');
+            document.getElementById('score').innerText = `Has acertado ${corrects} de 50`;
+        }
+    </script>
+</body>
+</html>

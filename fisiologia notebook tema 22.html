@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz: Neurobiología del Aprendizaje y la Memoria</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: var(--primary);
+        }
+
+        /* Pantalla de Inicio */
+        #setup-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .setup-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Sidebar / Índice */
+        #sidebar {
+            width: 260px;
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+            overflow-y: auto;
+        }
+
+        .index-item {
+            background: var(--secondary);
+            border: 1px solid #455a64;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+
+        .index-item.active { border: 2px solid var(--accent); }
+        .index-item.correct { background: var(--success) !important; }
+        .index-item.wrong { background: var(--error) !important; }
+        .index-item.marked { border: 2px solid var(--marked) !important; }
+
+        /* Contenido Principal */
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .question-card {
+            background: white;
+            max-width: 800px;
+            width: 100%;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .option-btn:hover:not(:disabled) { background: #f8f9fa; border-color: var(--accent); }
+        .option-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 5px solid var(--accent);
+            display: none;
+            line-height: 1.4;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-finish { background: var(--error); color: white; margin-top: auto; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-mark { background: var(--marked); color: #000; }
+
+        /* Pantalla Final */
+        #results-screen {
+            display: none;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .retry-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Utilidades LaTeX */
+        .math { font-family: "Times New Roman", Times, serif; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <h2>Configuración del Cuestionario</h2>
+            <p>Selecciona cómo deseas realizar las preguntas:</p>
+            <button class="btn btn-primary" onclick="initQuiz(false)">Orden Preestablecido</button>
+            <button class="btn btn-primary" onclick="initQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-container" class="index-grid"></div>
+        <button class="btn btn-finish" onclick="finishQuiz()">Finalizar y Ver Resultados</button>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container"></div>
+        
+        <div id="results-screen">
+            <div class="question-card">
+                <h2>Cuestionario Finalizado</h2>
+                <p id="score-display"></p>
+                <div class="retry-options">
+                    <button class="btn btn-primary" onclick="location.reload()">Rehacer Completo</button>
+                    <button class="btn btn-primary" onclick="retry('failed')">Repetir Falladas</button>
+                    <button class="btn btn-primary" onclick="retry('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-primary" onclick="retry('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const database = [
+            {
+                n: 1,
+                q: "El pionero en el campo del aprendizaje celular, galardonado con el Premio Nobel de Medicina en el año 2000, utilizó un organismo muy simple para sus experimentos debido a la conservación evolutiva de estos mecanismos. ¿Quién fue este investigador y qué modelo utilizó?",
+                a: ["Santiago Ramón y Cajal - Drosophila melanogaster.", "Eric R. Kandel - El molusco marino Aplysia californica.", "Otto Loewi - Corazón de rana.", "Ivan Pavlov - Perros."],
+                c: 1,
+                exp: "El Dr. Eric R. Kandel identificó los mecanismos sinápticos y moleculares del aprendizaje usando la Aplysia."
+            },
+            {
+                n: 2,
+                q: "Según la clasificación cualitativa de la memoria, recordar la historia de tu país o el significado de una palabra se considera:",
+                a: ["Memoria no declarativa.", "Memoria episódica de trabajo.", "Memoria declarativa (disponible para la consciencia).", "Señales de imprimación (priming)."],
+                c: 2,
+                exp: "La memoria declarativa abarca los episodios diarios, palabras/significados e historia, siendo accesible conscientemente."
+            },
+            {
+                n: 3,
+                q: "Si nos ponemos una camisa por la mañana, al principio notamos el tejido, pero a los pocos minutos dejamos de percibir el roce de la ropa. Este proceso de aprendizaje se denomina 'Habituación' y a nivel sináptico se explica por:",
+                a: ["Un aumento masivo de la liberación de serotonina.", "La internalización de receptores NMDA.", "Una disminución en la liberación de glutamato por la neurona sensorial, generando una menor eficacia sináptica (depresión presináptica).", "Una facilitación postsináptica extrema."],
+                c: 2,
+                exp: "Ante un estímulo repetido e inocuo, la terminal presináptica libera progresivamente menos glutamato, apagando la respuesta."
+            },
+            {
+                n: 4,
+                q: "Durante el experimento de la Aplysia, si se le aplica un shock eléctrico doloroso en la cola y posteriormente se le toca suavemente el sifón, el animal retrae la branquia de forma exagerada. Este fenómeno de 'Sensibilización' está mediado inicialmente por la liberación de un neurotransmisor modulador. ¿Cuál es?",
+                a: ["Acetilcolina.", "Dopamina.", "Serotonina.", "Glicina."],
+                c: 2,
+                exp: "La estimulación dolorosa activa interneuronas que liberan serotonina sobre la neurona sensorial."
+            },
+            {
+                n: 5,
+                q: "En la cascada molecular de la Sensibilización presináptica, ¿qué efecto directo produce la activación de la Proteincinasa A (PKA) sobre los canales iónicos de la membrana del terminal?",
+                a: ["Abre masivamente los canales de Cloro.", "Bloquea los canales de Potasio ($K^+$), lo que aumenta la duración del potencial de acción y permite una mayor entrada de Calcio ($Ca^{2+}$).", "Bloquea directamente los canales de Calcio ($Ca^{2+}$).", "Fosforila los receptores AMPA postsinápticos."],
+                c: 1,
+                exp: "Al bloquear la salida de $K^+$, la célula tarda más en repolarizarse, por lo que el canal de $Ca^{2+}$ pasa más tiempo abierto y entra más calcio, liberando más glutamato."
+            },
+            {
+                n: 6,
+                q: "Para que el Condicionamiento Clásico sea efectivo (asociar el toque neutro del manto con el shock de la cola), existe un requisito fisiológico estricto sobre la presentación de los estímulos. Este es:",
+                a: ["El estímulo condicionado debe presentarse 5 minutos después del incondicionado.", "La asociación entre el estímulo condicionado y el incondicionado debe ser inmediata o con un intervalo menor a 0,5 segundos.", "Deben presentarse en días alternos.", "El estímulo incondicionado debe ser auditivo."],
+                c: 1,
+                exp: "Para que ocurra la facilitación combinada pre y postsináptica que establece el aprendizaje, el requisito temporal es de inmediatez (<0,5 s)."
+            },
+            {
+                n: 7,
+                q: "La transición de una memoria de corto plazo a una memoria a Largo Plazo requiere indispensablemente de:",
+                a: ["La destrucción del núcleo celular.", "Un pico transitorio de calcio que dure menos de un segundo.", "La activación de factores de transcripción (como CREB) y la modificación del patrón de expresión génica para sintetizar nuevas proteínas.", "La inhibición completa de la enzima PKA."],
+                c: 2,
+                exp: "La memoria a largo plazo no solo modifica proteínas existentes, sino que crea nuevas estructuras (citoesqueleto, moléculas de adhesión) mediante transcripción genética."
+            },
+            {
+                n: 8,
+                q: "En la memoria a largo plazo, la enzima PKA se vuelve 'persistente' y ya no depende de que la serotonina siga presente. Esto se consigue gracias a que el factor CREB promueve la síntesis de:",
+                a: ["Óxido nítrico sintasa.", "Ubicuitina hidroxilasa, que destruye la subunidad reguladora inhibitoria de la PKA.", "Calmodulina cinasa II.", "Acetilcolinesterasa."],
+                c: 1,
+                exp: "La ubicuitina hidroxilasa elimina el 'freno' (subunidad reguladora) de la PKA, dejándola libre y continuamente activa a largo plazo."
+            },
+            {
+                n: 9,
+                q: "La Potenciación a Largo Plazo (LTP) es un aumento duradero de la eficacia sináptica muy estudiado en el hipocampo. ¿Qué vía anatómica específica es clásica para observar esta LTP experimentalmente?",
+                a: ["La vía nigroestriada.", "De las células piramidales CA3 hacia las células CA1 a través de las colaterales de Schaffer.", "Desde el bulbo olfatorio hasta la amígdala.", "Desde la corteza entorrinal al cerebelo."],
+                c: 1,
+                exp: "El esquema clásico de LTP se estudia en la sinapsis altamente plástica entre las colaterales de Schaffer (axones de CA3) y las dendritas de CA1 en el hipocampo."
+            },
+            {
+                n: 10,
+                q: "Durante la fase 'temprana' de la LTP inducida por alta frecuencia, la entrada masiva de Calcio activa quinasas como la CaMKII y la PKC. ¿Cuál es el resultado inmediato de esta activación en la neurona postsináptica?",
+                a: ["Se forman dendritas completamente nuevas.", "Se inhiben los receptores NMDA.", "Se fosforilan sustratos que inducen la inserción de nuevos receptores AMPA en la membrana postsináptica, mejorando la eficiencia funcional.", "Se destruyen los terminales axónicos."],
+                c: 2,
+                exp: "En la fase temprana hay cambios funcionales rápidos: se añaden más receptores AMPA a la membrana desde vesículas de reserva interna."
+            },
+            {
+                n: 11,
+                q: "Además de la inserción de receptores AMPA, en la fase temprana de la LTP es necesaria una 'señal retrógrada' que viaje desde la célula postsináptica hacia la presináptica para ordenar que se libere más glutamato. ¿Qué molécula gaseosa cumple esta función?",
+                a: ["Dióxido de carbono ($CO_2$).", "Óxido Nítrico (NO).", "Monóxido de carbono (CO).", "Oxígeno libre ($O_2$)."],
+                c: 1,
+                exp: "El Óxido Nítrico (NO) actúa como señal retrógrada cruzando la hendidura hacia el terminal para aumentar la liberación de neurotransmisor."
+            },
+            {
+                n: 12,
+                q: "La fase 'tardía' de la LTP comparte mecanismos con la sensibilización a largo plazo de la Aplysia. La activación de la vía AMPc/PKA y CREB da como resultado final:",
+                a: ["La formación de nuevas sinapsis funcionales (cambios estructurales y botones sinápticos).", "La destrucción exclusiva del citoesqueleto de actina.", "La internalización masiva de receptores AMPA.", "Una depresión funcional duradera."],
+                c: 0,
+                exp: "La fase tardía culmina con la expresión génica que permite construir material nuevo, resultando en crecimiento sináptico físico."
+            },
+            {
+                n: 13,
+                q: "Así como existe la potenciación, también existe la Depresión a Largo Plazo (LTD), que constituye la base biológica del olvido. ¿Qué cascada enzimática es la responsable de la internalización (retirada) de los receptores AMPA en la LTD?",
+                a: ["La activación de Proteincinasas inducida por niveles extremos de calcio.", "La activación de Protein-fosfatasas inducida por niveles moderados de calcio, las cuales desfosforilan los sustratos.", "La fosforilación directa de la proteína CREB.", "La síntesis masiva de óxido nítrico."],
+                c: 1,
+                exp: "El calcio modesto o de baja frecuencia tiene más afinidad por activar las fosfatasas, que 'arrancan' los fosfatos y retiran los AMPA."
+            },
+            {
+                n: 14,
+                q: "El patrón de estimulación y la concentración de Calcio ($Ca^{2+}$) intracelular deciden si una sinapsis se potencia o se deprime. Seleccione la afirmación correcta:",
+                a: ["Una alta frecuencia genera niveles bajos de $Ca^{2+}$ que activan a las quinasas para la LTP.", "Una estimulación de baja frecuencia genera niveles moderados de $Ca^{2+}$ (< $1 \mu M$) que activan fosfatasas, induciendo LTD.", "Niveles superiores a $5 \mu M$ de $Ca^{2+}$ activan fosfatasas, induciendo LTP.", "La concentración de calcio no influye en la plasticidad sináptica."],
+                c: 1,
+                exp: "Alta frecuencia → Más de $5 \mu M$ → Quinasas (LTP). Baja frecuencia → Menos de $1 \mu M$ → Fosfatasas (LTD)."
+            },
+            {
+                n: 15,
+                q: "Para evaluar experimentalmente en roedores si las alteraciones de la LTP afectan realmente al comportamiento espacial dependiente del hipocampo, el ensayo conductual por excelencia mencionado en el tema es:",
+                a: ["El laberinto de cristal de Pavlov.", "La prueba de condicionamiento del miedo en caja de Skinner.", "El test de la piscina o Laberinto Acuático de Morris (evaluar la latencia para encontrar la plataforma oculta).", "El registro de estimulación del sifón de la rata."],
+                c: 2,
+                exp: "El laberinto de agua de Morris evalúa la memoria espacial (hipocampo). Las ratas con hipocampo lesionado no recuerdan la ubicación de la plataforma tras múltiples ensayos."
+            }
+        ];
+
+        let currentQuestions = [];
+        let userState = {}; 
+        let currentIndex = 0;
+
+        function initQuiz(shuffle) {
+            document.getElementById('setup-screen').style.display = 'none';
+            currentQuestions = [...database];
+            if (shuffle) currentQuestions.sort(() => Math.random() - 0.5);
+            
+            currentQuestions.forEach((q, i) => {
+                userState[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            renderIndex();
+            showQuestion(0);
+        }
+
+        function renderIndex() {
+            const container = document.getElementById('index-container');
+            container.innerHTML = '';
+            currentQuestions.forEach((q, i) => {
+                const item = document.createElement('div');
+                item.className = 'index-item';
+                item.id = `idx-${i}`;
+                item.innerText = q.n;
+                item.onclick = () => showQuestion(i);
+                container.appendChild(item);
+            });
+        }
+
+        function showQuestion(index) {
+            currentIndex = index;
+            const qData = currentQuestions[index];
+            const state = userState[index];
+            
+            document.querySelectorAll('.index-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`idx-${index}`).classList.add('active');
+
+            // Barajar opciones solo si no ha sido respondida aún
+            if (!state.options) {
+                state.options = qData.a.map((text, i) => ({ text, originalIdx: i }));
+                state.options.sort(() => Math.random() - 0.5);
+            }
+
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = `
+                <div class="question-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>Pregunta ${qData.n}</strong>
+                        <button class="btn btn-mark" onclick="toggleMark(${index})">
+                            ${state.marked ? '★ Desmarcar' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <p style="font-size:1.1rem; margin-top:15px;">${qData.q}</p>
+                    <div class="options-container">
+                        ${state.options.map(opt => `
+                            <button class="option-btn ${getBtnClass(index, opt.originalIdx)}" 
+                                onclick="checkAnswer(${index}, ${opt.originalIdx})" 
+                                ${state.answered ? 'disabled' : ''}>
+                                ${opt.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${index}" style="display: ${state.answered ? 'block' : 'none'}">
+                        ${qData.exp}
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-primary" onclick="prevQ()" ${index === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="btn btn-primary" onclick="nextQ()" ${index === currentQuestions.length -1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            `;
+            // Forzar renderizado de LaTeX simple si existiera MathJax o similar, aquí usamos texto plano/HTML
+        }
+
+        function getBtnClass(qIdx, optIdx) {
+            const state = userState[qIdx];
+            if (!state.answered) return '';
+            if (optIdx === currentQuestions[qIdx].c) return 'correct';
+            if (optIdx === state.choice) return 'wrong';
+            return '';
+        }
+
+        function checkAnswer(qIdx, choice) {
+            const isCorrect = choice === currentQuestions[qIdx].c;
+            userState[qIdx].answered = true;
+            userState[qIdx].choice = choice;
+            userState[qIdx].correct = isCorrect;
+
+            const idxEl = document.getElementById(`idx-${qIdx}`);
+            idxEl.classList.add(isCorrect ? 'correct' : 'wrong');
+            
+            showQuestion(qIdx);
+        }
+
+        function toggleMark(index) {
+            userState[index].marked = !userState[index].marked;
+            const idxEl = document.getElementById(`idx-${index}`);
+            if (userState[index].marked) idxEl.classList.add('marked');
+            else idxEl.classList.remove('marked');
+            showQuestion(index);
+        }
+
+        function nextQ() { if (currentIndex < currentQuestions.length - 1) showQuestion(currentIndex + 1); }
+        function prevQ() { if (currentIndex > 0) showQuestion(currentIndex - 1); }
+
+        function finishQuiz() {
+            document.getElementById('quiz-container').style.display = 'none';
+            const screen = document.getElementById('results-screen');
+            screen.style.display = 'block';
+            
+            const total = currentQuestions.length;
+            const score = Object.values(userState).filter(s => s.correct).length;
+            document.getElementById('score-display').innerText = `Puntuación: ${score} / ${total}`;
+        }
+
+        function retry(type) {
+            let nextSubset = [];
+            const allIndices = Object.keys(userState);
+
+            if (type === 'failed') {
+                nextSubset = allIndices.filter(i => !userState[i].correct && userState[i].answered);
+            } else if (type === 'marked') {
+                nextSubset = allIndices.filter(i => userState[i].marked);
+            } else if (type === 'both') {
+                nextSubset = allIndices.filter(i => (!userState[i].correct && userState[i].answered) || userState[i].marked);
+            }
+
+            if (nextSubset.length === 0) {
+                alert("No hay preguntas que coincidan con este criterio.");
+                return;
+            }
+
+            const newQuestions = nextSubset.map(i => currentQuestions[i]);
+            currentQuestions = newQuestions;
+            userState = {};
+            currentQuestions.forEach((q, i) => {
+                userState[i] = { answered: false, choice: null, marked: false, correct: false };
+            });
+
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'block';
+            renderIndex();
+            showQuestion(0);
+        }
+    </script>
+</body>
+</html>

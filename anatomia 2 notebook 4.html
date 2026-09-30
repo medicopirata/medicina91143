@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Costillas, Esternón y Tórax</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --marked: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Pantallas */
+        #setup-screen, #results-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen-content {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1, h2 { color: var(--text); margin-bottom: 1.5rem; }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Contenedor principal del Quiz */
+        #quiz-layout {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar izquierdo */
+        #sidebar {
+            width: 80px;
+            min-width: 80px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 5;
+        }
+
+        .nav-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #475569;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .nav-dot:hover { transform: scale(1.1); }
+        .nav-dot.correct { background-color: var(--correct); color: white; }
+        .nav-dot.incorrect { background-color: var(--incorrect); color: white; }
+        
+        .mark-indicator {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            background-color: var(--marked);
+            border-radius: 50%;
+            display: none;
+            border: 2px solid white;
+        }
+        .nav-dot.is-marked .mark-indicator { display: block; }
+
+        /* Área de preguntas */
+        #main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            scroll-margin-top: 2rem;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0;
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+
+        .mark-btn {
+            background: none;
+            border: 2px solid var(--border);
+            color: #64748b;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        .mark-btn:hover { background-color: #f1f5f9; }
+        .mark-btn.marked {
+            border-color: var(--marked);
+            color: var(--marked);
+            background-color: #fffbeb;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .option-btn {
+            text-align: left;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            background-color: white;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background-color: #dcfce7; border-color: var(--correct); }
+        .option-btn.incorrect { background-color: #fee2e2; border-color: var(--incorrect); }
+        .option-btn.missed-correct { background-color: #dcfce7; border-color: var(--correct); border-style: dashed; }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+            display: none;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        #finish-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                width: 100%;
+                height: 60px;
+                min-height: 60px;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0 1rem;
+                align-items: center;
+            }
+            .nav-dot { margin-bottom: 0; margin-right: 0.5rem; flex-shrink: 0; }
+            #main-content { padding: 1rem; }
+            #finish-btn { bottom: 1rem; right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="screen-content">
+            <h1>Costillas, Esternón y Tórax</h1>
+            <p>Configura tu sesión de estudio:</p>
+            <div style="margin-top: 2rem;">
+                <button class="btn" onclick="startQuiz('original')">Iniciar (Orden Original)</button>
+                <button class="btn" onclick="startQuiz('random')">Iniciar (Orden Aleatorio)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-layout">
+        <div id="sidebar"></div>
+        <div id="main-content">
+            <div id="questions-container"></div>
+            <button id="finish-btn" class="btn" onclick="finishQuiz()" style="background-color: #334155;">Finalizar Cuestionario</button>
+        </div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <div class="screen-content">
+            <h2>Resultados</h2>
+            <p id="results-summary" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 2rem;"></p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn" onclick="retakeQuiz('all')">Repetir Completo</button>
+                <button class="btn" id="btn-retake-failed" onclick="retakeQuiz('failed')">Repetir Solo Falladas</button>
+                <button class="btn" id="btn-retake-marked" onclick="retakeQuiz('marked')">Repetir Solo Marcadas</button>
+                <button class="btn" id="btn-retake-both" onclick="retakeQuiz('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Base de datos de 70 preguntas literales (hemos quitado las letras a), b) de las opciones para que al barajar tenga sentido visual)
+const db = [
+    { q: `1. Una costilla típica presenta en su extremo dorsal (cabeza costal) una forma de "punta de flecha". Esta morfología se debe a que:`, opts: [`Se articula con el esternón.`, `Presenta dos carillas articulares separadas por una cresta horizontal para articularse con dos cuerpos vertebrales diferentes.`, `Se inserta el músculo escaleno.`, `Carece de cartílago.`], c: 1 },
+    { q: `2. ¿En qué parte específica de la costilla se encuentra el surco costal por donde discurre el paquete vasculonervioso (vena, arteria y nervio)?`, opts: [`En la cara externa del cuerpo.`, `En el borde superior, que es redondeado.`, `En la cara medial (interna) del borde inferior, que es más agudo.`, `En el cuello de la costilla.`], c: 2 },
+    { q: `3. Teniendo en cuenta la posición del paquete vasculonervioso intercostal, si un médico necesita realizar una punción pleural (toracocentesis), la aguja debe introducirse:`, opts: [`Rozando el borde inferior de la costilla superior.`, `Justo en el centro exacto del espacio intercostal.`, `Apoyándose en el borde superior de la costilla inferior (suprayacente al hueso).`, `A través del cartílago costal.`], c: 2 },
+    { q: `4. Las costillas que se denominan "asternales" (falsas) se caracterizan porque:`, opts: [`No tienen cartílago costal.`, `No se unen al esternón directamente, sino que sus cartílagos se unen entre sí para terminar conjuntamente en el borde del esternón.`, `Se articulan con la clavícula.`, `Quedan libres en la musculatura abdominal.`], c: 1 },
+    { q: `5. Las costillas 11 y 12 se denominan "flotantes" porque:`, opts: [`Están llenas de aire.`, `No tienen ningún tipo de unión anterior (ni directa ni indirecta) con el esternón, quedando embutidas en la musculatura de la pared abdominal.`, `Se mueven libremente por la cavidad torácica.`, `Solo aparecen en mujeres.`], c: 1 },
+    { q: `6. La primera costilla es atípica, siendo aplanada y muy ancha. En su cara superior presenta el Tubérculo de Lisfranc. ¿Qué músculo se inserta en este tubérculo?`, opts: [`Músculo pectoral menor.`, `Músculo escaleno anterior.`, `Músculo subclavio.`, `Músculo esternocleidomastoideo.`], c: 1 },
+    { q: `7. En la cara superior de la primera costilla, por DELANTE del Tubérculo de Lisfranc, observamos un surco poco profundo dejado por:`, opts: [`La arteria subclavia.`, `El plexo braquial.`, `La vena subclavia (que tiene menor presión, unos 35-40 mmHg).`, `La vena yugular.`], c: 2 },
+    { q: `8. Por el contrario, por DETRÁS del Tubérculo de Lisfranc en la primera costilla, hay un surco mucho más marcado y excavado que corresponde al paso de:`, opts: [`La vena cava superior.`, `La arteria carótida común.`, `La arteria subclavia (que arrastra gran presión, 120-140 mmHg y marca el hueso).`, `El conducto torácico.`], c: 2 },
+    { q: `9. Con el envejecimiento (a partir de la sexta o séptima década), ¿qué ocurre habitualmente con la porción cartilaginosa anterior de las costillas y el esternón?`, opts: [`Se vuelve más elástica.`, `Desaparece por reabsorción ósea.`, `Se osifica tardíamente, lo que disminuye la capacidad de distensión de la caja torácica y la mecánica ventilatoria.`, `Se transforma en músculo.`], c: 2 },
+    { q: `10. Una de las variaciones anatómicas comentadas es la "costilla cervical", originada a partir del tubérculo anterior de C7. ¿Qué problema clínico típico suele provocar?`, opts: [`Neumonía de repetición.`, `Compresión del paquete vasculonervioso en el desfiladero de los escalenos (plexo braquial y vasos subclavios), causando parestesias y pérdida de fuerza en el brazo.`, `Imposibilidad para tragar.`, `Fractura de clavícula.`], c: 1 },
+    { q: `11. El esternón consta de tres partes. La porción superior, de forma cuadrangular y que presenta la escotadura yugular, se denomina:`, opts: [`Apéndice xifoides.`, `Manubrio.`, `Cuerpo.`, `Clavícula.`], c: 1 },
+    { q: `12. La articulación entre el manubrio y el cuerpo del esternón forma una angulación proyectada hacia delante, muy palpable, conocida como:`, opts: [`Promontorio.`, `Tubérculo de Lisfranc.`, `Ángulo de Louis.`, `Sínfisis esternal.`], c: 2 },
+    { q: `13. Topográficamente, si trazamos un plano horizontal desde el Ángulo de Louis hacia atrás, este "plano mágico" corta la columna vertebral a nivel de:`, opts: [`C7.`, `El disco intervertebral entre T4 y T5.`, `T10.`, `L1.`], c: 1 },
+    { q: `14. Además de servir para dividir el mediastino en superior e inferior, el Ángulo de Louis es la principal referencia anatómica para contar las costillas porque en sus bordes laterales se articula:`, opts: [`La 1ª costilla.`, `La 2ª costilla (y por debajo de ella está el 2º espacio intercostal).`, `La clavícula.`, `La 7ª costilla.`], c: 1 },
+    { q: `15. La porción más caudal del esternón es el apéndice xifoides. Topográficamente, este apéndice suele situarse a nivel de la vértebra:`, opts: [`T4.`, `T10.`, `L2.`, `T12.`], c: 1 },
+    { q: `16. La primera costilla es muy difícil o imposible de palpar en una exploración física normal porque:`, opts: [`Es de cartílago transparente.`, `Queda oculta por detrás y por debajo del reborde medial de la clavícula.`, `Se sitúa en el abdomen.`, `Es demasiado fina.`], c: 1 },
+    { q: `17. El hueso del esternón es de tipo diploico (hueso esponjoso muy vascularizado entre dos capas corticales). Clínicamente, ¿para qué se utiliza frecuentemente esta característica?`, opts: [`Para inyectar anestesia epidural.`, `Para realizar punciones y extraer médula ósea roja (hematopoyesis) debido a su gran accesibilidad subcutánea.`, `Para operar la tiroides.`, `Para fijar marcapasos.`], c: 1 },
+    { q: `18. La malformación congénita en la que el esternón se hunde hacia la línea media, reduciendo el espacio intratorácico (a veces requiriendo cirugía), se llama:`, opts: [`Pectus carinatum (pecho de paloma).`, `Pectus excavatum (pecho excavado).`, `Tórax en tonel.`, `Cifosis.`], c: 1 },
+    { q: `19. La articulación de la cabeza de la costilla con los cuerpos vertebrales está reforzada por un ligamento que tiene tres lengüetas (hacia la vértebra superior, inferior y el disco). Este es el ligamento:`, opts: [`Longitudinal anterior.`, `Amarillo.`, `Radiado.`, `Costoclavicular.`], c: 2 },
+    { q: `20. La articulación costotransversaria (tubérculo costal con apófisis transversa) falta o es poco funcional en:`, opts: [`La 1ª y 2ª costilla.`, `Las costillas flotantes (11ª y 12ª), ya que no participan activamente en el ascenso respiratorio por estar fijadas a la pared abdominal.`, `La 5ª y 6ª costilla.`, `Las vértebras cervicales.`], c: 1 },
+    { q: `21. La unión entre la primera costilla y el manubrio esternal es de tipo:`, opts: [`Sincondrosis (unión cartilaginosa directa sin cavidad articular).`, `Diartrosis perfecta.`, `Sínfisis.`, `Trocoide.`], c: 0 },
+    { q: `22. La articulación esternoclavicular (clavícula con manubrio) tiene forma de silla de montar, pero requiere un elemento interno para hacer congruentes las superficies. Este elemento es:`, opts: [`Un ligamento amarillo.`, `Un menisco o disco articular fibrocartilaginoso.`, `Un cartílago hialino puro.`, `Líquido cefalorraquídeo.`], c: 1 },
+    { q: `23. Durante la inspiración, la biomecánica de las costillas SUPERIORES se asemeja a:`, opts: [`El asa de un cubo (ampliando el diámetro transverso).`, `El brazo de una bomba de agua (tirando del esternón hacia arriba y adelante, ampliando el diámetro anteroposterior).`, `Un pivote rotatorio.`, `Un acordeón descendente.`], c: 1 },
+    { q: `24. Por el contrario, la biomecánica de las costillas INFERIORES durante la inspiración se asemeja a:`, opts: [`El brazo de una bomba de agua.`, `El asa de un cubo (elevándose lateralmente y ensanchando transversalmente la cavidad torácica).`, `La flexo-extensión.`, `La inmovilidad total.`], c: 1 },
+    { q: `25. Si un paciente sufre un traumatismo torácico grave con fractura múltiple de varias costillas consecutivas, al intentar inspirar, ese segmento fracturado se hunde hacia dentro. Esto se conoce como:`, opts: [`Neumotórax a tensión.`, `Respiración paradójica (tórax inestable o volet costal).`, `Pectus excavatum agudo.`, `Hiperventilación.`], c: 1 },
+    { q: `26. El músculo intercostal externo tiene una dirección de fibras característica:`, opts: [`Oblicuas, descendiendo hacia adelante y hacia abajo.`, `Oblicuas, ascendiendo hacia la línea media.`, `Completamente verticales.`, `Completamente horizontales.`], c: 0 },
+    { q: `27. En la región anterior (cerca del esternón), el músculo intercostal externo desaparece como fibras musculares y se continúa como:`, opts: [`Membrana intercostal anterior (tejido conectivo).`, `Membrana intercostal posterior.`, `Músculo pectoral mayor.`, `Aponeurosis del oblicuo.`], c: 0 },
+    { q: `28. Las fibras del músculo intercostal interno se cruzan en "X" con las del externo. Su dirección es:`, opts: [`Descendiendo hacia atrás.`, `Ascendiendo hacia arriba y hacia la línea media.`, `Transversales.`, `Longitudinales.`], c: 1 },
+    { q: `29. El paquete vasculonervioso intercostal discurre EXACTAMENTE entre qué dos planos musculares?`, opts: [`Superficial al intercostal externo.`, `Entre el intercostal externo y el intercostal interno.`, `Entre el intercostal interno y el intercostal íntimo.`, `Por dentro de la pleura parietal.`], c: 2 },
+    { q: `30. Los músculos serratos posteriores superiores (profundos al romboides) traccionan de las primeras costillas hacia arriba, por lo que su función es:`, opts: [`Expiratoria.`, `Inspiratoria.`, `Rotadora de la escápula.`, `Flexora del cuello.`], c: 1 },
+    { q: `31. El músculo triangular del esternón (transverso del tórax) se sitúa en la cara interna del esternón y tira de los cartílagos costales hacia abajo. Su función principal es:`, opts: [`Inspiratoria.`, `Expiratoria.`, `Elevar el diafragma.`, `Mover la clavícula.`], c: 1 },
+    { q: `32. El profesor clasifica a los escalenos y al pectoral mayor como músculos:`, opts: [`Espiradores principales.`, `Músculos abdominales.`, `Inspiradores accesorios/secundarios (ya que, si fijan su origen en el brazo/cuello, traccionan de la caja torácica hacia arriba para abrirla).`, `Inútiles para la ventilación.`], c: 2 },
+    { q: `33. En un paciente con dificultad respiratoria severa (disnea), el esfuerzo muscular por abrir la caja torácica usando el cuello hace visible un signo clínico llamado:`, opts: [`Tiraje costal o cordal (ej. los escalenos traccionando de la primera costilla como cuerdas tensas).`, `Respiración paradójica.`, `Signo de Louis.`, `Escoliosis aguda.`], c: 0 },
+    { q: `34. La lámina de tejido conectivo que tapiza toda la cara interna de la parrilla costal, justo por fuera de la pleura, se denomina:`, opts: [`Fascia transversalis.`, `Fascia endotorácica.`, `Pericardio fibroso.`, `Fascia de Scarpa.`], c: 1 },
+    { q: `35. La cerosa que recubre directamente al pulmón pegándose a su tejido (parénquima) es la:`, opts: [`Pleura parietal.`, `Pleura visceral.`, `Fascia endotorácica.`, `Peritoneo.`], c: 1 },
+    { q: `36. A partir del tercer espacio intercostal, las arterias intercostales posteriores nacen directamente de:`, opts: [`La arteria torácica interna.`, `La arteria subclavia.`, `La aorta torácica.`, `El tronco braquiocefálico.`], c: 2 },
+    { q: `37. ¿De dónde proceden la primera y segunda arteria intercostal posterior?`, opts: [`De la aorta torácica también.`, `De la arteria intercostal suprema (o magna), rama de la arteria subclavia.`, `De la carótida externa.`, `De la arteria vertebral.`], c: 1 },
+    { q: `38. Las arterias intercostales ANTERIORES de los primeros seis espacios proceden de una gran arteria que desciende paralela al esternón. ¿Cómo se llama y de dónde nace?`, opts: [`Arteria mamaria interna (o torácica interna), rama de la arteria subclavia.`, `Arteria epigástrica, rama de la aorta.`, `Arteria frénica, rama de la intercostal.`, `Arteria axilar, rama de la braquial.`], c: 0 },
+    { q: `39. A nivel del apéndice xifoides (aprox. 6º-7º espacio), la arteria torácica interna (mamaria interna) se bifurca en dos ramas terminales:`, opts: [`Iliaca y femoral.`, `Epigástrica superior (que atraviesa el diafragma) y Musculofrénica (que discurre por el reborde costal).`, `Intercostal suprema y vertebral.`, `Cervical transversa y supraescapular.`], c: 1 },
+    { q: `40. A partir del séptimo espacio, las arterias intercostales anteriores ya no nacen de la torácica interna directamente, sino de su rama:`, opts: [`Epigástrica superior.`, `Musculofrénica.`, `Aorta.`, `Cava.`], c: 1 },
+    { q: `41. El drenaje venoso de las paredes del tórax hacia la parte posterior (venas intercostales posteriores) desemboca en un sistema venoso vertical llamado:`, opts: [`Sistema de la vena cava inferior.`, `Sistema Ácigos (derecha) y Hemiácigos (izquierda).`, `Sistema porta.`, `Venas pulmonares.`], c: 1 },
+    { q: `42. Las venas lumbares ascendentes (del abdomen) atraviesan el diafragma y se transforman en el tórax en:`, opts: [`La vena cava superior.`, `Las venas yugulares.`, `Las venas Ácigos y Hemiácigos.`, `El conducto torácico.`], c: 2 },
+    { q: `43. La vena Hemiácigos (izquierda) suele cruzar la línea media a nivel de T7-T8 para drenar finalmente en:`, opts: [`La aurícula izquierda.`, `La vena subclavia.`, `La vena Ácigos (derecha), que forma un tronco mayor.`, `La vena porta.`], c: 2 },
+    { q: `44. El sistema venoso vertebral (Plexo de Batson) recoge sangre del canal medular y de las vértebras. ¿Qué característica crítica tiene?`, opts: [`Drena directo al pulmón.`, `Es avalvular (sin válvulas), permitiendo el flujo bidireccional si aumenta la presión abdominal (ej. tos o Valsalva).`, `No se comunica con las venas intercostales.`, `Tiene válvulas extremadamente potentes.`], c: 1 },
+    { q: `45. La implicación oncológica del plexo avalvular de Batson es:`, opts: [`Que previene el cáncer.`, `Que permite que metástasis de tumores pélvicos (próstata, mama) viajen directamente a las vértebras o encéfalo sin pasar por el filtro capilar pulmonar.`, `Que provoca infartos.`, `Que drena solo la linfa.`], c: 1 },
+    { q: `46. El principal vaso de drenaje linfático del cuerpo es el conducto torácico. Éste asciende por el mediastino, lateralizándose progresivamente hacia la izquierda para desembocar en:`, opts: [`La vena cava inferior.`, `La aurícula derecha.`, `El ángulo yugulosubclavio IZQUIERDO (unión de yugular interna y subclavia izquierdas).`, `La vena ácigos.`], c: 2 },
+    { q: `47. El conducto torácico recoge la linfa de:`, opts: [`Solo del pulmón izquierdo.`, `De los miembros inferiores, cavidad abdominal (desde la cisterna del quilo) y la mitad izquierda del tórax, cabeza y brazo izquierdo.`, `Solo de la cabeza.`, `De todo el cuerpo simétricamente.`], c: 1 },
+    { q: `48. El drenaje linfático de la mitad superior DERECHA del tórax, brazo derecho y cabeza derecha NO va al conducto torácico, sino que drena a través de un conducto menor hacia:`, opts: [`El hígado.`, `El ángulo yugulosubclavio DERECHO (Gran vena linfática derecha).`, `El conducto torácico también.`, `La vena cava inferior.`], c: 1 },
+    { q: `49. Según el profesor Prada, este "desbalance" o asimetría del drenaje linfático tiene implicaciones clínicas porque:`, opts: [`Hace que engordemos más del lado izquierdo.`, `Los procesos infecciosos o metastásicos diseminados por vía linfática tenderán a aparecer más en órganos del lado izquierdo que del derecho.`, `Provoca escoliosis.`, `Altera el latido cardíaco.`], c: 1 },
+    { q: `50. En el drenaje linfático de la pared torácica, existen dos cadenas principales de ganglios:`, opts: [`Las axilares y las femorales.`, `Las cadenas paraesternales (anteriores) y las cadenas paravertebrales (posteriores).`, `Las ilíacas y lumbares.`, `Las mesentéricas superiores.`], c: 1 },
+    { q: `51. El nervio intercostal, que discurre por el surco costal junto a la vena y la arteria, es la continuación directa de:`, opts: [`El nervio vago.`, `El ramo ventral (anterior) del nervio espinal correspondiente.`, `El ramo dorsal del nervio espinal.`, `La cadena simpática exclusivamente.`], c: 1 },
+    { q: `52. La musculatura "epimérica" (los erectores del dorso profundos en el canal vertebral) está inervada por:`, opts: [`El ramo ventral.`, `El nervio intercostal.`, `El ramo dorsal (posterior) del nervio espinal.`, `El nervio frénico.`], c: 2 },
+    { q: `53. La musculatura "hipomérica" (músculos intercostales, pared anterolateral del abdomen) está inervada por:`, opts: [`El ramo dorsal.`, `El ramo ventral (anterior) del nervio espinal.`, `Los pares craneales.`, `Exclusivamente por vía simpática.`], c: 1 },
+    { q: `54. Además de inervar los músculos y la piel (dermatoma), el nervio intercostal emite ramos sensitivos hacia el interior de la cavidad torácica para inervar:`, opts: [`El músculo cardíaco.`, `El parénquima pulmonar profundo.`, `La pleura parietal (la capa serosa pegada a la pared costal).`, `La pleura visceral.`], c: 2 },
+    { q: `55. Un paciente llega a urgencias con una neumonía (infección en el lóbulo pulmonar que ha inflamado la pleura). Según explica el profesor, el paciente típicamente se quejará de:`, opts: [`Dolor sordo en el cerebro.`, `Dolor agudo y localizado en la costilla/pared torácica, pareciendo una fractura costal o dolor muscular.`, `Picor en la garganta exclusivamente.`, `Dolor en la pierna.`], c: 1 },
+    { q: `56. Este fenómeno, en el que un problema visceral profundo se manifiesta como dolor en la superficie corporal (pared costal o piel) inervada por el mismo segmento espinal, se denomina:`, opts: [`Dolor isquémico.`, `Dolor fantasma.`, `Dolor referido.`, `Parestesia.`], c: 2 },
+    { q: `57. El dolor visceral puro (no somático) se transmite por vías autónomas y se caracteriza por ser:`, opts: [`Muy preciso, "a punta de dedo", como si te clavaran una aguja.`, `Difuso, sordo, lacerante y difícil de localizar exactamente (ej. "me duele la tripa").`, `Inexistente, las vísceras no duelen.`, `Siempre punzante y superficial.`], c: 1 },
+    { q: `58. La cadena simpática paravertebral, que forma un rosario de ganglios a ambos lados de la columna, se conecta con el nervio espinal intercostal a través de:`, opts: [`El ganglio de la raíz dorsal.`, `Los ramos comunicantes (blancos y grises).`, `El nervio frénico.`, `El nervio esplácnico.`], c: 1 },
+    { q: `59. La inervación simpática que viaja por el nervio intercostal hasta la piel tiene la función, entre otras cosas, de:`, opts: [`Mover los músculos intercostales.`, `Sentir el tacto fino.`, `Controlar la sudoración de las glándulas exocrinas (sudoríparas) y la vasomotricidad.`, `Secretar moco bronquial.`], c: 2 },
+    { q: `60. Para localizar la válvula aórtica mediante auscultación (foco aórtico), debemos colocar el fonendoscopio en:`, opts: [`El 5º espacio intercostal izquierdo.`, `El apéndice xifoides.`, `El 2º espacio intercostal, línea paraesternal DERECHA.`, `Encima de la clavícula.`], c: 2 },
+    { q: `61. Para auscultar el ápex del corazón (foco mitral), la zona de referencia tópica es:`, opts: [`El 2º espacio intercostal derecho.`, `El 5º o 6º espacio intercostal, en la línea medio-clavicular IZQUIERDA.`, `La línea media del esternón.`, `El ángulo de Louis.`], c: 1 },
+    { q: `62. El diafragma, músculo principal de la inspiración, altera constantemente la posición del corazón y los pulmones. En posición de decúbito (acostado), las vísceras abdominales empujan el diafragma hacia arriba, lo que provoca que:`, opts: [`El tórax se alargue enormemente.`, `El diafragma esté más alto y transversalizado, con menor capacidad para distenderse durante la inspiración (por eso los pacientes con disnea no toleran estar acostados).`, `El corazón baje hasta el ombligo.`, `La respiración se detenga.`], c: 1 },
+    { q: `63. La "línea alba" (o línea medioclavicular, axilar anterior, etc.) se utiliza en exploración física junto al conteo de espacios intercostales para:`, opts: [`Medir la altura del paciente.`, `Crear un mapa de coordenadas topográficas que nos permita deducir qué víscera u órgano profundo se encuentra detrás de ese punto exacto.`, `Saber dónde cortar los músculos abdominales.`, `Medir el tejido adiposo.`], c: 1 },
+    { q: `64. Si una hernia discal ocurre a nivel de C5-C6 (cuello), la raíz nerviosa que habitualmente se comprime y sale por ese agujero de conjunción es:`, opts: [`C5.`, `C6 (porque en la región cervical los nervios salen por encima de su vértebra correspondiente, hasta C8).`, `C7.`, `T1.`], c: 1 },
+    { q: `65. ¿Qué ligamento de la columna vertebral cervical tiene un papel fundamental en evitar que el Diente del Axis (C2) aplaste la médula espinal?`, opts: [`El ligamento amarillo.`, `El ligamento nucal.`, `El ligamento transverso del atlas (parte del ligamento cruciforme).`, `El ligamento longitudinal anterior.`], c: 2 },
+    { q: `66. La arteria principal que irriga los dos tercios inferiores de la médula espinal toracolumbar y cuya lesión quirúrgica provoca paraplejia se denomina:`, opts: [`Arteria mamaria interna.`, `Arteria de Adamkiewicz (Gran radicular magna).`, `Arteria vertebral.`, `Arteria epigástrica.`], c: 1 },
+    { q: `67. La articulación sacroilíaca está diseñada biomecánicamente para:`, opts: [`Ser extremadamente móvil y permitir la rotación de la pelvis.`, `Funcionar como una "tenaza": las palas ilíacas abrazan y presionan al sacro para estabilizarlo al recibir el peso corporal, terminando por osificarse con la edad.`, `No soportar ningún peso, solo conectar ligamentos.`, `Articularse con el fémur directamente.`], c: 1 },
+    { q: `68. Cuando hacemos una punción lumbar para extraer LCR, sabemos que hemos llegado al espacio subaracnoideo porque hemos atravesado una capa fibrosa muy dura inmediatamente anterior al espacio epidural. Esa capa es:`, opts: [`La piamadre.`, `El ligamento longitudinal posterior.`, `La duramadre.`, `El disco intervertebral.`], c: 2 },
+    { q: `69. La inervación de la glándula mamaria y de la piel del tórax depende fundamentalmente de:`, opts: [`El plexo braquial directamente.`, `Los ramos cutáneos anteriores y laterales de los nervios intercostales (ramos ventrales).`, `El nervio frénico.`, `El nervio accesorio (XI par craneal).`], c: 1 },
+    { q: `70. El conducto linfático torácico, que viaja posterior al esófago y a la derecha de la aorta torácica, termina cruzando hacia la izquierda para drenar en el ángulo yugulosubclavio izquierdo. Este vaso se forma en el abdomen a partir de una dilatación conocida como:`, opts: [`Seno coronario.`, `Cisterna del Quilo (o de Pecquet).`, `Ampolla de Vater.`, `Ganglio centinela.`], c: 1 }
+];
+
+// Estado de la aplicación
+let activeQuestions = [];
+let answers = {};
+let marked = {};
+let currentOrderMode = 'original';
+
+// Utilidad para mezclar arrays
+function shuffleArray(array) {
+    let newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
+
+// Inicia el quiz
+function startQuiz(orderMode) {
+    currentOrderMode = orderMode;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+    
+    activeQuestions = db.map((item, index) => ({
+        ...item,
+        originalId: index + 1
+    }));
+
+    if (orderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+// Lógica de repetición
+function retakeQuiz(mode) {
+    document.getElementById('results-screen').style.display = 'none';
+    document.getElementById('quiz-layout').style.display = 'flex';
+
+    let toKeep = [];
+    if (mode === 'all') {
+        toKeep = db.map((_, i) => i + 1);
+    } else if (mode === 'failed') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false).map(q => q.originalId);
+    } else if (mode === 'marked') {
+        toKeep = activeQuestions.filter(q => marked[q.originalId]).map(q => q.originalId);
+    } else if (mode === 'failed_marked') {
+        toKeep = activeQuestions.filter(q => answers[q.originalId] === false || marked[q.originalId]).map(q => q.originalId);
+    }
+
+    if (toKeep.length === 0) {
+        alert("No hay preguntas en esta categoría.");
+        document.getElementById('results-screen').style.display = 'flex';
+        document.getElementById('quiz-layout').style.display = 'none';
+        return;
+    }
+
+    activeQuestions = db.filter((_, i) => toKeep.includes(i + 1)).map(item => ({
+        ...item,
+        originalId: db.indexOf(item) + 1
+    }));
+
+    if (currentOrderMode === 'random') {
+        activeQuestions = shuffleArray(activeQuestions);
+    }
+
+    resetState();
+    buildInterface();
+}
+
+function resetState() {
+    answers = {};
+}
+
+// Construcción del DOM
+function buildInterface() {
+    const sidebar = document.getElementById('sidebar');
+    const container = document.getElementById('questions-container');
+    
+    sidebar.innerHTML = '';
+    container.innerHTML = '';
+
+    activeQuestions.forEach((q, index) => {
+        // Dot del sidebar
+        const dot = document.createElement('div');
+        dot.className = `nav-dot ${marked[q.originalId] ? 'is-marked' : ''}`;
+        dot.id = `nav-${q.originalId}`;
+        dot.innerHTML = `${index + 1}<div class="mark-indicator"></div>`;
+        dot.onclick = () => {
+            document.getElementById(`q-${q.originalId}`).scrollIntoView({behavior: 'smooth'});
+        };
+        sidebar.appendChild(dot);
+
+        // Tarjeta de la pregunta
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `q-${q.originalId}`;
+
+        // Mezclar opciones
+        let optionsWithIndex = q.opts.map((text, i) => ({ text, isCorrect: i === q.c }));
+        optionsWithIndex = shuffleArray(optionsWithIndex);
+
+        let optionsHTML = '';
+        optionsWithIndex.forEach((opt, optIndex) => {
+            optionsHTML += `<button class="option-btn" id="opt-${q.originalId}-${optIndex}" 
+                onclick="selectAnswer(${q.originalId}, ${opt.isCorrect}, ${optIndex}, '${opt.text.replace(/'/g, "\\'")}')">
+                ${opt.text}
+            </button>`;
+        });
+
+        const isMarked = marked[q.originalId] ? 'marked' : '';
+        const markText = marked[q.originalId] ? '★ Marcada' : '☆ Marcar';
+
+        card.innerHTML = `
+            <div class="question-header">
+                <h3 class="question-text">${index + 1}. ${q.q.replace(/^\d+\.\s*/, '')}</h3>
+                <button class="mark-btn ${isMarked}" id="mark-${q.originalId}" onclick="toggleMark(${q.originalId})">${markText}</button>
+            </div>
+            <div class="options-grid" id="grid-${q.originalId}">
+                ${optionsHTML}
+            </div>
+            <div class="feedback" id="feedback-${q.originalId}"></div>
+        `;
+
+        container.appendChild(card);
+    });
+    
+    document.getElementById('main-content').scrollTop = 0;
+}
+
+// Acción de respuesta
+function selectAnswer(qId, isCorrect, optIndex, optText) {
+    if (answers[qId] !== undefined) return;
+
+    answers[qId] = isCorrect;
+    
+    const grid = document.getElementById(`grid-${qId}`);
+    const buttons = grid.getElementsByClassName('option-btn');
+    const feedback = document.getElementById(`feedback-${qId}`);
+    const navDot = document.getElementById(`nav-${qId}`);
+
+    for (let i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+        if (buttons[i].id === `opt-${qId}-${optIndex}`) {
+            buttons[i].classList.add(isCorrect ? 'correct' : 'incorrect');
+        } else if (buttons[i].getAttribute('onclick').includes('true')) {
+            buttons[i].classList.add('missed-correct');
+        }
+    }
+
+    navDot.classList.add(isCorrect ? 'correct' : 'incorrect');
+    feedback.style.display = 'block';
+    
+    const correctOriginalOptionText = db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).opts[db.find(x => x.originalId === qId || x.q.startsWith(qId + ".")).c];
+
+    if (isCorrect) {
+        feedback.innerHTML = `<strong>¡Correcto!</strong> La respuesta es: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--correct)';
+    } else {
+        feedback.innerHTML = `<strong>Incorrecto.</strong> La respuesta correcta era: ${correctOriginalOptionText}`;
+        feedback.style.borderLeftColor = 'var(--incorrect)';
+    }
+}
+
+// Acción marcar
+function toggleMark(qId) {
+    marked[qId] = !marked[qId];
+    
+    const btn = document.getElementById(`mark-${qId}`);
+    const dot = document.getElementById(`nav-${qId}`);
+
+    if (marked[qId]) {
+        btn.classList.add('marked');
+        btn.innerHTML = '★ Marcada';
+        dot.classList.add('is-marked');
+    } else {
+        btn.classList.remove('marked');
+        btn.innerHTML = '☆ Marcar';
+        dot.classList.remove('is-marked');
+    }
+}
+
+// Acción finalizar
+function finishQuiz() {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unattemptedCount = 0;
+
+    activeQuestions.forEach(q => {
+        if (answers[q.originalId] === true) correctCount++;
+        else if (answers[q.originalId] === false) incorrectCount++;
+        else unattemptedCount++;
+    });
+
+    document.getElementById('quiz-layout').style.display = 'none';
+    document.getElementById('results-screen').style.display = 'flex';
+
+    document.getElementById('results-summary').innerHTML = `
+        Aciertos: <span style="color: var(--correct)">${correctCount}</span> | 
+        Fallos: <span style="color: var(--incorrect)">${incorrectCount}</span> | 
+        Sin responder: ${unattemptedCount}
+    `;
+
+    const totalFailed = activeQuestions.filter(q => answers[q.originalId] === false).length;
+    const totalMarked = Object.values(marked).filter(v => v).length;
+    
+    document.getElementById('btn-retake-failed').disabled = totalFailed === 0;
+    document.getElementById('btn-retake-marked').disabled = totalMarked === 0;
+    document.getElementById('btn-retake-both').disabled = (totalFailed === 0 && totalMarked === 0);
+}
+</script>
+</body>
+</html>

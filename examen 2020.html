@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Esplacnología Sep 2020</title>
+    <style>
+        :root {
+            --primary: #16a085;    /* Verde azulado */
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --error: #c0392b;
+            --warning: #f39c12;
+            --bg: #fdfefe;
+            --card-bg: #ffffff;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background-color: var(--bg); height: 100vh; display: flex; overflow: hidden; color: #333; }
+
+        /* SIDEBAR */
+        #sidebar { width: 300px; background: var(--secondary); color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 100; }
+        .sb-header { padding: 20px; background: rgba(0,0,0,0.2); text-align: center; border-bottom: 1px solid #34495e; }
+        .sb-info { padding: 10px; text-align: center; font-size: 0.9rem; color: #bdc3c7; }
+        
+        #nav-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; align-content: start; }
+        .nav-btn { aspect-ratio: 1; border: none; background: rgba(255,255,255,0.1); color: #bdc3c7; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; position: relative; }
+        .nav-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+        .nav-btn.active { background: white; color: var(--secondary); transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px var(--primary); }
+        .nav-btn.correct { background: var(--success); color: white; }
+        .nav-btn.wrong { background: var(--error); color: white; }
+        .nav-btn.marked::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: var(--warning); border-radius: 50%; border: 1px solid white; }
+
+        /* MAIN */
+        #main { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .top-bar { height: 60px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .timer { font-family: monospace; font-size: 1.2rem; background: #eee; padding: 5px 10px; border-radius: 5px; color: var(--primary); font-weight: bold; }
+
+        #quiz-area { flex: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .q-container { max-width: 800px; margin: 0 auto 100px auto; }
+
+        .q-card { background: var(--card-bg); padding: 30px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid transparent; transition: 0.3s; }
+        .q-card.current { border-left-color: var(--primary); transform: translateX(5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        
+        .q-meta { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; color: #7f8c8d; font-weight: bold; text-transform: uppercase; }
+        .q-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 20px; line-height: 1.5; }
+
+        .opt-btn { display: block; width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 2px solid #f0f0f0; background: #f9f9f9; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1rem; color: #444; }
+        .opt-btn:hover:not(:disabled) { border-color: var(--primary); background: #fdf8ff; }
+        .opt-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .opt-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+        .opt-btn:disabled { cursor: default; opacity: 0.7; }
+
+        .feedback { margin-top: 15px; padding: 15px; background: #e8f8f5; border-left: 4px solid var(--success); border-radius: 4px; display: none; animation: slideIn 0.3s; }
+        .tools { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; }
+        .mark-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #7f8c8d; cursor: pointer; }
+        .mark-label input { transform: scale(1.2); accent-color: var(--warning); }
+
+        /* MODALS */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 500px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition: transform 0.1s; }
+        .btn:hover { transform: scale(1.02); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        
+        .retry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn-retry { font-size: 0.9rem; padding: 12px; color: white; }
+        .r-fail { background: var(--error); }
+        .r-mark { background: var(--warning); }
+        .r-mix { background: #8e44ad; grid-column: span 2; }
+        .r-all { background: var(--secondary); grid-column: span 2; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="modal">
+        <div class="modal-box">
+            <h1 style="color:var(--secondary); margin-bottom:5px;">Anatomía I</h1>
+            <h2 style="color:var(--primary); margin-top:0;">Esplacnología Sep 2020</h2>
+            <p>50 Preguntas</p>
+            
+            <div style="text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
+                <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">
+                    ℹ️ Las respuestas (a, b, c, d) se mezclarán automáticamente.
+                </p>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem; margin-bottom:10px;">
+                    <input type="checkbox" id="shuffle-questions" checked> 
+                    <strong>¿Mezclar orden de las preguntas?</strong>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:1.1rem;">
+                    <input type="checkbox" id="timer-check"> 
+                    Activar Temporizador
+                </label>
+            </div>
+
+            <button class="btn btn-primary" onclick="initQuiz()">COMENZAR TEST</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="modal" style="display:none;">
+        <div class="modal-box">
+            <h2>Resultados</h2>
+            <div style="font-size:3.5rem; font-weight:800; color:var(--primary);" id="score">0%</div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:20px 0;">
+                <div style="background:#eafaf1; padding:10px; border-radius:5px; color:var(--success)">✅ <b id="r-ok">0</b></div>
+                <div style="background:#fdedec; padding:10px; border-radius:5px; color:var(--error)">❌ <b id="r-ko">0</b></div>
+                <div style="background:#fef9e7; padding:10px; border-radius:5px; color:var(--warning)">🚩 <b id="r-mk">0</b></div>
+            </div>
+
+            <div class="retry-grid">
+                <button class="btn btn-retry r-fail" onclick="retry('failed')">Solo Falladas</button>
+                <button class="btn btn-retry r-mark" onclick="retry('marked')">Solo Marcadas</button>
+                <button class="btn btn-retry r-mix" onclick="retry('failed_marked')">Falladas + Marcadas</button>
+                <button class="btn btn-retry r-all" onclick="retry('all')">Reiniciar Todo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sb-header">
+            <h3>Navegación</h3>
+        </div>
+        <div class="sb-info">
+            <span id="prog-text">0 / 50</span>
+        </div>
+        <div id="nav-grid"></div>
+        <div style="padding:20px;">
+            <button class="btn btn-secondary" onclick="finish()">Finalizar</button>
+        </div>
+    </div>
+
+    <div id="main">
+        <div class="top-bar">
+            <strong>Examen Esplacnología 2020</strong>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+        <div id="quiz-area">
+            <div class="q-container" id="questions-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        // BASE DE DATOS (50 Preguntas)
+        const fullDB = [
+            { id: 1, q: "Los ganglios linfáticos de la mama no drenan directamente sobre:", o: ["Ganglios axilares", "Ganglios del serrato anterior hacia el espacio escapulotorácico", "Ganglios subclaviculares (apicales)", "Ganglios mamarios internos"], c: 2 },
+            { id: 2, q: "El ápex pulmonar no se relaciona con:", o: ["Tronco venoso braquiocefálico izquierdo", "Músculos escalenos", "Vena subclavia", "Primera costilla"], c: 0 },
+            { id: 3, q: "En el ápex pulmonar, no se marca la relación de qué estructura", o: ["Primera costilla", "Timo", "Arteria subclavia", "Vena subclavia"], c: 1 },
+            { id: 4, q: "El reflujo de la orina no es impedido por", o: ["Las fibras musculares lisas longitudinales del uréter", "Unión pieloureteral", "Los vasos iliacos", "Porción intraparietal en la vejiga"], c: 2 },
+            { id: 5, q: "Cuál de las siguientes arterias no participa de la vascularización de la mama", o: ["Bronquiales", "Torácica lateral", "Intercostales", "Toráco-acromial"], c: 0 },
+            { id: 6, q: "Los linfáticos pulmonares derechos van a drenar mayoritariamente sobre", o: ["A la vena subclavia derecha (Gran vena linfática)", "Junto al saco pericárdico, al plexo cardíaco", "Sobre los ganglios mediastínicos contralaterales", "A los ganglios linfáticos pleurales esternocostales"], c: 0 },
+            { id: 7, q: "La arteria mesentérica superior no tiene una de estas relaciones", o: ["Arteria renal derecha", "Tercera porción horizontal del duodeno", "Vena renal izquierda", "El borde inferior del cuello del páncreas"], c: 0 },
+            { id: 8, q: "Qué elemento exprime el cuerpo esponjoso para facilitar la salida del semen", o: ["Músculo isquiocavernoso", "Músculo esfinter externo de la uretra", "Músculo bulboesponjoso", "Músculo transverso superficial del periné"], c: 2 },
+            { id: 9, q: "El área desnuda del hígado queda adherido al diafragma gracias a", o: ["La hoja superior del ligamento coronario", "La grasa perirrenal", "La fascia diafragmática (tejido conectivo)", "Al peritoneo parietal"], c: 2 },
+            { id: 10, q: "Los linfáticos pulmonares se sitúan", o: ["Los pulmones no poseen drenaje linfático", "Junto a los bronquios principales (Plexo profundo)", "Directamente sobre los ganglios mediastínicos", "Junto a los ganglios linfáticos pleurales esternocostales"], c: 1 },
+            { id: 11, q: "La língula se relaciona con:", o: ["Superficie esternocostal del corazón", "Esófago torácico", "La cara mediastínica del pulmón derecho", "Con los elementos del mediastino anterior, del que forma parte"], c: 0 },
+            { id: 12, q: "El drenaje linfático testicular tiene lugar fundamentalmente hacia:", o: ["Ganglios pélvicos", "Ganglios linfáticos lumbares (Paraaórticos)", "Ganglios femorales", "Ganglios inguinales"], c: 1 },
+            { id: 13, q: "La tráquea no se encuentra topográficamente por debajo de", o: ["T8", "T2", "C8", "T5"], c: 0 },
+            { id: 14, q: "De las siguientes, una no corresponde con límites del triángulo de Koch", o: ["Cresta terminal", "Ligamento de Todaro", "Limbo de la fosa oval", "Valva septal de la tricúspide"], c: 0 },
+            { id: 15, q: "La arteria de la cual se origina la gástroepiplóica izquierda es", o: ["Cólica media", "Gastroduodenal", "Esplénica", "Gástrica izquierda"], c: 2 },
+            { id: 16, q: "De los elementos del pedículo pulmonar, cuál se sitúa más ventralmente", o: ["Arteria bronquial", "Arteria pulmonar", "El bronquio principal y/o bronquio lobar", "Venas pulmonares (Vena pulmonar superior)"], c: 3 },
+            { id: 17, q: "Entre las estructuras que se encuentran ancladas y formando el centro fibroso del corazón, una respuesta es incorrecta", o: ["Válvula pulmonar", "Válvula mitral", "Válvula aórtica", "Porción muscular del tabique interventricular"], c: 3 },
+            { id: 18, q: "La porción dilatada del duodeno, llamada bulbo, se encuentra en la", o: ["Segunda", "Tercera", "Cuarta", "Primera"], c: 3 },
+            { id: 19, q: "Cuál de las siguientes capas no posee el cordón espermático", o: ["Cremáster", "Fascia espermática interna", "Fascia espermática externa", "Túnica albugínea"], c: 3 },
+            { id: 20, q: "Qué elemento no participa del sostenimiento del ovario in situ", o: ["Mesosalpinx", "Ligamento propio", "Ligamento suspensorio", "Mesovario"], c: 0 },
+            { id: 21, q: "El nódulo sinusal se encuentra situado:", o: ["En el Trigono de Koch", "En la parte vascular de la porción superior de la cresta terminal de la aurícula derecha", "Atraviesa la porción fibrosa del tabique interventricular", "Se sitúa en cercanía de la entrada del seno venoso"], c: 1 },
+            { id: 22, q: "En la transformación del final del tubérculo genital no participa de ninguna manera uno de los siguientes factores", o: ["SRY", "5 alfa reductasa", "Genes HOX", "Gen del receptor de andrógenos"], c: 2 },
+            { id: 23, q: "Cómo se denomina el estrechamiento en la porción inicial de la uretra masculina", o: ["Fosa navicular", "Porción membranosa", "Esfínter interno de la uretra (Cuello vesical)", "Esfínter externo de la uretra"], c: 2 },
+            { id: 24, q: "Cuál de las siguientes afirmaciones sobre la vena renal derecha es cierta", o: ["Se sitúa ventral a la arteria renal correspondiente", "Sobre esta drena la vena testicular derecha", "Sobre esta se acabalga la arteria mesentérica superior", "Es el elemento más posterior del pedículo renal"], c: 0 },
+            { id: 25, q: "Cuál de los siguientes es un origen posible de vasos suprarrenales (arteria suprarrenal inferior)", o: ["Arterias frénicas superiores", "Arterias renales", "Aorta torácica", "Arterias subcostales"], c: 1 },
+            { id: 26, q: "El plano transpilórico, que pasa por la primera porción del duodeno, está a nivel", o: ["T11", "L2", "L4", "L1"], c: 3 },
+            { id: 27, q: "En la doble lámina del mesogastrio dorsal, qué elemento evaginado del tubo primitivo se forma", o: ["Bazo", "Lóbulos cuadrado y caudado del hígado", "Hígado", "Páncreas ventral"], c: 0 },
+            { id: 28, q: "El conducto excretor de las glándulas de Bartholin drenan", o: ["Entre labios mayores y menores", "En la uretra", "En el introito vaginal", "En la cara medial de los labios menores, en el vestíbulo vaginal"], c: 3 },
+            { id: 29, q: "El rafe tendinoso donde se insertan los músculos transversos superficiales del periné es", o: ["Tendón perineal central (Cuerpo perineal)", "membrana del seno", "Músculo pubococcígeo", "Ligamento cardinal"], c: 0 },
+            { id: 30, q: "Sobre el esófago en su porción abdominal, señale la correcta", o: ["Se relaciona sobre la cara visceral del hígado, que crea una escotadura donde se aloja", "Es completamente retroperitoneal", "Su drenaje venoso se hace de forma íntegra al sistema portal", "Su corto trayecto comienza en el hiato de la vena cava"], c: 0 },
+            { id: 31, q: "Qué porción del tracto urinario no es solo conductora de la orina", o: ["Túbulos colectores", "Uréteres", "Cálices menores", "Túbulos contorneados distales"], c: 3 },
+            { id: 32, q: "Un útero anteverso y en anteflexión es", o: ["Una anomalía congénita", "Es una patología adquirida en la mujer adulta", "La situación normal durante la gestación", "La posición habitual en la mujer nulípara"], c: 3 },
+            { id: 33, q: "Cuál de los siguientes vasos arteriales depende de la arteria coronaria derecha", o: ["A. circunfleja izquierda", "A. marginal izquierda", "A. interventricular anterior", "A. Marginal derecha"], c: 3 },
+            { id: 34, q: "El peritoneo visceral que une estómago y bazo se denomina", o: ["Lig esplenorenal", "Lig pancreático-esplénico", "Lig gastroesplénico", "Lig gastrorenal"], c: 2 },
+            { id: 35, q: "La arteria uterina es rama de", o: ["A rectal media", "Porción permeable de la art. Obturatriz", "A. ilíaca interna", "A. iliaca externa"], c: 2 },
+            { id: 36, q: "En la papila duodenal mayor no drena", o: ["El conducto pancreático principal", "El conducto pancreático accesorio", "El cístico, a través del colédoco", "Colédoco"], c: 1 },
+            { id: 37, q: "El Nódulo sinusal o sinoauricular se encuentra situado (Variante)", o: ["Se relaciona bajo el espesor de la trabécula del músculo papilar anterior", "Atraviesa la porción membranosa del tabique interventricular", "Se sitúa en cercanía de la entrada del seno venoso", "Se sitúa en la cercanía de la entrada de la vena cava superior"], c: 3 },
+            { id: 38, q: "Quién inerva sensitivamente el pericardio seroso parietal", o: ["Frénico", "Nervios esplácnicos mayores", "Esta lámina pericárdica no está inervada", "Vago"], c: 0 },
+            { id: 39, q: "En el pedículo pulmonar derecho, qué elemento se apoya sobre el bronquio principal derecho", o: ["Vena pulmonar", "Esófago", "Arteria subclavia derecha", "Cayado de la vena Ácigos"], c: 3 },
+            { id: 40, q: "Qué elemento no se encuentra en el espacio retroperitoneal", o: ["Grasa perirrenal", "Unión pieloureteral", "Arteria cólica izquierda", "Arterias ileales (Mesenterio)"], c: 3 },
+            { id: 41, q: "De la cadena simpática paravertebral entre los niveles T1-T5 se origina", o: ["Ganglios cervicotorácico o estrellado", "Nervios torácicos esplácnicos mayor", "Plexo mesentérico", "Nervios torácicos"], c: 0 },
+            { id: 42, q: "Cuál de estas estructuras no se relaciona con la cara ventral del páncreas", o: ["Vena esplénica", "Transcavidad de los epiplones", "Estómago", "Colon transverso"], c: 0 },
+            { id: 43, q: "El ligamento redondo que atraviesa el trayecto inguinal se inserta en", o: ["Labios mayores", "Labios menores", "Introito vaginal", "Seno urogenital"], c: 0 },
+            { id: 44, q: "Cuál de las siguientes afirmaciones acerca del pericardio seroso es correcta", o: ["La doble lámina de pericardio seroso se fija en el ápex cardíaco", "El pericardio seroso se dispone en tres láminas", "El pericardio seroso visceral se une al pericardio fibroso", "El pericardio seroso visceral (epicardio) se fija a la superficie del miocardio"], c: 3 },
+            { id: 45, q: "Sobre el borde mesentérico del yeyuno e íleon, señale la opción incorrecta", o: ["Los vasos que alcanzan el tubo se denominan vasos rectos", "Supone el borde contrario al cual el peritoneo alcanza a estas porciones del tubo", "Los vasos crean lazadas anastomóticas antes de llegar al tubo digestivo", "Es el borde a través del cual alcanzan los vasos rectos al tubo"], c: 1 },
+            { id: 46, q: "El suelo de la transcavidad de los epiplones se sitúa sobre", o: ["El ligamento suspensorio del estómago", "Los vasos mesentérico-superiores", "El hilio esplénico", "Mesocolon transverso"], c: 3 },
+            { id: 47, q: "El ligamento redondo se encuentra en el borde libre del", o: ["Epiplón menor", "Epiplón mayor", "Ligamento frenocólico", "Mesogastrio ventral (Ligamento Falciforme)"], c: 3 },
+            { id: 48, q: "Qué porción de la mama se oscurece durante la gestación", o: ["Areola mamaria", "Proceso axilar", "Pezón", "Surco mamario inferior"], c: 0 },
+            { id: 49, q: "La grasa visceral dispuesta sobre el corazón señale la correcta", o: ["Se dispone en los surcos auriculoventricular e interventricular", "Depende del estado metabólico del paciente", "Se dispone sobre la porción membranosa del tabique interventricular", "Es perjudicial para el sujeto"], c: 0 },
+            { id: 50, q: "Qué elemento queda dentro del cordón espermático", o: ["Arteria testicular", "Conductos eferentes", "Epidídimo", "Ramo genital del nervio genitofemoral"], c: 0 }
+        ];
+
+        let currentQuestions = [];
+        let userState = {};
+        let timerInterval;
+        let seconds = 0;
+
+        function initQuiz() {
+            document.getElementById('start-screen').style.display = 'none';
+            const shuffleQ = document.getElementById('shuffle-questions').checked;
+            const useTimer = document.getElementById('timer-check').checked;
+
+            currentQuestions = JSON.parse(JSON.stringify(fullDB));
+
+            if (shuffleQ) {
+                currentQuestions.sort(() => Math.random() - 0.5);
+            }
+
+            userState = {};
+            renderSidebar();
+            renderQuestions();
+
+            if (useTimer) {
+                document.getElementById('timer').style.display = 'block';
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+
+        function renderSidebar() {
+            const grid = document.getElementById('nav-grid');
+            grid.innerHTML = '';
+            
+            currentQuestions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-btn';
+                btn.innerText = index + 1;
+                btn.onclick = () => scrollToQ(index);
+                btn.id = `nav-${index}`;
+                grid.appendChild(btn);
+            });
+            updateProgress();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-wrapper');
+            container.innerHTML = '';
+
+            currentQuestions.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'q-card';
+                card.id = `card-${index}`;
+
+                card.innerHTML = `
+                    <div class="q-meta">
+                        <span>Pregunta ${index + 1}</span>
+                        <span>#${q.id}</span>
+                    </div>
+                    <div class="q-text">${q.q}</div>
+                `;
+
+                let options = q.o.map((text, i) => ({ text, originalIndex: i }));
+                options.sort(() => Math.random() - 0.5);
+
+                const optContainer = document.createElement('div');
+                
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'opt-btn';
+                    btn.innerText = opt.text;
+                    btn.onclick = () => handleAnswer(index, opt.originalIndex, btn, options, q.c);
+                    optContainer.appendChild(btn);
+                });
+                card.appendChild(optContainer);
+
+                const fb = document.createElement('div');
+                fb.className = 'feedback';
+                fb.id = `fb-${index}`;
+                fb.innerHTML = `<strong>Respuesta Correcta:</strong> ${q.o[q.c]}`;
+                card.appendChild(fb);
+
+                const tools = document.createElement('div');
+                tools.className = 'tools';
+                tools.innerHTML = `
+                    <label class="mark-label">
+                        <input type="checkbox" onchange="toggleMark(${index}, this.checked)">
+                        Marcar para revisar
+                    </label>
+                `;
+                card.appendChild(tools);
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleAnswer(qIndex, selectedOriginalIndex, btnElement, shuffledOptions, correctIndex) {
+            if (userState[qIndex] && userState[qIndex].answered) return;
+
+            const isCorrect = selectedOriginalIndex === correctIndex;
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].answered = true;
+            userState[qIndex].correct = isCorrect;
+
+            if (isCorrect) {
+                btnElement.classList.add('correct');
+            } else {
+                btnElement.classList.add('wrong');
+                const siblings = btnElement.parentElement.children;
+                for (let sib of siblings) {
+                    if (sib.innerText === fullDB.find(x => x.id === currentQuestions[qIndex].id).o[correctIndex]) {
+                        sib.classList.add('correct');
+                    }
+                }
+            }
+
+            const siblings = btnElement.parentElement.children;
+            for (let sib of siblings) sib.disabled = true;
+
+            document.getElementById(`fb-${qIndex}`).style.display = 'block';
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            navBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+            updateProgress();
+        }
+
+        function toggleMark(qIndex, isChecked) {
+            if (!userState[qIndex]) userState[qIndex] = {};
+            userState[qIndex].marked = isChecked;
+            const navBtn = document.getElementById(`nav-${qIndex}`);
+            if (isChecked) navBtn.classList.add('marked');
+            else navBtn.classList.remove('marked');
+        }
+
+        function scrollToQ(index) {
+            document.getElementById(`card-${index}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.querySelectorAll('.q-card').forEach(c => c.classList.remove('current'));
+            document.getElementById(`card-${index}`).classList.add('current');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`nav-${index}`).classList.add('active');
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.values(userState).filter(s => s.answered).length;
+            document.getElementById('prog-text').innerText = `${answeredCount} / ${currentQuestions.length}`;
+        }
+
+        function finish() {
+            clearInterval(timerInterval);
+            let correct = 0, wrong = 0, marked = 0;
+            
+            currentQuestions.forEach((q, i) => {
+                const s = userState[i];
+                if (s) {
+                    if (s.answered) {
+                        if (s.correct) correct++; else wrong++;
+                    }
+                    if (s.marked) marked++;
+                }
+            });
+
+            const score = Math.round((correct / currentQuestions.length) * 100);
+            document.getElementById('score').innerText = score + "%";
+            document.getElementById('r-ok').innerText = correct;
+            document.getElementById('r-ko').innerText = wrong;
+            document.getElementById('r-mk').innerText = marked;
+            document.getElementById('result-screen').style.display = 'flex';
+        }
+
+        function retry(mode) {
+            let nextQuestions = [];
+
+            if (mode === 'all') {
+                nextQuestions = JSON.parse(JSON.stringify(fullDB));
+            } else {
+                nextQuestions = currentQuestions.filter((q, i) => {
+                    const s = userState[i];
+                    if (!s) return false;
+                    if (mode === 'failed') return s.answered && !s.correct;
+                    if (mode === 'marked') return s.marked;
+                    if (mode === 'failed_marked') return (s.answered && !s.correct) || s.marked;
+                    return false;
+                });
+            }
+
+            if (nextQuestions.length === 0) {
+                alert("No hay preguntas para esta selección.");
+                return;
+            }
+
+            currentQuestions = nextQuestions;
+            userState = {};
+            seconds = 0;
+            document.getElementById('timer').innerText = "00:00";
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none';
+            renderSidebar();
+            renderQuestions();
+            if (document.getElementById('timer-check').checked) {
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    let s = (seconds % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

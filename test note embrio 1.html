@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Embriología y Gametogénesis</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        /* Sidebar Navigation */
+        #sidebar {
+            width: 260px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ccc;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        #sidebar-header {
+            padding: 15px;
+            background-color: #1a252f;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #question-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            align-content: start;
+        }
+
+        .nav-btn {
+            aspect-ratio: 1;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .nav-btn:hover { background-color: rgba(255,255,255,0.3); }
+        .nav-btn.active { border: 2px solid white; font-weight: bold; }
+        .nav-btn.correct { background-color: var(--success); }
+        .nav-btn.incorrect { background-color: var(--danger); }
+        .nav-btn.marked::after {
+            content: '★';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            color: var(--warning);
+            font-size: 10px;
+            text-shadow: 0 0 2px black;
+        }
+
+        /* Main Content */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        #toolbar {
+            padding: 10px 20px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-warning { background-color: var(--warning); color: #333; }
+        .btn-outline { border: 1px solid #ccc; background: white; }
+
+        #quiz-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            width: 90%;
+        }
+
+        .question-text {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .option-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .option-item:hover:not(.disabled) { background-color: #e2e6ea; }
+        
+        .option-item.correct {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .option-item.wrong {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .explanation-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4fc;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+        }
+
+        /* Screens */
+        .screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 10px;
+            min-width: 200px;
+        }
+
+        .block-title {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 60px; flex-direction: row; border-right: none; border-bottom: 1px solid #ccc; }
+            #question-nav { display: flex; flex-direction: row; overflow-x: auto; padding: 10px; }
+            .nav-btn { min-width: 40px; margin-right: 5px; }
+            #sidebar-header { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen">
+        <h1>Quiz de Embriología</h1>
+        <p>100 Preguntas - Mecanismos, Gametogénesis y Desarrollo Temprano</p>
+        <div style="margin-top: 30px;">
+            <h3>¿Cómo quieres realizar el cuestionario?</h3>
+            <div style="display: flex; gap: 20px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="startQuiz('ordered')">Orden Preestablecido</button>
+                <button class="btn btn-warning" onclick="startQuiz('random')">Preguntas Aleatorias</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="end-screen" class="screen hidden">
+        <h1>Resultados Finales</h1>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+            <div class="stat-card">
+                <h3>Aciertos</h3>
+                <h2 id="score-correct" style="color: var(--success)">0</h2>
+            </div>
+            <div class="stat-card">
+                <h3>Fallos</h3>
+                <h2 id="score-wrong" style="color: var(--danger)">0</h2>
+            </div>
+            <div class="stat-card">
+                <h3>Pendientes</h3>
+                <h2 id="score-pending">0</h2>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; display: grid; gap: 10px;">
+            <button class="btn btn-primary" onclick="retry('all')">Repetir Completo</button>
+            <button class="btn btn-danger" onclick="retry('failed')">Repetir Solo Falladas</button>
+            <button class="btn btn-warning" onclick="retry('marked')">Repetir Solo Marcadas</button>
+            <button class="btn btn-outline" onclick="retry('failed_marked')">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div id="sidebar-header">
+            Índice de Preguntas
+        </div>
+        <div id="question-nav">
+            </div>
+    </div>
+
+    <div id="main">
+        <div id="toolbar">
+            <div>
+                <span id="progress-text">Pregunta 1 de 100</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="mark-btn" class="btn btn-outline" onclick="toggleMark()">☆ Marcar</button>
+                <button class="btn btn-danger" onclick="finishQuiz()">Finalizar Test</button>
+            </div>
+        </div>
+
+        <div id="quiz-container">
+            <div id="block-indicator" class="block-title">BLOQUE I</div>
+            <h2 id="question-text" class="question-text">Cargando...</h2>
+            <ul id="options-container" class="options-list">
+                </ul>
+            
+            <div id="explanation" class="explanation-box">
+                <strong>Corrección:</strong> <span id="explanation-text"></span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                <button class="btn btn-outline" onclick="prevQuestion()">Anterior</button>
+                <button class="btn btn-primary" onclick="nextQuestion()">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- DATABASE ---
+    // Transcripción literal de las 100 preguntas
+    const sourceData = [
+        {
+            block: "BLOQUE I: GENERALIDADES Y GAMETOGÉNESIS (MECANISMOS)",
+            q: "¿Cuál es el objetivo biológico fundamental de la meiosis durante la gametogénesis?",
+            options: ["Aumentar el tamaño celular.", "Reducir la dotación cromosómica de diploide a haploide.", "Producir células genéticamente idénticas.", "Reparar tejidos dañados."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE I",
+            q: "En la primera división meiótica (reduccional), ¿qué evento crucial ocurre durante la profase para asegurar la variabilidad genética?",
+            options: ["La duplicación del ADN.", "La separación de cromátidas hermanas.", "El crossing-over o entrecruzamiento entre cromosomas homólogos.", "La formación del acrosoma."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE I",
+            q: "Tras la primera división meiótica, ¿cómo son las células resultantes?",
+            options: ["Diploides con cromosomas simples.", "Haploides con cromosomas de dos cromátidas (duplicados).", "Haploides con cromosomas de una cromátida.", "Diploides con cromosomas duplicados."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE I",
+            q: "¿Dónde se originan inicialmente las células germinales primordiales (gonocitos) antes de migrar a las gónadas?",
+            options: ["En la pared del saco vitelino.", "En el epiblasto.", "En la cresta genital.", "En el amnios."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE I",
+            q: "¿En qué día aproximado aparecen los gonocitos primordiales en la pared del saco vitelino?",
+            options: ["Día 14.", "Día 24 (inicio de la 4ª semana).", "Día 7.", "Día 40."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II: ESPERMATOGÉNESIS",
+            q: "¿Cuál es la temperatura ideal para que se produzca la espermatogénesis en el escroto?",
+            options: ["37°C.", "35°C (inferior a la abdominal).", "39°C.", "La temperatura es indiferente."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Qué función NO corresponde a las Células de Sertoli?",
+            options: ["Formar la barrera hemato-testicular.", "Producir testosterona.", "Fagocitar restos citoplasmáticos (cuerpos residuales).", "Nutrir a las células germinales."],
+            correct: 1, // b
+            expl: "Respuesta correcta: b (La producen las de Leydig)"
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Qué hormona inhibe la producción de FSH actuando sobre la hipófisis (control negativo desde Sertoli)?",
+            options: ["Testosterona.", "Activina.", "Inhibina.", "LH."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Cuándo comienza la espermatogénesis de forma continua?",
+            options: ["En la vida fetal.", "Al nacer.", "En la pubertad.", "A los 30 años."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE II",
+            q: "El proceso de transformación morfológica de espermátida a espermatozoide sin división celular se llama:",
+            options: ["Espermatocitogénesis.", "Espermiogénesis.", "Meiosis II.", "Capacitación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Qué orgánulo da origen al acrosoma del espermatozoide?",
+            options: ["Mitocondrias.", "Aparato de Golgi.", "Retículo endoplasmático liso.", "Centriolo."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Dónde se ubican las mitocondrias en el espermatozoide maduro?",
+            options: ["En la cabeza, dentro del núcleo.", "En el acrosoma.", "En la pieza intermedia de la cola.", "En la pieza terminal."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE II",
+            q: "Según los audios, ¿cuál es el límite mínimo actual de concentración de espermatozoides para considerar fértil una muestra?",
+            options: ["5 millones/ml.", "15 millones/ml.", "50 millones/ml.", "100 millones/ml."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Cuál es la dotación cromosómica de un espermatozoide normal?",
+            options: ["46, XY.", "23, X o 23, Y.", "46, XX.", "23, YY."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE II",
+            q: "¿Qué célula de la línea germinal masculina realiza la primera división meiótica (la fase más larga)?",
+            options: ["Espermatogonia B.", "Espermatocito primario (I).", "Espermatocito secundario (II).", "Espermátida."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III: OVOGÉNESIS",
+            q: "¿En qué fase se detienen los ovocitos primarios durante la vida fetal hasta la pubertad?",
+            options: ["Metafase II.", "Profase I (Diploteno).", "Anafase I.", "Telofase II."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿Cuántos ovocitos primarios tiene aproximadamente una niña al nacer?",
+            options: ["7 millones.", "1-2 millones.", "400.000.", "500."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿Qué estructura rodea al ovocito y está formada por glucoproteínas?",
+            options: ["Teca interna.", "Corona radiada.", "Zona pelúcida.", "Membrana de Heuser."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿Qué evento desencadena la finalización de la primera división meiótica en el ovocito?",
+            options: ["La fecundación.", "El pico de LH justo antes de la ovulación.", "El nacimiento.", "La menstruación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "El producto de la primera división meiótica en la mujer es:",
+            options: ["Dos ovocitos secundarios iguales.", "Un ovocito secundario y el primer corpúsculo polar.", "Un óvulo maduro y un segundo corpúsculo polar.", "Cuatro ovocitos funcionales."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿En qué fase se detiene el ovocito secundario antes de ser ovulado?",
+            options: ["Profase I.", "Metafase II.", "Telofase I.", "Profase II."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿Qué condición es indispensable para que el ovocito termine la meiosis II?",
+            options: ["La ovulación.", "La fecundación.", "La implantación.", "La menstruación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "El folículo que presenta un gran antro lleno de líquido y está listo para ovular se llama:",
+            options: ["Folículo primordial.", "Folículo primario.", "Folículo de Graaf (o maduro).", "Folículo atrésico."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE III",
+            q: "¿Qué diferencia fundamental destaca el audio entre la producción de gametos masculina y femenina?",
+            options: ["La femenina es continua y la masculina cíclica.", "La masculina es masiva y continua; la femenina es limitada, cíclica y discontinua.", "La masculina produce 1 gameto por célula madre y la femenina 4.", "No hay diferencias significativas."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE III",
+            q: "En la menopausia, la producción de gametos cesa porque:",
+            options: ["El útero se atrofia.", "Se agota la reserva de folículos ováricos.", "La hipófisis deja de funcionar.", "Las trompas se obstruyen."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IV: CICLOS SEXUALES (OVÁRICO Y UTERINO)",
+            q: "¿Qué hormona induce la ovulación a mitad del ciclo (aprox. día 14)?",
+            options: ["FSH.", "Estrógeno.", "LH (Hormona Luteinizante).", "Progesterona."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE IV",
+            q: "Tras la ovulación, el folículo roto se transforma en:",
+            options: ["Cuerpo albicans.", "Cuerpo lúteo (o amarillo).", "Folículo atrésico.", "Quiste ovárico."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IV",
+            q: "¿Qué hormona secreta principalmente el cuerpo lúteo para preparar el endometrio?",
+            options: ["FSH.", "Progesterona (y estrógenos).", "HCG.", "Prolactina."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IV",
+            q: "¿Qué fase del ciclo uterino coincide con la fase lútea del ovario?",
+            options: ["Fase menstrual.", "Fase proliferativa.", "Fase secretora (o progestacional).", "Fase folicular."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE IV",
+            q: "Si no hay fecundación, el cuerpo lúteo degenera y se convierte en:",
+            options: ["Cuerpo lúteo del embarazo.", "Cuerpo albicans (cuerpo blanco).", "Folículo primordial.", "Folículo de Graaf."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IV",
+            q: "La fase proliferativa del endometrio es estimulada principalmente por:",
+            options: ["Progesterona.", "Estrógenos.", "LH.", "HCG."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IV",
+            q: "¿Qué característica definitoria tiene el moco cervical durante la ovulación según el audio?",
+            options: ["Es espeso y ácido.", "Es fluido, filante y alcalino (facilita el paso de espermatozoides).", "Es escaso y seco.", "Contiene sangre."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V: FECUNDACIÓN",
+            q: "¿Dónde ocurre normalmente la fecundación?",
+            options: ["En el útero.", "En el tercio externo (ampolla) de la trompa uterina.", "En el ovario.", "En la vagina."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V",
+            q: "El proceso mediante el cual el espermatozoide adquiere la capacidad de fecundar dentro del tracto femenino se llama:",
+            options: ["Espermiogénesis.", "Reacción acrosómica.", "Capacitación.", "Segmentación."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Qué enzima del acrosoma es fundamental para atravesar la zona pelúcida?",
+            options: ["Hialuronidasa.", "Acrosina.", "Tripsina.", "Amilasa."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Qué mecanismo evita la poliespermia (entrada de más de un espermatozoide)?",
+            options: ["La reacción cortical y de zona (modificación de la zona pelúcida).", "La muerte rápida de los espermatozoides.", "El cierre del cuello uterino.", "La contracción de la trompa."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Cuál es el resultado inmediato de la fecundación?",
+            options: ["Un blastocisto.", "Un cigoto (huevo fecundado) diploide.", "Una mórula.", "Un feto."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Quién determina el sexo cromosómico del nuevo individuo?",
+            options: ["El ovocito.", "El espermatozoide (si lleva X o Y).", "El ambiente uterino.", "La fecha de la fecundación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Qué ocurre con el ovocito inmediatamente después de la entrada del espermatozoide?",
+            options: ["Se implanta.", "Termina la segunda división meiótica y expulsa el 2º corpúsculo polar.", "Comienza a dividirse por mitosis.", "Pierde la zona pelúcida."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE V",
+            q: "¿Cuánto tiempo sobreviven aproximadamente los espermatozoides en el tracto femenino?",
+            options: ["1 hora.", "Hasta 3-5 días (aunque el ovocito solo es viable 24h).", "2 semanas.", "10 minutos."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI: PRIMERA SEMANA DEL DESARROLLO",
+            q: "El proceso de divisiones mitóticas rápidas del cigoto sin aumento de tamaño total se llama:",
+            options: ["Gastrulación.", "Segmentación.", "Neurulación.", "Organogénesis."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "Las células resultantes de la segmentación se denominan:",
+            options: ["Gametos.", "Blastómeras.", "Somitas.", "Folículos."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "Cuando el embrión es una masa compacta de unas 16 células (aprox. día 3-4), recibe el nombre de:",
+            options: ["Cigoto.", "Mórula.", "Blastocisto.", "Gástrula."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "¿Qué estructura se forma cuando entra líquido en la mórula y desplaza las células?",
+            options: ["El blastocisto.", "El saco vitelino.", "El amnios.", "La placa neural."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE VI",
+            q: "En el blastocisto, la masa celular externa (trofoblasto) dará lugar a:",
+            options: ["El embrión propiamente dicho.", "La placenta y anexos.", "El sistema nervioso.", "El saco vitelino."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "En el blastocisto, la masa celular interna se denomina:",
+            options: ["Trofoblasto.", "Embrioblasto.", "Blastocele.", "Decidua."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "¿Qué debe ocurrirle al blastocisto para poder implantarse en el útero?",
+            options: ["Debe crecer mucho de tamaño.", "Debe perder la zona pelúcida (eclosión).", "Debe dividirse en dos.", "Debe entrar en meiosis."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VI",
+            q: "¿En qué día aproximado comienza la implantación del blastocisto en el útero?",
+            options: ["Día 1 post-fecundación.", "Día 3 post-fecundación.", "Día 6-7 post-fecundación.", "Día 14 post-fecundación."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE VI",
+            q: "¿En qué fase debe estar el útero para recibir al blastocisto (ventana de implantación)?",
+            options: ["Fase proliferativa.", "Fase menstrual.", "Fase secretora.", "Fase isquémica."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE VI",
+            q: "El lugar normal de implantación es:",
+            options: ["El cuello uterino (cérvix).", "La pared anterior o posterior del fondo/cuerpo uterino.", "La trompa de Falopio.", "El ovario."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII: AUDIOS Y DETALLES 'DE EXAMEN'",
+            q: "Según el audio, ¿cuál es la diferencia entre edad gestacional (clínica) y edad embrionaria?",
+            options: ["Son iguales.", "La gestacional tiene 2 semanas más (se cuenta desde la última regla).", "La embrionaria tiene 2 semanas más.", "La gestacional se cuenta desde la implantación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "¿Qué porcentaje aproximado de fecundaciones NO llega a término (abortos espontáneos precoces) según los audios?",
+            options: ["10%.", "50%.", "90%.", "5%."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "El audio menciona un fármaco histórico que causaba focomelia (malformación de extremidades). ¿Cuál es?",
+            options: ["Aspirina.", "Talidomida.", "Penicilina.", "Paracetamol."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "Según la profesora, ¿qué estructura del blastocisto contribuye a formar la placenta?",
+            options: ["El embrioblasto.", "El trofoblasto.", "El blastocele.", "La zona pelúcida."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "¿Qué fenómeno permite el avance del embrión por la trompa hacia el útero según el audio?",
+            options: ["Solo la gravedad.", "El movimiento de los cilios tubáricos y la contracción muscular.", "La movilidad propia del embrión.", "La atracción magnética."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "En la fecundación in vitro (FIV), si los espermatozoides no tienen movilidad, ¿qué técnica avanzada se usa (mencionada en audio)?",
+            options: ["Inseminación artificial.", "ICSI (Inyección Intracitoplasmática de Espermatozoides).", "Clonación.", "Congelación de óvulos."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "¿Qué molécula de la zona pelúcida actúa como barrera específica de especie para los espermatozoides?",
+            options: ["Glucoproteínas (ZP).", "Lípidos.", "Colágeno.", "ADN."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE VII",
+            q: "El audio destaca que el tamaño global del cigoto durante la segmentación:",
+            options: ["Aumenta rápidamente.", "Se mantiene constante (las células se hacen más pequeñas).", "Disminuye a la mitad.", "Se duplica cada 24 horas."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "¿Qué nombre recibe la cavidad llena de líquido dentro del blastocisto?",
+            options: ["Saco amniótico.", "Blastocele.", "Celoma extraembrionario.", "Antro folicular."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VII",
+            q: "El término 'polo embrionario' del blastocisto se refiere a:",
+            options: ["El lado opuesto a la masa celular interna.", "El lugar donde se ubica el embrioblasto y por donde se implanta.", "La zona pelúcida.", "El trofoblasto mural."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII: PATOLOGÍA Y ANEXOS (BASADO EN TEXTOS Y AUDIOS)",
+            q: "Si el blastocisto se implanta fuera del útero (ej. en la trompa), se denomina:",
+            options: ["Embarazo molar.", "Embarazo ectópico.", "Placenta previa.", "Aborto diferido."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "¿Qué capa del útero se desprende durante la menstruación?",
+            options: ["Miometrio.", "Capa funcional del endometrio.", "Capa basal del endometrio.", "Perimetrio."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "La hormona HCG (Gonadotropina Coriónica) es producida por:",
+            options: ["El ovario.", "El trofoblasto (sincitiotrofoblasto) del embrión implantado.", "La hipófisis.", "El cuerpo lúteo."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "¿Cuál es la función principal de la HCG en las primeras semanas?",
+            options: ["Inducir el parto.", "Mantener el cuerpo lúteo para que siga produciendo progesterona.", "Provocar la menstruación.", "Diferenciar el sexo del embrión."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "¿Qué estructura embrionaria impide la poliespermia tras la entrada del primer espermatozoide?",
+            options: ["El núcleo del ovocito.", "La zona pelúcida (reacción de zona).", "La corona radiada.", "El citoplasma del espermatozoide."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "Una implantación muy baja en el útero, cerca del cuello (cérvix), puede provocar:",
+            options: ["Placenta previa.", "Embarazo tubárico.", "Mola hidatidiforme.", "Endometriosis."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "¿Qué son los teratógenos?",
+            options: ["Nutrientes esenciales para el feto.", "Agentes capaces de causar defectos congénitos (ej. talidomida, virus, radiación).", "Genes que determinan el color de ojos.", "Células del sistema inmune."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "La 'reacción decidual' en el endometrio consiste en:",
+            options: ["La destrucción del tejido uterino.", "La acumulación de glucógeno y lípidos en las células del estroma para nutrir al embrión.", "La contracción del músculo liso.", "La formación de la placenta fetal."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "¿Qué estructura del espermatozoide contiene enzimas hidrolíticas?",
+            options: ["El flagelo.", "El núcleo.", "El acrosoma.", "Las mitocondrias."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE VIII",
+            q: "La capacitación del espermatozoide implica:",
+            options: ["Un cambio en su ADN.", "La eliminación de una capa de glucoproteínas de su superficie.", "El aumento de tamaño de la cabeza.", "La pérdida de la cola."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX: REPASO RÁPIDO (VERDADERO/FALSO TIPO TEST)",
+            q: "El ovocito ovulado es un ovocito primario.",
+            options: ["Verdadero.", "Falso (es secundario)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "La fecundación restablece el número diploide de cromosomas (46 en humanos).",
+            options: ["Verdadero.", "Falso."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE IX",
+            q: "El blastocisto se implanta por su polo abembrionario.",
+            options: ["Verdadero.", "Falso (por el polo embrionario)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "La zona pelúcida desaparece justo antes de la implantación.",
+            options: ["Verdadero (eclosión).", "Falso."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE IX",
+            q: "Las espermatogonias se dividen por meiosis.",
+            options: ["Verdadero.", "Falso (se dividen por mitosis; la meiosis la inician los espermatocitos I)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "El cuerpo lúteo degenera si hay embarazo.",
+            options: ["Verdadero.", "Falso (se mantiene gracias a la HCG)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "La fase secretora del útero es constante y dura siempre 14 días.",
+            options: ["Verdadero.", "Falso (es la que suele ser más constante, pero puede variar)."],
+            correct: 0, // a
+            expl: "Respuesta correcta: a (según dogma clásico). Nota: En contexto de examen básico, se suele decir que la fase lútea/secretora es la fija de 14 días. La que es variable es la proliferativa."
+        },
+        {
+            block: "BLOQUE IX",
+            q: "Los gemelos monocigóticos siempre comparten placenta.",
+            options: ["Verdadero.", "Falso (depende del momento de la división)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "La segmentación aumenta el tamaño total del embrión.",
+            options: ["Verdadero.", "Falso (aumenta el número de células, no el tamaño)."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE IX",
+            q: "Las células de la mórula son totipotentes.",
+            options: ["Verdadero.", "Falso."],
+            correct: 0, // a
+            expl: "Respuesta correcta: a (hasta cierto punto antes de la compactación)"
+        },
+        {
+            block: "BLOQUE X: PREGUNTAS CLÍNICAS Y DE APLICACIÓN",
+            q: "Una mujer con ciclos regulares de 28 días ovula aproximadamente el día:",
+            options: ["1.", "7.", "14.", "21."],
+            correct: 2 // c
+        },
+        {
+            block: "BLOQUE X",
+            q: "Si un test de embarazo da positivo en la semana 3 del ciclo (antes de la falta), es:",
+            options: ["Posible y normal.", "Imposible, la HCG no se produce hasta la implantación (final semana 3/inicio 4 desde FUR).", "Indicativo de gemelos.", "Error de laboratorio."],
+            correct: 1, // b
+            expl: "Respuesta correcta: b (La HCG empieza a segregarse tras la implantación, detectable en sangre hacia el día 8-9 post-fecundación, o sea, día 22-23 del ciclo)."
+        },
+        {
+            block: "BLOQUE X",
+            q: "La causa más frecuente de abortos espontáneos en las primeras semanas es:",
+            options: ["Traumatismos.", "Anomalías cromosómicas en el embrión.", "Estrés materno.", "Dieta pobre."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE X",
+            q: "¿Qué estructura fetal primitiva secreta la HCG que detecta el test de embarazo?",
+            options: ["El saco vitelino.", "El sincitiotrofoblasto.", "El ectodermo.", "La notocorda."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE X",
+            q: "La 'fase de ventana' para la implantación ocurre:",
+            options: ["Inmediatamente tras la ovulación.", "Unos 6-7 días tras la ovulación.", "Durante la menstruación.", "Justo antes de la siguiente ovulación."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE X",
+            q: "¿Qué nombre recibe el dolor abdominal leve que algunas mujeres sienten durante la ovulación?",
+            options: ["Dismenorrea.", "Mittelschmerz.", "Gastritis.", "Apendicitis."],
+            correct: 1, // b
+            expl: "Respuesta correcta: b (Concepto general asociado a la rotura folicular)"
+        },
+        {
+            block: "BLOQUE X",
+            q: "¿Cuál de las siguientes células es HAPLOIDE?",
+            options: ["Espermatogonia.", "Espermatocito primario.", "Ovocito primario.", "Espermatozoide."],
+            correct: 3 // d
+        },
+        {
+            block: "BLOQUE X",
+            q: "¿Cuál de las siguientes células es DIPLOIDE?",
+            options: ["Espermátida.", "Cigoto.", "Corpúsculo polar.", "Ovocito secundario."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE X",
+            q: "El acrosoma es equivalente funcionalmente a:",
+            options: ["Una mitocondria.", "Un lisosoma.", "Un ribosoma.", "Un núcleo."],
+            correct: 1, // b
+            expl: "Respuesta correcta: b (contiene enzimas hidrolíticas)"
+        },
+        {
+            block: "BLOQUE X",
+            q: "La corona radiada está formada por células de:",
+            options: ["El estroma ovárico.", "La granulosa (foliculares).", "La teca externa.", "El epitelio germinal."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI: DEFINICIONES FINALES",
+            q: "¿Qué es la espermiación?",
+            options: ["La división de espermatocitos.", "La liberación de espermatozoides a la luz del túbulo seminífero.", "La entrada del espermatozoide en el óvulo.", "La degeneración de espermatozoides."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es la atresia folicular?",
+            options: ["La ovulación exitosa.", "La degeneración y muerte de los folículos que no ovulan.", "La formación del cuerpo lúteo.", "La fecundación múltiple."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es el pronúcleo?",
+            options: ["El núcleo de los gametos antes de fusionarse en el cigoto.", "El núcleo del cigoto ya fusionado.", "Un núcleo degenerado.", "El núcleo de una célula somática."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es la singamia?",
+            options: ["La entrada del espermatozoide.", "La fusión de los pronúcleos masculino y femenino.", "La división del cigoto.", "La muerte del óvulo."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es el blastocele?",
+            options: ["La cavidad llena de líquido del blastocisto.", "La capa externa del blastocisto.", "La masa celular interna.", "El útero."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es el trofoblasto?",
+            options: ["La capa interna del blastocisto.", "La capa celular externa del blastocisto que formará la placenta.", "El embrión.", "La cavidad amniótica."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es el embrioblasto?",
+            options: ["La masa celular interna que dará lugar al embrión.", "La placenta.", "El líquido amniótico.", "La pared del útero."],
+            correct: 0 // a
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué es la implantación ectópica?",
+            options: ["Implantación en el fondo uterino.", "Implantación fuera del útero (ej. trompas).", "Implantación múltiple.", "Implantación fallida."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Qué diferencia hay entre espermátida y espermatozoide?",
+            options: ["La espermátida es diploide y el espermatozoide haploide.", "La espermátida es redonda y el espermatozoide tiene cola (diferenciación morfológica).", "No hay diferencia.", "La espermátida es femenina."],
+            correct: 1 // b
+        },
+        {
+            block: "BLOQUE XI",
+            q: "¿Cuál es el evento principal de la primera semana del desarrollo?",
+            options: ["La gastrulación.", "La formación del tubo neural.", "La segmentación y formación del blastocisto.", "El plegamiento del embrión."],
+            correct: 2 // c
+        }
+    ];
+
+    // --- STATE MANAGEMENT ---
+    let currentQuiz = [];
+    let currentIndex = 0;
+    let userState = {}; // { questionIndex: { status: 'unanswered'|'correct'|'wrong', marked: bool } }
+
+    // --- UTILS ---
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // --- INIT ---
+    function initQuiz(mode, filter = null) {
+        // Reset state
+        currentIndex = 0;
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+        
+        let questionsToLoad = [];
+
+        if (filter === 'failed') {
+            questionsToLoad = sourceData.filter((_, i) => userState[i] && userState[i].status === 'wrong');
+        } else if (filter === 'marked') {
+            questionsToLoad = sourceData.filter((_, i) => userState[i] && userState[i].marked);
+        } else if (filter === 'failed_marked') {
+            questionsToLoad = sourceData.filter((_, i) => (userState[i] && userState[i].status === 'wrong') || (userState[i] && userState[i].marked));
+        } else {
+            // New complete start
+            questionsToLoad = [...sourceData];
+            userState = {}; // Reset tracking only on full restart
+            questionsToLoad.forEach((_, i) => {
+                userState[i] = { status: 'unanswered', marked: false, originalIndex: i };
+            });
+        }
+
+        // Map internal structure
+        // We need to keep track of the original index to update global userState
+        currentQuiz = questionsToLoad.map(q => {
+            // Find original index if we are filtering, or use current index if fresh
+            let originalIdx = -1;
+            if(filter) {
+                // simple search as references are consistent
+               originalIdx = sourceData.indexOf(q); 
+            } else {
+               originalIdx = sourceData.indexOf(q);
+            }
+            
+            // Prepare options (shuffle them)
+            let ops = q.options.map((text, i) => ({ text, isCorrect: i === q.correct }));
+            shuffleArray(ops);
+
+            return {
+                originalIndex: originalIdx,
+                data: q,
+                shuffledOptions: ops
+            };
+        });
+
+        if (mode === 'random') {
+            shuffleArray(currentQuiz);
+        }
+
+        if (currentQuiz.length === 0) {
+            alert("No hay preguntas que cumplan con ese criterio.");
+            document.getElementById('end-screen').classList.remove('hidden');
+            return;
+        }
+
+        renderSidebar();
+        loadQuestion();
+    }
+
+    function startQuiz(mode) {
+        initQuiz(mode);
+    }
+
+    function retry(type) {
+        // Keep the current marked/status state for filtering, but reset answers for the new session?
+        // User requirements: "repetir solo las falladas". Usually implies re-answering them.
+        
+        // If we are retrying, we must reset the 'status' of the selected questions to 'unanswered' 
+        // BUT we need to know which ones to pick first.
+        
+        let filter = type === 'all' ? null : type;
+        
+        // Reset status for the filtered questions so they can be answered again
+        if (filter === 'failed') {
+            for(let k in userState) if(userState[k].status === 'wrong') userState[k].status = 'unanswered';
+        } else if (filter === 'marked') {
+            // Usually we keep marks, but reset status
+            for(let k in userState) if(userState[k].marked) userState[k].status = 'unanswered';
+        } else if (filter === 'failed_marked') {
+            for(let k in userState) if(userState[k].marked || userState[k].status === 'wrong') userState[k].status = 'unanswered';
+        } else {
+            // Full reset handled in init
+        }
+
+        // For retries, we usually keep sequential order to make sense of the subset, 
+        // but let's just use sequential by default for subsets.
+        initQuiz('ordered', filter);
+    }
+
+    function finishQuiz() {
+        // Calculate stats
+        let correct = 0, wrong = 0, pending = 0;
+        // We calculate based on the GLOBAL sourceData state
+        for (let i = 0; i < sourceData.length; i++) {
+            if (!userState[i]) { pending++; continue; }
+            if (userState[i].status === 'correct') correct++;
+            else if (userState[i].status === 'wrong') wrong++;
+            else pending++;
+        }
+
+        document.getElementById('score-correct').innerText = correct;
+        document.getElementById('score-wrong').innerText = wrong;
+        document.getElementById('score-pending').innerText = pending;
+
+        document.getElementById('end-screen').classList.remove('hidden');
+    }
+
+    // --- RENDERING ---
+    function renderSidebar() {
+        const nav = document.getElementById('question-nav');
+        nav.innerHTML = '';
+        currentQuiz.forEach((qObj, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.innerText = index + 1;
+            
+            const globalState = userState[qObj.originalIndex];
+            if (globalState.status === 'correct') btn.classList.add('correct');
+            if (globalState.status === 'wrong') btn.classList.add('incorrect');
+            if (globalState.marked) btn.classList.add('marked');
+            
+            btn.onclick = () => {
+                currentIndex = index;
+                loadQuestion();
+            };
+            nav.appendChild(btn);
+        });
+    }
+
+    function updateSidebarItem(index) {
+        const nav = document.getElementById('question-nav');
+        const btn = nav.children[index];
+        const qObj = currentQuiz[index];
+        const globalState = userState[qObj.originalIndex];
+
+        btn.className = 'nav-btn'; // reset
+        if (index === currentIndex) btn.classList.add('active');
+        if (globalState.status === 'correct') btn.classList.add('correct');
+        if (globalState.status === 'wrong') btn.classList.add('incorrect');
+        if (globalState.marked) btn.classList.add('marked');
+    }
+
+    function loadQuestion() {
+        const qObj = currentQuiz[currentIndex];
+        const globalState = userState[qObj.originalIndex];
+
+        // Update UI Text
+        document.getElementById('block-indicator').innerText = qObj.data.block;
+        document.getElementById('question-text').innerText = `${currentIndex + 1}. ${qObj.data.q}`;
+        document.getElementById('progress-text').innerText = `Pregunta ${currentIndex + 1} de ${currentQuiz.length}`;
+
+        // Update Mark Button
+        const markBtn = document.getElementById('mark-btn');
+        markBtn.innerText = globalState.marked ? "★ Marcada" : "☆ Marcar";
+        markBtn.className = globalState.marked ? "btn btn-warning" : "btn btn-outline";
+
+        // Render Options
+        const list = document.getElementById('options-container');
+        list.innerHTML = '';
+        document.getElementById('explanation').style.display = 'none';
+
+        const isAnswered = globalState.status !== 'unanswered';
+
+        qObj.shuffledOptions.forEach(opt => {
+            const li = document.createElement('li');
+            li.className = 'option-item';
+            li.innerText = opt.text;
+            
+            if (isAnswered) {
+                li.classList.add('disabled');
+                if (opt.isCorrect) li.classList.add('correct');
+                // Use a visual marker for selected wrong answer if we stored specific selection (simplified here to just show correct/wrong state)
+            } else {
+                li.onclick = () => handleAnswer(opt, li);
+            }
+            list.appendChild(li);
+        });
+
+        // Update Sidebar Highlight
+        Array.from(document.getElementById('question-nav').children).forEach(b => b.classList.remove('active'));
+        document.getElementById('question-nav').children[currentIndex].classList.add('active');
+        
+        // Show explanation if answered
+        if (isAnswered) {
+             showExplanation(qObj.data);
+        }
+    }
+
+    function handleAnswer(selectedOpt, liElement) {
+        const qObj = currentQuiz[currentIndex];
+        const isCorrect = selectedOpt.isCorrect;
+
+        // Update State
+        userState[qObj.originalIndex].status = isCorrect ? 'correct' : 'wrong';
+
+        // Update UI Immediate
+        if (isCorrect) {
+            liElement.classList.add('correct');
+        } else {
+            liElement.classList.add('wrong');
+            // Show correct one
+            const allOpts = document.getElementById('options-container').children;
+            Array.from(allOpts).forEach((el, idx) => {
+                if (qObj.shuffledOptions[idx].isCorrect) el.classList.add('correct');
+            });
+        }
+
+        // Disable all clicks
+        const allOpts = document.getElementById('options-container').children;
+        Array.from(allOpts).forEach(el => el.classList.add('disabled'));
+
+        // Show Explanation
+        showExplanation(qObj.data);
+
+        // Update Sidebar
+        updateSidebarItem(currentIndex);
+    }
+
+    function showExplanation(data) {
+        const box = document.getElementById('explanation');
+        const text = document.getElementById('explanation-text');
+        
+        // Default explanation logic based on prompt data
+        let expl = data.expl;
+        if (!expl) {
+            // Construct generic explanation from correct letter
+            const letters = ['a', 'b', 'c', 'd'];
+            expl = `Respuesta correcta: ${letters[data.correct]}`;
+        }
+        
+        text.innerText = expl;
+        box.style.display = 'block';
+    }
+
+    function toggleMark() {
+        const qObj = currentQuiz[currentIndex];
+        const currentState = userState[qObj.originalIndex].marked;
+        userState[qObj.originalIndex].marked = !currentState;
+        loadQuestion(); // Re-render button
+        updateSidebarItem(currentIndex); // Update sidebar icon
+    }
+
+    function nextQuestion() {
+        if (currentIndex < currentQuiz.length - 1) {
+            currentIndex++;
+            loadQuestion();
+        }
+    }
+
+    function prevQuestion() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            loadQuestion();
+        }
+    }
+
+</script>
+</body>
+</html>

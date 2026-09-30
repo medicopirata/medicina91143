@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Embriología y Anatomía Humana</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            margin: 0;
+            display: flex;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            color: white;
+            z-index: 100;
+        }
+
+        .index-item {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 0.9em;
+            transition: 0.3s;
+        }
+
+        .index-item:hover { background: var(--secondary); }
+        .index-item.answered { border-left: 4px solid var(--success); }
+        .index-item.marked { background: var(--warning) !important; color: black; }
+
+        /* Contenido Principal */
+        #main-content {
+            margin-left: 80px;
+            flex-grow: 1;
+            padding: 20px;
+            max-width: 900px;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            scroll-margin-top: 120px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: var(--primary);
+        }
+
+        .mark-btn {
+            background: #eee;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: 0.2s;
+        }
+
+        .mark-btn.active {
+            background: var(--warning);
+            color: black;
+            font-weight: bold;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            border: 2px solid #edf2f7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .option:hover { background: #f8fafc; border-color: var(--secondary); }
+        .option.correct { background: #d4edda !important; border-color: var(--success) !important; font-weight: bold; }
+        .option.incorrect { background: #f8d7da !important; border-color: var(--error) !important; }
+        .option.disabled { pointer-events: none; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 5px solid var(--warning);
+            display: none;
+            font-size: 0.95em;
+            color: #856404;
+        }
+
+        /* Modales */
+        .modal {
+            position: fixed;
+            top:0; left:0; width: 100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 550px;
+            width: 90%;
+        }
+
+        button.main-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: 0.3s;
+        }
+
+        button.main-btn:hover { background: #2980b9; transform: translateY(-2px); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-modal" class="modal">
+        <div class="modal-content">
+            <h2>Configuración del Quiz</h2>
+            <p>Selecciona el orden de las preguntas para comenzar:</p>
+            <button class="main-btn" onclick="startQuiz(false)">Orden Preestablecido (1-40)</button>
+            <button class="main-btn" onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="main-content">
+        <header>
+            <h1 style="margin:0; color: var(--primary);">Embriología y Anatomía Humana</h1>
+            <p id="progress-bar" style="margin: 10px 0; color: #666;">Completa las preguntas para ver tu resultado.</p>
+            <button class="main-btn" style="padding: 8px 15px; font-size: 0.85em;" onclick="showResults()">Finalizar y Ver Opciones de Repaso</button>
+        </header>
+
+        <div id="quiz-container"></div>
+
+        <div id="results-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Cuestionario Finalizado</h2>
+                <div id="score-text" style="font-size: 1.4em; margin-bottom: 25px; color: var(--primary);"></div>
+                <p>¿Qué deseas hacer ahora?</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="main-btn" onclick="restart('all')">Repetir todo</button>
+                    <button class="main-btn" id="btn-failed" onclick="restart('failed')">Solo falladas</button>
+                    <button class="main-btn" id="btn-marked" onclick="restart('marked')">Solo marcadas</button>
+                    <button class="main-btn" id="btn-both" onclick="restart('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawQuestions = [
+            { id: 1, q: "Durante los días 23 a 28 de desarrollo embriológico, el tubo cardíaco comienza a doblarse formando el asa cardíaca. ¿En qué dirección exacta se desplaza la porción cefálica correspondiente al futuro ventrículo?", options: ["En dirección dorsal, craneal y hacia la izquierda.", "En dirección ventral, caudal y hacia la derecha.", "En dirección puramente transversal hacia la línea media.", "En dirección cefálica y dorsal, adosándose al tubo neural."], correct: 1, exp: "El profesor insiste en este movimiento espacial: el ventrículo cae hacia adelante (ventral), abajo (caudal) y a la derecha, mientras la aurícula hace lo contrario (dorsal, craneal e izquierda)." },
+            { id: 2, q: "En la tabicación de la aurícula primitiva, ¿cómo se denomina el primer tabique en forma de media luna que crece desde el techo hacia las almohadillas endocárdicas?", options: ["Septum secundum.", "Foramen de Botal.", "Septum primum.", "Ostium primum."], correct: 2, exp: "Es la primera cresta que aparece ('primum') para dividir la aurícula. El ostium primum es el agujero inferior que va dejando al descender." },
+            { id: 3, q: "Antes de que el ostium primum se cierre por completo, se produce muerte celular en el techo del septum primum creando un nuevo orificio. ¿Cuál es la función vital de este nuevo agujero (ostium secundum)?", options: ["Permitir el paso de sangre de la aurícula izquierda a la derecha.", "Conectar directamente la aurícula derecha con el ventrículo derecho.", "Mantener la comunicación y el paso del flujo sanguíneo desde la aurícula derecha hacia la izquierda.", "Dar origen a la válvula mitral."], correct: 2, exp: "Como los pulmones no son funcionales, la sangre debe seguir pasando de derecha a izquierda; el ostium secundum salva esta comunicación antes de que se cierre el orificio inferior." },
+            { id: 4, q: "A la derecha del septum primum crece un segundo tabique (septum secundum) que deja un orificio conocido como Foramen de Botal (agujero oval). ¿Cuál es el mecanismo que describe el profesor para que esto funcione como una válvula unidireccional en el feto?", options: ["Los orificios están perfectamente alineados (concéntricos) y tienen un esfínter muscular.", "Los orificios están descentrados; la mayor presión en la aurícula derecha mantiene separadas las láminas, pero si la presión izquierda aumenta, los tabiques se unen y cierran el paso.", "Las almohadillas endocárdicas taponan periódicamente el agujero de Botal.", "El septum secundum se reabsorbe totalmente durante la sístole."], correct: 1, exp: "El profesor usa la analogía de agujeros descentrados que crean un 'codo' o 'válvula' batiente dependiente de la presión." },
+            { id: 5, q: "¿Qué ocurre fisiológicamente en el momento del nacimiento que provoca el cierre definitivo del foramen oval?", options: ["Se inicia la circulación pulmonar, aumentando la presión en la aurícula izquierda, lo que comprime la válvula (septum primum) contra el septum secundum.", "Cesa el flujo de la vena cava superior, vaciando la aurícula derecha.", "El conducto arterioso se dilata, invirtiendo el flujo de la aorta.", "El ligamento venoso tracciona del tabique interauricular."], correct: 0, exp: "Al respirar y llegar sangre de los pulmones, la presión de la AI supera a la AD, cerrando mecánicamente la 'ventana'." },
+            { id: 6, q: "Durante el desarrollo del ventrículo primitivo, el tabique interventricular muscular crece desde el suelo, pero no cierra la cavidad del todo. ¿Con qué estructura se cierra finalmente el agujero interventricular restante?", options: ["Con la válvula tricúspide.", "Con la cresta supraventricular.", "Con el tabique interventricular membranoso (porción fibrosa).", "Con las almohadillas endocárdicas exclusivamente."], correct: 2, exp: "Queda un orificio que se cierra más tarde con la porción membranosa (fibrosa). El profesor señala que si esta porción falla, y es muy extensa, afecta al segmento fibroso de His." },
+            { id: 7, q: "El profesor califica como 'contrasentido' e 'inviable' que el tabique troncoconal divida el cono arterioso de forma puramente lineal (recta). ¿Qué patología congénita se produce si el tabique crece recto en lugar de en espiral?", options: ["Tetralogía de Fallot.", "Transposición de los grandes vasos.", "Comunicación Interauricular (CIA).", "Estenosis pulmonar aislada."], correct: 1, exp: "Si el tabique es recto, la aorta nace del ventrículo derecho y la arteria pulmonar del izquierdo, creando dos circuitos cerrados e incompatibles con la vida." },
+            { id: 8, q: "En la tabicación normal del tronco arterioso, los rebordes crecen en espiral. ¿Qué estructura final resulta de la fusión de estos rebordes y divide el tronco?", options: ["El tabique aorticopulmonar.", "La banda moderadora.", "El septum secundum.", "El canal auriculoventricular común."], correct: 0, exp: "Divide el tronco en un canal aórtico y otro pulmonar entrelazados." },
+            { id: 9, q: "La Tetralogía de Fallot es descrita como una 'cascada' de malformaciones originada por una división desigual del cono. Según las diapositivas y la clase, ¿cuáles son los 4 elementos de esta tetralogía?", options: ["CIA, CIV, estenosis aórtica, hipertrofia ventricular izquierda.", "Estenosis pulmonar, CIV, aorta cabalgante e hipertrofia de la pared ventricular derecha.", "Transposición de grandes vasos, atresia tricúspide, CIA y ductus persistente.", "Estenosis pulmonar, CIA, aorta bivalva e hipertrofia ventricular izquierda."], correct: 1, exp: "Es una pregunta casi obligada. La división asimétrica estrecha la pulmonar, desplaza la aorta sobre el defecto del tabique (CIV) y provoca que el VD se hipertrofie por sobrecarga." },
+            { id: 10, q: "Patrón de circulación fetal: ¿A través de qué vaso recibe el feto la sangre puramente oxigenada procedente de la placenta?", options: ["Arteria umbilical.", "Vena cava superior.", "Vena umbilical.", "Aorta descendente."], correct: 2, exp: "Es la gran excepción de nomenclatura, la vena umbilical porta la sangre rica en oxígeno hacia el feto." },
+            { id: 11, q: "¿Qué vaso fetal permite que la sangre oxigenada proveniente de la vena umbilical salte (evite) en gran medida el 'filtro hepático' y vaya directamente a la vena cava inferior?", options: ["El conducto arterioso.", "El conducto (o seno) venoso de Arancio.", "La vena porta.", "La arteria mesentérica superior."], correct: 1, exp: "El profesor remarca que la sangre 'pasa de largo como en moto' gracias a este bypass venoso en la cara visceral del hígado, que tras el nacimiento se fibrosa." },
+            { id: 12, q: "En la circulación fetal, existe una comunicación entre la arteria pulmonar y la aorta que desvía la sangre de los pulmones. Si esta comunicación NO se cierra tras el nacimiento, estamos ante una patología llamada:", options: ["Comunicación interventricular (CIV).", "Foramen oval permeable.", "Ductu arterioso persistente (Conducto arterioso persistente).", "Coartación aórtica."], correct: 2, exp: "El conducto de Botal (conducto arterioso) debe cerrarse al nacer (formando el ligamento arterioso). Si persiste, la sangre pasa de la aorta a la pulmonar sobrecargando los pulmones." },
+            { id: 13, q: "Topografía torácica: Si trazamos un plano horizontal a través del Ángulo de Louis (ángulo esternal), dividimos el mediastino en superior e inferior. ¿En qué subdivisión del mediastino inferior se ubica el corazón?", options: ["Mediastino anterior.", "Mediastino medio.", "Mediastino posterior.", "No está en el inferior, está en el superior."], correct: 1, exp: "Según el diagrama inicial, el corazón está alojado íntegramente en el mediastino medio." },
+            { id: 14, q: "Al observar la morfología externa del corazón, el surco auriculoventricular y el surco interventricular anterior están rellenos de:", options: ["Sangre venosa libre.", "Grasa epicárdica y los principales vasos coronarios.", "Líquido pericárdico puro.", "Ligamentos esternopericárdicos."], correct: 1, exp: "Los surcos cardíacos están ocupados por tejido adiposo (grasa epicárdica) por donde discurren las coronarias y sus venas satélites." },
+            { id: 15, q: "¿Qué relieve de la pared interna de la aurícula derecha separa la porción lisa (seno venoso) de la porción rugosa tapizada por músculos pectíneos?", options: ["La cresta supraventricular.", "El limbo de la fosa oval.", "La cresta terminal (de His).", "El tendón de Todaro."], correct: 2, exp: "Coincide externamente con el sulcus terminalis e internamente es la crista terminalis, límite de las dos zonas embriológicas de la aurícula." },
+            { id: 16, q: "En la aurícula derecha, las válvulas de Eustaquio y de Tebesio se asocian, respectivamente, a las desembocaduras de:", options: ["Vena cava superior y Vena cava inferior.", "Vena cava inferior y Seno coronario.", "Venas pulmonares y Vena cava superior.", "Seno coronario y Vena cava inferior."], correct: 1, exp: "Eustaquio bordea la VCI y Tebesio el orificio del seno coronario." },
+            { id: 17, q: "El 'Triángulo de Koch' es un reparo anatómico clave en la aurícula derecha porque contiene al Nódulo Atrioventricular. ¿Cuáles son los límites que forman este triángulo?", options: ["Fosa oval, válvula de Eustaquio y válvula de Tebesio.", "Cresta terminal, orejuela y vena cava superior.", "Limbo de la fosa oval, valva septal tricúspide y seno coronario.", "Tendón de Todaro, orificio del seno coronario y valva septal de la válvula tricúspide."], correct: 3, exp: "Tal y como marca el esquema anatómico, estos tres elementos forman el trígono que aloja al Nodo AV." },
+            { id: 18, q: "En el Ventrículo Derecho, ¿qué estructura muscular salta desde el tabique interventricular hacia la base del músculo papilar anterior y contiene la rama derecha del Haz de His?", options: ["Cuerdas tendinosas.", "Cresta supraventricular.", "Trabécula septomarginal (Banda moderadora).", "Infundíbulo (Cono arterioso)."], correct: 2, exp: "La banda moderadora o trabécula septomarginal cruza la cavidad ventricular derecha llevando el sistema de conducción." },
+            { id: 19, q: "¿Qué nombre recibe la porción lisa de salida del ventrículo derecho, que canaliza la sangre hacia el tronco pulmonar?", options: ["Seno venoso.", "Orejuela.", "Cono arterioso (Infundíbulo).", "Vestíbulo aórtico."], correct: 2, exp: "Es la porción distal y lisa del VD (derivada del bulbo cordis)." },
+            { id: 20, q: "A diferencia de la válvula Tricúspide del corazón derecho, la válvula auriculoventricular izquierda (Mitral) posee:", options: ["Tres valvas (anterior, posterior y septal).", "Dos valvas (anterior y posterior) y dos grandes músculos papilares correspondientes.", "Tres valvas sin músculos papilares.", "Forma de nido de golondrina con lúnulas y nódulos."], correct: 1, exp: "La válvula mitral es bicúspide." },
+            { id: 21, q: "Observando el 'Esqueleto fibroso del corazón' desde una vista superior, el Haz de His atraviesa el plano valvular penetrando exactamente por:", options: ["El anillo fibroso de la válvula pulmonar.", "El trígono fibroso izquierdo.", "El trígono fibroso derecho (cerca del tabique membranoso).", "El centro de la válvula aórtica."], correct: 2, exp: "El diagrama marca claramente el 'Atrioventricular bundle' penetrando a la altura del trígono fibroso derecho / septum membranoso." },
+            { id: 22, q: "Las válvulas semilunares están formadas por 3 valvas en forma de bolsillo. El borde libre y fino de cada valva se denomina _____, mientras que el engrosamiento central rígido se denomina _____.", options: ["Nódulo / Lúnula.", "Cuerda tendinosa / Músculo papilar.", "Seno / Anillo.", "Lúnula / Nódulo."], correct: 3, exp: "La lúnula es la porción fina lateral, y el nódulo es el ápice endurecido para garantizar el cierre." },
+            { id: 23, q: "El pericardio seroso forma unos fondos de saco. ¿Qué receso pericárdico separa el pedículo arterial (aorta y pulmonar) del pedículo venoso (cavas y pulmonares)?", options: ["Seno pericárdico oblicuo.", "Seno transverso de Theile.", "Fosa oval.", "Surco terminal."], correct: 1, exp: "El Seno transverso es el pasillo anatómico entre las arterias por delante y las venas por detrás." },
+            { id: 24, q: "¿Qué nervios se encargan de la inervación somática del pericardio fibroso, acompañando a los vasos pericardiofrénicos?", options: ["Nervios vagos.", "Nervios esplácnicos.", "Nervios frénicos.", "Nervios intercostales T1-T5."], correct: 2, exp: "El frénico desciende irrigando y dando sensibilidad al pericardio y diafragma." },
+            { id: 25, q: "La arteria coronaria izquierda, poco después de su origen, se bifurca en dos ramas principales. ¿Cuáles son?", options: ["Arteria marginal derecha y Arteria interventricular posterior.", "Arteria del nódulo sinusal y Arteria circunfleja derecha.", "Arteria interventricular anterior y Arteria circunfleja (izquierda).", "Gran vena cardíaca y Seno coronario."], correct: 2, exp: "Desciende por el surco anterior (interventricular ant.) y rodea el margen izquierdo (circunfleja)." },
+            { id: 26, q: "En el sistema venoso cardíaco, la gran mayoría de la sangre confluye en el Seno Coronario. ¿Qué vena recorre el surco interventricular anterior para luego dar origen al Seno Coronario?", options: ["Vena cardíaca magna (Gran vena cardíaca).", "Vena cardíaca media.", "Vena cardíaca menor.", "Vena oblicua."], correct: 0, exp: "La vena cardíaca magna asciende junto a la arteria interventricular anterior." },
+            { id: 27, q: "La vena cardíaca MEDIA acompaña en la cara diafragmática (posterior) a la arteria:", options: ["Interventricular anterior.", "Marginal derecha.", "Circunfleja.", "Interventricular posterior."], correct: 3, exp: "Discurren juntas por el surco interventricular posterior." },
+            { id: 28, q: "Respecto a la inervación autónoma del corazón, ¿cuál es la afirmación CORRECTA?", options: ["Existen dos cadenas paravertebrales: una simpática y una parasimpática.", "La cadena paravertebral a los lados de la columna es exclusivamente SIMPÁTICA.", "El nervio vago forma la cadena simpática torácica.", "La inervación parasimpática torácica proviene de los ganglios cervicales superiores."], correct: 1, exp: "El profesor insiste: 'No existe cadena parasimpática vertebral'. La cadena es simpática; el parasimpático va por el Vago." },
+            { id: 29, q: "Si la cadena paravertebral torácica (T1-T5) aporta la inervación Simpática cardíaca, ¿qué nervio aporta las ramas cardíacas Parasimpáticas?", options: ["El nervio frénico.", "Los nervios laríngeos recurrentes.", "El nervio esplácnico mayor.", "El nervio Vago (X)."], correct: 3, exp: "El Vago es el componente parasimpático que forma el plexo cardíaco (junto con el simpático)." },
+            { id: 30, q: "Topografía Abdominal: Al hablar de las ramas de la Aorta Abdominal para el tubo digestivo, ¿cuál irriga exclusivamente el Intestino Primitivo ANTERIOR?", options: ["Arteria mesentérica superior.", "Tronco celíaco.", "Arteria mesentérica inferior.", "Arterias ilíacas comunes."], correct: 1, exp: "El tronco celíaco es el más craneal y vasculariza los derivados del intestino anterior (estómago, duodeno proximal, etc.)." },
+            { id: 31, q: "Siguiendo esa correlación arterial-embriológica, toda la porción que deriva del Intestino Primitivo MEDIO recibe su vascularización de:", options: ["Tronco celíaco.", "Arteria hepática propia.", "Arteria mesentérica inferior.", "Arteria mesentérica superior."], correct: 3, exp: "La AMS vasculariza el intestino medio de forma exclusiva." },
+            { id: 32, q: "¿Y qué arteria impar se encarga de irrigar todo el territorio correspondiente al Intestino Primitivo POSTERIOR?", options: ["Arteria sacra media.", "Arteria esplénica.", "Arteria mesentérica inferior.", "Arteria pudenda interna."], correct: 2, exp: "La AMI nutre el último segmento del tubo digestivo." },
+            { id: 33, q: "Drenaje venoso abdominal: ¿Cómo se llama el gran vaso que entra al hígado y qué venas principales se reúnen para formarlo?", options: ["Vena porta (confluencia de Vena mesentérica superior y Vena esplénica).", "Vena cava inferior (confluencia de ilíacas comunes).", "Vena suprahepática (confluencia de tronco celíaco y renal).", "Vena ácigos (confluencia de lumbares ascendentes)."], correct: 0, exp: "La vena Porta se forma clásicamente por detrás del páncreas al unirse la esplénica y la mesentérica superior." },
+            { id: 34, q: "Anatomía de superficie: ¿cómo se denomina la región central superior, situada justo por debajo de la apófisis xifoides?", options: ["Hipocondrio derecho.", "Hipogastrio.", "Epigastrio.", "Fosa ilíaca izquierda."], correct: 2, exp: "Epi- (sobre) -gastrio (estómago). Zona central superior del abdomen." },
+            { id: 35, q: "En la división de 9 cuadrantes, el espacio lateral izquierdo limitado entre el reborde costal por arriba y la cresta ilíaca por abajo, se denomina:", options: ["Región umbilical o mesogastrio.", "Vacío o Flanco izquierdo.", "Hipocondrio izquierdo.", "Fosa ilíaca izquierda."], correct: 1, exp: "Los flancos o vacíos son las regiones laterales medias del abdomen." },
+            { id: 36, q: "Radiografía de Tórax: En una placa PA, ¿qué prominencia superior redondeada del borde izquierdo de la silueta cardíaca es característica?", options: ["Tronco de la arteria pulmonar.", "Botón aórtico (Cayado de la aorta).", "Borde de la orejuela izquierda.", "Borde del ventrículo izquierdo."], correct: 1, exp: "El botón aórtico es el primer 'saliente' o arco del perfil izquierdo radiológico del mediastino." },
+            { id: 37, q: "En la misma placa PA, el borde DERECHO de la silueta del corazón y los grandes vasos está formado de arriba abajo por:", options: ["Vena cava superior, Aurícula derecha y Vena cava inferior.", "Cayado aórtico, Ventrículo derecho y Ápex.", "Arteria pulmonar, Orejuela izquierda y Ventrículo izquierdo.", "Tráquea y Esófago puramente."], correct: 0, exp: "El perfil derecho torácico es puramente venoso/auricular derecho." },
+            { id: 38, q: "La comunicación interventricular (CIV) supone que en condiciones normales postnatales tempranas, la sangre fluye:", options: ["Del Ventrículo Derecho al Izquierdo.", "De la Aorta a la Arteria Pulmonar.", "Del Ventrículo Izquierdo al Ventrículo Derecho.", "De las Aurículas a los Ventrículos sin pasar por las válvulas."], correct: 2, exp: "La mayor presión del VI empuja la sangre oxigenada de vuelta al VD y pulmones, causando hipertensión pulmonar con el tiempo." },
+            { id: 39, q: "¿Cuál de las siguientes malformaciones permite que la sangre oxigenada se mezcle con la desoxigenada a nivel de las cámaras de recepción superiores?", options: ["Tetralogía de Fallot.", "Comunicación Interauricular (CIA).", "Transposición de grandes vasos.", "Ductu arterioso persistente."], correct: 1, exp: "La CIA ocurre a nivel auricular." },
+            { id: 40, q: "Sistema de Conducción Cardíaco: Según las imágenes de histología y la función explicada, las fibras de Purkinje son:", options: ["Fibras puramente colágenas del esqueleto fibroso.", "Neuronas mielinizadas pertenecientes al Sistema Nervioso Periférico.", "Células musculares estriadas cardíacas altamente especializadas en conducción.", "Cordones de tejido adiposo epicárdico."], correct: 2, exp: "El sistema de conducción intrínseco no está formado por tejido nervioso verdadero, sino por fibras musculares cardíacas modificadas." }
+        ];
+
+        let questions = [];
+        let marked = new Set();
+        let answers = {}; // { qIndex: { correct: bool, qId: int } }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('setup-modal').classList.add('hidden');
+            questions = isRandom ? shuffle([...rawQuestions]) : [...rawQuestions];
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            const sidebar = document.getElementById('sidebar');
+            container.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            questions.forEach((qData, index) => {
+                const qId = qData.id;
+
+                // Item del Índice
+                const idxItem = document.createElement('div');
+                idxItem.className = `index-item ${marked.has(qId) ? 'marked' : ''}`;
+                idxItem.id = `idx-${index}`;
+                idxItem.innerText = index + 1;
+                idxItem.onclick = () => document.getElementById(`q-${index}`).scrollIntoView({behavior: 'smooth'});
+                sidebar.appendChild(idxItem);
+
+                // Card de Pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-${index}`;
+
+                // Aleatorizar opciones para esta instancia
+                let opts = qData.options.map((t, i) => ({ text: t, originalIdx: i }));
+                shuffle(opts);
+
+                card.innerHTML = `
+                    <div class="question-header">
+                        <span class="question-text">${index + 1}. ${qData.q}</span>
+                        <button id="mark-${index}" class="mark-btn ${marked.has(qId) ? 'active' : ''}" onclick="toggleMark(${index})">
+                            ${marked.has(qId) ? '★ Marcada' : '☆ Marcar'}
+                        </button>
+                    </div>
+                    <div class="options-container">
+                        ${opts.map(o => `
+                            <div class="option" onclick="checkAnswer(this, ${index}, ${o.originalIdx}, ${qData.correct})">
+                                ${o.text}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${index}">
+                        <strong>Explicación del profesor:</strong> ${qData.exp}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleMark(index) {
+            const qId = questions[index].id;
+            const btn = document.getElementById(`mark-${index}`);
+            const idxItem = document.getElementById(`idx-${index}`);
+
+            if (marked.has(qId)) {
+                marked.delete(qId);
+                btn.classList.remove('active');
+                btn.innerText = '☆ Marcar';
+                idxItem.classList.remove('marked');
+            } else {
+                marked.add(qId);
+                btn.classList.add('active');
+                btn.innerText = '★ Marcada';
+                idxItem.classList.add('marked');
+            }
+        }
+
+        function checkAnswer(el, qIndex, selectedIdx, correctIdx) {
+            const container = el.parentElement;
+            const options = container.querySelectorAll('.option');
+            const isCorrect = selectedIdx === correctIdx;
+
+            answers[qIndex] = { correct: isCorrect, qId: questions[qIndex].id };
+
+            options.forEach(opt => opt.classList.add('disabled'));
+
+            if (isCorrect) {
+                el.classList.add('correct');
+            } else {
+                el.classList.add('incorrect');
+                // Resaltar la correcta para aprendizaje
+                const allOpts = Array.from(options);
+                // (Opcional: podrías buscar cuál era la correcta aquí para marcarla en verde)
+            }
+            
+            document.getElementById(`exp-${qIndex}`).style.display = 'block';
+            document.getElementById(`idx-${qIndex}`).classList.add('answered');
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.keys(answers).length;
+            document.getElementById('progress-bar').innerText = `Progreso: ${answeredCount} de ${questions.length} respondidas.`;
+        }
+
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const scoreText = document.getElementById('score-text');
+            const answeredValues = Object.values(answers);
+            const correctCount = answeredValues.filter(a => a.correct).length;
+
+            scoreText.innerText = `Resultado: ${correctCount} aciertos de ${questions.length} preguntas.`;
+
+            // Lógica de botones
+            const hasFailed = answeredValues.some(a => !a.correct);
+            const hasMarked = marked.size > 0;
+
+            document.getElementById('btn-failed').style.display = hasFailed ? 'block' : 'none';
+            document.getElementById('btn-marked').style.display = hasMarked ? 'block' : 'none';
+            document.getElementById('btn-both').style.display = (hasFailed || hasMarked) ? 'block' : 'none';
+
+            modal.classList.remove('hidden');
+        }
+
+        function restart(mode) {
+            let nextSet = [];
+            
+            if (mode === 'all') {
+                nextSet = [...rawQuestions];
+            } else {
+                const failedIds = Object.values(answers).filter(a => !a.correct).map(a => a.qId);
+                
+                if (mode === 'failed') {
+                    nextSet = rawQuestions.filter(q => failedIds.includes(q.id));
+                } else if (mode === 'marked') {
+                    nextSet = rawQuestions.filter(q => marked.has(q.id));
+                } else if (mode === 'both') {
+                    nextSet = rawQuestions.filter(q => failedIds.includes(q.id) || marked.has(q.id));
+                }
+            }
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas que cumplan ese criterio.");
+                return;
+            }
+
+            // Reiniciar estado pero MANTENER los "marcados" si el usuario no los quitó
+            questions = nextSet;
+            answers = {};
+            document.getElementById('results-modal').classList.add('hidden');
+            renderQuiz();
+            window.scrollTo(0,0);
+            updateProgress();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Fisiología - Junio 2025</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f1c40f;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: #333;
+            background-color: #f4f6f7;
+        }
+        
+        /* --- Sidebar Estilo Cuadrícula --- */
+        #sidebar {
+            width: 320px; /* Más ancho para agrupar botones */
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a252f;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        /* Contenedor Grid para los botones */
+        #nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 columnas */
+            gap: 8px; /* Espacio entre botones */
+            overflow-y: auto;
+            padding-right: 5px; /* Espacio para scrollbar */
+        }
+
+        /* Scrollbar personalizada para el sidebar */
+        #nav-grid::-webkit-scrollbar { width: 6px; }
+        #nav-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
+
+        .nav-btn {
+            width: 100%;
+            aspect-ratio: 1; /* Cuadrados perfectos */
+            border-radius: 6px;
+            border: none;
+            background-color: rgba(255,255,255,0.1);
+            color: #ecf0f1;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary); transform: translateY(-2px); }
+        .nav-btn.active { background-color: var(--secondary); border: 2px solid white; }
+        .nav-btn.correct { background-color: var(--success); color: white; }
+        .nav-btn.incorrect { background-color: var(--danger); color: white; }
+        
+        /* Indicador de marcado (borde dorado) */
+        .nav-btn.marked { 
+            box-shadow: inset 0 0 0 3px var(--warning);
+        }
+
+        /* Leyenda pequeña en sidebar */
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+        /* Main Content */
+        #main {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Screens */
+        .screen { display: none; max-width: 900px; margin: 0 auto; }
+        .screen.active { display: block; }
+
+        /* Start Screen */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .btn {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background-color: var(--secondary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-dark { background-color: var(--dark); color: white; }
+
+        /* Question Card */
+        .question-container {
+            background: white;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+            scroll-margin-top: 20px;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .question-text { font-size: 1.2em; font-weight: 600; color: #2c3e50; line-height: 1.4; }
+        
+        /* Estrella de marcado */
+        .mark-check {
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 28px;
+            transition: color 0.2s;
+            user-select: none;
+        }
+        .mark-check:hover { color: #f1c40f; opacity: 0.6; }
+        .mark-check.marked { color: #f1c40f; opacity: 1; }
+        
+        /* Opciones */
+        .options-grid { display: grid; gap: 12px; }
+        .option {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05em;
+        }
+        .option:hover:not(.disabled) { background-color: #e2e6ea; border-color: #adb5bd; }
+        
+        .option.correct { background-color: #d4edda; border-color: var(--success); color: #155724; }
+        .option.incorrect { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
+        .option.disabled { cursor: default; pointer-events: none; opacity: 0.7; }
+
+        /* Explicación */
+        .feedback {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e8f6f3;
+            border-radius: 8px;
+            display: none;
+            border-left: 5px solid var(--success);
+            animation: fadeIn 0.3s ease-in;
+        }
+        .feedback.error { background-color: #fdeaea; border-color: var(--danger); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Controles Flotantes */
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3>Navegación</h3>
+        <div id="nav-grid">
+            </div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--success)"></div> Bien</span>
+            <span><div class="dot" style="background:var(--danger)"></div> Mal</span>
+            <span><div class="dot" style="background:var(--warning)"></div> Marca</span>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="start-screen" class="screen active">
+            <div class="card">
+                <h1 style="color:var(--primary)">Fisiología Celular y Tisular</h1>
+                <h3 style="color:#7f8c8d">Examen Junio 2025 - Facultad de Medicina</h3>
+                <hr style="margin: 30px 0; opacity: 0.2">
+                <p style="font-size: 1.1em; margin-bottom: 30px;">Selecciona el modo de ordenación:</p>
+                <button class="btn btn-primary" onclick="startQuiz('ordered')">Orden Numérico (1-71)</button>
+                <button class="btn btn-dark" onclick="startQuiz('random')">Orden Aleatorio</button>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="questions-list"></div>
+            <div id="controls">
+                <button class="btn btn-danger" style="box-shadow: 0 4px 10px rgba(0,0,0,0.2);" onclick="finishQuiz()">Finalizar Test</button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="screen">
+            <div class="card">
+                <h2 style="color:var(--primary)">Resultados del Test</h2>
+                <div id="score-display" style="font-size: 3em; font-weight:bold; color:var(--secondary); margin: 20px 0;"></div>
+                <div id="stats-display" style="color:#7f8c8d; font-size: 1.2em;"></div>
+                
+                <hr style="margin: 30px 0; opacity: 0.2">
+                
+                <h3>Opciones de Repaso</h3>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+                    <button class="btn btn-success" onclick="resetQuiz('all')">Repetir Todo</button>
+                    <button class="btn btn-danger" onclick="resetQuiz('failed')">Repetir Falladas</button>
+                    <button class="btn btn-warning" style="color:white" onclick="resetQuiz('marked')">Repetir Marcadas</button>
+                    <button class="btn btn-dark" onclick="resetQuiz('failed_marked')">Falladas + Marcadas</button>
+                </div>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">Volver al Menú Principal</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Base de Datos de Preguntas ---
+    // (Incluye todas las preguntas literales del texto proporcionado)
+    const rawQuestions = [
+        { id: 1, text: "¿Cuál de los siguientes compuestos no traspasa la barrera endotelial?", options: ["Albúmina", "Bicarbonato", "Sodio", "Glucosa"], correct: 0, explanation: "La albúmina es una proteína de gran tamaño que no atraviesa fácilmente la barrera endotelial." },
+        { id: 2, text: "Con respecto a una solución con 150 miliosmoles hiperosmótica con respecto a la célula se da:", options: ["Lisis celular", "Independiente, se queda igual", "Crenación celular", "Necrosis celular"], correct: 2, explanation: "El medio hiperosmótico extrae agua de la célula, causando crenación." },
+        { id: 3, text: "Un paciente sufre una enfermedad en la que sus eritrocitos son muy flexibles y por tanto menos resistentes, que solución debemos producir para que en el eritrocito se de una lisis celular:", options: ["130 miliosmoles", "190 miliosmoles", "50 milimoles", "90 miliosmoles"], correct: 2, explanation: "La solución más hipotónica (50 mOsm) es la que causará mayor entrada de agua y lisis." },
+        { id: 4, text: "Si tenemos una solución con 130 partículas de miliosmoles activas y en la célula tenemos 150 partículas de miliosmoles activas, la solución será:", options: ["Hiperosmótica con respecto a la célula", "Hipotónico con respecto a la célula", "Hiperosmolar con respecto a la célula", "Hiperosmótico con respecto a la célula"], correct: 1, explanation: "130 < 150, por lo tanto es hipotónica." },
+        { id: 5, text: "¿Cuál de los siguientes transportes requieren energía?", options: ["Transporte activo", "Transporte pasivo secundario", "Difusión facilitada", "Transporte pasivo primario"], correct: 0, explanation: "El transporte activo consume ATP." },
+        { id: 6, text: "Respecto a la endocitosis está mediada por:", options: ["Transferrina - Clatrina", "Pseudópodos - ATP", "Tampón bicarbonato - H+", "Receptor SGTL-1 - PI3K"], correct: 0, explanation: "La endocitosis mediada por receptor suele usar vesículas de clatrina (ej. transferrina)." },
+        { id: 7, text: "En un paciente se detecta un fallo en el receptor LDL, por lo tanto si no lo prevenimos acabará padeciendo:", options: ["Diabetes II", "Aterosclerosis prematura", "Diabetes I", "Esclerósis múltiple"], correct: 1, explanation: "La acumulación de LDL en sangre lleva a aterosclerosis." },
+        { id: 8, text: "Los Receptores intracelulares:", options: ["La molécula de señalización se une a la membrana", "La molécula de señalización puede ser una proteína", "Respuesta celular más rápida", "Respuesta celular más lenta"], correct: 3, explanation: "Actúan sobre la transcripción génica, siendo más lentos que los de membrana." },
+        { id: 9, text: "¿Cuál de las siguientes opciones es falsa con respecto a los receptores de membrana?", options: ["Son respuestas más rápidas", "Producen cambios en el genoma para la expresión de genes", "Se necesita un receptor de membrana activado", "Las moléculas de señalización son de carácter lipófobo"], correct: 1, explanation: "Los receptores de membrana suelen activar cascadas de señalización, no actúan directamente sobre el genoma como función primaria inmediata." },
+        { id: 10, text: "Si un paciente que sufre de artrosis le sometemos a un tratamiento antiinflamatorio con las mismas dosis diarias y el mismo tiempo sin interrupciones, acabará desarrollando:", options: ["Inactivación del receptor", "Desensibilización por tolerancia", "Aumento de especificidad por el ligando", "Anticuerpos contra la enfermedad"], correct: 1, explanation: "El uso continuado genera tolerancia o desensibilización." },
+        { id: 11, text: "Respecto a las características de la comunicación paracrina es cierto:", options: ["Esta comunicación no tiene un efecto genómico", "La citoquina IL-2 es de clase 2", "Libera receptores solubles capaces de atrapar el fármaco para impedir que se una a la célula", "El receptor tirosin kinasa tiene fosforila residuos de AMPc"], correct: 2, explanation: "Algunas vías liberan receptores solubles (decoy) como mecanismo de regulación." },
+        { id: 12, text: "Con respecto a la NT-3 es cierto:", options: ["Es un neurotransmisor que actúa sobre neuronas presinápticas y tiene sus propios receptores", "Es un neurotransmisor inhibidor", "Es una neurotrofina como lo es la NGF", "No posee sus propios receptores"], correct: 2, explanation: "NT-3 es una neurotrofina." },
+        { id: 13, text: "Si un paciente sufre de un aumento de secreción renal de glucosa:", options: ["Aumento de la actividad de la SGTL-1 renal", "Disminución de la actividad de la SGTL-1 intestinal", "Aumento de la actividad de la SGTL-1 intestinal", "Disminución de la actividad de la SGTL-1 renal"], correct: 3, explanation: "La glucosuria indica que el transporte (SGLT) está saturado o disminuido." },
+        { id: 14, text: "En relación a la migración y proliferación metastásica, ¿Qué moléculas o células intervienen?", options: ["El NO", "Células neutrófilas de tipo 2", "Los TK", "Moléculas de adhesión"], correct: 3, explanation: "Las moléculas de adhesión son clave para la migración celular." },
+        { id: 15, text: "Con respecto a las características del NO ¿Cuál es falsa?", options: ["Es un gas que difunde facilmente por el endotelio", "Se forma a partir de Arginina por la NOS", "Activa AMPc", "Tiene de una vida de 2-3 miliseg"], correct: 2, explanation: "El NO activa GMPc, no AMPc." },
+        { id: 16, text: "Tenemos un Peq a -85mv del potasio, ¿cuando se va a alcanzar un potencial en reposo?, por lo tanto la membrana debe de ser", options: ["A -85mv sin flujo neto, permeable a todos los iones", "A -80mv , permeable al potasio", "A -65mv , permeable a todos los iones", "A -75 , permeable al cloro"], correct: 1, explanation: "El reposo (-80mV aprox) se acerca al potencial de equilibrio del K+ (-85mV) porque es el ión más permeable." },
+        { id: 17, text: "¿Cuál de las siguientes opciones es la correcta?", options: ["El sodio es más permeable que el potasio", "El potasio es más permeable que el sodio", "El cloro es más permeable que el potasio", "Todos son igual de permeables"], correct: 1, explanation: "En reposo: Permeabilidad K+ >> Na+." },
+        { id: 18, text: "¿Cuál de las siguientes opciones es la falsa?", options: ["Hay mayor concentración de potasio fuera de la célula", "Hay mayor concentración de sodio dentro de la célula", "El cloro no es permeable a la membrana por sus efectos citotóxicos", "La diferencia de concentraciones del líquido extracelular y del intracelular se debe a la bomba de sodio-potasio"], correct: 0, explanation: "Es falso porque el Potasio está más concentrado DENTRO de la célula." },
+        { id: 19, text: "¿Cuál de las siguientes opciones es la correcta?", options: ["Los canales de fuga están abiertos y son de carácter pasivo", "Los canales de de fuga dependiente de voltaje son de carácter pasivo", "Los canales de compuerta solo se activan si el ligando está inhibido", "Los canales no son proteínas transmembrana son proteínas extrínsecas"], correct: 0, explanation: "Los canales de fuga siempre permiten el paso pasivo." },
+        { id: 20, text: "¿Cuál de las siguientes opciones es la correcta?", options: ["Los potenciales de acción se dan en células excitables y no excitables", "El potencial local se da sólo en células excitables", "Los potenciales locales se pueden sumar dando lugar a una sumación espacial", "Los potenciales locales no siguen la ley de ohm"], correct: 2, explanation: "La sumación espacial y temporal es característica de los potenciales locales." },
+        { id: 21, text: "¿Cuál de las siguientes opciones es la correcta?", options: ["Los potenciales locales son solo despolarizantes", "Cuanto mayor sea la cte de espacio payor será la probabilidad de la sumación espacial", "Cuanto menor sea la cte de tiempo menor será la probabilidad de la sumación temporal.", "La sumación temporal es la suma a diferentes tiempos de potenciales locales."], correct: 1, explanation: "Mayor constante de espacio permite que la señal viaje más lejos para sumarse." },
+        { id: 22, text: "Los neuropéptido se rigen por:", options: ["Ubicados en zonas muy cortas", "Acción lenta", "Sintetizados en la hendidura presináptica", "Sus vesículas de empaquetamiento se realiza en el RER"], correct: 1, explanation: "Tienen acción neuromoduladora más lenta." },
+        { id: 23, text: "Con respecto a los tratamiento de la Miastenia Gravis cuales son los efectos secundario:", options: ["Diarrea", "Sección moco bronquial", "Espasmos musculares", "Bradicardia/Taquicardia"], correct: 2, explanation: "El exceso de Ach por inhibición de la colinesterasa causa espasmos y efectos muscarínicos." },
+        { id: 24, text: "¿Cuál de las siguientes enfermedades corresponde a una desmielinizante?", options: ["Enfermedad de parkinson", "Enfermedad de Alzheimer", "Enfermedad esclerosis múltiple", "Enfermedad Epilepsia"], correct: 2, explanation: "Esclerosis Múltiple afecta a la mielina." },
+        { id: 25, text: "¿La enfermedad de vonwiller brandon afecta al factor?", options: ["Factor VII", "Factor XI", "Factor VIII", "Factor I"], correct: 2, explanation: "Afecta al transporte del Factor VIII." },
+        { id: 26, text: "La eritroblastosis fetal se rige por:", options: ["Enfermedad del feto en producir AntiRh+", "Enfermedad de la madre en producir AntiRh+ en su segundo embarazo", "Enfermedad anémica que afecta al feto al tener un recuento de plaquetas menos de 10000", "Enfermedad en la cuál la madre no puede tener hijos debido a su rechazo por Rh-"], correct: 1, explanation: "Madre Rh- sensibilizada ataca al feto Rh+." },
+        { id: 27, text: "¿Cuál de los siguientes fármacos se usa para bloquear los canales de Na y dificultar la generación de una despolarización?", options: ["Tetraetilamonio", "Atropina", "propranolol", "Tetrodotoxina"], correct: 3, explanation: "La Tetrodotoxina (TTX) bloquea canales de Na+." },
+        { id: 28, text: "A un paciente que sufre de bradicardia le suministramos:", options: ["Curare", "Alfa-Bungarotoxina", "Atropina", "Fenilciclidina"], correct: 2, explanation: "Atropina (antimuscarínico) sube la frecuencia cardiaca." },
+        { id: 29, text: "La epilepsia se da a consecuencia:", options: ["Aumento de adrenalina en la hendidura sináptica", "Disminución de la liberación de Ach", "Aumento en la producción y liberación del glutamato", "Disfunción en la expresión del gen EPO"], correct: 2, explanation: "Exceso de excitación (Glutamato) es una causa común." },
+        { id: 30, text: "Sobre la discriminación, es cierto que…", options: ["A mayor densidad, menor potencial de dicrminación", "A mayor tamaño, mayor capacidad discriminatoria", "A mayor convergencia, mayor discriminación", "Inhibición lateral aumenta la discriminación y es proporcional a la intensidad del estímulo"], correct: 3, explanation: "La inhibición lateral aumenta el contraste y la discriminación." },
+        { id: 40, text: "La EPSP", options: ["Es siempre Hiperpolarizante", "Es siempre Despolarizante", "Es el resultado de la permeabilidad de k+ y Cl-", "Su NT frecuente es la Ach"], correct: 1, explanation: "EPSP (Excitatorio) siempre despolariza." },
+        { id: 41, text: "La enfermedad de Lambert-Eaton se trata con:", options: ["Dizocilpina", "Fenilciclidina", "Curare", "Fentanilo"], correct: 0, explanation: "(Pregunta teórica difícil, por descarte en el contexto del examen)." },
+        { id: 42, text: "La enfermedad que impide que las vesículas de Ach se unan a la membrana evitando su liberación por exocitosis se denomina:", options: ["Miastenia Gravis", "Parkinson", "Alzheimer", "Botulismo"], correct: 3, explanation: "La toxina botulínica bloquea la liberación de Ach." },
+        { id: 43, text: "La Hiperglicinemia", options: ["Aumento de la enzima Acetilcolinesterasa", "Mutación en los genes de las proteínas transportadoras de glicina, no es recaptada en la hendidura sináptica", "Mutación en los genes de las subunidades de los receptores de glicinas, reduciendo la transmisión inhibitoria de la médula espinal", "Aumento de Glicina en el soma"], correct: 2, explanation: "Fallo en receptores de glicina = menos inhibición." },
+        { id: 44, text: "La EPSP se ve aumentada por:", options: ["Aumento en la permeabilidad del cloro", "Aumento en la permeabilidad del sodio", "Aumento en la permeabilidad del sodio y potasio", "a y b son correctas"], correct: 2, explanation: "Entrada neta de cationes (Na+ principalmente)." },
+        { id: 440, text: "Los receptores del glutamato son de tipo:", options: ["Muscarínicos", "No NMDA", "NMDA", "b y c son correctas"], correct: 3, explanation: "NMDA y No-NMDA (AMPA/Kainato)." },
+        { id: 45, text: "¿Cuál de los siguientes NT son aminas biógenas?", options: ["Aspartato", "Metionina encefalina", "Histamina", "Ach"], correct: 2, explanation: "Histamina es una amina biógena." },
+        { id: 46, text: "Si aumento la alta frecuencia en una neurona:", options: ["Aumenta la intensidad del PA", "Aumenta la resistencia", "Aumento de la capacitancia", "Aumenta la velocidad de transmisión sináptica"], correct: 3, explanation: "Potenciación / facilitación temporal." },
+        { id: 47, text: "Si estimuló una zona muy precisa de la piel torácica, seleccione la falsa", options: ["A mayor densidad, mayor discriminación", "Si se da la inhibición lateral, aumenta el contraste", "Mayor convergencia, mayor discriminación", "Todas son correctas"], correct: 2, explanation: "Falso: Mayor convergencia DISMINUYE la discriminación." },
+        { id: 48, text: "Sobre la neurogénesis del cono de crecimiento:", options: ["Encontramos lamelipodios", "Encontramos Filopodios", "a y b son correctas", "Dificultan el crecimiento del axón neuronal"], correct: 2, explanation: "Posee ambos para explorar el entorno." },
+        { id: 49, text: "Si al enchufar el electrocardiograma con la corriente eléctrica salta un chispazo y te da un calambre desencadenarás…", options: ["Condicionamiento clásico", "Sensibilización", "Habituación", "Condicionamiento reflejo"], correct: 1, explanation: "Un estímulo nocivo provoca sensibilización." },
+        { id: 50, text: "La calmodulina II, ¿Qué opción es correcta?", options: ["Es activada por el calcio 3+", "Posee un clorato unido a su extremo betalfa terminal", "MLCK interactúa con está, para fosforilar cabezas de miosina", "Ninguna es correcta"], correct: 2, explanation: "Activa la MLCK." },
+        { id: 51, text: "Una mujer de 60 años ¿cuál va a ser su órgano hematopoyético?", options: ["Bazo", "Hígado", "Huesos planos (esternón)", "a y b son correctas"], correct: 2, explanation: "Médula ósea de huesos planos." },
+        { id: 52, text: "¿Cuál de los siguientes valores de un hemograma es correcto?", options: ["30000 Plaquetas", "5000000 Eritrocitos", "400 Neutrófilos", "300 Linfocitos"], correct: 1, explanation: "Valor normal de eritrocitos." },
+        { id: 53, text: "¿Cuál de las siguientes opciones es falsa?", options: ["Índice del hematocrito 42%-45%", "La concentración de Hb es de 15g/dl", "Los eritrocitos son anucleados", "El 83% Fe de nuestro cuerpo está en la hemoglobina"], correct: 3, explanation: "Falso, es alrededor del 65-70%." },
+        { id: 54, text: "¿Cuál de las siguientes opciones es correcta?", options: ["HbA (95%) Adulto / α1+β2", "HbA2 (4%) Mutación / α2+δ1", "HbF (1%) Feto / α2+γ2", "HbH (8%) Anciano / δ2+3φ"], correct: 2, explanation: "HbF tiene cadenas gamma." },
+        { id: 55, text: "¿Cuál de estas condiciones aumenta la afinidad por el oxígeno?", options: ["Disminución del pH", "Aumento de pCO2", "Disminución de 2,3-DPG", "Aumento de la Temperatura"], correct: 2, explanation: "Menos 2,3-DPG desplaza la curva a la izquierda (más afinidad)." },
+        { id: 56, text: "El fenotipo hh, es cierto que…", options: ["Desarrolla anticuerpos contra A", "Desarrolla anticuerpos contra B", "Desarrolla anticuerpos contra O", "Todas las opciones son correctas"], correct: 3, explanation: "Fenotipo Bombay." },
+        { id: 57, text: "¿Cuál de las siguientes opciones es correcta?", options: ["Le podemos suministrar a un paciente o+ sangre de un paciente o-", "Le podemos suministrar a un paciente o- sangre de un paciente o+", "Le podemos suministrar a un paciente A+ sangre de un paciente B+", "Le podemos suministrar a un paciente AB- sangre de un paciente AB+"], correct: 0, explanation: "O- dona a O+." },
+        { id: 58, text: "Cuál de los siguiente requerimientos energéticos es correcto conforme a una nutrición saludable:", options: ["60% Lípidos al día", "40%-60% Glúcidos al día", "Los bebés prematuros necesitan tomar 0,8g/kg de proteína diaria", "La deficiencia de la vit C afecta a la visión"], correct: 1, explanation: "Rango estándar de carbohidratos." },
+        { id: 59, text: "Sobre la Ach ¿cuál es la correcta?", options: ["Acetil-coA y Colina son precursores", "Ach (liberada) se une a receptores presinápticos", "Usa un transportador presináptico dependiente de Na+", "a y c son correctas"], correct: 3, explanation: "Colina entra con Na+ y se une a Acetil-CoA." },
+        { id: 60, text: "La sinapsis facilitadora se caracteriza por:", options: ["Liberan Acetilcolina", "Liberan Serotonina", "Liberan Dopamina", "Liberan Adrenalina"], correct: 1, explanation: "Modelo Aplysia (serotonina)." },
+        { id: 61, text: "Los ISRS se usan para…", options: ["Tratar la epilepsia", "Tratar el alzheimer", "Tratar la depresión", "Tratar la miastenia gravis"], correct: 2, explanation: "Antidepresivos." },
+        { id: 62, text: "¿Cuál es la principal función de la mielina en las neuronas?", options: ["Producir neurotransmisores", "Acelerar la conducción del impulso nervioso", "Mantener la homeostasis iónica", "Generar potenciales de acción"], correct: 1, explanation: "Conducción saltatoria rápida." },
+        { id: 63, text: "¿Qué tipo de células forman la barrera hematoencefálica?", options: ["Oligodendrocitos", "Astrocitos", "Microglía", "Células de Schwann"], correct: 1, explanation: "Astrocitos." },
+        { id: 64, text: "El neurotransmisor dopamina está principalmente implicado en:", options: ["Regulación de la memoria episódica", "Control motor y sistema de recompensa", "Procesamiento del lenguaje", "Respuesta inmune en el SNC"], correct: 1, explanation: "Motor y recompensa." },
+        { id: 65, text: "El potencial de acción neuronal se inicia cuando:", options: ["Se abren canales de potasio dependientes de voltaje", "Se cierran canales de calcio presinápticos", "Se abren canales de sodio dependientes de voltaje", "Se inhiben las bombas de sodio-potasio"], correct: 2, explanation: "Despolarización por entrada de Na+." },
+        { id: 66, text: "La microglía en el sistema nervioso central actúa principalmente como:", options: ["Soporte estructural", "Reguladora de mielinización", "Defensa inmunitaria", "Conductora de impulsos eléctricos"], correct: 2, explanation: "Defensa inmune." },
+        { id: 67, text: "¿Qué región cerebral está más relacionada con la consolidación de la memoria a largo plazo?", options: ["Hipotálamo", "Hipocampo", "Bulbo raquídeo", "Amígdala"], correct: 1, explanation: "Hipocampo." },
+        { id: 68, text: "¿Cuál es el principal neurotransmisor excitador en el sistema nervioso central?", options: ["GABA", "Glutamato", "Acetilcolina", "Serotonina"], correct: 1, explanation: "Glutamato." },
+        { id: 69, text: "La degeneración de neuronas dopaminérgicas en la sustancia negra se asocia con:", options: ["Enfermedad de Alzheimer", "Esclerosis múltiple", "Enfermedad de Parkinson", "Epilepsia"], correct: 2, explanation: "Parkinson." },
+        { id: 70, text: "¿Qué tipo de sinapsis utiliza neurotransmisores liberados en el espacio sináptico?", options: ["Sinapsis eléctrica", "Sinapsis química", "Sinapsis inhibitoria", "Sinapsis excitatoria"], correct: 1, explanation: "Sinapsis química." },
+        { id: 71, text: "La plasticidad sináptica se refiere a:", options: ["La capacidad de generar más potenciales de acción", "La capacidad de modificar la fuerza de las conexiones neuronales", "La velocidad de la propagación axonal", "La sustitución de neuronas dañadas por nuevas"], correct: 1, explanation: "Modificación de la fuerza de conexión." }
+    ];
+
+    // --- Estado de la Aplicación ---
+    let currentQuestions = [];
+    let userAnswers = {}; 
+    let markedQuestions = new Set();
+    let mode = 'all'; 
+
+    // --- Lógica del Programa ---
+
+    function startQuiz(orderMode) {
+        mode = 'all';
+        userAnswers = {};
+        markedQuestions.clear();
+        
+        // Crear array de índices
+        let indices = rawQuestions.map((_, i) => i);
+        
+        if (orderMode === 'random') {
+            indices.sort(() => Math.random() - 0.5);
+        }
+
+        loadQuestions(indices);
+        
+        document.getElementById('start-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+    function loadQuestions(indices) {
+        currentQuestions = indices;
+        const container = document.getElementById('questions-list');
+        const navGrid = document.getElementById('nav-grid');
+        
+        container.innerHTML = '';
+        navGrid.innerHTML = '';
+
+        indices.forEach((qIndex, displayIndex) => {
+            const q = rawQuestions[qIndex];
+            
+            // Aleatorizar opciones
+            let optionIndices = [0, 1, 2, 3];
+            optionIndices.sort(() => Math.random() - 0.5);
+            
+            // Renderizar HTML Pregunta
+            const div = document.createElement('div');
+            div.className = 'question-container';
+            div.id = `q-${qIndex}`;
+            div.innerHTML = `
+                <div class="question-header">
+                    <span class="question-text">${displayIndex + 1}. ${q.text}</span>
+                    <span class="mark-check" onclick="toggleMark(${qIndex})" id="mark-${qIndex}" title="Marcar para revisar">★</span>
+                </div>
+                <div class="options-grid">
+                    ${optionIndices.map(optIdx => `
+                        <div class="option" onclick="selectAnswer(${qIndex}, ${optIdx}, this, ${q.correct})">
+                            ${q.options[optIdx]}
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="feedback" id="feedback-${qIndex}"></div>
+            `;
+            container.appendChild(div);
+
+            // Item de Navegación (Botón cuadrado en Grid)
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.innerText = displayIndex + 1;
+            navBtn.id = `nav-${qIndex}`;
+            navBtn.onclick = () => {
+                document.getElementById(`q-${qIndex}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            navGrid.appendChild(navBtn);
+        });
+    }
+
+    function selectAnswer(qIndex, selectedOptIdx, optionElem, correctOptIdx) {
+        if (userAnswers[qIndex]) return; // Ya respondida
+
+        const isCorrect = selectedOptIdx === correctOptIdx;
+        userAnswers[qIndex] = { selectedOption: selectedOptIdx, isCorrect: isCorrect };
+
+        // Actualizar UI Opciones
+        const parent = optionElem.parentNode;
+        const options = parent.getElementsByClassName('option');
+        
+        for(let opt of options) {
+            opt.classList.add('disabled');
+            // Siempre mostrar la correcta en verde
+            if (opt.innerText.trim() === rawQuestions[qIndex].options[correctOptIdx]) {
+                opt.classList.add('correct');
+            }
+        }
+
+        if (!isCorrect) {
+            optionElem.classList.add('incorrect');
+        }
+
+        // Mostrar Feedback
+        const feedbackEl = document.getElementById(`feedback-${qIndex}`);
+        feedbackEl.style.display = 'block';
+        feedbackEl.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Respuesta Incorrecta'}</strong><br>${rawQuestions[qIndex].explanation}`;
+        feedbackEl.classList.add(isCorrect ? 'success' : 'error');
+
+        // Actualizar botón en el índice lateral
+        const navBtn = document.getElementById(`nav-${qIndex}`);
+        navBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    }
+
+    function toggleMark(qIndex) {
+        if (markedQuestions.has(qIndex)) {
+            markedQuestions.delete(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.remove('marked');
+            document.getElementById(`nav-${qIndex}`).classList.remove('marked');
+        } else {
+            markedQuestions.add(qIndex);
+            document.getElementById(`mark-${qIndex}`).classList.add('marked');
+            document.getElementById(`nav-${qIndex}`).classList.add('marked');
+        }
+    }
+
+    function finishQuiz() {
+        const total = currentQuestions.length;
+        const answered = Object.keys(userAnswers).length;
+        const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
+        const score = ((correct / total) * 10).toFixed(1);
+
+        const scoreEl = document.getElementById('score-display');
+        const statsEl = document.getElementById('stats-display');
+
+        scoreEl.innerHTML = `Nota: ${score} / 10`;
+        statsEl.innerHTML = `
+            <p>Aciertos: <strong>${correct}</strong> / ${total}</p>
+            <p>Preguntas marcadas: ${markedQuestions.size}</p>
+        `;
+
+        document.getElementById('quiz-screen').classList.remove('active');
+        document.getElementById('results-screen').classList.add('active');
+    }
+
+    function resetQuiz(criteria) {
+        let nextIndices = [];
+
+        if (criteria === 'all') {
+            document.getElementById('results-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+            return;
+        }
+
+        if (criteria === 'failed') {
+            nextIndices = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+        } else if (criteria === 'marked') {
+            nextIndices = Array.from(markedQuestions);
+        } else if (criteria === 'failed_marked') {
+            const failed = currentQuestions.filter(idx => userAnswers[idx] && !userAnswers[idx].isCorrect);
+            const marked = Array.from(markedQuestions);
+            nextIndices = [...new Set([...failed, ...marked])];
+        }
+
+        if (nextIndices.length === 0) {
+            alert("No hay preguntas disponibles para ese criterio.");
+            return;
+        }
+
+        // Limpiar respuestas para la nueva ronda
+        userAnswers = {};
+        // Mezclar orden para la revisión
+        nextIndices.sort(() => Math.random() - 0.5);
+
+        loadQuestions(nextIndices);
+        document.getElementById('results-screen').classList.remove('active');
+        document.getElementById('quiz-screen').classList.add('active');
+    }
+
+</script>
+</body>
+</html>

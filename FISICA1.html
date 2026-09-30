@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen Física Médica 2018 (Modificado)</title>
+   
+    <style>
+        :root {
+            --primary: #5e35b1;
+            --secondary: #ede7f6;
+            --accent: #7e57c2;
+            --success: #43a047;
+            --error: #e53935;
+            --text: #263238;
+            --bg-color: #f5f5f5;
+        }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text); margin: 0; padding-top: 110px; padding-bottom: 60px; }
+        #header-bar { position: fixed; top: 0; left: 0; width: 100%; background: linear-gradient(135deg, #4527a0, #5e35b1); color: white; padding: 15px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; text-align: center; }
+        .header-content { width: 90%; max-width: 1000px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+        .score-badge { background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 1.1rem; }
+        #progress-container { width: 100%; height: 6px; background: rgba(255,255,255,0.1); position: absolute; bottom: 0; left: 0; }
+        #progress-fill { height: 100%; background: #b39ddb; width: 0%; transition: width 0.3s ease; }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+        .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); border-top: 5px solid transparent; transition: transform 0.2s ease; }
+        .card:hover { transform: translateY(-2px); }
+        .card.correct { border-top-color: var(--success); }
+        .card.incorrect { border-top-color: var(--error); }
+        .question-header { display: flex; justify-content: space-between; margin-bottom: 15px; color: #757575; font-size: 0.9rem; font-weight: bold; }
+        .question-text { font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 25px; line-height: 1.5; }
+        .options-grid { display: grid; gap: 12px; }
+        .option-btn { background: #fff; border: 2px solid #e0e0e0; padding: 16px 20px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 1rem; color: var(--text); transition: all 0.2s; position: relative; }
+        .option-btn:hover:not(.disabled) { border-color: var(--accent); background-color: var(--secondary); }
+        .option-btn.correct { background-color: #e8f5e9; border-color: var(--success); color: #1b5e20; font-weight: 600; }
+        .option-btn.incorrect { background-color: #ffebee; border-color: var(--error); color: #b71c1c; }
+        .option-btn.disabled { cursor: default; opacity: 0.6; }
+        .feedback { margin-top: 20px; padding: 15px 20px; background-color: #ede7f6; border-left: 5px solid var(--primary); border-radius: 4px; font-size: 0.95rem; display: none; }
+        .feedback strong { color: var(--primary); }
+        .btn-reset { display: block; width: 250px; margin: 50px auto; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(94, 53, 177, 0.3); }
+    </style>
+</head>
+<body>
+    <div id="header-bar">
+        <div class="header-content">
+            <h1>Examen Física 2018</h1>
+            <div class="score-badge"><span id="score">0</span> / <span id="total">0</span> Aciertos</div>
+        </div>
+        <div id="progress-container"><div id="progress-fill"></div></div>
+    </div>
+
+    <div class="container" id="quiz-container"></div>
+    <div class="container"><button class="btn-reset" onclick="location.reload()">Reiniciar Examen</button></div>
+
+<script>
+const questionsDB = [
+    { id: 1, q: "La variable termodinámica que no depende del tamaño ni de la cantidad de materia se denomina:", opts: {a:"Fija", b:"Extensiva", c:"Intensiva", d:"Adiabática"}, ans: "c", note: "Las variables intensivas (presión, temperatura) no dependen de la masa." },
+    { id: 2, q: "La velocidad del sonido:", opts: {a:"Depende del medio por el que se propaga", b:"Siempre es la misma", c:"Es mayor en los gases que en los sólidos", d:"Depende del medio y es mayor en los sólidos que en los gases"}, ans: "d", note: "El sonido viaja más rápido en medios más densos/elásticos (sólidos)." },
+    { id: 3, q: "¿Qué radiaciones no ionizantes producen inducción de corrientes débiles?", opts: {a:"Radiaciones térmicas", b:"Radiaciones no térmicas de baja frecuencia", c:"Radiaciones ópticas", d:"Radiaciones ionizantes"}, ans: "b", note: "Los campos de baja frecuencia (ELF) inducen corrientes débiles." },
+    { id: 4, q: "El color rojo, verde y azul coinciden en que:", opts: {a:"Se propagan en el vacío con la misma velocidad", b:"Poseen la misma energía", c:"Poseen la misma frecuencia", d:"Poseen la misma longitud de onda"}, ans: "a", note: "Todas las ondas electromagnéticas viajan a 'c' en el vacío." },
+    { id: 5, q: "El espectro de la radiación emitida por un tubo de rayos X es:", opts: {a:"Continuo por la radiación de frenado", b:"Continuo formado exclusivamente por radiación de frenado", c:"Discreto formado por la radiación característica", d:"Una combinación de espectro continuo de frenado y discreto característico"}, ans: "d", note: "Es superposición del espectro continuo (frenado) y el discreto (característico)." },
+    { id: 6, q: "La sección eficaz para el efecto fotoeléctrico varía aproximadamente:", opts: {a:"Con el número atómico como Z^4", b:"Con la longitud de onda como 1/λ³", c:"Con la energía del fotón como 1/E³", d:"Es proporcional a Z^4 e inversamente proporcional al cubo de la energía"}, ans: "d", note: "Efecto fotoeléctrico: ~Z^4–5 y ~1/E^3." },
+    { id: 7, q: "La masa de cualquier núcleo atómico es:", opts: {a:"Siempre inferior a la suma de las masas de protones y neutrones que lo componen", b:"Siempre superior a la suma de las masas de los protones que la componen", c:"Igual a la suma de sus protones y neutrones", d:"Ninguna de las tres respuestas es correcta"}, ans: "a", note: "Defecto de masa -> energía de enlace." },
+    { id: 8, q: "Al aumentar la viscosidad de un fluido:", opts: {a:"El número de Reynolds aumenta", b:"Disminuye su velocidad crítica", c:"Aumenta su velocidad crítica", d:"El régimen siempre será laminar"}, ans: "c", note: "La velocidad crítica es proporcional a la viscosidad." },
+    { id: 9, q: "Con respecto a la miopía es correcto decir:", opts: {a:"La potencia del ojo es menor que la del emétrope", b:"La potencia del ojo es mayor que la del ojo emétrope", c:"Las imágenes se forman delante de la retina", d:"Ninguna de las anteriores es correcta"}, ans: "b", note: "El ojo miope es demasiado convergente o largo, enfocando delante de la retina." },
+    { id: 10, q: "El complejo QRS en un electrocardiograma, se asocia con:", opts: {a:"Repolarización auricular y despolarización ventricular", b:"Inicio de la contracción auricular", c:"Inicio de la contracción ventricular", d:"Final de la contracción auricular"}, ans: "a", note: "Refleja la despolarización de los ventrículos." },
+    { id: 13, q: "El filamento de un tubo de rayos X emite:", opts: {a:"Rayos X", b:"Electrones", c:"Rayos X característicos", d:"Ninguna de las anteriores"}, ans: "b", note: "Emite electrones por efecto termoiónico." },
+    { id: 14, q: "Con cuál de estos nucleidos no se podrán realizar estudios de RM:", opts: {a:"1H", b:"16O", c:"31P", d:"23Na"}, ans: "b", note: "16O tiene espín 0." },
+    { id: "Xa", q: "En ecografía modo A (amplitud), las interfases se registran como:", opts: {a:"Deflexiones horizontales", b:"Puntos luminosos", c:"Deflexiones verticales", d:"No se representan"}, ans: "c", note: "Modo A muestra picos verticales." },
+    { id: "Xb", q: "En ecografía modo B (brillo), las interfases se registran como:", opts: {a:"Deflexiones horizontales", b:"Puntos luminosos de diferente intensidad", c:"Deflexiones verticales", d:"No se representan"}, ans: "b", note: "Modo B forma imagen con puntos de brillo." },
+    { id: 22, q: "Una onda longitudinal es:", opts: {a:"Dirección de vibración y propagación paralelas", b:"Atraviesa el medio sin atenuación", c:"El sonido es un ejemplo", d:"Ondas en las que vibración y propagación son paralelas, como el sonido"}, ans: "d", note: "El sonido es longitudinal." },
+    { id: 23, q: "Cuando una onda se propaga en un medio disipativo su intensidad:", opts: {a:"Se anula rápidamente", b:"Permanece constante", c:"Disminuye con el cuadrado de la distancia", d:"Decrece exponencialmente con la distancia"}, ans: "d", note: "Ley de atenuación exponencial." },
+    { id: 27, q: "La figura representa la cabeza (Palanca). Las fuerzas F1, F2 y F3 son:", opts: {a:"Fuerza muscular, de contacto y gravitatoria", b:"Fuerza de contacto, gravitatoria y muscular", c:"Fuerza gravitatoria, de contacto y muscular", d:"Fuerza gravitatoria, muscular y de contacto"}, ans: "a", note: "Palanca de primer género." },
+    { id: 28, q: "Capas hemirreductoras necesarias para reducir intensidad a menos de 1/30:", opts: {a:"2", b:"5", c:"3", d:"4"}, ans: "b", note: "2^5 = 32 -> 1/32 < 1/30." },
+    { id: 29, q: "Al aumentar la frecuencia de un sonido, éste se hace:", opts: {a:"Menos intenso", b:"Más agudo", c:"Más intenso", d:"Más grave"}, ans: "b", note: "Más frecuencia = más agudo." },
+    { id: 30, q: "Según la distribución de iones cloro, estos presentan:", opts: {a:"Tendencia a entrar por su potencial de equilibrio", b:"Tendencia a salir por el potencial de membrana", c:"No presentan ninguna tendencia", d:"Ambas tendencias en función del gradiente electroquímico"}, ans: "d", note: "Equilibrio entre fuerzas químicas y eléctricas." },
+    { id: 31, q: "¿Qué es el índice UV?", opts: {a:"Cantidad de eritema por radiación", b:"Capacidad protectora de un filtro solar", c:"La cantidad de radiación UV a la que están expuestas las personas", d:"La medida del FPS de un fotoprotector"}, ans: "c", note: "Mide intensidad de radiación UV." },
+    { id: 32, q: "El tejido muscular es:", opts: {a:"Material muy deformable y no cumple la ley de Hooke", b:"Muy resistente", c:"Duro", d:"Material elástico ideal"}, ans: "a", note: "Tejido viscoelástico no lineal." },
+    { id: 33, q: "¿En qué núclido se desintegra el 13N (Z=7) por emisión beta positiva?", opts: {a:"13C (Z=6)", b:"16O", c:"11B", d:"14N"}, ans: "a", note: "A se mantiene, Z disminuye uno." },
+    { id: 34, q: "Los núcleos estables:", opts: {a:"Presentan fuerzas nucleares mayores que las electrostáticas", b:"Siempre tienen el mismo número de neutrones que de protones", c:"Tienen más neutrones que protones a medida que aumenta Z", d:"Las fuerzas nucleares dominan y aumenta el número de neutrones con Z"}, ans: "d", note: "Más neutrones para estabilizar." },
+    { id: 35, q: "La frecuencia de repetición de los pulsos depende del valor del:", opts: {a:"Potencial de acción", b:"Potencial de equilibrio", c:"Potencial generador de membrana", d:"Ninguna de las anteriores"}, ans: "c", note: "Codificación en frecuencia." },
+    { id: 37, q: "¿Qué es la longitud de onda?", opts: {a:"Distancia recorrida en un tiempo mayor que el periodo", b:"Distancia recorrida en un tiempo menor que el periodo", c:"Distancia recorrida por unidad de tiempo", d:"La distancia entre dos puntos consecutivos que están en la misma fase"}, ans: "d", note: "Definición de λ." },
+    { id: 38, q: "Cuando el valor de CHR (Capa Hemirreductora) es muy pequeña, la radiación es:", opts: {a:"Muy penetrante", b:"Monoenergética", c:"Poco penetrante", d:"Regular"}, ans: "c", note: "Se atenúa fácilmente." },
+    { id: 39, q: "¿Qué representa el test horario o de radios?", opts: {a:"Miopía", b:"Astigmatismo", c:"Presbicia", d:"Daltonismo"}, ans: "b", note: "Detecta astigmatismo." },
+    { id: 40, q: "Cuando el valor de CHR es muy grande la radiación es:", opts: {a:"Muy penetrante", b:"Monoenergética", c:"Poco penetrante", d:"Regular"}, ans: "a", note: "Cuesta frenarla." },
+    { id: 44, q: "El pulso de RF en una instalación de RM:", opts: {a:"Disminuye la magnetización longitudinal", b:"Establece magnetización transversal", c:"Provoca precesión", d:"Disminuye la magnetización longitudinal y genera magnetización transversal"}, ans: "d", note: "Pulso de 90° abate Mz al plano XY." },
+    { id: 45, q: "La desintegración por conversión interna:", opts: {a:"Supone que A se mantiene constante y Z también", b:"Implica emisión de positrones", c:"Supone captura de un electrón", d:"Hace que Z disminuya"}, ans: "a", note: "Solo se libera energía a un electrón orbital." },
+    { id: 46, q: "En la emisión beta positiva:", opts: {a:"Un neutrón se convierte en protón y se emite un electrón", b:"Un protón se convierte en neutrón y se emite un positrón y un neutrino", c:"El núcleo captura un electrón orbital", d:"Se emite radiación gamma sin cambio del núcleo"}, ans: "b", note: "p → n + e⁺ + ν." },
+    { id: 48, q: "Distancia entre un nodo y el siguiente nodo en una onda estacionaria:", opts: {a:"Un cuarto de longitud de onda", b:"Media longitud de onda", c:"Una longitud de onda completa", d:"Una longitud de onda dividida entre tres"}, ans: "b", note: "Entre nodos consecutivos hay λ/2." },
+    { id: 49, q: "En una embolia pulmonar se produce:", opts: {a:"Aumento de la ventilación", b:"Aumento de la difusión", c:"Engrosamiento de la membrana alveolo-capilar", d:"Disminución de la perfusión"}, ans: "d", note: "Se bloquea el flujo sanguíneo." },
+    { id: 50, q: "La distribución de antenas de telefonía móvil debe ser:", opts: {a:"Homogénea y que emitan la menor potencia posible", b:"Perimetral con la máxima potencia posible", c:"Homogénea con la máxima potencia posible", d:"Perimetral con la mínima potencia posible"}, ans: "a", note: "Muchas antenas de baja potencia reducen exposición." },
+    { id: 51, q: "¿Qué radiación se propaga a más velocidad en el vacío?", opts: {a:"El sonido", b:"El ultrasonido", c:"Las ondas electromagnéticas de muy baja frecuencia", d:"Todas viajan a la misma velocidad"}, ans: "c", note: "Las ondas EM viajan a c en vacío." },
+    { id: 52, q: "La pulsioximetría por infrarrojo permite medir:", opts: {a:"La frecuencia cardiaca", b:"La forma de la curva de pulso", c:"La saturación de oxígeno", d:"Frecuencia, forma de pulso y saturación de oxígeno"}, ans: "d", note: "A partir de la señal pulsátil." },
+    { id: 53, q: "Los haces de protones son radiaciones:", opts: {a:"No ionizantes", b:"Indirectamente ionizantes", c:"Directamente ionizantes", d:"Electromagnéticas"}, ans: "c", note: "Las partículas cargadas ionizan directamente." },
+    { id: 54, q: "Con el sistema B-mode, las interfases se registran como:", opts: {a:"Deflexiones en la pantalla", b:"Puntos luminosos de diferente intensidad", c:"Formas geométricas", d:"Puntos que permiten reconstruir la morfología"}, ans: "d", note: "Permite formar imagen anatómica." },
+    { id: 55, q: "En el flujo de un fluido real por un tubo:", opts: {a:"La velocidad media es la mitad de la máxima", b:"La velocidad es mínima en el centro", c:"La velocidad es máxima en el centro", d:"La velocidad media es la mitad de la máxima y ésta se da en el centro"}, ans: "d", note: "Perfil parabólico de Poiseuille." },
+    { id: 56, q: "Emisión de antenas de telefonía:", opts: {a:"La potencia disminuye con la distancia", b:"El entorno influye en la propagación", c:"Cerca recibimos más radiación del móvil que de la antena", d:"La potencia disminuye con la distancia y además el móvil cercano aporta más exposición local"}, ans: "d", note: "Ley del inverso del cuadrado + proximidad." },
+    { id: 57, q: "Los sonidos y los ultrasonidos se diferencian en:", opts: {a:"Su carácter armónico", b:"Son movimientos ondulatorios de distinta frecuencia", c:"Ambos necesitan un medio material para propagarse", d:"Son ondas mecánicas que se diferencian solo en su frecuencia"}, ans: "d", note: "Ambos son mecánicos; cambian en frecuencia." },
+    { id: 58, q: "Las radiaciones ultravioletas pueden dañar:", opts: {a:"La piel", b:"El sistema inmune", c:"Los ojos", d:"Las tres estructuras anteriores"}, ans: "d", note: "Eritema, cataratas, inmunosupresión." },
+    { id: 59, q: "Con respecto a la luz visible:", opts: {a:"La luz roja tiene mayor energía que la violeta", b:"La luz violeta tiene mayor longitud de onda que la roja", c:"La luz roja tiene menor longitud de onda que la violeta", d:"La luz violeta es la más energética del visible"}, ans: "d", note: "Mayor frecuencia -> mayor energía." },
+    { id: 60, q: "Las radiaciones no ionizantes:", opts: {a:"Son capaces de ionizar átomos y moléculas", b:"Producen efectos térmicos o corrientes inducidas", c:"No excitan la materia", d:"Producen efectos térmicos y corrientes inducidas pero no ionizan"}, ans: "d", note: "No alcanzan energía de ionización." },
+    { id: 61, q: "En Radiodiagnóstico se usan RX de baja energía relativa porque:", opts: {a:"Son poco penetrantes", b:"Son homogéneos en energía", c:"Su coeficiente de absorción depende del material (efecto fotoeléctrico)", d:"Ninguna es correcta"}, ans: "c", note: "Efecto fotoeléctrico da contraste." },
+    { id: 62, q: "El esfigmomanómetro se basa en:", opts: {a:"Las propiedades del mercurio", b:"Propiedades eléctricas", c:"Medición de tensiones", d:"Las propiedades del flujo sanguíneo y la aparición de turbulencia"}, ans: "d", note: "Ruidos de Korotkoff." },
+    { id: 63, q: "El potencial generador se diferencia del de acción en que:", opts: {a:"No se propaga y es local", b:"Transmite la información a larga distancia", c:"Tiene amplitud fija", d:"Es independiente de la intensidad del estímulo"}, ans: "a", note: "Es graduado y local." },
+    { id: 64, q: "En una estenosis vascular (radio a la mitad), la velocidad:", opts: {a:"Se duplica", b:"Aumenta cuatro veces", c:"Se reduce a la mitad", d:"Permanece constante"}, ans: "b", note: "Área a 1/4 -> velocidad x4." },
+    { id: 65, q: "La razón entre la longitud de onda y el periodo es:", opts: {a:"La frecuencia angular", b:"El número de ondas", c:"La frecuencia", d:"La velocidad de propagación"}, ans: "d", note: "v = λ/T." },
+    { id: 66, q: "Presión parcial de CO2 en aire alveolar:", opts: {a:"100 mm Hg", b:"80 mm Hg", c:"40 mm Hg", d:"20 mm Hg"}, ans: "c", note: "Valor fisiológico." },
+    { id: 67, q: "Si el incremento de la energía potencial al salir un ión positivo es negativo:", opts: {a:"Se encuentra en equilibrio", b:"El ión tendrá tendencia a salir"}, ans: "b", note: "Proceso espontáneo." },
+    { id: 72, q: "El término perfusión hace referencia a:", opts: {a:"Suministrar sangre a los capilares", b:"Entrada de aire a los pulmones", c:"Difusión de gases a través de membranas", d:"Estenosis vascular"}, ans: "a", note: "Definición." },
+    { id: 73, q: "La hadronterapia (protones) se caracteriza por:", opts: {a:"Depósito de energía al principio del recorrido", b:"La mayor parte de la energía se deposita en los últimos milímetros (pico de Bragg)", c:"Depósito máximo en el recorrido intermedio", d:"No tiene ventajas dosimétricas"}, ans: "b", note: "Pico de Bragg." },
+    { id: 74, q: "Variación brusca de tensión tras sobrepasar el umbral:", opts: {a:"Potencial de equilibrio", b:"Impulso subumbral", c:"Potencial de acción", d:"Potencial de membrana en reposo"}, ans: "c", note: "Todo o nada." },
+    { id: 76, q: "La constante giromagnética:", opts: {a:"Es aproximadamente el cociente carga/masa", b:"Es masa dividida por carga", c:"Es la inversa de la frecuencia", d:"Relaciona el campo magnético con la frecuencia de precesión"}, ans: "d", note: "w = γ·B." },
+    { id: 77, q: "El centro de gravedad del cuerpo al levantar los brazos:", opts: {a:"Se desplaza hacia la izquierda", b:"Se desplaza hacia arriba", c:"Desciende", d:"Se desplaza hacia la derecha"}, ans: "b", note: "La masa se eleva." },
+    { id: 78, q: "La energía transferida entre sistemas por diferencia de temperatura se denomina:", opts: {a:"Calor", b:"Energía interna", c:"Trabajo", d:"Calórico"}, ans: "a", note: "Definición de calor." },
+    { id: 79, q: "Una superficie que aparece azul a nuestros ojos:", opts: {a:"Absorbe toda la radiación incidente", b:"Absorbe todas las longitudes de onda excepto las cortas (azules)", c:"Absorbe solo las longitudes de onda cortas", d:"Refleja principalmente las longitudes de onda largas"}, ans: "b", note: "Refleja azul." },
+    { id: 80, q: "Si disminuye la superficie del líquido con surfactante, la tensión superficial:", opts: {a:"Disminuye", b:"Permanece constante", c:"Aumenta", d:"Se anula por completo"}, ans: "a", note: "Surfactante se concentra." },
+    { id: 81, q: "La frecuencia de Larmor depende de:", opts: {a:"Intensidad del campo magnético externo", b:"Es una constante universal", c:"La constante giromagnética", d:"Del campo externo y de la constante giromagnética"}, ans: "d", note: "w = γ·B." },
+    { id: 82, q: "Un fluido ideal es:", opts: {a:"Incompresible y sin viscosidad", b:"Incompresible, densidad no cambia y no tiene viscosidad", c:"Compresible y sin viscosidad", d:"Compresible y muy viscoso"}, ans: "b", note: "Modelo de Bernoulli." },
+    { id: 83, q: "Los huesos son un material:", opts: {a:"Elástico poco deformable y no cumplen la ley de Hooke", b:"Elástico poco deformable y que cumple la ley de Hooke en el rango fisiológico", c:"Totalmente plástico", d:"Altamente compresible"}, ans: "b", note: "Comportamiento elástico en rango fisiológico." },
+    { id: 84, q: "En la expansión de un gas ideal a temperatura constante, el trabajo realizado es:", opts: {a:"Mayor que el calor absorbido", b:"Igual que el calor absorbido", c:"Menor que el calor absorbido", d:"Nulo"}, ans: "b", note: "Si ΔU=0, Q=W." },
+    { id: 85, q: "Las fuentes encapsuladas dentro del tumor corresponden a:", opts: {a:"Ciberknife", b:"Hadronterapia", c:"Braquiterapia", d:"Tomoterapia"}, ans: "c", note: "Radioterapia interna." },
+    { id: 86, q: "La visión en condiciones de baja iluminación se denomina:", opts: {a:"Escotópica", b:"Binocular", c:"Fotópica", d:"Tridimensional"}, ans: "a", note: "Mediada por bastones." },
+    { id: 87, q: "Se necesitan gafas diferentes para cerca y para lejos en:", opts: {a:"Hiperopía", b:"Miopía y presbicia asociadas", c:"Astigmatismo", d:"Daltonismo"}, ans: "b", note: "Miopía + presbicia." },
+    { id: 88, q: "Si sale un ión negativo y el incremento de energía potencial es negativo:", opts: {a:"Tendrá tendencia a entrar de nuevo", b:"El ión tendrá tendencia a salir de la célula", c:"No habrá movimiento neto", d:"Estará en equilibrio"}, ans: "b", note: "Proceso espontáneo." },
+    { id: 89, q: "Los bastones son responsables de:", opts: {a:"La percepción del color", b:"La visión nocturna", c:"El enfoque cercano", d:"Invertir la imagen"}, ans: "b", note: "Alta sensibilidad, sin color." },
+    { id: 90, q: "Si sale un ión negativo y el incremento de energía potencial es positivo:", opts: {a:"El ión tendrá tendencia a entrar en la célula", b:"El ión tendrá tendencia a salir", c:"No habrá movimiento neto", d:"Estará en equilibrio obligatorio"}, ans: "a", note: "Salir cuesta energía; tenderá a entrar." },
+    { id: 91, q: "Las células responsables de la percepción del color son:", opts: {a:"Leucocitos", b:"Eritrocitos", c:"Bastones", d:"Conos"}, ans: "d", note: "Visión cromática." },
+    { id: 92, q: "La hadronterapia utiliza:", opts: {a:"Rayos X", b:"Electrones", c:"Neutrones térmicos", d:"Partículas pesadas cargadas como protones o iones"}, ans: "d", note: "Hadrones cargados." },
+    { id: 93, q: "El test de círculo de radios (reloj) detecta:", opts: {a:"Miopía", b:"Hipermetropía", c:"Astigmatismo", d:"Presbicia"}, ans: "c", note: "Irregularidad de meridianos." },
+    { id: 94, q: "En el ECG, la onda T representa:", opts: {a:"La despolarización auricular", b:"La despolarización ventricular", c:"La contracción isovolumétrica", d:"La repolarización ventricular"}, ans: "d", note: "Recuperación eléctrica ventricular." },
+    { id: 95, q: "Carecen de conos 'L' (sensibles al rojo):", opts: {a:"Tritanopía", b:"Deuteranopía", c:"Monocromatismo", d:"Protanopía"}, ans: "d", note: "Déficit del rojo." },
+    { id: 96, q: "Las ondas sonoras son:", opts: {a:"Ondas longitudinales de presión que necesitan medio material", b:"Ondas electromagnéticas", c:"Siempre estacionarias", d:"Ondas que se propagan en el vacío"}, ans: "a", note: "Ondas mecánicas." },
+    { id: 97, q: "Un líquido moja un sólido cuando:", opts: {a:"Las fuerzas de cohesión son mayores que las de adherencia", b:"Las fuerzas son iguales", c:"No existe tensión superficial", d:"Las fuerzas de adherencia son mayores que las de cohesión"}, ans: "d", note: "El líquido prefiere el sólido." },
+    { id: 98, q: "La tendencia de los iones a entrar o salir de una célula depende del:", opts: {a:"Potencial de equilibrio", b:"Potencial de acción", c:"Potencial de membrana", d:"Del gradiente electroquímico entre potencial de equilibrio y de membrana"}, ans: "d", note: "Gradiente electroquímico." },
+    { id: 99, q: "Las microondas están compuestas por:", opts: {a:"Neutrones", b:"Electrones", c:"Fotones", d:"Protones"}, ans: "c", note: "Son ondas electromagnéticas." },
+    { id: 100, q: "Si sale un ión positivo y el incremento de energía potencial es positivo:", opts: {a:"Seguirá saliendo", b:"Quedará en equilibrio", c:"No cambiará nada", d:"El ión tendrá tendencia a entrar en la célula"}, ans: "d", note: "Salir cuesta energía; tenderá a entrar." }
+];
+
+let score = 0;
+let answeredCount = 0;
+const totalQuestions = questionsDB.length;
+const quizContainer = document.getElementById('quiz-container');
+const scoreSpan = document.getElementById('score');
+const totalSpan = document.getElementById('total');
+const progressFill = document.getElementById('progress-fill');
+
+function initQuiz() {
+    totalSpan.textContent = totalQuestions;
+    questionsDB.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `q-${item.id}`;
+
+        const header = document.createElement('div');
+        header.className = 'question-header';
+        header.innerHTML = `<span>Pregunta ${item.id}</span>`;
+        card.appendChild(header);
+
+        const text = document.createElement('div');
+        text.className = 'question-text';
+        text.textContent = item.q;
+        card.appendChild(text);
+
+        const grid = document.createElement('div');
+        grid.className = 'options-grid';
+
+        for (const [key, value] of Object.entries(item.opts)) {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerHTML = `<strong>${key})</strong> ${value}`;
+            btn.onclick = () => checkAnswer(item, key, btn, card, grid);
+            grid.appendChild(btn);
+        }
+        card.appendChild(grid);
+
+        const feedback = document.createElement('div');
+        feedback.className = 'feedback';
+        feedback.innerHTML = `<strong>Respuesta Correcta: ${item.ans.toUpperCase()}</strong><br>${item.note}`;
+        card.appendChild(feedback);
+
+        quizContainer.appendChild(card);
+    });
+}
+
+function checkAnswer(question, selected, btn, card, grid) {
+    if (card.dataset.answered) return;
+    card.dataset.answered = 'true';
+    answeredCount++;
+
+    const allBtns = grid.querySelectorAll('.option-btn');
+    const feedback = card.querySelector('.feedback');
+    allBtns.forEach(b => b.classList.add('disabled'));
+
+    if (selected === question.ans) {
+        score++;
+        btn.classList.add('correct');
+        card.classList.add('correct');
+    } else {
+        btn.classList.add('incorrect');
+        card.classList.add('incorrect');
+        allBtns.forEach(b => {
+            if (b.innerText.startsWith(question.ans.toUpperCase() + ')')) {
+                b.classList.add('correct');
+            }
+        });
+    }
+
+    feedback.style.display = 'block';
+    scoreSpan.textContent = score;
+    const progress = (answeredCount / totalQuestions) * 100;
+    progressFill.style.width = `${progress}%`;
+}
+
+initQuiz();
+</script>
+</body>
+</html>

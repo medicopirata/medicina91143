@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen - Bloque 1: Fundamentos de la Biología Celular</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        .prof-info {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .score-box {
+            background-color: #e9f7ff;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 25px;
+            border: 1px solid #cce5ff;
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .question-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        
+        /* ESTILOS PARA EL MARCADOR (PESTAÑA) */
+        .bookmark-wrapper {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #fff8e1;
+            padding: 5px 10px;
+            border-radius: 15px;
+            border: 1px solid #f1c40f;
+            cursor: pointer;
+            font-size: 0.9em;
+            user-select: none;
+        }
+        .bookmark-wrapper:hover {
+            background-color: #fcefdc;
+        }
+        .bookmark-wrapper input {
+            cursor: pointer;
+            accent-color: #f1c40f;
+            width: 16px;
+            height: 16px;
+        }
+
+        .question-text {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #495057;
+            padding-right: 140px;
+        }
+        .option {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            border: 1px solid #ccc;
+        }
+        .option:hover:not(.disabled) {
+            background-color: #f0f0f0;
+            border-color: #007bff;
+        }
+        .option.correct {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .option.incorrect {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .option.disabled {
+            cursor: default;
+        }
+        .rationale {
+            margin-top: 10px;
+            padding: 10px;
+            border-left: 5px solid #007bff;
+            background-color: #eaf6ff;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            font-size: 0.95em;
+        }
+        .hint {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        /* ESTILOS PARA EL PANEL FINAL DE BOTONES */
+        .results-panel {
+            margin-top: 30px;
+            text-align: center;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .action-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { transform: translateY(-2px); filter: brightness(110%); }
+        .action-btn:disabled { background-color: #ccc !important; cursor: not-allowed; transform: none; filter: none; }
+        
+        .btn-reset { background-color: #28a745; }
+        .btn-failed { background-color: #dc3545; }
+        .btn-marked { background-color: #f39c12; color: #333; }
+        .btn-mixed { background-color: #6f42c1; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Examen - Bloque 1: Fundamentos</h1>
+        <div class="prof-info">Biología Celular - Grado en Medicina</div>
+        
+        <div class="score-box" id="score-box">
+            <span id="score-counter">Cargando preguntas...</span>
+        </div>
+        
+        <div id="quiz-container">
+        </div>
+
+        <div id="final-results-container" class="results-panel" style="display: none;">
+            <h2 id="final-score-title">¡Examen Completado!</h2>
+            <p id="final-score-text" style="font-size: 1.2em;"></p>
+            <p id="final-stats" style="color: #666;"></p>
+            
+            <div class="btn-grid">
+                <button class="action-btn btn-reset" onclick="startQuiz('all')">🔄 Repetir Examen Completo</button>
+                <button class="action-btn btn-failed" id="btn-failed" onclick="startQuiz('failed')">❌ Repetir Falladas</button>
+                <button class="action-btn btn-marked" id="btn-marked" onclick="startQuiz('marked')">⚠️ Repetir Marcadas</button>
+                <button class="action-btn btn-mixed" id="btn-mixed" onclick="startQuiz('mixed')">❌ + ⚠️ Repetir Falladas y Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATOS DE LAS PREGUNTAS (ACADÉMICAS - BLOQUE 1)
+        const rawQuizData = [
+            {
+                "questionNumber": 1,
+                "question": "¿Cuál es el límite de resolución teórico aproximado de un microscopio óptico convencional?",
+                "answerOptions": [
+                    { "text": "0,2 nm", "rationale": "0,2 nm es el límite teórico aproximado de un microscopio electrónico de transmisión, no óptico.", "isCorrect": false },
+                    { "text": "200 nm (0,2 µm)", "rationale": "Debido a la longitud de onda de la luz visible, no se pueden distinguir puntos separados por menos de 0,2 µm.", "isCorrect": true },
+                    { "text": "10 µm", "rationale": "10 µm es el tamaño aproximado de una célula animal típica, el microscopio resuelve mucho más detalle.", "isCorrect": false },
+                    { "text": "1 mm", "rationale": "1 mm es visible al ojo humano sin ayuda.", "isCorrect": false }
+                ],
+                "hint": "Recuerda que está limitado por la longitud de onda de la luz visible."
+            },
+            {
+                "questionNumber": 2,
+                "question": "¿Quién estableció el aforismo 'Omnis cellula e cellula' (Toda célula proviene de otra célula)?",
+                "answerOptions": [
+                    { "text": "Robert Hooke", "rationale": "Hooke acuñó el término 'célula' al observar corcho, pero no propuso la teoría de la biogénesis celular.", "isCorrect": false },
+                    { "text": "Rudolf Virchow", "rationale": "Virchow completó la Teoría Celular en 1855 estableciendo que las células solo surgen de células preexistentes.", "isCorrect": true },
+                    { "text": "Theodor Schwann", "rationale": "Schwann propuso que todos los animales están hechos de células, pero no el origen celular.", "isCorrect": false },
+                    { "text": "Louis Pasteur", "rationale": "Pasteur refutó la generación espontánea con sus experimentos, confirmando la idea de Virchow.", "isCorrect": false }
+                ],
+                "hint": "Fue un patólogo alemán en el siglo XIX."
+            },
+            {
+                "questionNumber": 3,
+                "question": "¿Qué característica estructural define a las células eucariotas y las distingue de las procariotas?",
+                "answerOptions": [
+                    { "text": "La presencia de ribosomas.", "rationale": "Los ribosomas están presentes en ambos tipos celulares para la síntesis de proteínas.", "isCorrect": false },
+                    { "text": "La membrana plasmática.", "rationale": "Todas las células poseen membrana plasmática.", "isCorrect": false },
+                    { "text": "La presencia de núcleo delimitado por envoltura nuclear.", "rationale": "La definición de eucariota ('núcleo verdadero') se basa en compartimentar el ADN dentro de una doble membrana.", "isCorrect": true },
+                    { "text": "La presencia de pared celular.", "rationale": "La pared celular está en procariotas y en eucariotas vegetales/fúngicos, pero no es la distinción definitoria.", "isCorrect": false }
+                ],
+                "hint": "El término 'karyon' en griego significa nuez o núcleo."
+            },
+            {
+                "questionNumber": 4,
+                "question": "Según el Modelo de Mosaico Fluido de Singer y Nicolson, ¿cómo se organizan los fosfolípidos en la membrana?",
+                "answerOptions": [
+                    { "text": "En una monocapa con las cabezas hacia el exterior.", "rationale": "Una monocapa no aislaría el entorno acuoso interno del externo.", "isCorrect": false },
+                    { "text": "En una bicapa con las colas hidrofóbicas hacia el interior.", "rationale": "Las colas se 'esconden' del agua en el centro, y las cabezas polares contactan con el agua a ambos lados.", "isCorrect": true },
+                    { "text": "En una estructura rígida tipo sándwich de proteínas.", "rationale": "El modelo anterior (Davson-Danielli) proponía capas de proteínas; el modelo fluido propone una bicapa dinámica.", "isCorrect": false },
+                    { "text": "Unidos covalentemente entre sí formando una red.", "rationale": "No hay enlaces covalentes entre fosfolípidos, lo que permite la fluidez.", "isCorrect": false }
+                ],
+                "hint": "La estructura es anfipática."
+            },
+            {
+                "questionNumber": 5,
+                "question": "¿Qué orgánulo es el principal responsable de la respiración celular aeróbica y la producción de ATP?",
+                "answerOptions": [
+                    { "text": "El Aparato de Golgi", "rationale": "El Golgi se encarga de la modificación y empaquetamiento de proteínas.", "isCorrect": false },
+                    { "text": "El Lisosoma", "rationale": "El lisosoma es el centro de digestión celular.", "isCorrect": false },
+                    { "text": "La Mitocondria", "rationale": "La mitocondria realiza la fosforilación oxidativa para generar la mayor parte del ATP celular.", "isCorrect": true },
+                    { "text": "El Retículo Endoplasmático", "rationale": "El RE participa en la síntesis de lípidos y proteínas.", "isCorrect": false }
+                ],
+                "hint": "Según la teoría endosimbiótica, proviene de una bacteria ancestral."
+            },
+            {
+                "questionNumber": 6,
+                "question": "¿Cuál de las siguientes afirmaciones sobre los VIRUS es correcta en el contexto de la Teoría Celular?",
+                "answerOptions": [
+                    { "text": "Son las células más pequeñas que existen.", "rationale": "Los virus NO son células, son parásitos intracelulares obligados.", "isCorrect": false },
+                    { "text": "Son entidades acelulares que requieren una célula huésped para replicarse.", "rationale": "No poseen maquinaria metabólica propia y dependen de la maquinaria de una célula hospedadora.", "isCorrect": true },
+                    { "text": "Poseen ribosomas propios para sintetizar sus cápsides.", "rationale": "Los virus carecen de ribosomas; usan los de la célula infectada.", "isCorrect": false },
+                    { "text": "Todos poseen una envoltura lipídica.", "rationale": "Solo algunos virus (envueltos) tienen membrana lipídica; otros son desnudos.", "isCorrect": false }
+                ],
+                "hint": "Están en el límite de lo vivo, pero no cumplen las funciones vitales por sí mismos."
+            },
+            {
+                "questionNumber": 7,
+                "question": "¿Qué técnica de microscopía utilizarías para observar la superficie tridimensional de una muestra biológica con gran detalle?",
+                "answerOptions": [
+                    { "text": "Microscopía Óptica de Campo Claro", "rationale": "Tiene baja resolución y profundidad de campo para detalles 3D finos.", "isCorrect": false },
+                    { "text": "Microscopía Electrónica de Transmisión (TEM)", "rationale": "El TEM observa estructuras internas a través de cortes ultrafinos, es 2D.", "isCorrect": false },
+                    { "text": "Microscopía Electrónica de Barrido (SEM)", "rationale": "El SEM barre la superficie con electrones y genera imágenes con apariencia 3D.", "isCorrect": true },
+                    { "text": "Microscopía de Fluorescencia", "rationale": "Se usa para localizar moléculas específicas, no necesariamente para topografía superficial.", "isCorrect": false }
+                ],
+                "hint": "La palabra clave es 'Barrido' de la superficie."
+            },
+            {
+                "questionNumber": 8,
+                "question": "¿Qué evidencia principal apoya la Teoría Endosimbiótica sobre el origen de las mitocondrias?",
+                "answerOptions": [
+                    { "text": "Tienen el mismo tamaño que el núcleo celular.", "rationale": "Son mucho más pequeñas que el núcleo.", "isCorrect": false },
+                    { "text": "Poseen su propio ADN circular y ribosomas tipo bacteriano (70S).", "rationale": "Estas características son típicas de procariotas, sugiriendo que fueron bacterias fagocitadas.", "isCorrect": true },
+                    { "text": "Pueden vivir fuera de la célula en medios de cultivo.", "rationale": "Han perdido genes necesarios para la vida independiente a lo largo de la evolución.", "isCorrect": false },
+                    { "text": "Se forman de novo a partir del Retículo Endoplasmático.", "rationale": "Las mitocondrias solo surgen por fisión de otras mitocondrias (como las bacterias).", "isCorrect": false }
+                ],
+                "hint": "Se parecen genéticamente más a las bacterias que a la propia célula eucariota."
+            },
+            {
+                "questionNumber": 9,
+                "question": "¿Qué tipo de enlace químico es principalmente responsable de mantener la estructura primaria de una proteína?",
+                "answerOptions": [
+                    { "text": "Enlace de hidrógeno", "rationale": "Mantiene las estructuras secundaria y terciaria, no la primaria.", "isCorrect": false },
+                    { "text": "Enlace peptídico (covalente)", "rationale": "El enlace peptídico une la secuencia lineal de aminoácidos (estructura primaria).", "isCorrect": true },
+                    { "text": "Interacción hidrofóbica", "rationale": "Crucial para el plegamiento (terciaria), pero no para la secuencia.", "isCorrect": false },
+                    { "text": "Enlace iónico", "rationale": "Estabiliza la estructura terciaria/cuaternaria.", "isCorrect": false }
+                ],
+                "hint": "Es un enlace fuerte que une el grupo amino de un aminoácido con el carboxilo de otro."
+            },
+            {
+                "questionNumber": 10,
+                "question": "¿Cuál es la función principal de los lisosomas?",
+                "answerOptions": [
+                    { "text": "Síntesis de ATP.", "rationale": "Función mitocondrial.", "isCorrect": false },
+                    { "text": "Digestión intracelular de macromoléculas.", "rationale": "Contienen hidrolasas ácidas para degradar materiales ingeridos o componentes celulares viejos.", "isCorrect": true },
+                    { "text": "Desintoxicación de fármacos.", "rationale": "Función principal del Retículo Endoplasmático Liso.", "isCorrect": false },
+                    { "text": "Transporte de vesículas.", "rationale": "Función del citoesqueleto y proteínas motoras.", "isCorrect": false }
+                ],
+                "hint": "Actúan como el 'estómago' o centro de reciclaje de la célula."
+            },
+            {
+                "questionNumber": 11,
+                "question": "¿Qué técnica permite localizar una proteína específica dentro de la célula utilizando anticuerpos unidos a un fluorocromo?",
+                "answerOptions": [
+                    { "text": "Tinción de Hematoxilina-Eosina", "rationale": "Es una tinción general histológica, no específica para una proteína concreta.", "isCorrect": false },
+                    { "text": "Inmunofluorescencia", "rationale": "Usa la especificidad antígeno-anticuerpo y la fluorescencia para ubicar proteínas.", "isCorrect": true },
+                    { "text": "Criofractura", "rationale": "Técnica física para ver el interior de membranas en microscopía electrónica.", "isCorrect": false },
+                    { "text": "Contraste de fases", "rationale": "Mejora el contraste de células vivas sin tinciones.", "isCorrect": false }
+                ],
+                "hint": "El nombre combina el sistema inmune y la emisión de luz."
+            },
+            {
+                "questionNumber": 12,
+                "question": "¿Qué componente del citoesqueleto tiene el mayor diámetro (aprox. 25 nm) y está formado por tubulina?",
+                "answerOptions": [
+                    { "text": "Microfilamentos", "rationale": "Son los más finos (actina, ~7 nm).", "isCorrect": false },
+                    { "text": "Filamentos intermedios", "rationale": "Tienen un diámetro medio (~10 nm).", "isCorrect": false },
+                    { "text": "Microtúbulos", "rationale": "Son cilindros huecos formados por dímeros de tubulina y son los componentes más gruesos.", "isCorrect": true },
+                    { "text": "Colágeno", "rationale": "Es una proteína de la matriz extracelular, no del citoesqueleto.", "isCorrect": false }
+                ],
+                "hint": "Forman el huso mitótico durante la división celular."
+            },
+            {
+                "questionNumber": 13,
+                "question": "¿Qué significa que la membrana plasmática tenga 'permeabilidad selectiva'?",
+                "answerOptions": [
+                    { "text": "Que deja pasar todo tipo de moléculas libremente.", "rationale": "Eso sería permeable, no selectiva, y la célula moriría.", "isCorrect": false },
+                    { "text": "Que solo permite el paso de agua.", "rationale": "Necesita importar nutrientes y iones, no solo agua.", "isCorrect": false },
+                    { "text": "Que regula y controla qué sustancias entran y salen.", "rationale": "Permite el paso de ciertas sustancias (oxígeno, agua) y restringe otras (iones, glucosa) que requieren transportadores.", "isCorrect": true },
+                    { "text": "Que es impermeable a todo.", "rationale": "La célula no podría nutrirse ni eliminar desechos.", "isCorrect": false }
+                ],
+                "hint": "Actúa como un portero de discoteca, decidiendo quién entra y quién no."
+            },
+            {
+                "questionNumber": 14,
+                "question": "En microscopía electrónica, ¿por qué se realiza la fijación con glutaraldehído y osmio?",
+                "answerOptions": [
+                    { "text": "Para teñir de colores la muestra.", "rationale": "El microscopio electrónico no ve colores (fotones), ve densidades de electrones.", "isCorrect": false },
+                    { "text": "Para preservar la estructura celular y evitar su degradación post-mortem.", "rationale": "La fijación 'congela' químicamente las estructuras celulares creando enlaces cruzados entre proteínas y lípidos.", "isCorrect": true },
+                    { "text": "Para hacer la muestra transparente.", "rationale": "Eso se hace en microscopía óptica (aclarado), no es la función principal de la fijación.", "isCorrect": false },
+                    { "text": "Para aumentar el aumento.", "rationale": "El aumento depende de las lentes electromagnéticas, no del fijador.", "isCorrect": false }
+                ],
+                "hint": "Evita que la célula se 'pudra' o cambie antes de verla."
+            },
+            {
+                "questionNumber": 15,
+                "question": "¿Qué organismo modelo se utiliza frecuentemente en biología celular por ser una eucariota unicelular simple y fácil de cultivar?",
+                "answerOptions": [
+                    { "text": "Escherichia coli", "rationale": "Es el modelo procariota por excelencia, no eucariota.", "isCorrect": false },
+                    { "text": "Saccharomyces cerevisiae (Levadura)", "rationale": "Es un hongo unicelular eucariota que comparte los procesos básicos con las células humanas.", "isCorrect": true },
+                    { "text": "Drosophila melanogaster", "rationale": "Es un modelo animal pluricelular (mosca).", "isCorrect": false },
+                    { "text": "Mus musculus", "rationale": "Es un mamífero (ratón), complejo y pluricelular.", "isCorrect": false }
+                ],
+                "hint": "Se usa también para hacer pan y cerveza."
+            }
+        ];
+
+        // --- VARIABLES DE ESTADO ---
+        let currentSessionIndices = []; 
+        let sessionScore = 0;
+        let sessionAnsweredCount = 0;
+        
+        // Inicializamos datos extra (persistentes entre sesiones)
+        rawQuizData.forEach(q => {
+            q.userState = {
+                answered: false,
+                correct: null, 
+                marked: false
+            };
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            startQuiz('all');
+        });
+
+        // --- FUNCIÓN PRINCIPAL DE INICIO/REINICIO ---
+        function startQuiz(mode) {
+            currentSessionIndices = [];
+
+            if (mode === 'all') {
+                rawQuizData.forEach(q => {
+                    q.userState.answered = false;
+                    q.userState.correct = null;
+                });
+                currentSessionIndices = rawQuizData.map((_, i) => i);
+            } 
+            else if (mode === 'failed') {
+                currentSessionIndices = rawQuizData
+                    .map((q, i) => q.userState.correct === false ? i : -1)
+                    .filter(index => index !== -1);
+                
+                currentSessionIndices.forEach(i => {
+                    rawQuizData[i].userState.answered = false;
+                    rawQuizData[i].userState.correct = null;
+                });
+            } 
+            else if (mode === 'marked') {
+                currentSessionIndices = rawQuizData
+                    .map((q, i) => q.userState.marked === true ? i : -1)
+                    .filter(index => index !== -1);
+                    
+                currentSessionIndices.forEach(i => {
+                    rawQuizData[i].userState.answered = false;
+                    rawQuizData[i].userState.correct = null;
+                });
+            }
+            else if (mode === 'mixed') {
+                currentSessionIndices = rawQuizData
+                    .map((q, i) => (q.userState.correct === false || q.userState.marked === true) ? i : -1)
+                    .filter(index => index !== -1);
+                
+                currentSessionIndices.forEach(i => {
+                    rawQuizData[i].userState.answered = false;
+                    rawQuizData[i].userState.correct = null;
+                });
+            }
+
+            if (currentSessionIndices.length === 0) {
+                alert("No hay preguntas seleccionadas para este modo.");
+                return;
+            }
+
+            sessionScore = 0;
+            sessionAnsweredCount = 0;
+
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('final-results-container').style.display = 'none';
+            document.getElementById('score-box').style.display = 'block';
+
+            renderQuestions();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = '';
+            
+            currentSessionIndices.forEach((originalIndex, sessionIndex) => {
+                const q = rawQuizData[originalIndex];
+                
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `card-${originalIndex}`;
+                
+                const checkedAttr = q.userState.marked ? 'checked' : '';
+                
+                let html = `
+                    <label class="bookmark-wrapper">
+                        <input type="checkbox" onchange="toggleBookmark(${originalIndex}, this)" ${checkedAttr}>
+                        <span>Marcar</span>
+                    </label>
+                    <div class="question-text">${sessionIndex + 1}. ${q.question}</div>
+                `;
+                
+                q.answerOptions.forEach((option, oIndex) => {
+                    html += `
+                        <div class="option" id="opt-${originalIndex}-${oIndex}" onclick="checkAnswer(${originalIndex}, ${oIndex})">
+                            ${String.fromCharCode(65 + oIndex)}. ${option.text}
+                            <div class="rationale" style="display:none;" id="rationale-${originalIndex}-${oIndex}">${option.rationale}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `<div class="hint"><strong>Pista:</strong> ${q.hint}</div>`;
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+            updateScoreDisplay();
+        }
+
+        function toggleBookmark(originalIndex, checkbox) {
+            rawQuizData[originalIndex].userState.marked = checkbox.checked;
+        }
+
+        function checkAnswer(originalIndex, selectedOIndex) {
+            const q = rawQuizData[originalIndex];
+            
+            if (q.userState.answered) return;
+
+            q.userState.answered = true;
+            sessionAnsweredCount++;
+
+            const isCorrect = q.answerOptions[selectedOIndex].isCorrect;
+            q.userState.correct = isCorrect;
+
+            const card = document.getElementById(`card-${originalIndex}`);
+            const optionsDivs = card.querySelectorAll('.option');
+
+            optionsDivs.forEach((div, idx) => {
+                div.classList.add('disabled');
+                document.getElementById(`rationale-${originalIndex}-${idx}`).style.display = 'block';
+
+                if (q.answerOptions[idx].isCorrect) {
+                    div.classList.add('correct');
+                }
+                if (idx === selectedOIndex && !q.answerOptions[idx].isCorrect) {
+                    div.classList.add('incorrect');
+                }
+            });
+
+            if (isCorrect) sessionScore++;
+
+            updateScoreDisplay();
+            checkCompletion();
+        }
+
+        function updateScoreDisplay() {
+            const counter = document.getElementById('score-counter');
+            counter.textContent = `Progreso sesión: ${sessionAnsweredCount}/${currentSessionIndices.length} (${sessionScore} aciertos)`;
+        }
+
+        function checkCompletion() {
+            if (sessionAnsweredCount === currentSessionIndices.length) {
+                setTimeout(displayFinalScore, 800);
+            }
+        }
+
+        function displayFinalScore() {
+            document.getElementById('quiz-container').style.display = 'none';
+            
+            const resultsContainer = document.getElementById('final-results-container');
+            resultsContainer.style.display = 'block';
+            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+            const percentage = ((sessionScore / currentSessionIndices.length) * 100).toFixed(1);
+            
+            document.getElementById('final-score-text').innerHTML = 
+                `Has acertado <strong>${sessionScore}</strong> de <strong>${currentSessionIndices.length}</strong> preguntas (${percentage}%) en esta sesión.`;
+
+            const totalFailed = rawQuizData.filter(q => q.userState.correct === false).length;
+            const totalMarked = rawQuizData.filter(q => q.userState.marked === true).length;
+            const totalMixed = rawQuizData.filter(q => q.userState.correct === false || q.userState.marked === true).length;
+
+            document.getElementById('final-stats').innerHTML = `
+                <strong>Resumen Global:</strong><br>
+                Preguntas Falladas (acumulado): ${totalFailed}<br>
+                Preguntas Marcadas: ${totalMarked}
+            `;
+
+            document.getElementById('btn-failed').disabled = (totalFailed === 0);
+            document.getElementById('btn-marked').disabled = (totalMarked === 0);
+            document.getElementById('btn-mixed').disabled = (totalMixed === 0);
+            
+            document.getElementById('btn-failed').innerHTML = `❌ Repetir Falladas (${totalFailed})`;
+            document.getElementById('btn-marked').innerHTML = `⚠️ Repetir Marcadas (${totalMarked})`;
+        }
+    </script>
+</body>
+</html>

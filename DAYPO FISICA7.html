@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Completo Protección Radiológica</title>
+
+<style>
+:root {
+  --primary: #2c3e50; --accent: #3498db; --success: #27ae60;
+  --error: #c0392b; --warning: #f39c12; --bg: #f4f6f7;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg); max-width: 900px; margin: auto; padding: 20px;
+}
+h1 { color: var(--primary); text-align: center; }
+
+/* Estilos de la Tarjeta */
+.question-card {
+  background: white; border-radius: 8px; padding: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,.1);
+  border-left: 5px solid var(--accent);
+  margin-bottom: 20px;
+  position: relative; /* Para posicionar el checkbox */
+}
+
+/* Checkbox para marcar */
+.mark-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+  color: var(--primary);
+  font-weight: bold;
+}
+.mark-container input {
+  margin-right: 8px;
+  transform: scale(1.3);
+  cursor: pointer;
+}
+
+.question-text {
+  font-size: 1.1em; font-weight: 600; margin-bottom: 15px;
+}
+.options-grid { display: grid; gap: 8px; }
+.option-btn {
+  padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+  cursor: pointer; background: #fff; text-align: left;
+  transition: all 0.2s;
+}
+.option-btn:hover:not(:disabled) { background: #eef; }
+.option-btn.correct { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+.option-btn.incorrect { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+.feedback { margin-top: 10px; display: none; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+.feedback.show { display: block; }
+
+/* Sección de Finalizar y Botones */
+#controls-area {
+  margin-top: 40px;
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+.action-btn {
+  background: var(--primary); color: white; border: none;
+  padding: 12px 24px; font-size: 1em; border-radius: 6px;
+  cursor: pointer; margin: 5px;
+  transition: background 0.3s;
+}
+.action-btn:hover { background: #34495e; }
+
+.restart-options {
+  display: none; /* Oculto al principio */
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+.restart-options button {
+  background: var(--accent);
+}
+.restart-options button:hover { background: #2980b9; }
+
+</style>
+</head>
+
+<body>
+
+<h1>Quiz de Protección Radiológica y Física Médica</h1>
+
+<div id="quiz-container"></div>
+
+<div id="controls-area">
+  <button id="finish-btn" class="action-btn" onclick="showEndOptions()">🏁 Finalizar y Ver Opciones</button>
+  
+  <div id="restart-menu" class="restart-options">
+    <h3>¿Cómo deseas continuar?</h3>
+    <p id="stats-summary"></p>
+    <button class="action-btn" onclick="restartQuiz('all')">🔄 Rehacer el cuestionario entero</button>
+    <button class="action-btn" onclick="restartQuiz('marked')">🔖 Hacer solo las preguntas marcadas</button>
+    <button class="action-btn" onclick="restartQuiz('failed')">❌ Hacer solo las preguntas falladas</button>
+    <button class="action-btn" onclick="restartQuiz('failed_marked')">⚠️ Hacer falladas y marcadas</button>
+  </div>
+</div>
+
+<script>
+// --- TU DATA ---
+const quizData = [
+    { id: 1, question: "¿Cual de las siguientes parejas “tipo de radiación Ionizante/composición” es INCORRECTA?", options: ["Radiación alfa / Núcleos de Helio", "Radiación beta negativa / electrones", "Radiación beta positiva / protones", "Radiación X / fotones"], correct: 2, explanation: "La radiación beta positiva está formada por positrones, no por protones." },
+    { id: 2, question: "De las siguientes características, ¿cuál NO es propia de los RX?", options: ["Poseen carga negativa", "Son capaces de ionizar gases", "Pueden producir fluorescencia", "Se propagan en línea recta a la velocidad de la luz"], correct: 0, explanation: "Los rayos X son fotones (energía electromagnética), no tienen carga ni masa." },
+    { id: 3, question: "¿Cuándo será más penetrante una radiación ionizante?", options: ["Cuanto menor sea la energía de la radiación", "Cuanto mayor sea la carga y la masa de la radiación", "Cuanto menor sea la capa hemireductora del absorbente", "Cuanto menor sea el coeficiente de atenuación del lineal del absorbente"], correct: 3, explanation: "Un coeficiente de atenuación bajo significa que el material opone poca resistencia, por lo que la radiación penetra más." },
+    { id: 4, question: "¿Qué mecanismo atómico de absorción de las radiaciones ionizantes predomina con radiaciones de bajas energías?", options: ["Efecto fotoeléctrico", "Efecto Compton", "Efecto de formación de pares", "Efecto piezoeléctrico"], correct: 0, explanation: "El efecto fotoeléctrico predomina a bajas energías y con números atómicos altos." },
+    { id: 5, question: "¿Qué mecanismo atómico de absorción de las radiaciones ionizantes predomina con radiaciones de muy altas energías?", options: ["Efecto fotoeléctrico", "Efecto Compton", "Efecto piezoeléctrico", "Efecto de formación de pares"], correct: 3, explanation: "La formación de pares requiere energías superiores a 1.02 MeV." },
+    { id: 6, question: "¿Por qué se utilizan radiaciones de baja energía en radiodiagnóstico?", options: ["Porque así reduce la dosis recibida por el paciente", "Porque así toda la radiación incidente es absorbida por el paciente", "Porque se absorben selectivamente en unas estructuras orgánicas respecto a otras", "Todas las respuestas anteriores son correctas"], correct: 2, explanation: "Esto maximiza el efecto fotoeléctrico, mejorando el contraste entre tejidos." },
+    { id: 7, question: "¿De qué es unidad el Culombio/Kg.?", options: ["Dosis absorbida", "Dosis Equivalente", "Exposición", "Actividad"], correct: 2, explanation: "Es la unidad de Exposición en el Sistema Internacional." },
+    { id: 8, question: "¿De qué es unidad el Gray?", options: ["Dosis Equivalente", "Dosis Absorbida", "Exposición", "Actividad"], correct: 1, explanation: "El Gray (Gy) mide la energía absorbida por unidad de masa (J/kg)." },
+    { id: 9, question: "¿De qué es unidad el Becquerelio?", options: ["Dosis Equivalente", "Dosis Absorbida", "Exposición", "Actividad"], correct: 3, explanation: "Mide la velocidad de desintegración (desintegraciones por segundo)." },
+    { id: 10, question: "¿En qué efecto de las radiaciones se basa el funcionamiento del Detector de Geiger-Muller?", options: ["Efecto fotoquímico", "Fluorescencia", "Ionización", "Termoluminiscencia"], correct: 2, explanation: "Se basa en la ionización de un gas y la avalancha electrónica producida." },
+    { id: 11, question: "¿En qué efecto de las radiaciones se basa el funcionamiento del Detector de Centelleo?", options: ["Efecto fotoquímico", "Fluorescencia", "Ionización", "Termoluminiscencia"], correct: 1, explanation: "Ciertos materiales emiten luz (centellean) al absorber radiación." },
+    { id: 12, question: "¿Qué ocurre al aumentar la diferencia de potencial ánodo-cátodo en tubo de RX?", options: ["Aumenta la energía máxima de la radiación producida", "Aumenta la intensidad de la radiación producida", "Disminuye la energía máxima de la radiación producida", "Son correctas a y b"], correct: 0, explanation: "Mientras que los kV (potencial) determinan la energía máxima y calidad del haz, los mA (intensidad) determinan la cantidad de radiación" },
+    { id: 13, question: "¿Qué tienen en común los elementos isótopos?", options: ["El peso atómico", "El número de electrones", "El numero de neutrones", "La posición en la tabla periódica "], correct: 3, explanation: "Tienen el mismo número atómico (Z) pero diferente masa." },
+    { id: 14, question: "¿Qué tienen en común los elementos isótonos?", options: ["El peso atómico", "El numero de electrones", "El número de Neutrones", "La posición en la tabla periódica"], correct: 2, explanation: "Isóto-N-os = Mismos Neutrones." },
+    { id: 15, question: `¿A qué tipo de desintegración corresponde la siguiente reacción?<br><br><div style="text-align:center; font-size:1.2em; margin:10px 0;"><sup>A</sup><sub>Z</sub>X → <sup>0</sup><sub>1</sub>n + <sup>A-1</sup><sub>Z</sub>X</div>`, options: ["Emisión gamma", "Captura electrónica", "Emisión de neutrones", "Desintegración beta"], correct: 2, explanation: "Corresponde a una emisión de neutrones: A disminuye en 1 y Z se mantiene." },
+    { id: 16, question: "Si un núcleo sufre una desintegración beta:", options: ["El núcleo resultante será un isóbaro del precursor", "El núcleo resultante será un isótono del precursor", "El núcleo resultante será un isótopo del precursor", "El núcleo resultante será un isómero del precursor"], correct: 0, explanation: "El número másico A no cambia, por lo tanto son isóbaros." },
+    { id: 17, question: "Si un núcleo sufre una desintegración por captura electrónica:", options: ["El núcleo resultante será un isóbaro del precursor", "El núcleo resultante será un isótono del precursor", "El núcleo resultante será un isótopo del precursor", "El núcleo resultante será un isómero del precursor"], correct: 0, explanation: "A no cambia, Z disminuye en 1. Son isóbaros." },
+    { id: 18, question: "Un núcleo radiactivo emite una partícula alfa, el elemento resultante:", options: ["Retrocede un lugar en la tabla periódica", "Permanece en la misma posición en la tabla periódica", "Retrocede dos lugares en la tabla periódica", "Avanza dos lugares en la tabla periódica"], correct: 2, explanation: "La partícula alfa tiene 2 protones, por lo que Z disminuye en 2." },
+    { id: 20, question: "¿Qué es el efecto Compton?", options: ["El efecto que explica las emisiones radiactivas espontáneas", "El mecanismo que explica la producción de los rayos X", "Un mecanismo de atenuación de las radiaciones ionizantes", "El efecto por el que se explica la resonancia magnética nuclear"], correct: 2, explanation: "Es la dispersión de un fotón al chocar con un electrón." },
+    { id: 21, question: "¿Qué efecto da lugar a fenómenos de fluorescencia?", options: ["Compton", "Fotoeléctrico", "Creación de pares", "Doppler"], correct: 1, explanation: "Tras el efecto fotoeléctrico, el reordenamiento electrónico emite rayos X característicos (fluorescencia)." },
+    { id: 22, question: "¿Cuál de los siguientes elementos es mejor absorbente de las radiaciones ionizantes?", options: ["198 Hg 80", "203 Tl 81", "208 Pb 82", "205 Bi 83"], correct: 3, explanation: "A mayor número atómico (Z), mayor absorción fotoeléctrica. El Bismuto (Bi) tiene Z=83." },
+    { id: 23, question: "El espectro de rayos X característico es:", options: ["Continuo", "De bandas", "Discreto", "Tiene una parte Discreta y otra continua"], correct: 2, explanation: "Son líneas de energía fija propias de cada elemento." },
+    { id: 24, question: "Los núcleos estables:", options: ["Tienen menos neutrones que protones", "Tienen siempre el mismo número de neutrones que de protones", "Van teniendo mayor número de neutrones que de protones a medida que Z aumenta", "Carecen de repulsión de Coulomb entre sus protones"], correct: 2, explanation: "El exceso de neutrones compensa la repulsión eléctrica de los protones." },
+    { id: 25, question: "Los núcleos en estado excitado:", options: ["Son más estables que el fundamental ya que tienen menos energía", "Son menos estables que el fundamental debido a que tienen más energía", "Son menos estables que el fundamental porque este último tiene energía mínima", "Son menos estables que el fundamental porque este último tiene energía máxima"], correct: 1, explanation: "Tienden a liberar el exceso de energía para volver al estado fundamental." },
+    { id: 26, question: "La creación de pares electrón-positrón:", options: ["Se da en la interacción de neutrones con la materia", "Se produce a partir de un umbral y resulta más probable a medida que aumenta la energía", "Es menos probable a medida que aumenta el Z del medio", "Es un proceso por el que la energía no se absorbe"], correct: 1, explanation: "El umbral es 1.02 MeV." },
+    { id: 27, question: "En un detector de Centelleo, los dínodos:", options: ["Convierten la radiación gamma en radiación luminosa", "Amplifican la amplitud de los impulsos eléctricos", "Miden el valor medio de la corriente de impulsos", "Recogen los impulsos de una determinada amplitud"], correct: 1, explanation: "Están en el fotomultiplicador y multiplican los electrones." },
+    { id: 28, question: "¿Cómo se denomina el efecto que protege la piel de las radiaciones al depositar la máxima dosis en profundidad?", options: ["Efecto Compton", "Radiación de frenado", "Efecto fotoeléctrico", "Fenómeno de transición (Build-up)"], correct: 3, explanation: "Típico de fotones de alta energía (Megavoltaje)." },
+    { id: 29, question: "El filtrado del haz de un tubo de RX se emplea para:", options: ["Evitar que aparezcan electrones en el exterior", "Aumentar la producción de fotones", "Disminuir el porcentaje de fotones de baja energía", "Atenuar los fotones de alta energía"], correct: 2, explanation: "Elimina la radiación blanda que no contribuye a la imagen y daña al paciente." },
+    { id: 30, question: "¿Se puede propagar la luz y el sonido en el vacío?", options: ["Ambos se pueden transmitir", "Ninguno se puede transmitir", "La luz sí, el sonido no", "La luz no, el sonido sí"], correct: 2, explanation: "La luz es una onda electromagnética, el sonido es mecánico." },
+    { id: 31, question: "Cuando se utiliza un sistema de ultrasonidos en diagnóstico, la sonda emisora-receptora se suele untar de una especie de gel con objeto de:", options: ["Que se desplace mejor sobre el paciente", "Acoplar las impedancias acústicas", "Enfriar la sonda", "Que existe una gran discontinuidad de impedancias"], correct: 1, explanation: "Evita la reflexión total del sonido en la interfase aire-piel." },
+    { id: 32, question: `En la desintegración <div style="display:inline-block; margin-left:6px;"><sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z+1</sub>Y + β<sup>−</sup> + antineutrino</div>:`, options: [ "Aparece un protón reemplazando a un neutrón y los núcleos son isóbaros", "El núcleo residual queda siempre en su estado fundamental", "Aparece un neutrón reemplazando a un protón", "No es cierta ninguna de las anteriores" ], correct: 0, explanation: "La reacción mostrada es una desintegración beta negativa. En este proceso, un neutrón dentro del núcleo inestable se transforma en un protón, emitiendo un electrón (la partícula beta) y un antineutrino." },
+    { id: 33, question: "La probabilidad de que se produzca una interacción de tipo fotoeléctrico:", options: ["Es mayor para electrones muy ligados y para materiales de Z alto", "Es menor para electrones muy ligados", "Aumenta fuertemente a medida que aumenta la energía de los fotones", "Es mayor para neutrones que para fotones"], correct: 0, explanation: "Depende de Z^3." },
+    { id: 34, question: "El número de capas hemireductoras mínimo necesario para que tras un blindaje la intensidad de un haz de fotones se vea reducida a menos de la décima parte del valor inicial es:", options: ["5", "4", "3", "2"], correct: 1, explanation: "2^3=8 (12.5%), 2^4=16 (6.25%). Se necesitan 4." },
+    { id: 35, question: "En la definición de dosis equivalente interviene el factor de calidad Q, que está relacionado con:", options: ["El medio absorbente", "El número de ionizaciones que produce la radiación por unidad de recorrido (LET)", "El tiempo que se tarda en impartir una cierta dosis", "La actividad de una fuente radiactiva"], correct: 1, explanation: "Refleja el daño biológico relativo de cada tipo de radiación." },
+    { id: 36, question: "Señale la afirmación ERRÓNEA: Es más peligroso...", options: ["1 mGy impartido con partículas Alfa que con rayos X", "1 mGy impartido con partículas Alfa que con radiación beta", "1 mGy impartido con radición gamma que con partículas alfa", "1 mGy impartido con protones que con electrones"], correct: 2, explanation: "La incorrecta es la C. Las alfa son mucho más peligrosas que la gamma a igualdad de dosis absorbida." },
+    { id: 37, question: "La detección de radiación ionizante con gases se basa en que:", options: ["La energía interna del gas varía", "Varía la cantidad de movimiento de las moléculas del gas", "La radiación provoca ionizaciones, liberándose carga eléctrica que es colectada", "La radiación provoca reacciones nucleares"], correct: 2, explanation: "Se recogen los pares iónicos generados." },
+    { id: 38, question: "¿Qué proceso físico se produce específicamente en una cámara de ionización?", options: ["Ionización primaria por la radiación incidente sin fenómenos de recombinación", "Ionización secundaria por los iones primarios", "Avalancha de iones", "Descarga continua"], correct: 0, explanation: "No hay multiplicación de carga (avalancha)." },
+    { id: 39, question: "La desintegración por captura electrónica:", options: ["A- Supone que A se mantienen constante y Z disminuye en una unidad", "C- Supone la emisión de positrones", "B- Consiste en la captura de un electrón cortical", "D- La a y la b"], correct: 3, explanation: "El núcleo captura un electrón orbital, Z baja 1." },
+    { id: 40, question: "¿Qué proceso físico se produce en el contador proporcional?", options: ["Ionización primaria por la radiación incidente", "Ionización secundaria por los iones primarios (Avalancha)", "Avalancha de iones total (Geiger)", "Descarga continua"], correct: 1, explanation: "Hay multiplicación, pero la señal sigue siendo proporcional a la energía." },
+    { id: 41, question: "En la desintegración por Conversión Interna se modifica:", options: ["El número atómico", "El peso atómico", "Su estado energético", "La b y la c"], correct: 2, explanation: "El núcleo se desexcita, no cambia ni A ni Z." },
+    { id: 42, question: "Cuando el valor de “CHR” es muy grande diremos que la radiación es:", options: ["Muy penetrante", "Monoenergética", "Poco penetrante", "Regular de penetrante"], correct: 0, explanation: "Cuesta mucho frenarla." },
+    { id: 43, question: "En un detector TLD (Dosímetro de Termoluminiscencia):", options: ["La radiación ionizante produce centelleo", "La radiación ionizante produce pares de iones", "La radiación produce pares electrón-hueco que se recolectan", "La radiación produce pares electrón-hueco que al recombinarse producen luz visible (al calentar)"], correct: 3, explanation: "Almacenan la energía hasta que se calientan." },
+    { id: 44, question: "La dosimetría fotográfica se basa en la utilización de:", options: ["Cámaras fotográficas", "Películas fotográficas sensibles a las radiaciones ionizantes", "Radiografías para visualizar los efectos sobre el profesional", "Emulsiones sensibles a los infrarrojos"], correct: 1, explanation: "El ennegrecimiento es proporcional a la dosis." },
+    { id: 45, question: "Elegir el mejor criterio desde el punto de vista de la Protección Radiológica:", options: ["No recibir absolutamente ninguna dosis de radiación ionizante", "Que a igualdad de beneficio, se reciban las mínimas dosis de radiación posible", "Conseguir que las radiaciones no lleguen al órgano más sensible", "Que trabajen varias personas simultáneamente"], correct: 1, explanation: "Principio de Optimización (ALARA)." },
+    { id: 46, question: "Los efectos estocásticos de las radiaciones ionizantes:", options: ["Tienen un umbral por debajo del cual no se producen", "Pueden evitarse de forma absoluta", "Deben limitarse en su probabilidad ya que no se pueden evitar de forma absoluta", "Tienen idéntico umbral de dosis que los efectos no estocásticos"], correct: 2, explanation: "Son probabilísticos y no tienen umbral conocido." },
+    { id: 47, question: "Los efectos deterministas de las radiaciones ionizantes:", options: ["Tienen un umbral por debajo del cual no se producen", "No pueden evitarse de forma absoluta", "Deben limitarse en su probabilidad", "Tienen idéntico umbral de dosis que los efectos no estocásticos"], correct: 0, explanation: "Si no superas la dosis umbral, no aparecen." },
+    { id: 48, question: "La dosis equivalente se define como unidad especial debido a que:", options: ["La dosis absorbida no se aplica en el caso de tejidos biológicos", "Iguales dosis absorbidas producen diferentes efectos en los tejidos biológicos diferentes", "Iguales dosis absorbidas producen diferentes efectos en función del tipo de radiación", "Iguales dosis absorbidas producen los mismos efectos"], correct: 2, explanation: "Usa el factor de ponderación wR." },
+    { id: 49, question: "La dosis efectiva se define como unidad especial debido a que:", options: ["La dosis equivalente no se aplica en el caso de tejidos biológicos", "Iguales dosis equivalentes producen diferentes efectos en tejidos biológicos diferentes", "Iguales dosis equivalentes producen diferentes efectos en función del tipo de radiación", "Iguales dosis equivalentes producen los mismos efectos"], correct: 1, explanation: "Usa el factor de ponderación wT (tejido)." },
+    { id: 50, question: "El organismo competente en Protección Radiológica en España es:", options: ["El C.I.E.M.A.T.", "El Ministerio de Industria", "El Consejo de Seguridad Nuclear", "El ministerio de Sanidad"], correct: 2, explanation: "El CSN." },
+    { id: 51, question: "La acción de la RR.II. a nivel celular sobre individuos sanos es:", options: ["Siempre potencialmente lesiva", "Siempre beneficiosa", "Sólo lesiva con rayos X de alta energía", "Siempre de carácter no estocástico"], correct: 0, explanation: "Siempre existe riesgo estocástico." },
+    { id: 52, question: "El trabajador expuesto de categoría B:", options: ["Requiere dosímetro personal", "No necesita ningún tipo de control dosimétrico", "No requiere necesariamente dosímetro personal pero sí que haya dosimetría de área para su control", "Requiere dosimetría personal y de área"], correct: 2, explanation: "Legalmente permitido si el área está vigilada." },
+    { id: 53, question: "Si andando por un hospital encontramos una señalización que consiste en un trébol de color rojo sobre fondo blanco, estamos en una zona:", options: ["De acceso prohibido", "Vigilada", "De permanencia reglamentada", "Controlada"], correct: 0, explanation: "Color rojo = Prohibido." },
+    { id: 54, question: "La señal anterior (Trébol rojo) si está sobre fondo punteado, indica riesgo de:", options: ["A- Irradiación externa", "B- Irradiación interna", "C- Contaminación", "D- La a y la c"], correct: 2, explanation: "Trébol = Irradiación externa, Punteado = Contaminación." },
+    { id: 55, question: "El Co-60:", options: ["Es un radionucleido natural", "No es un isótopo radiactivo", "Se obtiene bombardeando con neutrones el Co-59", "Emite partículas alfa"], correct: 2, explanation: "Es artificial (activación)." },
+    { id: 56, question: "El haz de radiación en cobaltoterapia, se puede limitar a las medidas necesarias mediante:", options: ["Pantallas de Pb", "Filtros", "Cuñas de Fe", "Colimadores"], correct: 3, explanation: "Definen la forma del haz." },
+    { id: 57, question: "La actividad máxima de una fuente de Co-60 puede llegar a:", options: ["3,7 x 10^14Bq", "37 MBq", "20 Cl", "13,2 R/h"], correct: 0, explanation: "Miles de Curios (alta actividad)." },
+    { id: 58, question: "¿Cómo se denomina la habitación dónde se controla el tratamiento de radioterapia:", options: ["Sala de tratamiento", "Sala de control remoto", "Bunker", "Zona de acceso prohibido"], correct: 1, explanation: "La consola está fuera." },
+    { id: 59, question: "¿Qué factor determina la energía de radiación producida por un tubo de RX?:", options: ["A- La diferencia de potencial ánodo-cátodo", "B- La intensidad eléctrica que circula por el cátodo", "C- El número atómico del material con que se fabrica el ánodo", "Son correctas a y c"], correct: 3, explanation: "." },
+    { id: 60, question: "En radiodiagnóstico, ¿a qué se denomina radiación dura?:", options: ["A la radiación de alta frecuencia", "A la radiación de alta energía", "A la radiación de baja longitud de onda", "Todas son correctas"], correct: 3, explanation: "Muy penetrante." },
+    { id: 61, question: "Se desea aumentar la energía media del espectro de rayos X de un tubo. ¿Cuál de las siguientes afirmaciones es CORRECTA?:", options: ["Deben emplearse filtros con Z elevado y bajar el Kilovoltaje", "Deben emplearse filtros con Z bajo y subir, si es preciso, el Kilovoltaje", "Debe elevarse la corriente de operación", "Debe reducirse al máximo la corriente de operación"], correct: 1, explanation: "Filtrar (endurecer) y subir kV aumenta la energía media." },
+    { id: 62, question: "Una radiografía convencional:", options: ["Presenta distintos contrastes en función de que lleguen más o menos fotones", "Presenta distintos contrastes en función de que los fotones tengan distinta energía", "Se obtiene con fotones energéticos", "Se obtiene con electrones al chocar contra la placa fotográfica"], correct: 0, explanation: "Es un mapa de atenuación." },
+    { id: 63, question: "¿Qué es un radiofármaco?:", options: ["Un fármaco radiactivo", "Un fármaco al que se liga un radionúcleido con el fin de ser introducido en el organismo", "Un fármaco indicado en el tratamiento de los efectos nocivos de las radiaciones", "Un fármaco indicado para eliminar los radionúclidos"], correct: 1, explanation: "Vector + Isótopo." },
+    { id: 64, question: "¿Por qué en Medicina Nuclear diagnostica se prefiere utilizar radionúcleidos de vida corta?:", options: ["Porque tienen menor actividad", "Porque son más estables", "Porque son más baratos de producir", "Porque así se reduce la dosis absorbida por el paciente"], correct: 3, explanation: "Para minimizar el daño radiológico." },
+    { id: 65, question: "En Medicina Nuclear diagnostica se utilizan radionúclidos de vida corta, ¿por qué? (repetida):", options: ["Porque son más baratos de producir", "Porque emiten radiaciones poco penetrantes", "Porque se eliminan rápidamente del cuerpo del paciente", "Porque producen imágenes de mayor calidad"], correct: 2, explanation: "Decaen rápido." },
+    { id: 66, question: "Los radionúclidos más útiles en las aplicaciones diagnósticas de Medicina Nuclear son:", options: ["Los emisores gamma puros", "Los emisores beta puros", "Los emisores alfas puros", "Los que tienen un periodo muy superior al tiempo necesario"], correct: 0, explanation: "Permiten detección externa." },
+    { id: 67, question: "¿Cuál de estos radionúclidos se utilizará en Medicina Nuclear?:", options: ["Uno estable", "Uno de periodo T= 2x 10^4 años", "Uno de periodo T = 2 x 10^4 s", "Uno de periodo T= 2x 10^-24 s"], correct: 2, explanation: "Un periodo de horas es ideal." },
+    { id: 68, question: "Qué radiaciones no ionizantes producen inducción débiles:", options: ["Térmicas", "No térmicas", "Ópticas", "La a) y c)"], correct: 1, explanation: "Baja frecuencia." },
+    { id: 69, question: "El espectro de la radiación emitida por un tubo de rayos X es:", options: ["A- Continuo por la radiación de frenado", "B- Continuo formado exclusivamente por una mezcla de fotones", "C- Discreto formado por la radiación característica", "D- La a) y c)"], correct: 3, explanation: "Es mixto: frenado (continuo) + característico (discreto)." },
+    { id: 70, question: "La sección eficaz para el efecto fotoeléctrico varía aproximadamente:", options: ["A- Con la energía como Z4", "B- Con la longitud de onda como 1/λ3", "C- Con la energía como 1/E3", "D- La a) y c)"], correct: 3, explanation: "Disminuye drásticamente al subir la energía." },
+    { id: 71, question: "La masa de cualquier núcleo atómico es:", options: ["Siempre inferior a la suma de las masas de los protones que la componen", "Siempre superior a la suma de las masas de los nucleones que la componen", "Igual a la suma de las masas de los nucleones que la componen", "Ninguna de las tres"], correct: 3, explanation: "Defecto de masa = Energía de enlace." },
+    { id: 72, question: "El filamento de un tubo de rayos x emite:", options: ["Rayos x", "Electrones", "Rayos x característicos", "Ninguna de las tres"], correct: 1, explanation: "Efecto termoiónico." },
+    { id: 73, question: "¿Qué es el índice UV?.", options: ["La cantidad de radiación UV necesaria para producir un eritema", "La capacidad protectora de un filtro solar", "La cantidad de radiación UV a la que están expuestas las personas en la superficie terrestre", "Es el método utilizado para medir el factor de protección"], correct: 2, explanation: "Medida de intensidad UV solar." },
+    { id: 74, question: "¿En qué núclido se desintegra el 13N (Z=7) por emisión beta positiva?.", options: ["13C ( Z=6 )", "16O ( Z=8 )", "11B ( Z=5 )", "14N ( Z=7 )"], correct: 0, explanation: "Z disminuye 1." },
+    { id: 75, question: "Los núcleos estables:", options: ["A- Las fuerzas electrostáticas no superan a las fuerzas nucleares", "B- Tienen siempre el mismo número de neutrones que de protones", "C- Van teniendo mayor número de neutrones que de protones a medida que Z aumenta", "D- La a) y c)"], correct: 3, explanation: "Necesitan más neutrones para compensar la repulsión." },
+    { id: 76, question: "Cuando el valor de CHR es muy pequeña diremos que la radiación es:", options: ["Muy penetrante", "Monoenergética", "Poco penetrante", "Regular de penetrante"], correct: 2, explanation: "Se frena fácilmente." },
+    { id: 77, question: "Cuando el valor de CHR es muy grande diremos que la radiación es:", options: ["Muy penetrante", "Monoenergética", "Poco penetrante", "Regular de penetrante"], correct: 0, explanation: "Atraviesa mucho material." },
+    { id: 78, question: "La desintegración por conversión interna:", options: ["Supone que A se mantiene constante y Z también", "Supone la emisión de positrones", "Consiste en la captura de un electrón", "Supone que A se mantiene constante y Z disminuye"], correct: 0, explanation: "Es una transición isomérica (solo energía)." },
+    { id: 79, question: "Los haces de protones son radiaciones:", options: ["No ionizantes", "Indirectamente ionizantes", "Directamente ionizantes", "La a y la c)"], correct: 2, explanation: "Tienen carga eléctrica." },
+    { id: 80, question: "Las radiaciones ultravioletas pueden dañar:", options: ["La piel", "El sistema inmunológico", "Los ojos", "Las 3 anteriores"], correct: 3, explanation: "Son biológicamente activas." },
+    { id: 81, question: "Las radiaciones no ionizantes:", options: ["Pueden producir ionizaciones", "Pueden producir efectos térmicos", "No producen excitaciones", "La b) y la c)"], correct: 1, explanation: "Calientan pero no ionizan." },
+    { id: 82, question: "En el Radiodiagnóstico se utilizan Rayos X de baja energía porque:", options: ["Son poco penetrantes", "Son muy homogéneos", "Su coeficiente de absorción independiente del absorbente", "Ninguna de las tres"], correct: 3, explanation: "La correcta sería 'porque dan mejor contraste', pero no está explícita. Se suele marcar 'Ninguna' o 'Contraste' si existe." },
+    { id: 83, question: "Los tratamientos radioterápicos que consisten en la colocación de fuentes encapsuladas dentro de la proximidad del tumor, se denomina:", options: ["Ciberknife", "Handroterapia", "Braquiterapia", "Tomoterapia"], correct: 2, explanation: "Terapia de corta distancia." },
+    { id: 84, question: "La hadronterapia son radiaciones de:", options: ["A- Partículas pesadas sin carga", "B- Partículas pesadas cargadas", "C-Protones e iones", "D- La b) y la c)"], correct: 3, explanation: "Utiliza partículas con masa (hadrones)." },
+    { id: 85, question: "La radiación característica se produce como consecuencia de:", options: ["La aniquilación del electrón", "La pérdida de energía cinética de los electrones", "La pérdida de energía de un fotón", "El salto del electrón de una órbita a otra"], correct: 3, explanation: "Transición electrónica." },
+    { id: 86, question: "La energía crítica correspondiente al poder de frenado es:", options: ["Inversamente proporcional al número atómico del medio", "Inversamente proporcional al número másico del medio", "Directamente proporcional al número másico del", "Directamente proporcional al número atómico del medio"], correct: 0, explanation: "Frenado depende de Z." },
+    { id: 88, question: "La intensidad radiante se mide en:", options: ["Vatios", "Vatios / sr", "Vatios / m", "Julios"], correct: 1, explanation: "Potencia por ángulo sólido." },
+    { id: 89, question: "La irradiancia se mide en:", options: ["Julios", "Julios/ m^2", "Vatios/m^2", "Vatios/sr"], correct: 2, explanation: "Potencia por superficie." },
+    { id: 90, question: "La radiación infrarroja está contraindicada en:", options: ["A- Enfermedad cardiovascular avanzada", "B- Hemorragias recientes", "C- Hipertensión", "D- La a) y b)"], correct: 3, explanation: "Por el efecto de calor." },
+    { id: 91, question: "¿En qué núclido se desintegra el 14C (Z=6) por emisión beta negativa?.", options: ["14N (Z=7)", "13C (Z=6)", "15N (Z=7)", "13C (Z=6)"], correct: 0, explanation: "Z aumenta 1." },
+    { id: 92, question: "¿Por que se utilizan radiaciones de baja energía en radio diagnóstico?.", options: ["A- Porque se absorben selectivamente en unas estructuras orgánicas respecto a otras", "B- Porque así se reduce la dosis recibida por el paciente", "C- Porque mayoritariamente actúa el efecto fotoeléctrico", "D- La a) y b)"], correct: 0, explanation: "Contraste." },
+    { id: 93, question: "En la emisión beta negativa admitimos la hipótesis, que un neutrón se descompone en:", options: ["n—> p + e+ + v", "n—> p + e- + v (antineutrino)", "n—> p + e+ + v (vectorial)", "n—> p + e- + v (vectorial)"], correct: 1, explanation: "Decaimiento del neutrón." },
+    { id: 95, question: "Si un núcleo sufre una desintegración por captura electrónica:", options: ["El núcleo resultante será un isómero del precursor", "El núcleo resultante será un isótono del precursor", "El núcleo resultante será un isótopo del precursor", "Ninguna de las tres"], correct: 3, explanation: "Será un Isóbaro (A constante)." },
+    { id: 96, question: "¿Que ocurre al aumentar la corriente en el filamento en un tubo de R-X?.", options: ["A-Aumenta la temperatura", "B-Aumenta el número de electrones", "C-Disminuye la energía máxima de la radiación producida", "D-Son correctas a) y b)"], correct: 3, explanation: "Controla la cantidad de radiación." },
+    { id: 97, question: "¿Que ocurre al aumentar la diferencia de potencial ánodo-cátodo en un tubo de R-X?.", options: ["A-Aumenta la energía máxima de la radiación producida", "B-Aumenta el número de fotones", "C-Disminuye de de energía máxima de la radiación producida", "Son correctas a) y b)"], correct: 3, explanation: "Calidad y Cantidad." },
+    { id: 98, question: "¿Qué factor determina la energía de la radiación producida por un tubo de R-X?.", options: ["La intensidad eléctrica que circula por el cátodo", "La diferencia de potencial ánodo-cátodo", "El número atomico del material con que se fabrica el anodo", "Son correctas b) y c)"], correct: 3, explanation: "Voltaje y Material." },
+    { id: 99, question: "De las siguientes características, ¿cuál es propia de los R-X?.", options: ["Poseen carga negativa", "Son radiaciones ionizantes", "Se propagan en el vacío a una velocidad menor que la radiación gamma", "Pueden producir fluorescencia"], correct: 1, explanation: "Son ionizantes por definición." },
+    { id: 100, question: "La masa en cualquier núcleo atómico es:", options: ["Siempre superior a la suma de las masas de los cuerpos que la componen", "Siempre inferior a la suma de las masas de los protones que la componen", "Igual a la suma de las masas de los nucleones que la componen", "Ninguna de las anteriores"], correct: 3, explanation: "Inferior a la suma de nucleones." },
+    { id: 101, question: "En la absorción de la radiación emitida por el Co-60 predomina:", options: ["El efecto fotoeléctrico", "La formación de pares", "Efecto Compton", "Ninguno de los anteriores"], correct: 2, explanation: "Energía media en tejido." },
+    { id: 102, question: "¿Que radiaciones no ionizantes producen inducción de corrientes débiles?.", options: ["Térmicas", "No térmicas", "Ópticas", "La a) y c)"], correct: 1, explanation: "Baja frecuencia." },
+    { id: 103, question: "Decimos que el 62,28Ni; 63,29Cu y el 64,30Zn son elementos:", options: ["Isótonos", "Isótopos", "Isómeros", "Isóbaros"], correct: 0, explanation: "Mismos neutrones." },
+    { id: 104, question: "Los núcleos inestables:", options: ["Van teniendo mayor número de neutrones que de protones a medida que Z aumenta", "Tienen siempre el mismo número de neutrones que los protones", "Las fuerzas electroestáticas superan las fuerzas nucleares", "Tienen menos neutrones que protones"], correct: 2, explanation: "Desequilibrio de fuerzas." },
+    { id: 105, question: "En qué radica la diferencia entre un haz de R-X y un haz de rayos gamma ambos monoenergéticos:", options: ["En la frecuencia de los fotones", "En su origen", "En su penetración", "En su espectro energético"], correct: 1, explanation: "Nube vs Núcleo." },
+    { id: 106, question: "La desintegración por captura electronica:", options: ["Supone que A se mantiene constante y Z disminuye en una unidad", "Supone la emisión de positrones", "Consiste en la cesión de un electrón cortical", "La a) y la c)"], correct: 0, explanation: "Isóbaro." },
+    { id: 107, question: "¿De qué es unidad el W/m^2.sr?.", options: ["Energia radiante", "Radiancia", "Intensidad radiante", "Irradiancia"], correct: 1, explanation: "Brillo." },
+    { id: 108, question: "¿Que efecto da lugar a fenómenos de fluorescencia?.", options: ["Compton", "Fotoeléctrico", "Doppler", "Creación de pares"], correct: 1, explanation: "Característico." },
+    { id: 109, question: "¿Qué radiaciones no ionizantes producen excitación de electrones?.", options: ["A-Térmicas", "B-No térmicas", "C-Ópticas", "La a) y b)"], correct: 3, explanation: "." },
+    { id: 110, question: "En una instalación radiactiva, el personal laboral recibe una dosis de 6mSv por lo que el local deberá estar señalizado con un trébol:", options: ["Verde sobre fondo blanco, bordeado con puntas radiales", "Gris azulado sobre fondo blanco, bordeado con puntas radiales", "Verde sobre fondo azul con campo punteado", "Amarillo sobre fondo blanco, bordeado de punta radiales"], correct: 0, explanation: "Zona Controlada." },
+    { id: 111, question: "Aquellas radiaciones no ionizantes que pueden inducir cargas y corrientes eléctricas en los tejidos, corresponden a una frecuencia:", options: ["Mayor de 1000 KHz", "Mayor de 10 GHz", "Menor de 100 KHz", "Entre 100 KHz y 10 GHz"], correct: 2, explanation: "ELF." },
+    { id: 112, question: "La sección eficaz para el efecto fotoeléctrico varía aproximadamente:", options: ["Con la energía como E α", "Con la longitud de onda como 1/λ", "Con la energia como 1/E α (cubo)", "La b) y c)"], correct: 2, explanation: "Cae rápido." },
+    { id: 113, question: "¿Que radiaciones no ionizantes producen inducción de corrientes intensas?.", options: ["Térmicas", "No térmicas", "Opticas", "La a) y c)"], correct: 1, explanation: "Inducción." },
+    { id: 114, question: "¿De que es unidad el W/sr?.", options: ["Energia radiante", "Intensidad radiante", "Irradiancia", "Radiancia"], correct: 1, explanation: "Direccional." },
+    { id: 115, question: "En radiodiagnóstico se utilizan RX de baja energía porque:", options: ["Son muy penetrantes", "Su coeficiente de absorción depende mucho del absorbente", "Son muy homogéneos", "Son muy fáciles de filtrar"], correct: 1, explanation: "Contraste." },
+    { id: 116, question: "¿En qué se basa el funcionamiento del detector Gelger-Muller?.", options: ["Ionización", "Termoluminiscencia", "Potenciales mayores de 400 voltios", "La a) y c)"], correct: 0, explanation: "Gas." },
+    { id: 117, question: "La irradiación se mide en:", options: ["Julios", "Julios/m2", "Vatios/m2", "Vatios/sr"], correct: 1, explanation: "Energía/Area." },
+    { id: 118, question: "La radiación de frenado se produce como consecuencia de:", options: ["El salto del electrón de una orbita", "La pérdida de energía de un protón", "La pérdida de energía cinética de los electrones", "La aniquilación del electrón"], correct: 2, explanation: "Bremsstrahlung." },
+    { id: 119, question: "La vida media de unos átomos es mayor si su periodo de semidesintegración vale:", options: ["3 años", "9 dias", "9 horas", "3 meses"], correct: 0, explanation: "Directamente proporcional." },
+    { id: 120, question: "Los efectos deterministas de las radiaciones ionizantes:", options: ["Tienen un umbral por debajo del cual no se producen", "No pueden evitarse de forma absoluta", "Se pueden evitar de forma absoluta", "La a) y la c)"], correct: 3, explanation: "Umbral de seguridad." },
+    { id: 121, question: "Cuando el valor de “CHR” es muy grande diremos que la radiación es:", options: ["Mono energética", "Poco penetrante", "Muy penetrante", "Regular de penetrante"], correct: 2, explanation: "Difícil de blindar." },
+    { id: 122, question: "¿Por qué en Medicina Nuclear diagnóstica se prefiere utilizar radionúclidos de onda corta?.", options: ["Porque tienen menor actividad", "Porque son más estables", "Porque son mas baratos de producir", "Ninguna de las tres"], correct: 3, explanation: "Se usan de 'vida corta' para reducir dosis." },
+    { id: 123, question: "Cuanto menor sea la constante de desintegración radiactiva de una superficie:", options: ["Menor es su período de semidesintegracion", "Mayor es la vida de los átomos", "Mayor es su periodo de semidesintegración", "La b) y c)"], correct: 3, explanation: "Decae lento." },
+    { id: 124, question: "¿Cuáles de estas pertenece a las radiaciones ópticas?.", options: ["Radiofrecuencias", "Ultravioletas", "Luz visible", "La b) y c)"], correct: 3, explanation: "Espectro óptico." },
+    { id: 125, question: "El espectro de la radiación emitida por un tubo de rayos X es:", options: ["Combinado de uno de ración de frenado (continuo) y otro característico (discreto) del ánodo", "De electrones y fotones", "Bien definido y da lugar solamente a unos picos caracteresticos", "Continuo formado exclusivamente por una mezcla de fotones cuyas energías aumentan de forma continua"], correct: 0, explanation: "Mixto." },
+    { id: 126, question: "El filamento de un tubo de rayos X emite:", options: ["Rayos X", "Positrones", "Electrones", "Rayos X característicos"], correct: 2, explanation: "Termoiónico." },
+    { id: 127, question: "¿En que nuclido se desintegra el 32P (Z=15) por emisión beta negativa?.", options: ["32S (Z=16)", "30P (Z=15)", "30Si (Z=14)", "35S (Z=16)"], correct: 0, explanation: "Z+1." },
+    { id: 128, question: "Si tenemos una cantidad de 99mTc (T 1/2=6), pasadas 30 horas nos quedará:", options: ["1/2 de la inicial", "1/4 de la inicial", "1/16 de la inicial", "1/32 de la inicial"], correct: 3, explanation: "5 vidas medias." },
+    { id: 129, question: "¿En qué núclido se desintegra el 11C (Z=6) por emisión beta positiva?.", options: ["14N (Z=7)", "16O (Z=8)", "11B (Z=5)", "12C (Z=6)"], correct: 2, explanation: "Z-1." },
+    { id: 130, question: "Para definir físicamente la velocidad de desintegración de un radionúclido empleamos:", options: ["La actividad", "El periodo de desintegración", "La constante de desintegración", "La vida media"], correct: 0, explanation: "A = dN/dt." },
+    { id: 131, question: "La dosis equivalente se define como unidad especial debido a que:", options: ["La dosis absorbida no se aplica en el caso de tejidos biologicos", "Iguales dosis absorbidas producen diferentes efectos en los tejidos biológicos diferentes", "Iguales dosis absorbidas producen diferentes efectos en función del tipo de radiación", "Iguales dosis absorbidas producen los mismos efectos en tejidos biológicos diferentes"], correct: 2, explanation: "Calidad radiación." },
+    { id: 132, question: "La dosis efectiva se define como unidad especial debido a que:", options: ["La dosis equivalente no se aplica en el caso de tejido biologico", "Iguales dosis equivalentes producen diferentes efectos en tejidos biológicos diferentes", "Iguales dosis equivalentes producen diferentes efectos en función del tipo de radiación", "Iguales dosis equivalentes producen los mismos efectos en los tejidos biológicos diferentes"], correct: 1, explanation: "Tejido." },
+    { id: 133, question: "¿Qué factor determina la energía de la radiación producida por un tubo de RX?.", options: ["La diferencia de potencial ánodo cátodo", "la intensidad eléctrica que circula por el cátodo", "el numero atómico del material con el que se fabrica el ánodo", "son corectas a y c"], correct: 3, explanation: "Max y Característica." },
+    { id: 134, question: "¿Qué tienen en común los elementos isobaros?.", options: ["El peso atómico", "La posición en la tabla periódica", "El número de neutrones", "El número de electrones"], correct: 0, explanation: "A." },
+    { id: 135, question: "Si un núcleo sufre una desintegración por captura electrónica.", options: ["El núcleo resultante será un isóbaro del precursor", "El núcleo resultante será un isótono del precursor", "El núcleo resultante será un isótopo del precursor", "El núcleo resultante será un isómero del precursor"], correct: 0, explanation: "A cte." },
+    { id: 136, question: "Se produce emisión de radiación gamma:", options: ["Por efecto fotoeléctrico", "Cuando un núcleo decae de un estado excitado a su estado fundamental", "Cuando excitamos un átomo", "Siempre hay una desintegración radiactiva"], correct: 1, explanation: "Nuclear." },
+    { id: 137, question: "El espectro de rayos X característico es:", options: ["Continuo", "De bandas", "Discreto", "Tiene una parte Discreta y otra continua"], correct: 2, explanation: "Lineas." },
+    { id: 138, question: "La creación de pares electrón-positrón:", options: ["Se da en la interacción de neutrones con la materia", "Se produce a partir de un umbral y resulta más probable a medida que aumenta la energía de los fotones", "Es menos probable a medida que aumenta el Z del medio", "Es un proceso por el que la energía del fotón que interacciona no se absorbe en la materia de forma total"], correct: 1, explanation: "Umbral E." },
+    { id: 139, question: "En un detector de Centelleo, los dínodos:", options: ["Convierten la radiación gamma en radiación luminosa", "Amplifican la amplitud de los impulsos eléctricos", "Miden el valor medio de la corriente de impulsos", "Recogen los impulsos de una determinada amplitud"], correct: 1, explanation: "Multiplican." },
+    { id: 140, question: "En la definición de dosis equivalente interviene el factor de calidad Q, que está relacionado con:", options: ["El medio absorbente", "El número de ionizaciones que produce la radiación por unidad de recorrido", "El tiempo que se tarda en impartir una cierta dosis", "La actividad de una fuente radiactiva"], correct: 1, explanation: "LET." },
+    { id: 141, question: "La dosis equivalente se define como unidad especial debido a que:", options: ["La dosis absorbida no se aplica en el caso de tejidos biológicos", "Iguales dosis absorbidas producen diferentes efectos en los tejidos biológicos diferentes", "Iguales dosis absorbidas producen diferentes efectos en función del tipo de radiación", "Iguales dosis absorbidas producen los mismos efectos en los tejidos biológicos diferentes"], correct: 2, explanation: "Repetida." },
+    { id: 142, question: "¿Qué factor determina la energía de radiación producida por un tubo de RX?.", options: ["La diferencia de potencial ánodo-cátodo", "La intensidad eléctrica que circula por el cátodo", "El número atómico del material con que se fabrica el ánodo", "Son correctas a y c"], correct: 3, explanation: "Repetida." },
+    { id: 143, question: "La unidad de dosis absorbida en el sistema internacional es:", options: ["Culombio partido por kilogramo", "Sievert", "Grey", "Becquerel"], correct: 2, explanation: "Gray." },
+    { id: 144, question: "La unidad de dosis equivalente en el sistema internacional es:", options: ["Culombio partido por kilogramo", "Sievert", "Grey", "Becquerel"], correct: 1, explanation: "Sv." },
+    { id: 145, question: "La unidad de exposición en el sistema internacional:", options: ["Culombio partido por kilogramo", "Sievert", "Grey", "Becquerel"], correct: 0, explanation: "C/kg." },
+    { id: 146, question: "En el Radiodiagnóstico se utilizan Rayos X de baja energía porque:", options: ["Son muy penetrantes", "Son muy homogéneos", "Su coeficiente de absorción depende mucho del absorbente", "Son muy fáciles de filtrar"], correct: 2, explanation: "Repetida." },
+    { id: 147, question: "El factor de calidad Q de una radiación:", options: ["Decrece con la L.E.T.", "Toma un valor máximo para una energía dada", "Crece con la L.E.T.", "Es independiente e la L.E.T."], correct: 2, explanation: "Mayor daño." },
+    { id: 148, question: "En una instalación radiactiva el personal laboral recibe una dosis efectiva 4 mSv por año oficial, esta zona es:", options: ["De permanencia limitada", "Controlada", "Vigilada", "De acceso prohibido"], correct: 2, explanation: "Vigilada." },
+    { id: 149, question: "En un detector de centelleo, el fotocátodo:", options: ["Traduce la radiación ionizante a luz visible", "Amplifica el valor de la corriente eléctrica", "Selecciona los impulsos de una determinada amplitud", "Traduce la luz visible a corriente eléctrica"], correct: 3, explanation: "Fotoeléctrico." },
+    { id: 150, question: "Si una persona A esta situada a dos metros de una fuente radiactiva y otra B esta situada a un metro, la dosis de radiación que recibe A en un mismo intervalo de tiempo será respecto a B:", options: ["El doble", "La mitad", "Igual", "La cuarta parte"], correct: 3, explanation: "Inverso cuadrado." },
+    { id: 151, question: "Según el criterio ALARA, cualquier dosis de radiación por debajo de los límites anuales establecidos en la reglamentación estará:", options: ["Permitida siempre en condiciones habituales", "Tolerada incondicionalmente", "Permitida solo para profesional expuesto", "Permitida si su recepción está justificada y la operación que da lugar a la misma ha sido perfeccionada"], correct: 3, explanation: "Optimización." },
+    { id: 152, question: "Decimos que el K y el K son elementos.", options: ["Isotopos", "Isóbaros", "Isótonos", "Isómeros"], correct: 0, explanation: "(Texto original confuso, si es K-40 y Ca-40 son isóbaros. Si es K y K son isótopos)." },
+    { id: 153, question: "La producción de pares se debe:", options: ["La interacción de un fotón en el campo de un núcleo", "La interacción de un fotón en el campo de un electrón", "Un núcleo absorbe un fotón y emite dos nucleones", "La a y c"], correct: 0, explanation: "Campo nuclear." },
+    { id: 154, question: "Los aceleradores lineales, aceleran:", options: ["Isótopos radiactivos", "Neutrones", "Electrones", "Partículas a"], correct: 2, explanation: "e-." },
+    { id: 155, question: "Los colimadores en radioterapia:", options: ["Sirven para filtrar las radiaciones", "Son transparentes a las radiaciones", "Se sitúan para proteger las radiografías de la radiación dispersa", "Limitan el haz de radiación a las medidas deseadas"], correct: 3, explanation: "Conforman." },
+    { id: 156, question: "Tele cobaltoterapia, es una forma de radioterapia:", options: ["Interna", "Externa", "Endocavilatoria", "Intersticial"], correct: 1, explanation: "Distancia." },
+    { id: 157, question: "La desintegración del cobalto-60, se realiza mediante la emisión de:", options: ["Partículas a", "Protones", "2 fotones y de 1,17 y 1,33 MeV", "Neutrones"], correct: 2, explanation: "Gamma." },
+    { id: 158, question: "Se denomina volumen blanco:", options: ["Al volumen a irradiar", "Al tumor de color blanco", "Al tumor benigno", "A la zona tumoral a proteger"], correct: 0, explanation: "Target." },
+    { id: 159, question: "En un generador de isotopos de vida corta, el isotopo padre:", options: ["Es el que se le administra al paciente", "Tiene un periodo relativamente largo comparado con el isotopo hijo", "Siempre será emisor gamma", "La a y c"], correct: 1, explanation: "Generador." },
+    { id: 160, question: "Para obtener una gammagrafía, es preciso:", options: ["Irradiar externamente al paciente con rayos X", "Irradiar externamente al paciente con rayos gamma", "Administrar al paciente una sustancia radiactiva emisora beta", "Administrar al paciente una sustancia radiactiva emisora gamma"], correct: 3, explanation: "Trazador." },
+    { id: 161, question: "Es contraindicación para realizar una gammagrafía:", options: ["Que la paciente este en periodo de gestación", "Que el paciente sea portador de implantes metálicos", "Que la paciente este en periodo de lactancia materna", "La a y c"], correct: 3, explanation: "Feto/Niño." },
+    { id: 162, question: "Los isotopos empleados en Medicina Nuclear diagnostica deben de:", options: ["Tener periodo de semidesintegración corto", "Ser emisores gamma", "Ser emisores alfa", "La a y b"], correct: 3, explanation: "Seguridad." },
+    { id: 163, question: "Es Falso para las pruebas en Medicina Nuclear diagnostica:", options: ["No produce reacciones alérgicas", "Las pruebas que se requieren son incruentas y atraumaticas", "Producen una gran irradiación", "Las pruebas tienen un relativo bajo coste"], correct: 2, explanation: "Dosis baja." },
+    { id: 164, question: "Las cartulinas de refuerzo (hojas reforzadoras) tienen como misión:", options: ["Evitar que incida en la película la radiación difusa", "Filtrar la radiación", "Conseguir que la imagen se produzca con menor dosis", "Proteger la película"], correct: 2, explanation: "Intensificar." },
+    { id: 165, question: "Las rejillas antidifusoras (Bucky) tienen como misión:", options: ["Evitar que incida en la película la radiación difusa", "Filtrar la radiación", "Conseguir que la imagen se produzca con menor dosis", "Proteger la película"], correct: 0, explanation: "Calidad." },
+    { id: 166, question: "La filtración del haz de rayos X es necesaria para:", options: ["Eliminar los fotones menos energéticos", "Eliminar los fotones más energéticos", "Endurecer el haz", "La a y c"], correct: 3, explanation: "Endurecer." },
+    { id: 167, question: "La tomografía es un método radiográfico para:", options: ["Colimador, Tubo R-X, Placa, Antidifusor y paciente", "Tubo, Colimador, Paciente, Antidifusor y Placa", "Tubo, Colimador, Antidifusor, Paciente y Placa", "Tubo, Antidifusor, Paciente, Colimador y Placa"], correct: 1, explanation: "Orden." },
+    { id: 169, question: "El número de capas de hemirreductoras mínimo necesario para que, tras un blindaje, la intensidad de un haz de fotones se vea reducida a menos de la treintava parte del valor inicial:", options: ["2", "5", "3", "4"], correct: 1, explanation: "2^5=32." },
+    { id: 170, question: "El número de capas de hemirreductoras mínimo necesario para que tras un blindaje la intensidad de un haz de fotones se vea reducida a menos de la séptima parte del valor inicial es:", options: ["4", "5", "3", "2"], correct: 2, explanation: "2^3=8." },
+    { id: 171, question: "La distribución de antes de telefonía móvil en un entorno urbano debe ser:", options: ["Homogénea y que emitan la menor potencia posible", "Perimetral y que emita a la máxima potencia", "Homogénea y que emita la máxima potencia", "Perimetral y que emita a la menor potencia posible"], correct: 0, explanation: "Cobertura." },
+    { id: 174, question: "Los rayos X proceden de:", options: ["Estados moleculares excitados", "Estados atómicos excitados", "Núcleos atómicos inestables", "Las tres anteriores"], correct: 1, explanation: "Corteza." },
+    { id: 175, question: "El fenómeno de build-up tiene como consecuencia que:", options: ["La absorción a nivel de la piel es mucho menor que a algunos centímetros de profundidad", "La energía de los electrones de ionización aumenta", "La radiación se absorbe ahora por efecto de formación de pares", "La A y la B"], correct: 0, explanation: "Protección piel." },
+    { id: 176, question: "Cuando el valor de “mu” (coeficiente de atenuación) es muy grande diremos que la radiación es:", options: ["Regular de penetrante", "Poco penetrante", "Muy penetrante", "Monoenergetica"], correct: 1, explanation: "Se frena." },
+    { id: 177, question: "La hadronterapia se caracteriza porque:", options: ["La mayor parte de la energía se deposita en los primero mm de la trayectoria", "La mayor parte de la energía se deposita en los últimos mm de la trayectoria", "La mayor parte de la energía se deposita en lo mm intermedios de la trayectoria", "Ninguna de las tres"], correct: 1, explanation: "Bragg." },
+    { id: 178, question: "La sección eficaz para el efecto compton:", options: ["Aumenta al aumentar la energía", "Es independiente del número atómico e inversamente proporcional a la E", "Es independiente de la energía", "La B y la C"], correct: 1, explanation: "Densidad e-." },
+    { id: 179, question: "En un detector de centelleo, el fotocátodo:", options: ["Selecciona los impulsos de una determinada amplitud", "Amplifica el valor de la corriente eléctrica", "Traduce la luz visible a corriente eléctrica", "Traduce la radiación ionizante a luz visible"], correct: 2, explanation: "Fotoeléctrico." },
+    { id: 180, question: "En las emisiones de las antenas de telefonía móvil, se verifica:", options: ["La potencia disminuye rápidamente con la distancia", "Los elementos del entorno influyen aumentando la potencia", "A partir de 7 m de distancia recibimos más emisión de RF del teléfono que la antena", "La A y la C"], correct: 3, explanation: "Cercanía." },
+    { id: 181, question: "Las radiaciones infrarrojas son radiaciones:", options: ["De fotones no ionizantes", "Corpusculares ionizantes", "Electromagnéticas", "La A y la C"], correct: 3, explanation: "Calor." },
+    { id: 182, question: "Un tubo de rayos X:", options: ["Emite electrones", "Acelera iones positivos para la producción de fotones", "Utiliza electrones para la producción de fotones", "Necesita de un intenso campo magnético"], correct: 2, explanation: "Choque." },
+    { id: 183, question: "¿Por qué se utilizan radiaciones de baja energía en radiodiagnóstico?.", options: ["Porque se absorben selectivamente en unas estructuras orgánicas respecto a otras", "Porque así se reduce la dosis recibida por el paciente", "Porque mayoritariamente actúa el efecto Compton", "La A y la C"], correct: 0, explanation: "Contraste." },
+    { id: 184, question: "¿En que núclido se desintegra el 126I (Z=53) por captura electrónica?.", options: ["125Te (Z=52", "126Te (Z=52)", "127Xe (Z=54)", "126M (Z=53)"], correct: 1, explanation: "Z-1." },
+    { id: 185, question: "Tenemos 4000 Bq de un radionucleido cuyo período de semidesintegración es de 5 años. ¿Qué actividad poseerá a los 20 años?.", options: ["2000 Bq", "500 Bq", "250 Bq", "1000 Bq"], correct: 2, explanation: "4 T." },
+    { id: 186, question: "¿Cuál de las siguientes radiaciones electromagnéticas se propagan con mayor velocidad en el vacío:", options: ["Las ondas de radar", "Los rayos X", "Las ondas ultravioleta", "Todas a igual velocidad"], correct: 3, explanation: "c." },
+    { id: 187, question: "Los radares de tráfico aéreo utilizan:", options: ["Radiofrecuencias", "Infrarrojos", "Microondas", "Láseres tipo I"], correct: 2, explanation: "Micro." },
+    { id: 188, question: "Colocando entre el tubo y el operador un blindaje equivalente a dos capas hemirreductoras, la tasa de exposición se reduce a:", options: ["La mitad", "La cuarta parte", "La tercera parte", "Prácticamente a cero"], correct: 1, explanation: "25%." },
+    { id: 189, question: "El ozono existente en la atmósfera actúa como filtro de:", options: ["La radiación gamma", "La radiación microonda", "La radiación infrarroja del sol", "La radiación ultravioleta del sol"], correct: 3, explanation: "UV." },
+    { id: 190, question: "Un ejemplo de un par partícula-antipartícula es:", options: ["El electrón y el positrón", "El neutrón y el neutrino", "El protón y el neutrón", "El protón y el positrón"], correct: 0, explanation: "Antimateria." },
+    { id: 191, question: "Cuanto mayor es la constante de desintegración de una sustancia radioactiva:", options: ["Menor es su periodo de semidesintegración", "Mayor es la vida media de sus átomos", "Mayor es su período de semidesintegración", "Mayor es su actividad específica"], correct: 0, explanation: "Rápido." },
+    { id: 192, question: "¿Cuál de estas radiaciones son directamente ionizantes?.", options: ["Radiación gamma", "Radiación X", "Ninguna", "Neutrino"], correct: 2, explanation: "Indirectas." },
+    { id: 193, question: "Si andando por un hospital encontramos una señalización que consiste en un trébol de color naranja bordeado de puntas radiales sobre fondo blanco, estamos en una zona:", options: ["De acceso prohibido", "De permanencia reglamentada", "Controlada", "Vigilada"], correct: 1, explanation: "P. Limitada." },
+    { id: 194, question: "La vida media de los átomos es menor cuando el período de semidesintegración vale:", options: ["14 días", "3 años", "3 horas", "2400 años"], correct: 2, explanation: "Menor T." },
+    { id: 195, question: "La carga eléctrica de un fotón es igual a la del:", options: ["positrón", "electrón", "protón", "neutrón"], correct: 3, explanation: "Neutra." },
+    { id: 196, question: "Un tejido blando se somete a la exposición de 100 R. La dosis de exposición absorbida es, aproximadamente:", options: ["10000 rads", "1000 rads", "100 rads", "500 rads"], correct: 2, explanation: "Aprox." },
+    { id: 197, question: "Un núcleo atómico tiene una masa que es:", options: ["Igual a la masa total de los nucleones", "Inferior a la masa total de los nucleones", "Superior a la masa total de los nucleones", "Cualquiera de las anteriores, dependiendo del núcleo"], correct: 1, explanation: "Defecto." },
+    { id: 198, question: "¿Cuál de estas radiaciones son directamente ionizantes?.", options: ["Neutrones", "Protones", "Radiación gamma", "Radiación X"], correct: 1, explanation: "Carga." },
+    { id: 199, question: "Las cataratas fototérmicas en el cristalino son producidas por:", options: ["Luz ultravioleta A", "Luz ultavioleta B-C", "Infrarrojos", "Luz visible"], correct: 2, explanation: "Calor." },
+    { id: 200, question: "El número de protones en un núcleo del isótopo de boro 11 5 B es:", options: ["6", "No tiene protones", "11", "5"], correct: 3, explanation: "Z." },
+    { id: 201, question: "El espectro visible abarca las radiaciones de longitud de onda entre:", options: ["780 nm a 1024 nm", "400 nm a 780 nm", "220 nm a 400 nm", "100 nm a 220 nm"], correct: 1, explanation: "Ojo." },
+    { id: 202, question: "El número atómico de un elemento es el número de:", options: ["Protones y neutrones en su núcleo", "Protones en su núcleo", "Electrones en su núcleo", "Neutrones en su núcleo"], correct: 1, explanation: "Z." },
+    { id: 203, question: "Los hornos de inducción utilizan:", options: ["Microondas", "Láseres tipo I", "Infrarrojos", "Radiofrecuencias"], correct: 3, explanation: "Campos." },
+    { id: 204, question: "Los núcleos de los isótopos de un elemento contienen el mismo número de:", options: ["Electrones", "Neutrones", "Nucleones", "Protones"], correct: 3, explanation: "Z." },
+    { id: 205, question: "Dentro de las RNI ópticas, las menos energéticas son:", options: ["Todas las ópticas tienen igual de energía", "Las infrarrojas", "Ultravioleta", "Las visibles"], correct: 1, explanation: "Frec baja." },
+    { id: 206, question: "¿Cuál de las siguientes RNI no es óptica?.", options: ["Visible", "Microondas", "Ultravioleta", "Infrarroja"], correct: 1, explanation: "RF." },
+    { id: 207, question: "Una de las siguientes afirmaciones no se refiere al Láser:", options: ["Gran direccionalidad", "Luz coherente", "Luz polarizada", "Luz monocromática"], correct: 2, explanation: "(Nota: El láser suele ser polarizado, pero en estos tests la respuesta 'mala' suele ser 'Luz blanca' o 'Policromática'. Si no está, 'polarizada' es la menos característica general)." },
+    { id: 208, question: "Los láseres no abarcan longitudes de onda del espectro:", options: ["Infrarrojo", "Visible", "Microondas", "Ultravioleta"], correct: 2, explanation: "Maser." },
+    { id: 209, question: "Las microondas están compuestas por:", options: ["Neutrones", "Electrones", "Fotones", "Protones"], correct: 2, explanation: "EM." },
+    { id: 210, question: "¿Qué radiación se propaga a más velocidad en el vacío?.", options: ["Sonido", "Todas a igual velocidad", "ELF", "Ultrasonido"], correct: 1, explanation: "c." },
+    { id: 211, question: "¿Qué tienen en común los elementos isóbaros?.", options: ["El número másico", "El número de neutrones", "La posición en la tabla periódica", "El número de electrones"], correct: 0, explanation: "A." },
+    { id: 212, question: "La vida media es:", options: ["La inversa del periodo de desintegración", "La inversa de la actividad", "La inversa de la constante de desintegración", "La inversa de la dosis"], correct: 2, explanation: "Tau." },
+    { id: 213, question: "En la emisión beta positiva admitimos la hipótesis:", options: ["n ---&gt; p + e- + v", "p ---&gt; n + e++ v", "p ---&gt; p + e- +v", "n ---&gt; p + e+ + v"], correct: 1, explanation: "Positrón." },
+    { id: 214, question: "En un detector de centelleo, el fotocátodo:", options: ["Traduce la radiación ionizante a luz visible", "Traduce la luz visible a corriente eléctrica", "Selecciona los impulsos de una determinada amplitud", "Amplifica el valor de la corriente eléctrica"], correct: 1, explanation: "Fotoeléctrico." },
+    { id: 215, question: "Cuáles de estas pertenece a las radiaciones C.E.", options: ["Radiofrecuencias", "Microondas", "Ultravioletas", "La a y b"], correct: 3, explanation: "Campos EM." },
+    { id: 216, question: "La puloximetría por infrarrojo se utiliza para medir:", options: ["Frecuencia cardíaca", "Curva de pulso", "Saturación de oxígeno", "Las tres anteriores"], correct: 3, explanation: "Todas." }
+];
+
+// --- GESTIÓN DE ESTADO ---
+let markedQuestions = new Set();
+let failedQuestions = new Set();
+
+// Función auxiliar para mezclar
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Función principal para crear el quiz
+function createQuiz(questionsToLoad = quizData) {
+  const container = document.getElementById("quiz-container");
+  container.innerHTML = "";
+  
+  // Ocultar menú y mostrar botón de finalizar
+  document.getElementById("restart-menu").style.display = "none";
+  document.getElementById("finish-btn").style.display = "inline-block";
+
+  if(questionsToLoad.length === 0) {
+      container.innerHTML = "<p style='text-align:center'>No hay preguntas para mostrar en esta selección.</p>";
+      return;
+  }
+
+  questionsToLoad.forEach(item => {
+
+    const card = document.createElement("div");
+    card.className = "question-card";
+
+    // --- NUEVO: Checkbox de Marcar ---
+    const markContainer = document.createElement("div");
+    markContainer.className = "mark-container";
+    
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.id = `mark-${item.id}`;
+    // Si ya estaba marcada en la sesión global, mantener el check
+    if(markedQuestions.has(item.id)) checkbox.checked = true;
+
+    checkbox.onchange = (e) => {
+        if(e.target.checked) {
+            markedQuestions.add(item.id);
+        } else {
+            markedQuestions.delete(item.id);
+        }
+    };
+
+    const label = document.createElement("label");
+    label.htmlFor = `mark-${item.id}`;
+    label.innerText = "Marcar para revisar";
+
+    markContainer.appendChild(checkbox);
+    markContainer.appendChild(label);
+    card.appendChild(markContainer);
+    // ---------------------------------
+
+    const questionTitle = document.createElement("div");
+    questionTitle.className = "question-text";
+    questionTitle.innerHTML = `${item.id}. ${item.question}`;
+    card.appendChild(questionTitle);
+
+    const optionsGrid = document.createElement("div");
+    optionsGrid.className = "options-grid";
+
+    const feedback = document.createElement("div");
+    feedback.className = "feedback";
+
+    let options = item.options.map((o,i)=>({text:o,index:i}));
+    shuffleArray(options);
+
+    options.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.textContent = opt.text;
+
+      btn.onclick = () => {
+        // Deshabilitar botones de esta pregunta
+        optionsGrid.querySelectorAll("button").forEach(b=>b.disabled=true);
+
+        if (opt.index === item.correct) {
+          btn.classList.add("correct");
+          feedback.classList.add("show");
+          feedback.innerHTML = `<strong>✅ Correcto</strong><br>${item.explanation}`;
+          // Si acierta, podemos quitarla de falladas si estaba antes (opcional)
+          // failedQuestions.delete(item.id); 
+        } else {
+          btn.classList.add("incorrect");
+          // --- NUEVO: Registrar fallo ---
+          failedQuestions.add(item.id);
+          // ------------------------------
+          
+          optionsGrid.querySelectorAll("button").forEach(b=>{
+            if (b.textContent === item.options[item.correct]) {
+              b.classList.add("correct");
+            }
+          });
+          feedback.classList.add("show");
+          feedback.innerHTML = `<strong>❌ Incorrecto</strong><br>${item.explanation}`;
+        }
+      };
+
+      optionsGrid.appendChild(btn);
+    });
+
+    card.appendChild(optionsGrid);
+    card.appendChild(feedback);
+    container.appendChild(card);
+  });
+}
+
+// Función para mostrar opciones al final
+function showEndOptions() {
+    document.getElementById("finish-btn").style.display = "none";
+    document.getElementById("restart-menu").style.display = "flex";
+    
+    // Scroll al final
+    document.getElementById("controls-area").scrollIntoView({behavior: "smooth"});
+    
+    // Mostrar estadísticas simples
+    document.getElementById("stats-summary").innerHTML = `
+        Preguntas marcadas: <strong>${markedQuestions.size}</strong><br>
+        Preguntas falladas en esta sesión: <strong>${failedQuestions.size}</strong>
+    `;
+}
+
+// Función para reiniciar según el modo
+function restartQuiz(mode) {
+    let subset = [];
+    
+    if (mode === 'all') {
+        subset = quizData;
+        // Opcional: ¿Resetear fallos al hacer todo de nuevo?
+        // failedQuestions.clear(); 
+        // markedQuestions.clear(); // Descomenta si quieres borrar las marcas al reiniciar todo
+    } else if (mode === 'marked') {
+        subset = quizData.filter(q => markedQuestions.has(q.id));
+    } else if (mode === 'failed') {
+        subset = quizData.filter(q => failedQuestions.has(q.id));
+    } else if (mode === 'failed_marked') {
+        subset = quizData.filter(q => failedQuestions.has(q.id) || markedQuestions.has(q.id));
+    }
+
+    // Limpiamos los fallos de la sesión anterior para empezar a contar de nuevo en la nueva ronda
+    // (Mantenemos las marcadas porque son manuales del usuario)
+    if(mode !== 'all') {
+        // Si quieres que al reintentar solo falladas, se vacíe la lista de fallos para ver si ahora acierta:
+        failedQuestions.clear(); 
+    } else {
+        failedQuestions.clear();
+        markedQuestions.clear(); // Reset completo
+    }
+
+    createQuiz(subset);
+    
+    // Scroll arriba
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Iniciar al cargar
+createQuiz();
+</script>
+
+</body>
+</html>

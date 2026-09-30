@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario: Comunicación Paracrina</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; margin: 0; height: 100vh; background: #f4f7f6; color: #333; }
+        
+        /* Pantallas de superposición (Inicio y Fin) */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .modal-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; max-width: 500px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; }
+        .btn { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 6px; background: #3498db; color: white; font-size: 16px; transition: background 0.3s; width: 100%; max-width: 300px; }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-warning { background: #e67e22; }
+        .btn-warning:hover { background: #d35400; }
+
+        /* Estructura Principal */
+        #sidebar { width: 280px; background: #2c3e50; color: white; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        #sidebar h3 { text-align: center; margin-top: 0; border-bottom: 1px solid #34495e; padding-bottom: 15px; }
+        .index-btn { width: 100%; text-align: left; padding: 10px; background: #34495e; border: none; color: white; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; font-size: 14px; }
+        .index-btn:hover { background: #415b76; }
+        .index-btn.correct { border-left: 6px solid #2ecc71; background: #27ae6033; }
+        .index-btn.incorrect { border-left: 6px solid #e74c3c; background: #c0392b33; }
+        .index-btn .mark-indicator { color: #f1c40f; font-weight: bold; font-size: 16px; display: none; }
+        .index-btn.is-marked .mark-indicator { display: inline; }
+
+        #main-content { flex: 1; overflow-y: auto; padding: 30px; position: relative; scroll-behavior: smooth; }
+        .question-container { background: white; padding: 30px; margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 20px; }
+        .question-text { font-size: 18px; font-weight: 600; margin: 0; line-height: 1.5; color: #2c3e50; }
+        
+        .mark-btn { background: none; border: 2px solid #f1c40f; color: #f1c40f; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .mark-btn:hover { background: #fef9e7; }
+        .mark-btn.marked { background: #f1c40f; color: white; }
+
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn { width: 100%; text-align: left; padding: 15px; background: #f8f9f9; border: 2px solid #d5d8dc; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; color: #333; line-height: 1.4; }
+        .option-btn:hover:not(:disabled) { background: #ebedef; border-color: #bdc3c7; }
+        .option-btn:disabled { cursor: default; }
+        .option-btn.correct { background: #d5f5e3; border-color: #2ecc71; color: #1e8449; font-weight: bold; }
+        .option-btn.incorrect { background: #fadbd8; border-color: #e74c3c; color: #922b21; }
+
+        .explanation { margin-top: 20px; padding: 15px 20px; background: #e8f8f5; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; font-size: 15px; line-height: 1.5; color: #0e6251; }
+        .explanation strong { color: #117a65; }
+
+        .floating-finish { position: fixed; bottom: 30px; right: 30px; z-index: 100; }
+        .floating-finish button { box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 18px; padding: 15px 30px; border-radius: 30px; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <div class="modal-box">
+            <h2>Comunicación Paracrina</h2>
+            <p>60 Preguntas extraídas del Tema 7.</p>
+            <p>¿Cómo deseas ordenar las preguntas para esta sesión?</p>
+            <button class="btn" onclick="startQuiz('all', false)">Orden Preestablecido</button>
+            <button class="btn" onclick="startQuiz('all', true)">Mezcladas Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <div class="modal-box">
+            <h2>Resumen del Cuestionario</h2>
+            <p id="results-text" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></p>
+            
+            <button class="btn" onclick="startQuiz('all', false)">Repetir Cuestionario Completo (Original)</button>
+            <button class="btn" onclick="startQuiz('all', true)">Repetir Cuestionario Completo (Aleatorio)</button>
+            <button class="btn btn-warning" id="btn-retry-failed" onclick="startQuiz('failed', false)">Repetir Solo Falladas</button>
+            <button class="btn btn-warning" id="btn-retry-marked" onclick="startQuiz('marked', false)">Repetir Solo Marcadas</button>
+            <button class="btn btn-warning" id="btn-retry-both" onclick="startQuiz('both', false)">Repetir Falladas + Marcadas</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Índice</h3>
+        <div id="index-container"></div>
+    </div>
+    
+    <div id="main-content">
+        <div id="questions-container"></div>
+    </div>
+
+    <div class="floating-finish" id="finish-btn-container" style="display: none;">
+        <button class="btn btn-warning" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <script>
+        // Datos crudos literales
+        const rawText = `Bloque 1: Conceptos Generales de Comunicación Paracrina y Finalización de Señal
+1. Según el profesor, en la comunicación paracrina, el comportamiento de la célula diana NO depende de una sola señal, sino que:
+A) Depende exclusivamente de su código genético, ignorando el entorno.
+B) La célula responde a una combinación de múltiples señales para decidir si sobrevive, se divide o se diferencia.
+C) Responde únicamente a la primera señal que le llega, bloqueando las demás.
+D) Depende de señales que viajan por el torrente sanguíneo a larga distancia.Respuesta correcta: B
+2. ¿Qué ocurre irremediablemente con una célula si NO recibe ningún tipo de estímulo o señal de supervivencia en su entorno?
+A) Entra en un estado de latencia infinita.
+B) Se divide descontroladamente.
+C) Entra en apoptosis (muerte celular programada).
+D) Se convierte en una célula madre.Respuesta correcta: C
+3. La comunicación paracrina se caracteriza por:
+A) La liberación de moléculas al torrente sanguíneo.
+B) La liberación de moléculas al líquido intersticial que actúan sobre células vecinas en un entorno local.
+C) El contacto físico directo entre los receptores de dos células.
+D) La transmisión de impulsos eléctricos.Respuesta correcta: B
+4. El profesor enfatiza que un proceso de señalización paracrina debe estar localizado en el tiempo y terminar. Si NO se produce la finalización de la señal (por ejemplo, de proliferación), ¿cuál es la consecuencia fisiopatológica directa mencionada en clase?
+A) Cáncer (proliferación descontrolada o hiperplasia).
+B) Atrofia muscular severa.
+C) Muerte celular masiva.
+D) Diferenciación celular prematura.Respuesta correcta: A
+5. ¿Cuál de los siguientes NO es uno de los tres mecanismos mencionados por el profesor para FINALIZAR una señal paracrina en el tejido?
+A) Liberación de una molécula análoga que actúa como inhibidor competitivo del ligando.
+B) Receptores solubles en el líquido intersticial que "secuestran" a la molécula señal antes de que llegue a la célula diana.
+C) Cierre hermético de las uniones GAP entre las células.
+D) Liberación de otra citoquina con un efecto intracelular opuesto (antagonismo).Respuesta correcta: C
+
+Bloque 2: Citocinas (Características y Clasificación)
+6. Las citocinas (o citoquinas) son:
+A) Lípidos derivados del ácido araquidónico.
+B) Pequeños péptidos de entre 8 y 25 KDa secretados fundamentalmente por células del sistema inmune.
+C) Proteínas gigantes de más de 100 KDa que forman la matriz extracelular.
+D) Gases difusibles como el óxido nítrico.Respuesta correcta: B
+7. Si clasificamos las citocinas por su ORIGEN, las que son producidas por los linfocitos se denominan:
+A) Monoquinas.
+B) Quimiocinas.
+C) Linfoquinas.
+D) Interleucinas.Respuesta correcta: C
+8. Las citocinas que tienen como función principal usar señales químicas para atraer y reclutar células del sistema inmune (quimiotaxis) hacia la zona del tejido dañado se denominan:
+A) Interleucinas.
+B) Quimiocinas (Chemoquinas).
+C) Factores estimuladores de colonias.
+D) Neurotrofinas.Respuesta correcta: B
+9. Entre las citocinas clásicas PRO-inflamatorias destacadas en clase (que promueven la inflamación) se encuentran:
+A) IL-4, IL-10 y TGF-β.
+B) TNF-α, IL-1 e IL-6.
+C) NGF y BDNF.
+D) EGF y VEGF.Respuesta correcta: B
+10. El profesor advierte de una posible "confusión" en la literatura clínica respecto a las citocinas. Menciona el caso de la IL-6, la cual:
+A) Solo existe en ratones.
+B) Es exclusivamente antiinflamatoria en cualquier contexto.
+C) Se considera clásicamente proinflamatoria, pero dependiendo del contexto (ej. embarazo, desarrollo) puede tener funciones regulatorias o positivas.
+D) Es un factor de crecimiento nervioso.Respuesta correcta: C (Pista de examen: ¡Cuidado con el contexto y la reciprocidad tisular de las citocinas!).
+
+Bloque 3: Propiedades Fundamentales de las Citocinas (Pleiotropismo, Redundancia...)
+11. Una misma citocina (ej. IL-4) puede ejercer distintas acciones (activación, proliferación, diferenciación) dependiendo del tipo celular diana al que se una (Célula B, Timocito, Mastocito). A esta propiedad se le denomina:
+A) Sinergia.
+B) Antagonismo.
+C) Redundancia.
+D) Pleiotropismo.Respuesta correcta: D
+12. Distintas citocinas (ej. IL-2, IL-4, IL-5) producidas por un linfocito activado pueden dar lugar a la MISMA respuesta en la célula diana (ej. proliferación de la célula B). Esto se conoce como:
+A) Pleiotropismo.
+B) Redundancia.
+C) Sinergia.
+D) Antagonismo.Respuesta correcta: B
+13. Si observamos que la combinación de IL-4 e IL-5 produce una secreción de inmunoglobulina E (IgE) MUCHÍSIMO MAYOR que la suma de sus efectos por separado, estamos ante un caso de:
+A) Pleiotropismo.
+B) Redundancia.
+C) Sinergia.
+D) Antagonismo.Respuesta correcta: C
+14. El efecto de una citocina (ej. IL-4) que induce la secreción de IgE puede ser bloqueado por la presencia simultánea de otra citocina (ej. IFN-γ). Esta propiedad es el:
+A) Pleiotropismo.
+B) Redundancia.
+C) Sinergia.
+D) Antagonismo.Respuesta correcta: D
+15. El término "Tormenta de Citoquinas" mencionado a raíz del COVID-19 hace referencia a:
+A) Una falta total de citocinas en sangre.
+B) Una desregulación masiva y descontrolada de la red de citocinas que interactúan entre sí, produciendo más daño tisular que el propio patógeno.
+C) Un proceso fisiológico normal y necesario para combatir un resfriado.
+D) El efecto exclusivo del TGF-β.Respuesta correcta: B
+
+Bloque 4: Receptores de Citocinas y Vías de Señalización
+16. La mayoría de los receptores de citocinas (ej. receptores de IL-2, IL-6) pertenecen a la familia de receptores:
+A) Acoplados a proteína Gq.
+B) Acoplados a tirosin-cinasa (vía JAK-STAT).
+C) Con actividad serina/treonina cinasa intrínseca.
+D) Canales iónicos.Respuesta correcta: B
+17. (Pista de clase) Una diferencia fundamental entre un receptor Tirosina-Quinasa (RTK) clásico y un receptor de citocinas de la familia JAK/STAT es que el receptor de citocinas:
+A) Atraviesa la membrana 7 veces.
+B) NO tiene actividad catalítica intrínseca en su dominio citoplasmático, sino que depende de quinasas citosólicas accesorias llamadas JAK.
+C) Se autofosforila en residuos de serina.
+D) Funciona en ausencia total de ATP.Respuesta correcta: B
+18. En la vía JAK/STAT, una vez que las proteínas JAK fosforilan al receptor, reclutan y fosforilan a las proteínas STAT. ¿Qué hacen estas proteínas STAT activadas?
+A) Abren canales de sodio.
+B) Se translocan al núcleo donde actúan como factores de transcripción para regular la expresión génica.
+C) Degrada el AMPc intracelular.
+D) Destruyen la membrana celular.Respuesta correcta: B
+19. Los receptores de la familia del Factor de Necrosis Tumoral (TNF) se caracterizan por contener un dominio intracelular específico que forma plataformas de señalización. Este dominio se llama:
+A) Dominio SH2.
+B) Dominio de muerte (Death Domain, DD).
+C) Dominio tirosina quinasa.
+D) Dominio de unión a calcio.Respuesta correcta: B
+20. Los receptores de la familia de la Interleucina-1 (IL-1) actúan acoplados a proteínas adaptadoras que terminan activando un importante factor de transcripción proinflamatorio llamado:
+A) NF-kB.
+B) STAT3.
+C) p53.
+D) Ras.Respuesta correcta: A
+
+Bloque 5: Factores Estimuladores de Colonias (CSF)
+21. A pesar de que su nombre suene diferente, por su estructura molecular los CSF (Factores Estimuladores del Crecimiento de Colonias) se engloban dentro del grupo de:
+A) Eicosanoides.
+B) Citocinas.
+C) Neurotrofinas.
+D) Hormonas esteroideas.Respuesta correcta: B
+22. ¿En qué tejido localizado ejercen su función paracrina principal los factores CSF y el SCF (Stem Cell Factor)?
+A) En el miocardio.
+B) En la médula ósea.
+C) En el sistema nervioso central.
+D) En la dermis.Respuesta correcta: B
+23. La acción fisiológica principal de los CSF sobre las células madre hematopoyéticas es:
+A) Inducir su apoptosis inmediata.
+B) Dirigir su diferenciación y proliferación hacia distintas células sanguíneas, especialmente leucocitos.
+C) Convertirlas en células óseas.
+D) Transportar oxígeno.Respuesta correcta: B
+
+Bloque 6: Factores de Crecimiento (GF) y Receptores RTK
+24. Los factores de crecimiento (GF) son péptidos cuyas funciones principales en los tejidos son:
+A) Inducir la contracción del músculo liso.
+B) Controlar la proliferación, supervivencia y diferenciación celular, claves en desarrollo, reparación y cáncer.
+C) Formar coágulos sanguíneos exclusivamente.
+D) Destruir las conexiones sinápticas.Respuesta correcta: B
+25. Si una célula necesita inducir la angiogénesis (formación de nuevos vasos sanguíneos) en un tejido hipóxico o tumoral, secretará principalmente el factor de crecimiento:
+A) EGF (Epidermal Growth Factor).
+B) VEGF (Vascular Endothelial Growth Factor).
+C) NGF (Nerve Growth Factor).
+D) HGF (Hepatocyte Growth Factor).Respuesta correcta: B
+26. El factor de crecimiento responsable de la regeneración hepática tras una lesión es el:
+A) PDGF.
+B) EGF.
+C) HGF.
+D) IGF-1.Respuesta correcta: C
+27. (¡PREGUNTA TRAMPA/CLAVE DEL PROFESOR!) La inmensa mayoría de los factores de crecimiento (EGF, VEGF, PDGF) actúan a través de Receptores Tirosina Quinasa (RTK). Sin embargo, el profesor destaca una EXCEPCIÓN que actúa a través de un receptor con actividad Serina/Treonina Quinasa. ¿Cuál es?
+A) TGF-β (Transforming Growth Factor Beta).
+B) IGF-1.
+C) SCF.
+D) HGF.Respuesta correcta: A
+28. Cuando un ligando se une a un Receptor Tirosina Quinasa (RTK), el paso inicial para su activación es:
+A) La endocitosis inmediata.
+B) La dimerización de los receptores y su posterior autofosforilación en residuos de tirosina.
+C) La apertura de un poro iónico central.
+D) La hidrólisis de ATP por la proteína G.Respuesta correcta: B
+29. En la cascada de señalización típica de los RTK, el receptor activado recluta proteínas adaptadoras que activan a una proteína clave anclada a la membrana llamada Ras. ¿Qué tipo de proteína es Ras?
+A) Una quinasa citosólica libre.
+B) Una subunidad alfa de una proteína G heterotrimérica.
+C) Una proteína G monomérica que se activa al intercambiar GDP por GTP.
+D) Un factor de transcripción nuclear.Respuesta correcta: C
+30. Una vez que la proteína Ras está activa (unida a GTP), desencadena una cascada de fosforilación consecutiva mediada por proteínas quinasas. ¿Cómo se conoce a esta famosa vía?
+A) Vía de las MAP-Kinasas (MAPK).
+B) Vía de la Adenilato Ciclasa.
+C) Vía del IP3/Calcio.
+D) Vía de la Guanilato Ciclasa.Respuesta correcta: A
+31. ¿Por qué es clínicamente tan importante la proteína Ras (mencionada como el primer oncogén descubierto)?
+A) Porque es la única proteína que no gasta energía.
+B) Porque mutaciones que evitan que Ras se "apague" (permaneciendo unida a GTP) conducen a proliferación descontrolada y cáncer.
+C) Porque es la causa principal del Alzheimer.
+D) Porque es el único receptor de la insulina.Respuesta correcta: B
+32. Rita Levi-Montalcini y Stanley Cohen recibieron el Premio Nobel por el descubrimiento de los primeros factores de crecimiento. ¿Cuáles fueron?
+A) TNF-α y TGF-β.
+B) VEGF y HGF.
+C) NGF (Nerve Growth Factor) y EGF (Epidermal Growth Factor).
+D) IL-1 e IL-6.Respuesta correcta: C
+
+Bloque 7: Integración Farmacológica y Oncología (Caso Barbacid)
+33. El profesor le dedica mucho tiempo al investigador español Mariano Barbacid. En su reciente estudio en cáncer de páncreas, diseñó un tratamiento combinado. ¿Cuál fue la estrategia farmacológica clave?
+A) Dar quimioterapia clásica a dosis tóxicas.
+B) Inhibir simultáneamente la proteína mutada (Ras), el receptor (EGFR) y el efector final de transcripción (STAT3) para bloquear la vía completa.
+C) Inyectar citocinas proinflamatorias directamente en el tumor.
+D) Estimular la vía JAK/STAT para que la célula explote.Respuesta correcta: B (Pista clara del enfoque de medicina molecular que busca el profesor).
+34. En el experimento de Barbacid (fármacos Daraxonrasib, Afatinib y SD36), la degradación específica de la proteína STAT3 tenía como objetivo fisiológico secundario (además de reducir el tumor):
+A) Causar metástasis.
+B) Bloquear la bomba de sodio.
+C) Inhibir la metástasis y favorecer la apoptosis de las células tumorales.
+D) Promover la angiogénesis tumoral.Respuesta correcta: C
+35. Si un paciente tiene cáncer colorrectal o degeneración macular, se utilizan anticuerpos monoclonales como el Bevacizumab o Ranibizumab. ¿Cuál es la diana de estos fármacos?
+A) Inhiben al NGF.
+B) Bloquean el VEGF, impidiendo la angiogénesis (formación de vasos) necesaria para el tumor.
+C) Estimulan la IL-6.
+D) Son agonistas del receptor de insulina.Respuesta correcta: B
+36. El Trastuzumab es un anticuerpo monoclonal muy utilizado en ciertos tipos de cáncer de mama. Su mecanismo de acción se basa en bloquear:
+A) El receptor de estrógenos intracelular.
+B) El receptor HER2/ErbB2 (un receptor tipo tirosina quinasa) para detener la señal de crecimiento celular.
+C) Los canales de calcio voltaje-dependientes.
+D) La síntesis de interleucinas.Respuesta correcta: B
+37. El fármaco Tocilizumab se usó intensamente durante la pandemia de COVID-19 para tratar la tormenta de citoquinas. Su diana es:
+A) Inhibir a la proteína Ras.
+B) Anticuerpo monoclonal contra el receptor de Interleucina-6 (IL-6R).
+C) Bloquear la replicación viral directamente.
+D) Destruir los linfocitos T.Respuesta correcta: B
+
+Bloque 8: Neurotrofinas y Experimento de Hamburger
+38. Las neurotrofinas son factores peptídicos esenciales para:
+A) La mineralización ósea.
+B) La contracción muscular rápida.
+C) La supervivencia, desarrollo, plasticidad y mantenimiento de las neuronas.
+D) La producción de anticuerpos en el bazo.Respuesta correcta: C
+39. En la comunicación mediada por neurotrofinas (ej. en una unión neuromuscular o sinapsis), el flujo de la señal trófica va:
+A) De la célula presináptica a la célula postsináptica (flujo anterógrado).
+B) De la sangre al líquido cefalorraquídeo.
+C) De la célula diana inervada (postsináptica) hacia la terminación nerviosa que la inerva (flujo retrógrado).
+D) Entre dos astrocitos colindantes.Respuesta correcta: C (El profesor subraya: "actúan sobre neuronas presinápticas y son producidas por células a las que estas neuronas inervan").
+40. ¿Qué demostró clásicamente el experimento de Víctor Hamburger en el embrión de pollo (amputación del esbozo de una extremidad)?
+A) Que el pollo regenera la pata en una semana.
+B) Que las neuronas de la médula espinal no dependen de nada para sobrevivir.
+C) Que la supervivencia de las neuronas motoras (asta ventral) depende de la presencia de su tejido diana, que secreta señales de supervivencia (neurotrofinas). Si falta el tejido, la neurona muere.
+D) Que la extremidad crece sin necesidad de inervación.Respuesta correcta: C (Clásico en neurofisiología).
+41. De los siguientes factores, ¿cuál NO es una neurotrofina clásica?
+A) NGF (Nerve Growth Factor).
+B) BDNF (Brain-Derived Neurotrophic Factor).
+C) NT-3 (Neurotrofina-3).
+D) GM-CSF (Granulocyte-Macrophage Colony-Stimulating Factor).Respuesta correcta: D
+42. Los receptores principales a través de los cuales actúan las neurotrofinas (TrkA, TrkB, TrkC) pertenecen funcionalmente a la clase de:
+A) Receptores nucleares.
+B) Receptores Tirosina Quinasa (RTK).
+C) Proteínas G.
+D) Canales aniónicos.Respuesta correcta: B
+43. El BDNF (Factor Neurotrófico Derivado del Cerebro) actúa específicamente a través del receptor:
+A) TrkA.
+B) TrkB.
+C) TrkC.
+D) EGFR.Respuesta correcta: B
+44. Existe un receptor común para todas las neurotrofinas que, bajo ciertas circunstancias, puede inducir la muerte celular. ¿Cómo se llama?
+A) p75^NTR^ (Receptor de muerte).
+B) TrkB mutado.
+C) Fas Ligando.
+D) TNF-αR.Respuesta correcta: A
+45. El profesor explica que el ejercicio físico (entrenamiento aeróbico moderado/intenso) tiene un efecto protector sobre el cerebro porque:
+A) Disminuye el flujo de sangre, obligando a las neuronas a descansar.
+B) Induce la liberación de mioquinas musculares y factores endoteliales que atraviesan al cerebro y aumentan la síntesis de BDNF (potenciando la neuroplasticidad).
+C) Transforma el tejido adiposo en tejido neuronal.
+D) Inhibe por completo la vía de las MAP-Kinasas.Respuesta correcta: B
+
+Bloque 9: Integración y Repaso de Mecanismos
+46. En la vía del receptor de TGF-β (Serina/Treonina cinasa), aunque no se nombren explícitamente en el texto base los mediadores intermedios, su mecanismo diferencial radica en:
+A) Ser el único factor de crecimiento que usa fosforilación de serinas/treoninas en lugar de tirosinas.
+B) No utilizar receptores de membrana, sino receptores nucleares directos.
+C) Actuar exclusivamente como gas.
+D) Usar AMPc como segundo mensajero.Respuesta correcta: A
+47. Si administramos Infliximab a un paciente con Enfermedad de Crohn, estamos administrando un anticuerpo monoclonal contra:
+A) El receptor de IL-1.
+B) El factor NGF.
+C) El TNF-α, reduciendo así la cascada inflamatoria asociada a sus dominios de muerte.
+D) La enzima ciclooxigenasa.Respuesta correcta: C
+48. El Anakinra se utiliza en artritis reumatoide y síndromes autoinflamatorios. Su función es:
+A) Antagonista del receptor de IL-1.
+B) Agonista del receptor de insulina.
+C) Inhibidor de la proteína Ras.
+D) Anticuerpo contra VEGF.Respuesta correcta: A
+49. Las células madre hematopoyéticas, además de los CSF, requieren otra citocina esencial producida por células del estroma de la médula ósea para su supervivencia. Esta se conoce como:
+A) EGF.
+B) SCF (Stem Cell Factor).
+C) BDNF.
+D) NT-4/5.Respuesta correcta: B
+50. ¿Cuál de los siguientes fármacos mencionados actuaría lógicamente para prevenir o tratar una neutropenia inducida por quimioterapia?
+A) Bevacizumab (anti-VEGF).
+B) Filgrastim (G-CSF recombinante), para estimular la producción de granulocitos/neutrófilos en la médula ósea.
+C) Tocilizumab (anti-IL6R).
+D) Afatinib.Respuesta correcta: B
+51. En la comunicación paracrina, las moléculas de señalización tienen vida media muy corta (minutos) o son rápidamente destruidas. ¿Por qué esto es fisiológicamente indispensable?
+A) Para evitar que entren al núcleo de la propia célula que las produce.
+B) Para asegurar que la señal permanezca confinada localmente en el espacio y limitada en el tiempo, impidiendo una respuesta sistémica descontrolada.
+C) Porque son demasiado pesadas.
+D) Porque los receptores las fagocitan.Respuesta correcta: B
+52. Las Quimiocinas, una subfamilia de las citocinas encargadas del reclutamiento celular, se diferencian de otras interleucinas porque la mayoría ejerce su acción a través de:
+A) Receptores Tirosina Quinasa (RTK).
+B) Receptores acoplados a proteínas G (GPCRs con 7 dominios transmembrana).
+C) Receptores de muerte.
+D) Receptores intracelulares.Respuesta correcta: B (Visible en la diapositiva "Tipos de receptores" donde se agrupan las Chemokines con G proteins).
+53. Si vemos en una gráfica que la administración de IL-4 induce un nivel "1" de respuesta, la IL-5 induce un nivel "1", y ambas juntas inducen un nivel "10", el profesor te está evaluando el concepto de:
+A) Redundancia.
+B) Interferencia.
+C) Sinergia.
+D) Afinidad.Respuesta correcta: C
+54. El factor de crecimiento que tiene un papel crítico en la cicatrización estimulando preferentemente a los fibroblastos es:
+A) VEGF.
+B) PDGF (Platelet-Derived Growth Factor).
+C) BDNF.
+D) GM-CSF.Respuesta correcta: B
+55. El receptor de IGF-1 (Insulin-like Growth Factor 1) comparte la misma familia estructural que el receptor de:
+A) TNF-α.
+B) EGF (ambos son Receptores Tirosina Quinasa - RTK).
+C) TGF-β.
+D) IL-1.Respuesta correcta: B
+56. En una enfermedad neurodegenerativa donde hay muerte neuronal progresiva (ej. Alzheimer o Parkinson), un enfoque de investigación mencionado en clase es:
+A) Administrar inhibidores de VEGF.
+B) Suplir la falta de neurotrofinas mediante NGF recombinante o potenciar el BDNF para promover la supervivencia neuronal.
+C) Aplicar radioterapia dirigida al asta ventral.
+D) Administrar anticuerpos contra TrkB.Respuesta correcta: B
+57. El receptor TrkA está acoplado a la vía de la Tirosina Quinasa y promueve la supervivencia. El receptor p75^NTR^, que también se une a neurotrofinas, está relacionado estructuralmente con:
+A) Los canales iónicos.
+B) La familia de receptores del Factor de Necrosis Tumoral (posee un dominio de muerte).
+C) Las uniones GAP.
+D) Las integrinas.Respuesta correcta: B
+58. Respecto a la Transducción de Señal en citocinas, la proteína JAK es a los receptores de Citocinas (IL-2, IL-6) lo que la proteína ______ es a los Receptores de Factores de Crecimiento (EGF, PDGF).
+A) Ras (ambas inician la cascada efectora intracelular principal).
+B) Actina.
+C) Colágeno.
+D) Glucosa.Respuesta correcta: A
+59. En el estudio de Barbacid, la inhibición múltiple de la vía (receptor, proteína G, efector final) se debió a que:
+A) El cáncer siempre se cura con una sola pastilla.
+B) El bloqueo de un solo punto en las cascadas de señalización intracelular del cáncer suele generar resistencia o vías alternativas, por lo que bloqueando la vía de Ras/MAPK a varios niveles se previene la resistencia tumoral.
+C) El ratón no toleraba un solo fármaco.
+D) Las citocinas neutralizaban al primer fármaco.Respuesta correcta: B (Es la premisa de la oncología molecular y la polifarmacia dirigida en la vía de Ras).
+60. Como conclusión del Tema 7, la diferencia fundamental entre una hormona clásica (comunicación endocrina) y una citocina o factor de crecimiento (comunicación paracrina) radica en:
+A) Su estructura química: las hormonas nunca son péptidos, las citocinas sí.
+B) Su método de distribución: la hormona viaja por sangre a todo el organismo, la molécula paracrina actúa localmente en el líquido intersticial sobre sus células vecinas.
+C) Sus receptores: las citocinas no usan receptores.
+D) Que las hormonas causan muerte celular sistemática y los factores de crecimiento no.Respuesta correcta: B`;
+
+        let allQuestions = [];
+        let currentQuestions = [];
+        let userState = {}; 
+
+        // Procesar y parsear los datos crudos
+        function initData() {
+            let cleanText = rawText.replace(/Bloque \d+:.*?\n/g, '');
+            const blocks = cleanText.split(/\n(?=\d+\.\s)/);
+
+            blocks.forEach(block => {
+                block = block.trim();
+                if (!block) return;
+
+                const match = block.match(/^(\d+)\.\s*(.*?)\s+A\)\s*(.*?)\s+B\)\s*(.*?)\s+C\)\s*(.*?)\s+D\)\s*(.*?)\s*Respuesta correcta:\s*([A-D])(.*)/is);
+                
+                if (match) {
+                    let id = parseInt(match[1]);
+                    
+                    // Extraer explicación adicional si la hay
+                    let expText = match[8] ? match[8].trim() : "";
+                    if (expText.startsWith("(")) expText = expText.substring(1).trim();
+                    if (expText.endsWith(")")) expText = expText.substring(0, expText.length - 1).trim();
+                    
+                    if (!expText) {
+                        expText = `La opción correcta es la ${match[7].toUpperCase()}.`;
+                    } else {
+                        expText = `<strong>La opción correcta es la ${match[7].toUpperCase()}:</strong> ${expText}`;
+                    }
+
+                    allQuestions.push({
+                        originalId: id,
+                        q: match[2].trim(),
+                        options: [
+                            { text: match[3].trim(), correct: match[7].toUpperCase() === 'A', originalLetter: 'A' },
+                            { text: match[4].trim(), correct: match[7].toUpperCase() === 'B', originalLetter: 'B' },
+                            { text: match[5].trim(), correct: match[7].toUpperCase() === 'C', originalLetter: 'C' },
+                            { text: match[6].trim(), correct: match[7].toUpperCase() === 'D', originalLetter: 'D' }
+                        ],
+                        exp: expText
+                    });
+                    userState[id] = { answered: false, failed: false, marked: false };
+                }
+            });
+        }
+
+        // Algoritmo de Fisher-Yates para mezclar arrays
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startQuiz(mode, isRandom) {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('finish-btn-container').style.display = 'block';
+
+            let pool = [];
+            if (mode === 'all') {
+                pool = [...allQuestions];
+            } else if (mode === 'failed') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed);
+            } else if (mode === 'marked') {
+                pool = allQuestions.filter(q => userState[q.originalId].marked);
+            } else if (mode === 'both') {
+                pool = allQuestions.filter(q => userState[q.originalId].failed || userState[q.originalId].marked);
+            }
+
+            if (isRandom) {
+                shuffleArray(pool);
+            }
+
+            currentQuestions = pool;
+
+            // Resetear estado de "respondido" y mezclar opciones para esta sesión
+            currentQuestions.forEach(q => {
+                userState[q.originalId].answered = false;
+                userState[q.originalId].failed = false; 
+                shuffleArray(q.options);
+            });
+
+            renderUI();
+            
+            // Scrollear arriba
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function renderUI() {
+            const indexContainer = document.getElementById('index-container');
+            const questionsContainer = document.getElementById('questions-container');
+            
+            indexContainer.innerHTML = '';
+            questionsContainer.innerHTML = '';
+
+            if (currentQuestions.length === 0) {
+                questionsContainer.innerHTML = '<h2>No hay preguntas en esta categoría.</h2>';
+                return;
+            }
+
+            currentQuestions.forEach((q, displayIndex) => {
+                let id = q.originalId;
+                let isMarked = userState[id].marked;
+                
+                // Botón del índice
+                const idxBtn = document.createElement('button');
+                idxBtn.className = `index-btn ${isMarked ? 'is-marked' : ''}`;
+                idxBtn.id = `idx-btn-${id}`;
+                idxBtn.innerHTML = `Pregunta ${id} <span class="mark-indicator">★</span>`;
+                idxBtn.onclick = () => document.getElementById(`q-container-${id}`).scrollIntoView({ behavior: 'smooth' });
+                indexContainer.appendChild(idxBtn);
+
+                // Contenedor de la pregunta
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-container';
+                qDiv.id = `q-container-${id}`;
+
+                // Header (Texto + Botón Marcar)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'question-header';
+                
+                const qText = document.createElement('h3');
+                qText.className = 'question-text';
+                qText.textContent = `${id}. ${q.q}`;
+                
+                const markBtn = document.createElement('button');
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.id = `mark-btn-${id}`;
+                markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+                markBtn.onclick = () => toggleMark(id);
+
+                headerDiv.appendChild(qText);
+                headerDiv.appendChild(markBtn);
+                qDiv.appendChild(headerDiv);
+
+                // Opciones
+                const optsDiv = document.createElement('div');
+                optsDiv.className = 'options-list';
+                
+                q.options.forEach((opt, optIndex) => {
+                    const optBtn = document.createElement('button');
+                    optBtn.className = 'option-btn';
+                    optBtn.id = `opt-${id}-${optIndex}`;
+                    optBtn.textContent = opt.text;
+                    optBtn.onclick = () => handleAnswer(id, optIndex, opt.correct);
+                    optsDiv.appendChild(optBtn);
+                });
+                qDiv.appendChild(optsDiv);
+
+                // Explicación (oculta inicialmente)
+                const expDiv = document.createElement('div');
+                expDiv.className = 'explanation';
+                expDiv.id = `exp-${id}`;
+                expDiv.innerHTML = q.exp;
+                qDiv.appendChild(expDiv);
+
+                questionsContainer.appendChild(qDiv);
+            });
+        }
+
+        function handleAnswer(qId, optIndex, isCorrect) {
+            if (userState[qId].answered) return; 
+
+            userState[qId].answered = true;
+            userState[qId].failed = !isCorrect;
+
+            // Actualizar interfaz del índice
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Encontrar la pregunta actual para ver las opciones
+            const question = currentQuestions.find(q => q.originalId === qId);
+
+            // Actualizar botones de opciones
+            question.options.forEach((opt, i) => {
+                const btn = document.getElementById(`opt-${qId}-${i}`);
+                btn.disabled = true; 
+                if (opt.correct) {
+                    btn.classList.add('correct');
+                } else if (i === optIndex && !isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            // Mostrar explicación
+            document.getElementById(`exp-${qId}`).style.display = 'block';
+        }
+
+        function toggleMark(qId) {
+            userState[qId].marked = !userState[qId].marked;
+            const isMarked = userState[qId].marked;
+            
+            const markBtn = document.getElementById(`mark-btn-${qId}`);
+            markBtn.classList.toggle('marked', isMarked);
+            markBtn.innerHTML = isMarked ? '★ Marcada' : '☆ Marcar';
+
+            const idxBtn = document.getElementById(`idx-btn-${qId}`);
+            idxBtn.classList.toggle('is-marked', isMarked);
+        }
+
+        function finishQuiz() {
+            let correctCount = 0;
+            let failedCount = 0;
+            let unanweredCount = 0;
+
+            currentQuestions.forEach(q => {
+                if (!userState[q.originalId].answered) {
+                    unanweredCount++;
+                } else if (userState[q.originalId].failed) {
+                    failedCount++;
+                } else {
+                    correctCount++;
+                }
+            });
+
+            const total = currentQuestions.length;
+            const resText = document.getElementById('results-text');
+            resText.innerHTML = `Aciertos: <span style="color:#2ecc71">${correctCount}</span> | 
+                                 Fallos: <span style="color:#e74c3c">${failedCount}</span> | 
+                                 Sin responder: <span style="color:#f39c12">${unanweredCount}</span><br>
+                                 Total en esta sesión: ${total}`;
+
+            // Habilitar/Deshabilitar botones de repetición
+            const totalMarked = Object.values(userState).filter(st => st.marked).length;
+            const totalFailed = Object.values(userState).filter(st => st.failed).length;
+
+            document.getElementById('btn-retry-failed').disabled = totalFailed === 0;
+            document.getElementById('btn-retry-marked').disabled = totalMarked === 0;
+            document.getElementById('btn-retry-both').disabled = (totalFailed === 0 && totalMarked === 0);
+
+            document.getElementById('end-screen').style.display = 'flex';
+        }
+
+        // Inicializar datos al cargar
+        window.onload = () => {
+            initData();
+        };
+
+    </script>
+</body>
+</html>

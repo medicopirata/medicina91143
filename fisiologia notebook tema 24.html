@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Fisiología del Músculo Liso</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modal de Inicio */
+        #setup-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .modal-content button {
+            margin: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        .index-item {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: #34495e;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.3s;
+        }
+        .index-item.active { border: 2px solid white; }
+        .index-item.correct { background-color: var(--success-color); }
+        .index-item.wrong { background-color: var(--error-color); }
+        .index-item.marked { box-shadow: 0 0 0 3px #f1c40f; }
+
+        /* Contenedor Principal */
+        #main-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            position: relative;
+        }
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Estilo Pregunta */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            scroll-margin-top: 100px;
+        }
+        .question-text {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .options-container {
+            display: grid;
+            gap: 10px;
+        }
+        .option {
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option:hover { background-color: #f9f9f9; border-color: #ddd; }
+        .option.selected-correct { background-color: #d4edda; border-color: var(--success-color); pointer-events: none; }
+        .option.selected-wrong { background-color: #f8d7da; border-color: var(--error-color); pointer-events: none; }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+
+        /* Explicación y Marcado */
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            font-style: italic;
+        }
+        .feedback.show { display: block; background: #eef2f7; border-left: 5px solid var(--accent-color); }
+        
+        .mark-container {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .mark-container input { margin-right: 8px; }
+
+        /* Botones de acción */
+        .btn-finish {
+            background: var(--error-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .retry-buttons {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .retry-buttons button {
+            padding: 12px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: var(--accent-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-modal">
+        <div class="modal-content">
+            <h2>Configuración del Quiz</h2>
+            <p>¿Cómo deseas realizar las preguntas?</p>
+            <button onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar" id="question-index"></div>
+
+    <div id="main-container">
+        <div class="quiz-header">
+            <h2 id="quiz-title">Fisiología Músculo Liso</h2>
+            <button class="btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="questions-wrapper"></div>
+
+        <div id="results-area" class="retry-buttons">
+            <h2 id="score-text"></h2>
+            <p>¿Qué deseas hacer ahora?</p>
+            <button onclick="retry('all')">Volver a realizarlo completo</button>
+            <button onclick="retry('failed')">Repetir solo las falladas</button>
+            <button onclick="retry('marked')">Repetir solo las marcadas</button>
+            <button onclick="retry('failed_marked')">Repetir falladas + marcadas</button>
+        </div>
+    </div>
+
+    <script>
+        const originalData = [
+            { id: 1, q: "1. A diferencia del músculo esquelético, cuyas fibras se disponen en sarcómeros estriados, los filamentos contráctiles del músculo liso se caracterizan por:", options: ["Agruparse en estrías transversales.", "Organizarse en fascículos oblicuos o diagonales anclados a la membrana, lo que produce una contracción celular en forma globular.", "Carecer totalmente de filamentos de actina.", "Estar rodeados de una inmensa red de retículo sarcoplásmico."], correct: 1, expl: "Al no tener sarcómeros, se organizan diagonalmente anclados en cuerpos densos y placas de anclaje, acercando los lados opuestos de la membrana al contraerse." },
+            { id: 2, q: "2. (¡Kahoot de clase!). Si comparamos la fisiología del músculo liso con la del músculo esquelético, el músculo liso destaca especialmente por:", options: ["Requerir un consumo de oxígeno 10 veces mayor.", "Contraerse de forma muchísimo más rápida.", "Ser mucho más resistente a la fatiga, pudiendo mantener la contracción (ej. en esfínteres) durante minutos u horas con bajo gasto energético.", "Estar bajo el control exclusivo del sistema nervioso somático."], correct: 2, expl: "El profesor lo preguntó en el Kahoot. Consume menos O2, ATP y resiste la fatiga enormemente." },
+            { id: 3, q: "3. Desde el punto de vista del control del Sistema Nervioso, el músculo esquelético solo puede ser \"activado\" (o dejado de activar) por la acetilcolina. ¿Qué diferencia clave presenta el músculo liso?", options: ["Que solo responde a mediadores locales.", "Que carece de receptores de membrana.", "Que recibe múltiples señales (SNA simpático, parasimpático, hormonas) que pueden tanto ESTIMULAR como INHIBIR su actividad contráctil.", "Que se contrae únicamente por reflejos espinales."], correct: 2, expl: "Una diferencia fundamental es que el músculo liso sí puede ser activamente inhibido/relajado por ligandos (ej. óxido nítrico o adrenalina)." },
+            { id: 4, q: "4. Atendiendo a la clasificación del músculo liso, el músculo liso MULTIUNITARIO se caracteriza funcionalmente porque:", options: ["Sus fibras están ampliamente acopladas por Uniones Gap.", "Actúa como un sincitio funcional donde todas las células se contraen a la vez.", "La fuerza de su contracción se regula por el número de fibras musculares activas (reclutamiento), ya que no están acopladas eléctricamente.", "Se encuentra mayoritariamente en la pared del tracto intestinal."], correct: 2, expl: "Como las fibras son independientes (multi-unidad), para hacer más fuerza el nervio debe reclutar/activar a más fibras individuales." },
+            { id: 5, q: "5. Por el contrario, en el músculo liso UNITARIO o visceral (ej. intestino), todas las fibras se contraen sincrónicamente. ¿De qué depende el GRADO o fuerza de contracción en este tejido?", options: ["Del número de unidades motoras reclutadas.", "Es una respuesta de \"Todo o Nada\" y no se puede graduar.", "Exclusivamente de la inhibición simpática.", "Es función directa de la cantidad de Calcio (Ca2+) que entra a la célula."], correct: 3, expl: "Al actuar como un todo conectado por uniones Gap, la fuerza total depende del nivel de calcio intracelular alcanzado." },
+            { id: 6, q: "6. El profesor mencionó una función clínica muy específica de un músculo liso multiunitario: el músculo Ciliar del ojo. ¿Cuál es su función exacta?", options: ["Regular la dilatación de la pupila en la oscuridad.", "Regular el grado de convexidad del cristalino del ojo para poder enfocar objetos cercanos o lejanos.", "Producir el humor acuoso.", "Cerrar los párpados."], correct: 1, expl: "Lo preguntó y explicó directamente en el audio como ejemplo de músculo multiunitario." },
+            { id: 7, q: "7. Si a nivel histológico las fibras lisas no poseen líneas Z ni sarcómeros, ¿a qué estructuras citoplasmáticas se anclan los filamentos finos de actina para ejercer tracción?", options: ["A las mitocondrias.", "A las caveolas.", "A los Cuerpos Densos y a las placas de anclaje de las proteínas de membrana.", "Al retículo endoplásmico rugoso."], correct: 2, expl: "Los cuerpos densos son los equivalentes a los discos Z del músculo esquelético." },
+            { id: 8, q: "8. En cuanto a la estructura molecular comparada de los filamentos contráctiles, una característica distintiva del músculo liso es:", options: ["Tiene una relación Actina:Miosina mucho menor que el esquelético.", "Las cabezas de miosina están presentes a lo largo de TODA la longitud del filamento grueso, sin dejar una zona desnuda central (línea M).", "Carece totalmente de miosina.", "Sus filamentos finos no tienen tropomiosina."], correct: 1, expl: "Esto permite que la actina se deslice distancias mucho más largas sobre la miosina sin encontrarse con el \"obstáculo físico\" de la línea M central." },
+            { id: 9, q: "9. En el músculo esquelético, para que ocurra la contracción, el calcio debe unirse a la Troponina C. ¿A qué proteína se une el Calcio en el músculo liso para iniciar la contracción?", options: ["A la Troponina T.", "A la Tropomiosina.", "A la Calmodulina (CaM).", "A la Quinasa de las cadenas ligeras de la miosina (MLCK)."], correct: 2, expl: "El liso no tiene troponina. El calcio citosólico se une primero a la proteína Calmodulina." },
+            { id: 10, q: "10. (Trampa advertida en clase). Es cierto que el músculo liso contiene Tropomiosina en sus filamentos finos. Sin embargo, en estado de reposo, el papel de esta tropomiosina es:", options: ["Ocluir e incordiar bloqueando físicamente el sitio de unión actina-miosina.", "Mantener la estructura del filamento, pero NO bloquea el sitio de unión de la miosina.", "Fosforilar a la actina directamente.", "Funcionar como canal de calcio dependiente de voltaje."], correct: 1, expl: "El profesor avisó: \"aquí la tropomiosina está, pero no incordia\". No cumple la función de bloqueo que tiene en el estriado." },
+            { id: 11, q: "11. Una vez que se forma el complejo Calcio-Calmodulina, este adquiere la capacidad biológica de activar directamente a una enzima clave. ¿A cuál?", options: ["Adenilato ciclasa.", "Fosfatasa de la miosina (MLCP).", "ATPasa de Sodio/Potasio.", "Quinasa de las cadenas ligeras de la miosina (MLCK)."], correct: 3, expl: "El complejo Ca2+-CaM activa a esta quinasa específica." },
+            { id: 12, q: "12. En el proceso de contracción del músculo liso, ¿cuál es la función de la Quinasa de las cadenas ligeras de miosina (MLCK) activada?", options: ["Desfosforilar la miosina para relajar el músculo.", "Fosforilar la actina.", "Fosforilar la cadena ligera de la cabeza de miosina, requisito imprescindible para que se active su actividad ATPasa y pueda darse el golpe de fuerza.", "Bombear calcio hacia las caveolas."], correct: 2, expl: "La fosforilación \"enciende\" la capacidad de la miosina de usar ATP e interactuar con la actina." },
+            { id: 13, q: "13. A nivel evolutivo/fisiológico, el ciclo de contracción-relajación del músculo liso dura hasta 10 veces más que el del esquelético. A nivel molecular, la causa principal de esta lentitud radica en:", options: ["Que el calcio tarda mucho en unirse a la troponina.", "Que utiliza una isoforma de Miosina con una actividad ATPasa mucho más lenta que la del músculo esquelético.", "La ausencia total de canales de potasio.", "El enorme tamaño de su retículo sarcoplásmico."], correct: 1, expl: "La hidrólisis del ATP por las cabezas de miosina es más pausada, ralentizando todo el ciclo de puentes cruzados." },
+            { id: 14, q: "14. Para que un músculo liso se relaje de forma efectiva, el evento biológico primario que debe ocurrir es:", options: ["Que el calcio se bombee al citoplasma.", "Que disminuya la concentración de calcio intracelular (extraído hacia el exterior o al retículo) y que la Calmodulina se desprenda del calcio.", "Una entrada masiva de sodio intracelular.", "Que la MLCK fosforile más cadenas de miosina."], correct: 1, expl: "Al bajar el calcio libre, el complejo CaM se desarma y la quinasa MLCK queda inactiva." },
+            { id: 15, q: "15. Una vez que el nivel de calcio cae, la relajación del músculo liso requiere ineludiblemente la acción enzimática de:", options: ["La Fosfatasa de la miosina, encargada de desfosforilar (quitar el grupo fosfato) la cadena ligera de la miosina, desactivando su ATPasa.", "La acetilcolinesterasa.", "La Quinasa MLCK.", "La troponina I."], correct: 0, expl: "Aunque baje el calcio, la miosina ya fosforilada seguiría contraída. Hay que \"apagarla\" quitándole el fosfato usando la Fosfatasa de la Miosina." },
+            { id: 16, q: "16. (Explicación del \"Desbalance\" en clase). En una fibra de músculo liso en estado BASAL (de reposo), la relación entre la actividad enzimática de la Fosfatasa (MLCP) y la Quinasa (MLCK) es la siguiente:", options: ["Solo existe actividad Quinasa.", "Ambas están completamente inactivas (actividad cero).", "La Fosfatasa tiene un nivel basal de actividad ligeramente superior a la Quinasa, de modo que predomina la desfosforilación.", "La Quinasa siempre domina sobre la Fosfatasa."], correct: 2, expl: "En reposo, la balanza se inclina a favor de la Fosfatasa, manteniendo a la miosina desfosforilada (relajada)." },
+            { id: 17, q: "17. Siguiendo con lo anterior, cuando llega un estímulo contráctil al músculo liso, se produce un \"desequilibrio\" porque:", options: ["La Fosfatasa se destruye completamente.", "Se crea nueva Fosfatasa rápidamente.", "La actividad de la Quinasa (MLCK) experimenta una ganancia/aumento, superando a la actividad persistente de la Fosfatasa, predominando así la fosforilación.", "El calcio inhibe directamente a la miosina."], correct: 2, expl: "No es que la fosfatasa se apague, sino que la quinasa la sobrepasa gracias al pico de Calcio-Calmodulina." },
+            { id: 18, q: "18. En el músculo esquelético, los potenciales de acción bajan al interior de la fibra mediante los túbulos T. Como el músculo liso carece de túbulos T y tiene poco retículo, ¿dónde se concentran principalmente los canales de calcio para captarlo desde el exterior?", options: ["En los discos Z.", "En estructuras llamadas Caveolas, que son invaginaciones de la membrana ricas en canales de calcio.", "En el nucleolo.", "En los cuerpos densos."], correct: 1, expl: "Las caveolas sustituyen funcionalmente a los túbulos T." },
+            { id: 19, q: "19. El músculo liso cuenta con receptores acoplados a proteína G (GPCRs). Una característica fascinante de este tejido que lo diferencia del músculo estriado es que puede contraerse:", options: ["Solo si se abren canales rápidos de sodio.", "Incluso SIN alterar en absoluto su potencial de membrana (sin generar despolarización ni potenciales de acción), gracias a cascadas intracelulares mediadas por segundos mensajeros como el IP3.", "Únicamente en presencia de acetilcolina.", "Solo si la temperatura sube de 40ºC."], correct: 1, expl: "El profesor recalcó esto: señales como hormonas usan segundos mensajeros (liberando calcio del retículo) sin necesidad de chispazos eléctricos en la membrana." },
+            { id: 20, q: "20. Algunos tipos de músculo liso son \"miogénicos\" y responden al estiramiento mecánico puro. El profesor ilustró esto con la salida de sangre desde el ventrículo hacia la Aorta. Fisiológicamente, ¿qué ocurriría si la Aorta no tuviera canales de calcio activados por estiramiento?", options: ["La sangre viajaría a la velocidad de la luz.", "La Aorta se volvería hueso.", "Se produciría un \"embalsamiento\" de sangre, ya que el músculo no se contraería en respuesta al volumen alto inyectado para propulsar el flujo.", "El corazón se pararía de inmediato."], correct: 2, expl: "El estiramiento abre mecánicamente canales de calcio, contrayendo el músculo para ayudar a bombear la sangre sistémica." },
+            { id: 21, q: "21. Del mismo modo, el profesor explicó la función de la contracción miogénica inducida por estiramiento/daño mecánico al producirse un corte o herida en un vaso. Esta respuesta sirve para:", options: ["Atraer astrocitos al vaso sanguíneo.", "Que las paredes del vaso se contraigan instantáneamente, disminuyendo la pérdida de sangre y favoreciendo el fenómeno de la hemostasia.", "Provocar una vasodilatación masiva refleja.", "Matar a la célula muscular lisa."], correct: 1, expl: "El acto físico de la lesión estimula mecánicamente el músculo liso para contraerse (vasoespasmo)." },
+            { id: 22, q: "22. Ciertas células de músculo liso tienen actividad \"Marcapasos\" (pueden generar potenciales rítmicos espontáneos). En el caso del tracto digestivo, las Células Intersticiales de Cajal logran que el potencial de membrana nunca esté en reposo estable debido a:", options: ["La permeabilidad exclusiva al Cloro.", "Canales especiales de Sodio (Na+) que se abren a bajos voltajes, provocando una lenta y continua despolarización hasta alcanzar el umbral.", "Un bloqueo absoluto de la bomba Na+/K+.", "La destrucción de la Calmodulina."], correct: 1, expl: "En el intestino entra Sodio para despolarizar rítmicamente (potencial de ondas lentas)." },
+            { id: 23, q: "23. Comparando lo anterior con la actividad marcapasos en las células modificadas del Nódulo Seno-auricular del CORAZÓN, el profesor especificó que en ese caso el ion responsable de la despolarización lenta (pacemaker potential) es:", options: ["El Calcio (Ca2+), mediante el aumento de la permeabilidad en canales tipo T.", "El Potasio (K+).", "El Magnesio (Mg2+).", "El Cloro (Cl−)."], correct: 0, expl: "Aunque la gráfica es similar, en el corazón es el calcio el que provoca la subida lenta, y en el intestino es el sodio." },
+            { id: 24, q: "24. A nivel farmacológico, el Óxido Nítrico (NO) es considerado un potente vasodilatador. Su efecto fisiológico directo sobre la fibra muscular lisa vascular es:", options: ["Provocar su contracción tetánica.", "Inhibirla o actuar como relajante del músculo liso.", "Destruir sus cuerpos densos.", "Activar masivamente a la MLCK."], correct: 1, expl: "El NO es un mediador local clásico que inhibe la contracción de la capa muscular del vaso." },
+            { id: 25, q: "25. Las neuronas del Sistema Nervioso Autónomo no forman \"Placas Motoras\" cerradas con el músculo liso como hace el somático con el esquelético. En su lugar, el neurotransmisor se libera sobre grandes áreas de tejido a través de:", options: ["Dendritas especializadas.", "Uniones Gap neuronales.", "Múltiples varicosidades (abultamientos) distribuidas a lo largo del axón terminal autonómico.", "Microtúbulos vacíos."], correct: 2, expl: "Las varicosidades \"rocían\" o \"pulverizan\" neurotransmisores (ACh o NE) bañando a un gran número de células lisas a la vez." },
+            { id: 26, q: "26. De acuerdo con la tabla comparativa de Regulación Mediana (Simpático vs Parasimpático), una activación del Sistema Nervioso Simpático producirá en el organismo:", options: ["Contracción de la pupila (Miosis) e incremento de saliva.", "Dilatación de los bronquios, disminución de la producción de saliva y aumento de la frecuencia cardíaca.", "Contracción de la vejiga urinaria y estimulación de los órganos digestivos.", "Reducción de la frecuencia cardíaca y contracción de bronquios."], correct: 1, expl: "Es la clásica respuesta de \"lucha o huida\" (broncodilatación para más aire, freno a la digestión/saliva, más latidos)." },
+            { id: 27, q: "27. Por el contrario, la rama Parasimpática del Sistema Nervioso Autónomo, que utiliza Acetilcolina sobre receptores muscarínicos (pista dada en el audio), tiene como efecto sistémico principal:", options: ["Aumentar la frecuencia cardíaca y dilatar la pupila.", "Relajar la vejiga urinaria.", "Favorecer la actividad del tracto digestivo (\"rest and digest\"), reducir la frecuencia cardíaca y contraer los bronquios.", "Estimular la producción de adrenalina en la médula suprarrenal."], correct: 2, expl: "Promueve funciones vegetativas de mantenimiento y descanso." },
+            { id: 28, q: "28. Desde la perspectiva de la Excito-Contracción de ambos tejidos, el \"Punto primario de control\" (donde confluyen las vías de señalización para ordenar que la célula se contraiga) es muy diferente. En el músculo LISO está vinculado a:", options: ["La actina exclusivamente.", "El reposicionamiento del complejo troponina-tropomiosina.", "El complejo de proteínas ligadas a la miosina (fosforilación de la cadena ligera).", "La destrucción del ATP."], correct: 2, expl: "Es el concepto cumbre: regulación \"Thick filament\" (en el filamento grueso de miosina)." },
+            { id: 29, q: "29. En cambio, en el músculo ESQUELÉTICO, ese punto de control regulador de la contracción está anclado físicamente en:", options: ["El retículo liso perinuclear.", "El filamento grueso de miosina.", "La exposición de los sitios de unión de miosina localizados en los filamentos finos de actina (vía troponina-tropomiosina).", "Las caveolas."], correct: 2, expl: "Regulación \"Thin filament\" (filamento fino)." },
+            { id: 30, q: "30. El músculo liso y el cardíaco comparten ciertas características estructurales, pero difieren en otras. ¿Cuál de las siguientes afirmaciones describe mejor a una fibra muscular lisa típica observada al microscopio?", options: ["Es cilíndrica, alargada y multinucleada.", "Es pequeña, fusiforme (con forma de huso) y uninucleada.", "Presenta discos intercalares visibles.", "Es estriada y con múltiples ramificaciones."], correct: 1, expl: "A diferencia del esquelético (multinucleado/cilíndrico), el liso tiene células chiquititas ahusadas y con un solo núcleo." },
+            { id: 31, q: "31. (¡Pregunta de Kahoot!). En clase se lanzó la siguiente pregunta a los alumnos: \"¿Cuál de estos componentes NO es necesario para que se inicie la contracción en el músculo liso?\"", options: ["El Calcio.", "La Calmodulina.", "La MLCK (Quinasa).", "La Troponina."], correct: 3, expl: "Es la trampa por excelencia en músculo liso. Carece de troponina." },
+            { id: 32, q: "32. ¿Qué ventaja mecánica proporciona el hecho de que en el músculo liso los filamentos gruesos de miosina estén \"cubiertos\" de cabezas ATPasas a lo largo de TODA su extensión, sin zonas desnudas?", options: ["Permite la fijación de la tropomiosina.", "Permite que un filamento fino de actina pueda deslizarse largas distancias a lo largo de la miosina, logrando grados de contracción extremos ausentes en el esquelético.", "Bloquea la entrada de calcio.", "Hace que la miosina consuma ATP 100 veces más rápido."], correct: 1, expl: "Como no existe la Línea M vacía en el centro, la actina no choca contra una \"pared\", permitiendo al intestino o a la vejiga reducir su lumen casi a cero." },
+            { id: 33, q: "33. Analizando el gráfico comparativo de \"Tensión vs Tiempo\" (Slide 2), queda de manifiesto que:", options: ["El músculo esquelético genera su tensión máxima en más de 2 segundos.", "El músculo cardíaco es el más lento de todos.", "El músculo liso tiene un periodo de latencia y un tiempo para alcanzar su tensión máxima enormemente dilatado, alargando la curva durante varios segundos frente a las fracciones de segundo del esquelético.", "Los tres músculos se contraen exactamente a la misma velocidad."], correct: 2, expl: "Su perfil mecánico es una onda extremadamente lenta y ancha en el tiempo." },
+            { id: 34, q: "34. Un aspecto fisiológico característico del Músculo Liso es que la fuerza de contracción a nivel celular es GRADUADA (no de todo o nada). Esto significa bioquímicamente que:", options: ["Solo ocurre si la célula es multiunitaria.", "Una mayor entrada de Calcio citosólico activará más complejos CaM-MLCK, reclutando mayor número de puentes cruzados simultáneos y logrando una mayor tensión en la misma célula.", "Funciona como las neuronas motoras somáticas obligatoriamente.", "Depende de cuántas caveolas se destruyan."], correct: 1, expl: "A diferencia del esquelético de una fibra individual (que responde al máximo si hay PA), aquí el tono contráctil depende de los gradientes exactos de Calcio." },
+            { id: 35, q: "35. En las diapositivas sobre regulación hormonal e influencia nerviosa, el músculo ESQUELÉTICO se clasifica con un estricto \"NO\" ante la influencia hormonal para su contracción directa. Por el contrario, el músculo LISO se describe como:", options: ["Sensible a una sola hormona en el cuerpo.", "Igualmente insensible a las hormonas.", "Regulable por múltiples hormonas circulantes (ej. oxitocina en útero, angiotensina en vasos).", "Controlable solo de forma voluntaria."], correct: 2, expl: "La oxitocina, angiotensina, vasopresina... son determinantes en el tono del liso visceral y vascular." },
+            { id: 36, q: "36. Según el modelo propuesto, ¿qué sucedería en una fibra muscular lisa si una mutación genética inactivara por completo la Fosfatasa de Miosina (MLCP)?", options: ["La célula no podría relajarse eficazmente, puesto que la miosina permanecería fosforilada y enganchada a la actina aun disminuyendo el calcio.", "La célula entraría en lisis inmediata.", "El músculo se volvería inexcitable a perpetuidad.", "La Calmodulina se saturaría de Calcio."], correct: 0, expl: "Si la MLCP (que corta el fosfato) no funciona, la miosina queda \"encendida\" (hipercontractilidad o espasmo liso)." },
+            { id: 37, q: "37. El ATP es necesario para varios procesos en el músculo liso. ¿En cuál de las siguientes etapas NO se consume (hidroliza) ATP directamente?", options: ["Para la actividad de la ATPasa de Sodio/Potasio de membrana.", "En la bomba de extracción de Calcio (SERCA) durante la relajación.", "En el paso catalizado por la enzima MLCK al añadir el grupo fosfato a la miosina.", "En la difusión pasiva de Calcio desde el líquido extracelular a través de las caveolas."], correct: 3, expl: "La entrada de iones a favor de gradiente (difusión) no usa ATP, al contrario que la fosforilación o el bombeo de la relajación." },
+            { id: 38, q: "38. La inervación simpática que produce la \"piel de gallina\" (piloerección) actúa sobre pequeños músculos asociados al folículo piloso. Dado que estos músculos actúan como unidades independientes ajustando finamente la fuerza requerida, pertenecen a la categoría histológica de:", options: ["Músculo liso unitario visceral.", "Músculo liso multiunitario.", "Músculo estriado cardíaco modificado.", "Músculo esquelético tipo I."], correct: 1, expl: "Aparece explícitamente en la lista del músculo multiunitario (piloerectores, iris, cilios, grandes bronquios)." },
+            { id: 39, q: "39. Para paliar una enfermedad X en un seminario práctico (pista del audio), el profesor sugiere un fármaco que actúa como ANTAGONISTA MUSCARÍNICO (similar a la Atropina). ¿Cuál será uno de los probables efectos secundarios observables en el sistema gastrointestinal o en los ojos del paciente?", options: ["Un aumento explosivo del tránsito intestinal (diarrea).", "Constricción extrema de la pupila (miosis).", "Reducción de la actividad de los órganos digestivos y dilatación de la pupila, al bloquearse las vías del sistema parasimpático.", "Reducción severa de la frecuencia cardíaca."], correct: 2, expl: "Si bloqueas lo que hace el parasimpático (muscarínico), impides la digestión (\"rest and digest\") y la contracción pupilar." },
+            { id: 40, q: "40. De las siguientes frases que sintetizan comparativamente al Músculo Esquelético y al Músculo Liso de acuerdo a la tabla final del temario, ¿cuál es INCORRECTA?", options: ["Esquelético: Voluntario, estriado, regulado por troponina.", "Liso: Involuntario, fascículos diagonales, regulado por calmodulina.", "Esquelético: Activación estricta a través de motoneuronas somáticas.", "Liso: Estructura interna dominada por innumerables Túbulos T y un gigantesco Retículo Sarcoplásmico."], correct: 3, expl: "Justo lo contrario. El músculo liso no presenta túbulos T y su RS está muy reducido o ausente en comparación con el esquelético." }
+        ];
+
+        let currentData = [];
+        let userStatus = {}; // {qId: {correct: bool/null, marked: bool}}
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('setup-modal').style.display = 'none';
+            currentData = isRandom ? shuffle([...originalData]) : [...originalData];
+            initUserStatus();
+            renderQuiz();
+        }
+
+        function initUserStatus() {
+            originalData.forEach(q => {
+                userStatus[q.id] = { answered: false, isCorrect: null, marked: false };
+            });
+        }
+
+        function renderQuiz() {
+            const wrapper = document.getElementById('questions-wrapper');
+            const sidebar = document.getElementById('sidebar');
+            wrapper.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            currentData.forEach((qData, index) => {
+                // Crear Item Indice
+                const idxItem = document.createElement('div');
+                idxItem.className = 'index-item';
+                idxItem.id = `idx-${qData.id}`;
+                idxItem.innerText = index + 1;
+                idxItem.onclick = () => document.getElementById(`q-container-${qData.id}`).scrollIntoView({behavior: 'smooth'});
+                sidebar.appendChild(idxItem);
+
+                // Crear Pregunta
+                const qDiv = document.createElement('div');
+                qDiv.className = 'question-card';
+                qDiv.id = `q-container-${qData.id}`;
+
+                // Mezclar opciones
+                const originalCorrectText = qData.options[qData.correct];
+                let options = [...qData.options];
+                shuffle(options);
+
+                qDiv.innerHTML = `
+                    <div class="question-text">${qData.q}</div>
+                    <div class="options-container">
+                        ${options.map(opt => `
+                            <div class="option" onclick="checkAnswer(this, ${qData.id}, '${opt.replace(/'/g, "\\'")}', '${originalCorrectText.replace(/'/g, "\\'")}', '${qData.expl.replace(/'/g, "\\'")}')">
+                                ${opt}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div id="feedback-${qData.id}" class="feedback"></div>
+                    <div class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${qData.id}, this)" ${userStatus[qData.id].marked ? 'checked' : ''}> 
+                        Marcar esta pregunta
+                    </div>
+                `;
+                wrapper.appendChild(qDiv);
+            });
+            updateSidebarVisuals();
+        }
+
+        function checkAnswer(el, qId, selectedText, correctText, explanation) {
+            if (userStatus[qId].answered) return;
+
+            const isCorrect = selectedText === correctText;
+            userStatus[qId].answered = true;
+            userStatus[qId].isCorrect = isCorrect;
+
+            // Visual feedback
+            const container = document.getElementById(`q-container-${qId}`);
+            const options = container.querySelectorAll('.option');
+            
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.innerText.trim() === correctText.trim()) opt.classList.add('selected-correct');
+                else if (opt === el && !isCorrect) opt.classList.add('selected-wrong');
+            });
+
+            const feed = document.getElementById(`feedback-${qId}`);
+            feed.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Incorrecto.'}</strong> ${explanation}`;
+            feed.classList.add('show');
+
+            updateSidebarVisuals();
+        }
+
+        function toggleMark(qId, checkbox) {
+            userStatus[qId].marked = checkbox.checked;
+            updateSidebarVisuals();
+        }
+
+        function updateSidebarVisuals() {
+            Object.keys(userStatus).forEach(id => {
+                const el = document.getElementById(`idx-${id}`);
+                if (!el) return;
+                
+                el.classList.remove('correct', 'wrong', 'marked');
+                if (userStatus[id].answered) {
+                    el.classList.add(userStatus[id].isCorrect ? 'correct' : 'wrong');
+                }
+                if (userStatus[id].marked) {
+                    el.classList.add('marked');
+                }
+            });
+        }
+
+        function finishQuiz() {
+            const wrapper = document.getElementById('questions-wrapper');
+            const results = document.getElementById('results-area');
+            const scoreText = document.getElementById('score-text');
+
+            let correct = 0;
+            let total = currentData.length;
+            currentData.forEach(q => { if(userStatus[q.id].isCorrect) correct++; });
+
+            wrapper.style.display = 'none';
+            results.style.display = 'flex';
+            scoreText.innerText = `Resultado Final: ${correct} / ${total}`;
+            window.scrollTo(0,0);
+        }
+
+        function retry(mode) {
+            let nextSet = [];
+
+            if (mode === 'all') {
+                nextSet = [...originalData];
+            } else if (mode === 'failed') {
+                nextSet = originalData.filter(q => userStatus[q.id].answered && !userStatus[q.id].isCorrect);
+            } else if (mode === 'marked') {
+                nextSet = originalData.filter(q => userStatus[q.id].marked);
+            } else if (mode === 'failed_marked') {
+                nextSet = originalData.filter(q => (userStatus[q.id].answered && !userStatus[q.id].isCorrect) || userStatus[q.id].marked);
+            }
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas que coincidan con esta selección.");
+                return;
+            }
+
+            // Resetear estados para la nueva tanda
+            nextSet.forEach(q => {
+                userStatus[q.id].answered = false;
+                userStatus[q.id].isCorrect = null;
+            });
+
+            currentData = nextSet;
+            document.getElementById('questions-wrapper').style.display = 'block';
+            document.getElementById('results-area').style.display = 'none';
+            renderQuiz();
+        }
+    </script>
+</body>
+</html>

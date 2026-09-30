@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Síndrome Metabólico y Nutrigenética</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --mark-color: #f1c40f;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Modal de Inicio */
+        #setup-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content button {
+            margin: 10px;
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: bold;
+            width: 80%;
+        }
+
+        /* Índice Lateral */
+        #sidebar {
+            width: 80px;
+            background: var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        .index-item {
+            width: 45px;
+            height: 45px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: #3e5871;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            border: 2px solid transparent;
+        }
+        .index-item.active { border-color: white; transform: scale(1.1); }
+        .index-item.correct { background-color: var(--success-color); }
+        .index-item.wrong { background-color: var(--error-color); }
+        .index-item.marked { border: 3px solid var(--mark-color); }
+
+        /* Contenedor Principal */
+        #main-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+        .quiz-header {
+            position: sticky;
+            top: -40px;
+            background: var(--bg-color);
+            padding: 10px 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 30px;
+        }
+        .btn-finish {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Preguntas */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            scroll-margin-top: 100px;
+        }
+        .question-text {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .option {
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option:hover { background: #f9f9f9; border-color: #ddd; }
+        .option.selected-correct { background-color: #d4edda; border-color: var(--success-color); pointer-events: none; }
+        .option.selected-wrong { background-color: #f8d7da; border-color: var(--error-color); pointer-events: none; }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            background: #eef2f7;
+            border-left: 5px solid var(--accent-color);
+            font-style: italic;
+        }
+        .feedback.show { display: block; }
+        
+        .mark-container {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            color: #777;
+        }
+        .mark-container input { margin-right: 8px; cursor: pointer; }
+
+        /* Pantalla de Resultados */
+        #results-area {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .retry-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .retry-options button {
+            padding: 15px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: var(--primary-color);
+            color: white;
+        }
+        .retry-options button:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-modal">
+        <div class="modal-content">
+            <h2>Configuración del Test</h2>
+            <p>¿En qué orden deseas realizar las preguntas?</p>
+            <button onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button onclick="startQuiz(true)">Orden Aleatorio</button>
+        </div>
+    </div>
+
+    <div id="sidebar"></div>
+
+    <div id="main-container">
+        <div id="quiz-content">
+            <div class="quiz-header">
+                <h2>Síndrome Metabólico - Tema 23</h2>
+                <button class="btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+            </div>
+            <div id="questions-wrapper"></div>
+        </div>
+
+        <div id="results-area">
+            <h2 id="score-text"></h2>
+            <p>Selecciona cómo deseas repetir el cuestionario:</p>
+            <div class="retry-options">
+                <button onclick="retry('all')">Repetir Completo</button>
+                <button onclick="retry('failed')">Solo Falladas</button>
+                <button onclick="retry('marked')">Solo Marcadas</button>
+                <button onclick="retry('failed_marked')">Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const originalQuestions = [
+            { id: 1, q: "1. Según explicó la profesora en clase, ¿cuál es el síntoma clínico principal por el que un paciente con Síndrome Metabólico (sin diabetes instaurada aún) acudirá a la consulta?", options: ["a) Dolor abdominal agudo.", "b) Cansancio extremo y visión borrosa.", "c) Poliuria y polidipsia.", "d) Ninguno, es un síndrome que se gesta durante años de forma asintomática."], correct: 3, expl: "La profesora fue enfática en el audio: 'Va a venir el paciente... no va a tener sintomatología ninguna. Se va a gestar durante un montón de años sin que dé signos'. El diagnóstico se hace por hallazgos analíticos y antropométricos." },
+            { id: 2, q: "2. Según los criterios del NCEP: ATP III (2001), ¿cuántos factores de riesgo deben estar presentes simultáneamente para diagnosticar a un paciente con Síndrome Metabólico?", options: ["a) Presencia de obesidad abdominal obligatoria más 1 factor extra.", "b) Presencia de al menos 3 de los 5 factores establecidos.", "c) Únicamente resistencia a la insulina y microalbuminuria.", "d) Los 5 factores deben estar alterados."], correct: 1, expl: "En el audio y diapositivas se especifica que el panel ATP III establece el diagnóstico con la presencia de 3 o más de los 5 factores (cintura, triglicéridos, HDL, tensión y glucemia)." },
+            { id: 3, q: "3. ¿Qué organización introdujo en 2005 la \"obesidad abdominal\" como un prerrequisito indispensable (obligatorio) para el diagnóstico del Síndrome Metabólico?", options: ["a) OMS (Organización Mundial de la Salud).", "b) EGIR (European Group for the study of Insulin Resistance).", "c) NCEP: ATP III.", "d) IDF (International Diabetes Federation)."], correct: 3, expl: "La diapositiva marca explícitamente que la IDF (2005) introdujo la obesidad central como prerrequisito para el diagnóstico, ajustando los valores de cintura según etnia." },
+            { id: 4, q: "4. Llega a su consulta un paciente varón. En su analítica basal presenta un nivel de glucosa en ayunas de 118 mg/dL. Según el algoritmo explicado en clase, ¿en qué situación metabólica se encuentra?", options: ["a) Normoglucemia.", "b) Glucemia basal alterada (Prediabetes).", "c) Diabetes Mellitus tipo 2 instaurada.", "d) Hipoglucemia reactiva."], correct: 1, expl: "La profesora recalcó que valores entre 110 y 125 mg/dL (o 100-125 según algunos criterios actualizados) indican prediabetes o glucemia basal alterada. Recomienda intervención higiénico-dietética inmediata." },
+            { id: 5, q: "5. En la consulta, usted realiza una glucemia capilar ocasional (sin ayuno previo) a un paciente con poliuria y polidipsia. ¿A partir de qué valor confirmaría directamente el diagnóstico de Diabetes Mellitus?", options: ["a) ≥ 110 mg/dL.", "b) ≥ 126 mg/dL.", "c) ≥ 140 mg/dL.", "d) ≥ 200 mg/dL."], correct: 3, expl: "Según el algoritmo de la OMS/FID mostrado en clase, una glucemia ocasional ≥ 200 mg/dL acompañada de síntomas clásicos es diagnóstico directo de diabetes." },
+            { id: 6, q: "6. ¿Qué parámetro de la definición inicial de la OMS (1999) para el Síndrome Metabólico fue posteriormente excluido por grupos como el EGIR o el ATP III por ser más propio de diabetes avanzada?", options: ["a) Hipertrigliceridemia.", "b) Microalbuminuria.", "c) Descenso de HDL.", "d) Obesidad."], correct: 1, expl: "La microalbuminuria (pérdida de albúmina por orina) fue incluida por la OMS, pero excluida por el EGIR y ATP III al considerarse una complicación microvascular propia de la diabetes ya establecida." },
+            { id: 7, q: "7. La Profa. Márquez planteó a la clase: ¿Por qué la prueba de tolerancia a la glucosa se realiza de forma ORAL y no inyectando la glucosa directamente en vena?", options: ["a) Para evitar el riesgo de flebitis.", "b) Por el efecto incretina (GLP-1), segregado en el intestino, que estimula fisiológicamente la liberación de insulina.", "c) Porque la glucosa intravenosa se transforma en fructosa.", "d) Porque la digestión gástrica destruye el 50% de la glucosa."], correct: 1, expl: "Pregunta de razonamiento directo del audio. Al pasar por el tracto digestivo, se secretan incretinas (GLP-1) que le avisan al páncreas para que libere insulina y retrasan el vaciamiento gástrico." },
+            { id: 8, q: "8. En relación con lo anterior, fármacos actuales como la Semaglutida son muy eficaces en la obesidad y diabetes porque actúan como:", options: ["a) Agonistas de los receptores de GLP-1.", "b) Inhibidores de la miostatina.", "c) Destructores del tejido adiposo visceral.", "d) Activadores de la lipoproteína lipasa (LPL)."], correct: 0, expl: "La profesora menciona que la semaglutida es un agonista del receptor GLP-1 (incretina), lo que aumenta la insulina, retrasa el vaciamiento gástrico y envía señales de saciedad al cerebro." },
+            { id: 9, q: "9. En la evolución del ser humano, la supervivencia ante épocas de hambruna se logró seleccionando un genotipo que hoy en día, en la vida occidental, favorece la obesidad. ¿Cómo denominó la profesora a estos genes?", options: ["a) Genes proinflamatorios.", "b) Genes de la miostatina.", "c) Genes ahorradores.", "d) Genes desacoplantes (UCP)."], correct: 2, expl: "Mencionó expresamente la teoría de los 'genes ahorradores', seleccionados en la prehistoria para acumular energía, pero que en el actual ambiente sedentario y de sobreabundancia causan síndrome metabólico." },
+            { id: 10, q: "10. ¿Cuál de los siguientes es el punto de corte para los Triglicéridos según los criterios diagnósticos del ATP III para el Síndrome Metabólico?", options: ["a) ≥ 100 mg/dL.", "b) ≥ 130 mg/dL.", "c) ≥ 150 mg/dL.", "d) ≥ 200 mg/dL."], correct: 2, expl: "Valor fundamental de las tablas proyectadas. Los triglicéridos deben ser ≥ 150 mg/dL para sumar como criterio de Síndrome Metabólico." },
+            { id: 11, q: "11. Clínicamente, el Índice de Masa Corporal (IMC) tiene una gran limitación a la hora de diagnosticar verdaderamente el riesgo de un paciente. ¿Cuál es?", options: ["a) Es muy difícil de calcular sin aparatos caros.", "b) Sobreestima la grasa en personas mayores y la infraestima en niños.", "c) No discierne si el peso es a costa de materia magra (músculo) o grasa, ni la distribución de esta última.", "d) Solo es válido para población caucásica."], correct: 2, expl: "Un joven muy musculado puede tener un IMC de 30 (obesidad) estando completamente sano y sin exceso de grasa, de ahí la importancia de medir el perímetro de cintura o el % de grasa corporal." },
+            { id: 12, q: "12. En las técnicas para medir la adiposidad real, la profesora mencionó la bioimpedancia eléctrica. ¿En qué principio físico se basa?", options: ["a) La grasa corporal emite radiación infrarroja medible.", "b) La electricidad viaja mucho más rápido por el músculo (rico en agua) y es frenada por la grasa.", "c) Los adipocitos absorben ultrasonidos de alta frecuencia.", "d) El tejido visceral altera el campo magnético terrestre."], correct: 1, expl: "La impedancia mide la resistencia al paso de una corriente; como la grasa tiene menos agua, opone más resistencia que el músculo." },
+            { id: 13, q: "13. Señale la afirmación CORRECTA sobre el fenotipo de los \"Obesos Metabólicamente Sanos\" (MHO):", options: ["a) Representan el 90% de las personas con IMC > 30.", "b) Presentan una grave resistencia a la insulina pero sin afectación vascular.", "c) Son un 10-30% de los obesos adultos, no muestran complicaciones metabólicas severas y responden bien a la insulina.", "d) Tienen niveles indetectables de tejido adiposo visceral."], correct: 2, expl: "Son los que la profesora llamó coloquialmente 'gordisanos'. El tejido adiposo funciona correctamente y sin inflamación crónica, aunque a largo plazo tienen más riesgo que un normopeso." },
+            { id: 14, q: "14. Por el contrario, existen individuos con fenotipo MANW (Metabolically Abnormal Normal-Weight). ¿Qué les caracteriza?", options: ["a) Tienen un IMC normal (18.5-24.9), pero un alto porcentaje de grasa corporal visceral, estrés oxidativo e inflamación.", "b) Son personas muy musculadas con IMC > 30.", "c) Tienen lipodistrofia total (ausencia genética de grasa).", "d) Presentan niveles de colesterol HDL superiores a 100 mg/dL."], correct: 0, expl: "Son sujetos normopeso según la báscula, pero disfuncionales por dentro debido a que su % de grasa corporal real (PBF%) es alto, asociando resistencia a la insulina." },
+            { id: 15, q: "15. ¿Qué le ocurre fisiológicamente a la Adiponectina cuando un paciente aumenta su masa de grasa visceral (obesidad central)?", options: ["a) Aumenta proporcionalmente para intentar frenar la diabetes.", "b) Disminuye drásticamente.", "c) Se transforma en Resistina.", "d) Permanece inalterada, ya que solo depende de los hidratos de carbono."], correct: 1, expl: "Es la única adipoquina que hace lo contrario a las demás. Siendo 'la buena', sus niveles caen en picado cuando la grasa visceral aumenta, perdiéndose su protección cardiovascular." },
+            { id: 16, q: "16. En la Obesidad Sarcopénica se establece un círculo vicioso perjudicial. ¿Qué adipoquina/proteína, secretada en altos niveles por la inflamación, actúa como un potente INHIBIDOR del crecimiento muscular?", options: ["a) Leptina.", "b) Adiponectina.", "c) Miostatina.", "d) GLP-1."], correct: 2, expl: "Detalle muy repetido en clase. La inflamación eleva la expresión de miostatina, la cual frena la síntesis proteica y degrada las fibras musculares." },
+            { id: 17, q: "17. Según explicó la profesora, ¿por qué la Resistencia a la Insulina agrava la sarcopenia (pérdida de músculo) en el paciente obeso?", options: ["a) Porque la insulina es tóxica para el miocito a altas concentraciones.", "b) Porque en estado sano, la insulina favorece la captación de aminoácidos para sintetizar músculo; al haber resistencia, esta síntesis se frena.", "c) Porque obliga al músculo a consumir sus propias proteínas para fabricar glucógeno.", "d) Porque bloquea la unión neuromuscular irreversiblemente."], correct: 1, expl: "Al fallar la señal de la insulina, el músculo no puede captar aminoácidos adecuadamente para su anabolismo, provocando la atrofia del mismo." },
+            { id: 18, q: "18. En el microentorno del tejido adiposo hipertrofiado y disfuncional, ocurre un fenómeno vascular crítico que empeora la inflamación. ¿Cuál es?", options: ["a) Hay un exceso de angiogénesis que roba la sangre a otros órganos.", "b) Las arterias adiposas estallan generando microhemorragias.", "c) Se produce una disminución del flujo sanguíneo y baja oxigenación (hipoxia) en el tejido adiposo.", "d) Se activan derivaciones arteriovenosas masivas."], correct: 2, expl: "El tejido disfuncional sufre una disfunción microvascular, disminuye la angiogénesis y el flujo, provocando hipoxia celular que dispara la necrosis y la inflamación de bajo grado." },
+            { id: 19, q: "19. El tejido adiposo visceral, al ser disfuncional, libera a la sangre un factor implicado en el riesgo protrombótico. ¿De cuál se trata?", options: ["a) Heparina.", "b) Inhibidor del activador del plasminógeno I (PAI-1).", "c) Factor VIII de la coagulación.", "d) Plasmina."], correct: 1, expl: "La grasa central libera adipoquinas proinflamatorias y PAI-1, el cual está directamente relacionado con enfermedades vasculares trombóticas." },
+            { id: 20, q: "20. A nivel nutricional, ¿qué efecto demostrable tiene el aumento del consumo de frutos secos (nueces) en la intervención de la dieta para el Síndrome Metabólico?", options: ["a) Disminuyen drásticamente el perímetro de la cintura.", "b) Disminuyen los triglicéridos y la glucemia, aunque sin efectos notables en cintura o tensión.", "c) Elevan rápidamente el colesterol HDL.", "d) Destruyen la miostatina muscular."], correct: 1, expl: "Los estudios muestran que bajan TG y glucosa, pero no afectan el HDL, la presión ni la circunferencia de la cintura." },
+            { id: 21, q: "21. Además de lo anterior, la profesora relacionó los Omega-3 de los frutos secos con la expresión génica. ¿Qué orden le dan al organismo a nivel molecular?", options: ["a) Inducen la síntesis masiva de triglicéridos para aislamiento térmico.", "b) Favorecen la expresión de genes de enzimas implicadas en la oxidación (quema) de ácidos grasos.", "c) Bloquean la entrada de Carnitina a la mitocondria.", "d) Inhiben los receptores de insulina."], correct: 1, expl: "Explicó que gracias a la nutrigenómica, los Omega 3 actúan como antiinflamatorios y potencian las enzimas que degradan las grasas (beta-oxidación)." },
+            { id: 22, q: "22. Defina el concepto de Nutrigenética, según el Tema 23:", options: ["a) Análisis de cómo los componentes de la dieta alteran la expresión del ADN.", "b) El estudio del genoma de las bacterias de la microbiota intestinal.", "c) Análisis retrospectivo de las variaciones genéticas (polimorfismos) entre individuos y cómo estas determinan su respuesta clínica a nutrientes específicos.", "d) La técnica para modificar genéticamente los alimentos cultivados."], correct: 2, expl: "Nutrigenética estudia cómo TUS GENES te hacen responder a la dieta. Nutrigenómica estudia cómo LA DIETA altera la expresión de tus genes." },
+            { id: 23, q: "23. ¿Cuál fue la primera evidencia histórica de la interacción gen-nutriente en la especie humana?", options: ["a) El descubrimiento de la intolerancia a la lactosa.", "b) Los errores innatos del metabolismo, como la Fenilcetonuria.", "c) La aparición de la obesidad sarcopénica.", "d) El raquitismo por déficit de vitamina D."], correct: 1, expl: "La evidencia de interacciones gen-nutriente se identificó por primera vez en los errores innatos del metabolismo (ej. Fenilcetonuria)." },
+            { id: 24, q: "24. ¿Cómo se define un \"Polimorfismo\" en el contexto de la nutrigenética?", options: ["a) Una mutación letal incompatible con la vida.", "b) La capacidad del adipocito para cambiar a marrón o beige.", "c) Una diferencia en la secuencia del ADN entre individuos, que puede determinar la salud y que se presenta en MÁS del 1% de la población.", "d) Una proteína que adopta múltiples conformaciones secundarias."], correct: 2, expl: "Es el cambio genético (usualmente un SNP) presente en >1% de la población normal." },
+            { id: 25, q: "25. Sobre la pérdida de peso en pacientes con obesidad avanzada, la profesora indicó un dato muy rentable: ¿Qué beneficio reporta una simple bajada del 10-12% del peso corporal tras, por ejemplo, cirugía bariátrica?", options: ["a) Es insuficiente, no hay mejora hasta perder el 50%.", "b) Revierte la diabetes tipo 1.", "c) La incidencia de diabetes baja drásticamente (hasta un 30%) y permite retirar gran parte de la medicación (antidiabéticos, estatinas).", "d) Elimina la necesidad de hacer ejercicio de por vida."], correct: 2, expl: "Alentó a conseguir al menos una bajada del 10% del peso en obesos, ya que esto retira el síndrome metabólico y medicaciones asociadas de forma espectacular." },
+            { id: 26, q: "26. De acuerdo con los algoritmos para embarazadas (Test de O'Sullivan), ¿en qué semanas de gestación se realiza de forma rutinaria el despistaje de diabetes gestacional a una paciente de riesgo medio?", options: ["a) En la semana 10-12.", "b) Entre las semanas 24-28.", "c) En el momento del parto.", "d) Inmediatamente tras dar a luz."], correct: 1, expl: "El algoritmo indica realizar el test de O'Sullivan entre la 24-28 semanas." },
+            { id: 27, q: "27. La acumulación \"ectópica\" de grasa se produce fundamentalmente porque:", options: ["a) Los adipocitos marrones se desplazan migrando a otros órganos.", "b) El hígado fabrica un exceso de quilomicrones.", "c) El tejido adiposo hipertrofiado pierde su capacidad para amortiguar/almacenar el exceso de lípidos dietéticos, liberando ácidos grasos que acaban en hígado y músculo.", "d) El corazón necesita grasa para latir más fuerte en la obesidad."], correct: 2, expl: "El tejido adiposo disfuncional 'se desborda' y los lípidos tienen que depositarse donde no deben (hígado graso, músculo)." },
+            { id: 28, q: "28. ¿Qué citoquina es calificada por la profesora literalmente como \"la buena, la fantástica, la mejor, la que nos interesa tener alta\"?", options: ["a) Resistina.", "b) TNF-α.", "c) Adiponectina.", "d) Leptina."], correct: 2, expl: "Comentario textual en el audio para remarcar el carácter protector y antiinflamatorio único de la Adiponectina." },
+            { id: 29, q: "29. En el contexto dietético del Síndrome Metabólico, ¿qué significan las siglas de la dieta DASH?", options: ["a) Dietary Approaches to Stop Hypertension (Enfoques dietéticos para detener la hipertensión).", "b) Diet Against Severe Hyperglycemia (Dieta contra la hiperglucemia severa).", "c) Diabetes And Sarcopenia Healing.", "d) Diet for Adipocyte Size Halving."], correct: 0, expl: "Es la dieta centrada en reducir el sodio, grasas trans y saturadas para detener la hipertensión vascular." },
+            { id: 30, q: "30. El Síndrome Metabólico promueve estados vasculares ateroscleróticos. A nivel bioquímico y endotelial, ¿qué ocurre en las arterias del tejido obeso inflamado?", options: ["a) El estrés oxidativo daña el endotelio y el exceso de lípidos circulantes facilita el depósito y formación de placas de ateroma.", "b) La adiponectina disuelve el colágeno vascular.", "c) Se transforman en venas capilares de alta capacitancia.", "d) Disminuye la presión arterial de forma crónica."], correct: 0, expl: "Relacionado con la lipotoxicidad y citoquinas proinflamatorias, que dañan la túnica vascular y atraen lípidos ectópicos formando aterosclerosis." },
+            { id: 31, q: "31. ¿Qué relación establece la profesora entre la etnia y el Síndrome Metabólico?", options: ["a) La etnia caucásica es genéticamente la más propensa a la resistencia a la insulina.", "b) La prevalencia es idéntica en todo el mundo, solo depende de lo que coman.", "c) Razas como la hispana/afro-hispana tienen una mayor predisposición genética demostrada a desarrollar Síndrome Metabólico que los caucásicos.", "d) Solo afecta a poblaciones asiáticas urbanas."], correct: 2, expl: "Señala claramente que estudios genéticos muestran mayor tendencia en hispano-mexicanos y afro-hispanos." },
+            { id: 32, q: "32. Al margen de la inflamación muscular de la sarcopenia, ¿qué otro factor neuromotor empeora drásticamente la calidad y función del músculo en el obeso sedentario?", options: ["a) La hiperactividad de los nervios craneales.", "b) La pérdida de inervación de las α-motoneuronas.", "c) La sobredistensión de las fascias por hiperplasia de adipocitos.", "d) La desmielinización exclusiva del nervio óptico."], correct: 1, expl: "Hay una 'Loss of a-motoneuron innervation' que atrofia las unidades motoras." },
+            { id: 33, q: "33. Según la Federación Internacional de Diabetes (IDF), el punto de corte de cintura para diagnosticar obesidad abdominal en HOMBRES EUROPEOS es:", options: ["a) ≥ 80 cm.", "b) ≥ 88 cm.", "c) ≥ 94 cm.", "d) ≥ 102 cm."], correct: 2, expl: "La IDF usa 94 cm para hombres europeos (y 80 para mujeres). Los americanos lo elevaron a 102 cm." },
+            { id: 34, q: "34. Señale la FALSA respecto al tejido adiposo sano \"magro\" (Lean healthy fat) frente al obeso:", options: ["a) Mantiene una elevada secreción de adiponectina.", "b) Mantiene una buena angiogénesis y densidad capilar.", "c) Posee abundantes estructuras en corona (\"Crown-like\") y macrófagos M1.", "d) Su respuesta hormonal (sensibilidad a insulina) es adecuada."], correct: 2, expl: "Las estructuras en corona y los fenotipos proinflamatorios son exclusivos del tejido adiposo obeso/disfuncional." },
+            { id: 35, q: "35. En un análisis de sangre rutinario (ayuno), se considera normal un nivel de triglicéridos de:", options: ["a) 250 mg/dL.", "b) Hasta 150 mg/dL (rango 50-150).", "c) Únicamente niveles por debajo de 50 mg/dL.", "d) Entre 150 y 200 mg/dL."], correct: 1, expl: "Los valores de referencia normales en ayunas para TG van de 50 a 150 mg/dL." },
+            { id: 36, q: "36. La profesora lanzó una reflexión anatómica a un alumno en clase: ¿Qué factor natural \"protege\" temporalmente a las mujeres jóvenes del patrón de obesidad visceral, orientando la grasa de una forma menos patológica y cuidando el músculo?", options: ["a) La miostatina femenina.", "b) Los estrógenos (y hormonas sexuales en general).", "c) El exceso de progesterona intestinal.", "d) Un mayor número de glóbulos rojos."], correct: 1, expl: "Dice textual: 'A vosotros siempre os van a proteger los estrógenos... benditos estrógenos... mantienen la masa muscular, que la grasa no se acumule donde no debe...'." },
+            { id: 37, q: "37. En la actualidad, ¿por qué es alarmante el problema de salud pública de la obesidad a nivel mundial?", options: ["a) Porque la obesidad hiperplásica se ha vuelto mortal en semanas.", "b) Porque ha incrementado exponencialmente su incidencia en población muy joven y en niños.", "c) Porque el virus de la obesidad es muy contagioso.", "d) Porque todas las dietas comerciales han sido prohibidas por la OMS."], correct: 1, expl: "El problema clave (generación 'Bollicao') es la incidencia infantil, pronosticando adultos enfermos prematuramente." },
+            { id: 38, q: "38. Para una persona obesa que entra en el ciclo de la Sarcopenia, ¿qué consecuencias metabólicas finales experimenta a la hora de intentar realizar esfuerzo físico?", options: ["a) Su capacidad aeróbica aumenta, pero se asfixia.", "b) Al tener menos masa muscular activa, su tasa metabólica disminuye, se fatiga muy rápido y quema muchas menos calorías, perpetuando la obesidad.", "c) Al no tener masa muscular, empieza a quemar glucógeno óseo.", "d) Se activa masivamente el tejido pardo para compensar."], correct: 1, expl: "Menos músculo = tasa metabólica reducida = fatiga al instante = abandono del ejercicio = más grasa." },
+            { id: 39, q: "39. Si un paciente tiene una presión arterial de 138/88 mmHg, ¿cumple este factor como criterio de Síndrome Metabólico según el panel ATP III?", options: ["a) Sí, porque el límite es 130/85 mmHg.", "b) No, porque debe ser obligatoriamente superior a 140/90.", "c) Sí, pero solo si es mujer.", "d) No, se considera una hipotensión leve."], correct: 0, expl: "La presión arterial ≥ 130/85 mmHg ya cuenta como un criterio positivo (patológico) para el síndrome metabólico." },
+            { id: 40, q: "40. De forma integradora para el Tema 23: El Síndrome Metabólico NO es una enfermedad en sí misma, sino...", options: ["a) Un cáncer benigno del tejido adiposo.", "b) Una deficiencia genética autosómica recesiva del receptor GLUT-4.", "c) Un estado fisiopatológico complejo constituido por un conjunto interrelacionado de factores de riesgo que aumenta directamente la enfermedad coronaria y diabetes.", "d) El resultado final de una infección bacteriana crónica en el páncreas."], correct: 2, expl: "Es un conjunto de factores de riesgo concurrentes (obesidad, dislipemia, resistencia insulina, HTA) progresivos y con gran morbilidad cardiovascular." }
+        ];
+
+        let currentQuestions = [];
+        let userStats = {}; // {qId: {correct: bool, marked: bool, answered: bool}}
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz(isRandom) {
+            document.getElementById('setup-modal').style.display = 'none';
+            currentQuestions = isRandom ? shuffle([...originalQuestions]) : [...originalQuestions];
+            
+            // Inicializar estados
+            originalQuestions.forEach(q => {
+                userStats[q.id] = { correct: null, marked: false, answered: false };
+            });
+
+            renderQuiz();
+        }
+
+        function renderQuiz() {
+            const wrapper = document.getElementById('questions-wrapper');
+            const sidebar = document.getElementById('sidebar');
+            wrapper.innerHTML = '';
+            sidebar.innerHTML = '';
+
+            currentQuestions.forEach((qData, index) => {
+                // Generar índice lateral
+                const idxItem = document.createElement('div');
+                idxItem.className = 'index-item';
+                idxItem.id = `idx-${qData.id}`;
+                idxItem.innerText = index + 1;
+                idxItem.onclick = () => document.getElementById(`q-card-${qData.id}`).scrollIntoView();
+                sidebar.appendChild(idxItem);
+
+                // Generar tarjeta de pregunta
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-card-${qData.id}`;
+
+                // Mezclar opciones localmente (re-evaluar el texto correcto)
+                const correctText = qData.options[qData.correct];
+                let shuffledOptions = shuffle([...qData.options]);
+
+                card.innerHTML = `
+                    <div class="question-text">${qData.q}</div>
+                    <div class="options-container">
+                        ${shuffledOptions.map(opt => `
+                            <div class="option" onclick="checkAnswer(this, ${qData.id}, '${opt.replace(/'/g, "\\'")}', '${correctText.replace(/'/g, "\\'")}')">
+                                ${opt}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div id="feed-${qData.id}" class="feedback">${qData.expl}</div>
+                    <div class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${qData.id}, this)" ${userStats[qData.id].marked ? 'checked' : ''}>
+                        Marcar para revisar
+                    </div>
+                `;
+                wrapper.appendChild(card);
+            });
+            updateSidebarVisuals();
+        }
+
+        function checkAnswer(element, qId, selectedText, correctText) {
+            if (userStats[qId].answered) return;
+
+            const isCorrect = selectedText === correctText;
+            userStats[qId].answered = true;
+            userStats[qId].correct = isCorrect;
+
+            // UI Feedback
+            const container = element.parentElement;
+            const options = container.querySelectorAll('.option');
+            
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.innerText.trim() === correctText.trim()) opt.classList.add('selected-correct');
+                else if (opt === element && !isCorrect) opt.classList.add('selected-wrong');
+            });
+
+            document.getElementById(`feed-${qId}`).classList.add('show');
+            updateSidebarVisuals();
+        }
+
+        function toggleMark(qId, checkbox) {
+            userStats[qId].marked = checkbox.checked;
+            updateSidebarVisuals();
+        }
+
+        function updateSidebarVisuals() {
+            Object.keys(userStats).forEach(id => {
+                const item = document.getElementById(`idx-${id}`);
+                if (!item) return;
+                
+                item.classList.remove('correct', 'wrong', 'marked');
+                if (userStats[id].answered) {
+                    item.classList.add(userStats[id].correct ? 'correct' : 'wrong');
+                }
+                if (userStats[id].marked) item.classList.add('marked');
+            });
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-content').style.display = 'none';
+            const resultsArea = document.getElementById('results-area');
+            resultsArea.style.display = 'block';
+
+            let score = 0;
+            currentQuestions.forEach(q => {
+                if (userStats[q.id].correct) score++;
+            });
+
+            document.getElementById('score-text').innerText = `Resultado Final: ${score} / ${currentQuestions.length}`;
+            window.scrollTo(0, 0);
+        }
+
+        function retry(mode) {
+            let nextSet = [];
+            if (mode === 'all') nextSet = [...originalQuestions];
+            else if (mode === 'failed') nextSet = originalQuestions.filter(q => userStats[q.id].answered && !userStats[q.id].correct);
+            else if (mode === 'marked') nextSet = originalQuestions.filter(q => userStats[q.id].marked);
+            else if (mode === 'failed_marked') nextSet = originalQuestions.filter(q => (userStats[q.id].answered && !userStats[q.id].correct) || userStats[q.id].marked);
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas que coincidan con este criterio.");
+                return;
+            }
+
+            // Resetear estados para la nueva tanda
+            nextSet.forEach(q => {
+                userStats[q.id].answered = false;
+                userStats[q.id].correct = null;
+            });
+
+            currentQuestions = nextSet;
+            document.getElementById('quiz-content').style.display = 'block';
+            document.getElementById('results-area').style.display = 'none';
+            renderQuiz();
+        }
+    </script>
+</body>
+</html>

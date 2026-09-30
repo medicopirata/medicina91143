@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz: Sinapsis y Mecanismos Presinápticos</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Panel Lateral --- */
+        #sidebar {
+            width: 280px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #sidebar h2 { font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+
+        #index-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .index-btn {
+            background: var(--secondary);
+            border: 1px solid #456;
+            color: white;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .index-btn:hover { background: var(--accent); }
+        .index-btn.correct { background: var(--success); border-color: #1e8449; }
+        .index-btn.incorrect { background: var(--error); border-color: #c0392b; }
+        .index-btn.marked { box-shadow: 0 0 0 2px var(--marked) inset; font-weight: bold; }
+
+        /* --- Contenedor Principal --- */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #top-bar {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-finish { background: var(--error); color: white; }
+        .btn-finish:hover { background: #c0392b; }
+        .btn-action { background: var(--accent); color: white; margin: 5px; }
+        .btn-action:hover { background: #2980b9; }
+
+        #quiz-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 30px;
+            scroll-behavior: smooth;
+        }
+
+        /* --- Tarjetas de Preguntas --- */
+        .question-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+
+        .mark-container {
+            background: #fffdf5;
+            border: 1px solid #f1c40f;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .option:hover:not(.disabled) { background: #e2e6ea; border-color: #dae0e5; }
+        .option.disabled { cursor: default; opacity: 0.8; }
+        .option.correct { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .option.incorrect { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            display: none;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        /* --- Pantalla de Resultados --- */
+        #results-screen {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        #results-screen h1 { color: var(--primary); font-size: 2.5rem; }
+        .stats { font-size: 1.2rem; margin: 20px 0; }
+        .actions { margin-top: 30px; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #95a5a6; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Índice de Preguntas</h2>
+        <div id="index-container"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="top-bar">
+            <div id="progress-text">Preguntas respondidas: 0 / 0</div>
+            <button class="btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+        </div>
+
+        <div id="quiz-area">
+            </div>
+
+        <div id="results-screen">
+            <h1>Cuestionario Finalizado</h1>
+            <div class="stats">
+                <p>Aciertos: <strong id="score-correct" style="color:var(--success)">0</strong></p>
+                <p>Fallos: <strong id="score-incorrect" style="color:var(--error)">0</strong></p>
+                <p>Marcadas para revisión: <strong id="score-marked" style="color:var(--marked)">0</strong></p>
+            </div>
+            <div class="actions">
+                <button class="btn btn-action" onclick="retake('all')">Repetir Completo</button>
+                <button class="btn btn-action" onclick="retake('failed')">Repetir Solo Falladas</button>
+                <button class="btn btn-action" onclick="retake('marked')">Repetir Solo Marcadas</button>
+                <button class="btn btn-action" onclick="retake('failed_marked')">Repetir Falladas + Marcadas</button>
+            </div>
+        </div>
+    </div>
+
+<textarea id="raw-data" style="display:none;">
+1. ¿Cuál es la característica estructural principal que distingue a una sinapsis eléctrica de una química? A) La presencia de vesículas de clatrina. B) La continuidad citoplasmática a través de canales directos entre ambas células. C) Una hendidura sináptica de 20 nm. D) El uso exclusivo de neuropéptidos. Respuesta correcta: B. En la sinapsis eléctrica existe continuidad del citoplasma que permite el flujo directo y pasivo de corriente.
+2. En las sinapsis eléctricas, la comunicación directa se da a través de "uniones en hendidura" (gap junctions). ¿De qué están formados los poros de estas uniones? A) Dos hemicanales llamados conexones, uno en cada membrana. B) Receptores ionotrópicos acoplados a proteína G. C) Proteínas del complejo SNARE. D) Bombas de calcio dependientes de ATP. Respuesta correcta: A. Cada canal está formado por la aposición de dos hemicanales o conexones.
+3. Cada hemicanal o conexón está constituido estructuralmente por: A) Una única proteína transmembrana gigante. B) Cuatro subunidades de clatrina. C) Un complejo hexamérico formado por 6 subunidades idénticas de conexina. D) Tres subunidades de actina y miosina. Respuesta correcta: C. El conexón está compuesto por 6 subunidades proteicas denominadas conexinas.
+4. ¿Qué ventaja funcional CLAVE tienen las sinapsis eléctricas, destacada por el profesor para respuestas vitales como las de escape? A) Generan un retraso sináptico prolongado para pensar la respuesta. B) Son impermeables al agua. C) Prácticamente no existe retraso sináptico, siendo una transmisión extremadamente rápida. D) Solo transmiten señales hiperpolarizantes. Respuesta correcta: C. Al ser una conexión física, la transmisión ocurre casi sin retraso sináptico.
+5. A diferencia de las sinapsis químicas, la direccionalidad de la transmisión en una sinapsis eléctrica es: A) Exclusivamente unidireccional (pre a post). B) Aleatoria y caótica. C) Bidireccional, una célula presináptica puede actuar como postsináptica y viceversa. D) Centrifuga hacia el soma. Respuesta correcta: C. La comunicación puede ser bidireccional porque los iones pasan pasivamente a través de los conexones.
+6. Además de señales eléctricas, las sinapsis eléctricas permiten el paso de moléculas pequeñas (<1kDa) como ATP, AMPc o IP3. ¿Cómo se denomina a este fenómeno? A) Transcitosis lipídica. B) Acoplamiento metabólico. C) Neurotransmisión clásica. D) Exocitosis vesicular. Respuesta correcta: B. El paso de estos segundos mensajeros permite un acoplamiento eléctrico y también metabólico.
+7. Un ejemplo fisiológico de sincronización mediado por sinapsis eléctricas mencionado en clase es: A) El parpadeo de los ojos. B) Las ondas peristálticas del músculo liso en el aparato digestivo. C) La segregación de saliva. D) El crecimiento del pelo. Respuesta correcta: B. Las ondas peristálticas requieren que el anillo de células musculares se contraiga sincronizadamente gracias a estas uniones.
+8. (Pista de clase) En 1926, Otto Loewi realizó un experimento histórico con corazones de rana. ¿Qué hallazgo fundamental demostró este experimento? A) Que el corazón de rana no necesita nervios para latir. B) Que existe una transmisión química en el sistema nervioso mediante liberación de sustancias al medio. C) Que las sinapsis eléctricas son predominantes en el corazón. D) Que la acetilcolina destruye el músculo cardíaco. Respuesta correcta: B. Al transferir la solución de un corazón estimulado a otro, demostró la existencia de una señal química extracelular.
+9. En el experimento de Loewi, ¿qué efecto produjo la estimulación del nervio vago sobre el corazón y sobre el segundo corazón bañado en su misma solución? A) Un aumento letal de la fuerza de contracción. B) Una parada cardíaca instantánea. C) Una disminución en la frecuencia de latidos y en la fuerza de contracción. D) No produjo ningún efecto en el segundo corazón. Respuesta correcta: C. La sustancia liberada por el nervio vago ralentizó el latido en ambos corazones.
+10. La misteriosa "sustancia del vago" descrita por Otto Loewi fue identificada posteriormente como el neurotransmisor: A) Noradrenalina. B) Dopamina. C) Serotonina. D) Acetilcolina. Respuesta correcta: D. Otros investigadores determinaron que dicha sustancia era la acetilcolina.
+11. Debido a los múltiples pasos moleculares requeridos, la sinapsis química presenta un "retraso sináptico". ¿De cuánto tiempo estamos hablando como mínimo? A) Al menos 0.3 milisegundos (normalmente entre 1 y 5 ms). B) 10 segundos. C) 0.001 milisegundos. D) No hay ningún retraso. Respuesta correcta: A. El retraso mínimo es de 0.3 ms debido al tiempo que tarda la exocitosis, difusión y unión al receptor.
+12. El profesor enfatiza que el cerebro no es un órgano estático. ¿Qué propiedad exclusiva de las sinapsis químicas permite que su función o estructura se modifique con el uso? A) Unidireccionalidad. B) Continuidad citoplasmática. C) Plasticidad. D) Degradación enzimática. Respuesta correcta: C. Exhiben plasticidad, siendo la base biológica del aprendizaje y la memoria.
+13. Una pista reiterada en clase: ¿De qué depende principalmente que un neurotransmisor específico tenga un efecto excitador o inhibidor en la célula postsináptica? A) Del peso molecular del neurotransmisor. B) Exclusivamente de la concentración de calcio presináptico. C) De la naturaleza del receptor postsináptico al que se una. D) De si la neurona es mielínica o amielínica. Respuesta correcta: C. El mismo neurotransmisor puede inhibir o excitar dependiendo del receptor que exprese la célula diana.
+14. Cuando un potencial de acción invade el terminal presináptico, la despolarización provoca la apertura inmediata de: A) Canales de sodio voltaje-dependientes. B) Canales de calcio (Ca2+) voltaje-dependientes. C) Canales de potasio de fuga. D) Receptores ionotrópicos de acetilcolina. Respuesta correcta: B. La despolarización abre los canales de calcio, permitiendo su influjo hacia el terminal.
+15. Estructuralmente, en el terminal presináptico existen unas zonas más oscuras (electrodensas) donde se agrupan las vesículas listas para la exocitosis. ¿Cómo se llaman? A) Conos axónicos. B) Endosomas de clatrina. C) Zonas activas. D) Nodos de Ranvier. Respuesta correcta: C. Las vesículas se movilizan y acoplan en la zona activa para su liberación.
+16. Para que las membranas se fusionen, el calcio intracelular actúa uniéndose a un "sensor de calcio" específico en la membrana de la vesícula. Esta proteína es la: A) Clatrina. B) Dinamina. C) Sintaxina. D) Sinaptotagmina. Respuesta correcta: D. La sinaptotagmina une el calcio y "cataliza" la fusión de la vesícula con la membrana presináptica.
+17. El acoplamiento vesicular depende de las proteínas SNARE. ¿Cuál de las siguientes es una proteína v-SNARE (vesicular)? A) SNAP-25. B) Sintaxina. C) Sinaptobrevina. D) Conexina. Respuesta correcta: C. La sinaptobrevina es la v-SNARE anclada en la membrana de la vesícula.
+18. ¿Qué proteínas forman el complejo t-SNARE (target) ancladas en la membrana del terminal presináptico? A) Sintaxina y SNAP-25. B) Sinaptotagmina y Sinapsina. C) Clatrina y Dinamina. D) Actina y Miosina. Respuesta correcta: A. La sintaxina y la SNAP-25 son las t-SNAREs que interactúan con la v-SNARE.
+19. (Pista clínica) El botulismo causa una parálisis flácida que puede llevar a la muerte por parada respiratoria. Esto ocurre porque la toxina inhibe la liberación de: A) Glicina en la médula espinal. B) Calcio en el miocardio. C) Acetilcolina a nivel de la unión neuromuscular. D) Dopamina en el cerebro. Respuesta correcta: C. Al no liberarse ACh, el músculo esquelético no se excita y se relaja.
+20. A diferencia del botulismo, el tétanos provoca una hiperactividad muscular (parálisis espástica). ¿Qué mecanismo explica esto? A) La toxina tetánica estimula la liberación masiva de acetilcolina. B) La toxina tetánica inhibe la liberación de glicina (neurotransmisor inhibidor) en el SNC, sobreexcitando a las motoneuronas. C) La toxina tetánica destruye la vaina de mielina. D) La toxina tetánica abre permanentemente los canales de calcio. Respuesta correcta: B. Sin la inhibición normal de la glicina, las motoneuronas se hiperactivan.
+21. A nivel molecular, la Toxina Tetánica y las Toxinas Botulínicas B, D, F y G ejercen su acción destructiva cortando específicamente la proteína: A) Sinaptobrevina. B) SNAP-25. C) Sintaxina. D) Clatrina. Respuesta correcta: A. Estas toxinas actúan como tijeras moleculares escindiendo la sinaptobrevina, impidiendo el anclaje de la vesícula.
+22. Las toxinas botulínicas A y E, por el contrario, ejercen su efecto clínico cortando la proteína: A) Sinaptotagmina. B) SNAP-25. C) Dinamina. D) Acetilcolinesterasa. Respuesta correcta: B. Estas toxinas específicas destruyen la proteína SNAP-25 del complejo t-SNARE.
+23. Tras la exocitosis, es imprescindible reciclar la membrana añadida al terminal presináptico. ¿Mediante qué proceso fisiológico se recupera esta membrana? A) Exocitosis compensatoria. B) Fagocitosis glial. C) Endocitosis mediada por vesículas cubiertas de clatrina. D) Destrucción lisosomal. Respuesta correcta: C. Las vesículas se reciclan mediante invaginaciones recubiertas de moléculas de clatrina.
+24. En el proceso de endocitosis, ¿qué proteína con actividad ATPasa se encarga de "estrangular" el cuello de la vesícula para escindirla de la membrana? A) Sintaxina. B) Clatrina. C) Dinamina. D) Tubulina. Respuesta correcta: C. La dinamina se enrolla alrededor del cuello de la invaginación y escinde la nueva vesícula endocítica.
+25. El profesor explica un experimento para rastrear el ciclo de las vesículas utilizando como marcador una enzima que ennegrece los tejidos. ¿Cuál es? A) Citocromo C. B) Peroxidasa de rabanillo (HRP). C) Beta-galactosidasa. D) Luciferasa. Respuesta correcta: B. La HRP (Horseradish peroxidase) fue utilizada por su facilidad para ser localizada al microscopio electrónico tras su endocitosis.
+26. En el experimento con HRP, 5 minutos después del lavado post-estimulación, ¿en qué estructura intracelular se encuentra acumulado mayoritariamente el marcador? A) En el núcleo neuronal. B) En la mitocondria. C) En el endosoma. D) Directamente en nuevas vesículas listas para liberar. Respuesta correcta: C. Las vesículas recubiertas pierden la clatrina y se fusionan primero con el endosoma presináptico.
+27. Siguiendo el mismo experimento, si esperamos 1 hora, ¿dónde encontraremos la HRP? A) Expulsada de nuevo a la hendidura sináptica. B) En las nuevas vesículas sinápticas listas para un nuevo ciclo de liberación. C) En el soma neuronal, tras viaje axonal retrógrado. D) Degradada totalmente sin dejar rastro. Respuesta correcta: B. El ciclo se completa y el endosoma genera nuevas vesículas de neurotransmisor marcadas con HRP.
+28. ¿Cuál de los siguientes NO es un requisito indispensable para que una molécula sea considerada un neurotransmisor fisiológico? A) Que se encuentre en las terminaciones sinápticas. B) Que se libere en respuesta a una despolarización. C) Que sea obligatoriamente un gas difusible. D) Que existan receptores específicos para él en la membrana postsináptica. Respuesta correcta: C. Si no hay receptor postsináptico, la molécula no transmite información, por tanto no sería un NT.
+29. Para evitar una estimulación continua y tóxica, el neurotransmisor debe ser eliminado rápidamente de la hendidura. ¿Cuáles son las tres vías principales para esto? A) Evaporación, precipitación y fagocitosis. B) Recaptación, degradación enzimática y difusión al flujo sanguíneo. C) Endocitosis nuclear, cristalización y exocitosis. D) Unión a mielina, degradación ácida y fotosíntesis celular. Respuesta correcta: B. Son eliminados recaptándolos (terminal o glía), por enzimas metabólicas, o difundiendo lejos.
+30. Si un neurotransmisor es metabolizado en la hendidura por una enzima, ¿qué suele ocurrir con el producto de desecho? A) Se convierte en toxina. B) Se acumula hasta formar una placa amiloide. C) El producto (precursor) puede ser recaptado por el terminal presináptico para sintetizar nuevo neurotransmisor. D) Induce la apoptosis de la célula postsináptica. Respuesta correcta: C. Los metabolitos frecuentemente se reutilizan en el terminal presináptico como precursores.
+31. Las células gliales que rodean la sinapsis juegan un papel crucial en la finalización de la señal química porque: A) Destruyen físicamente el terminal presináptico. B) Expresan transportadores específicos que recaptan el neurotransmisor sobrante del espacio sináptico. C) Segregan anticuerpos contra los neurotransmisores. D) Bloquean los receptores postsinápticos. Respuesta correcta: B. Astrocitos y otras glías participan activamente en la recaptación.
+32. Fisiológicamente, los neurotransmisores de "moléculas pequeñas" (como acetilcolina, glutamato o GABA) se caracterizan porque su síntesis ocurre en: A) El núcleo de la célula de Schwann. B) El soma neuronal exclusivamente. C) El terminal presináptico. D) El torrente sanguíneo. Respuesta correcta: C. Las enzimas viajan desde el soma, pero la síntesis de la molécula pequeña ocurre localmente en el terminal.
+33. ¿Qué aspecto tienen al microscopio electrónico las vesículas que almacenan a los neurotransmisores de bajo peso molecular? A) Son enormes y muy electrodensas. B) Son pequeñas (40-60 nm) y de "centro claro". C) Tienen forma cuadrada. D) Están siempre recubiertas de clatrina de forma permanente. Respuesta correcta: B. Se observan como pequeñas vesículas transparentes (centro claro) cerca de la zona activa.
+34. ¿Qué tipo de respuestas temporales provocan clásicamente los neurotransmisores de bajo peso molecular en la célula diana? A) Respuestas muy rápidas, del orden de milisegundos. B) Cambios genéticos que tardan años. C) Acciones lentas neuromoduladoras de varias horas. D) Cambios irreversibles en la estructura ósea. Respuesta correcta: A. Están encargados de la transmisión rápida clásica de la información.
+35. A diferencia de los anteriores, los NEUROPÉPTIDOS (transmisores peptídicos de cadena larga) se sintetizan íntegramente en: A) El terminal presináptico. B) El aparato de Golgi del soma o cuerpo neuronal. C) El espacio extracelular. D) Las dendritas. Respuesta correcta: B. Se sintetizan como prepéptidos y se empaquetan en el cuerpo de la neurona antes de ser transportados.
+36. Las vesículas que contienen neuropéptidos viajan a lo largo del axón mediante un proceso impulsado por microtúbulos. Este proceso es un: A) Transporte axonal lento. B) Transporte axonal rápido. C) Difusión pasiva simple. D) Arrastre por líquido cefalorraquídeo. Respuesta correcta: B. Viajan mediante transporte axonal rápido en vesículas ya formadas desde el soma.
+37. ¿Cómo se distinguen visualmente al microscopio electrónico las vesículas que contienen neuropéptidos? A) Son más grandes (90-250 nm) y de "centro denso" (oscuras). B) Son indistinguibles de las vesículas de centro claro. C) Tienen color verde fluorescente naturalmente. D) Desaparecen al fijarlas. Respuesta correcta: A. Son grandes y electrodensas, ubicadas generalmente lejos de la zona activa principal.
+38. La función biológica de los neuropéptidos liberados en la sinapsis suele ser: A) La transmisión motora instantánea en milisegundos. B) Exclusivamente la contracción del músculo esquelético. C) Una acción lenta y neuromoduladora, que puede durar desde segundos hasta horas. D) Destruir las enzimas del espacio sináptico. Respuesta correcta: C. Modulan la acción de sistemas más rápidos, generando respuestas prolongadas.
+39. Según el esquema de liberación de acetilcolina en la placa motora, la transmisión se produce en "paquetes discretos". ¿Cómo se conoce a este principio fisiológico? A) Difusión continua. B) Bombeo activo. C) Liberación cuántica. D) Secreción constitutiva. Respuesta correcta: C. El NT se libera en unidades cuánticas indivisibles.
+40. En el contexto de la secreción presináptica, la definición exacta de un "cuanto" biológico es: A) La cantidad de ATP consumida por segundo. B) Un solo ion de calcio. C) La cantidad de neurotransmisor contenida dentro de una única vesícula sináptica. D) Un milivoltio de despolarización. Respuesta correcta: C. Un cuanto es igual al contenido que se vacía al fusionarse 1 vesícula con la membrana.
+41. El Potencial de Placa Motora (PPM) que se registra en el músculo esquelético es el resultado fisiológico de: A) La liberación de un solo cuanto de acetilcolina. B) El flujo exclusivo de potasio extracelular. C) La suma espacial y temporal de un número variable de "cuantos" liberados simultáneamente en respuesta al calcio. D) La entrada de sodio a la neurona motora. Respuesta correcta: C. El PPM se forma por la liberación sincrónica de múltiples vesículas (cuantos).
+42. En la Unión Neuromuscular sana, el Potencial de Placa Motora tiene una característica crucial para garantizar el movimiento. ¿Cuál es? A) Siempre es un estímulo subumbral. B) En el 100% de las ocasiones fisiológicas supera el umbral y dispara un potencial de acción en la fibra muscular. C) Causa siempre la hiperpolarización del músculo. D) Tiene un retraso de 2 minutos. Respuesta correcta: B. Al ser una sinapsis de "alta seguridad", el PPM siempre alcanza el umbral para asegurar la contracción.
+43. Las aminas biógenas, como la dopamina o la serotonina, se consideran un punto intermedio porque funcionalmente: A) No tienen receptores postsinápticos. B) Solo se encuentran en el intestino. C) Pueden actuar tanto como neurotransmisores rápidos como neuromoduladores. D) Son siempre letales a nivel neuronal. Respuesta correcta: C. Poseen propiedades intermedias entre las moléculas pequeñas clásicas y los neuropéptidos.
+44. Si observamos una micrografía de criofractura del terminal presináptico, los canales de calcio voltaje-dependientes se disponen: A) De forma dispersa y caótica por todo el axón. B) Agrupados formando filas muy ordenadas en la membrana de las zonas activas, justo al lado del sitio de fusión vesicular. C) Únicamente en los nodos de Ranvier. D) Dentro del endosoma presináptico. Respuesta correcta: B. Se colocan estratégicamente pegados a las vesículas atracadas para que el calcio actúe inmediatamente.
+45. Una vez terminada la clase, el profesor menciona que el estudio de la señalización postsináptica (los receptores) se realizará tomando como modelo pionero: A) La sinapsis eléctrica del corazón. B) El ganglio de la raíz dorsal. C) La Unión Neuromuscular (Placa Motora). D) La retina del ojo. Respuesta correcta: C. La unión de la motoneurona somática con la fibra muscular es el modelo clásico para estudiar estos eventos.
+46. Según los gráficos del experimento de liberación de vesículas dependiente de calcio, a medida que aumentamos la concentración extracelular de Ca2+, ¿qué ocurre con el número de cuantos liberados? A) Disminuye drásticamente. B) Se mantiene constante y fijo. C) Aumenta en proporción directa. D) Genera potenciales inhibidores. Respuesta correcta: C. El calcio extracelular regula directamente el número de vesículas que se fusionan.
+47. Un paciente sufre una intoxicación aguda por toxina botulínica C1. ¿Qué proteínas del complejo de fusión estarán destruidas en su terminal presináptico? A) Solo la sinaptobrevina. B) La sintaxina y la SNAP-25. C) La dinamina exclusivamente. D) Los canales de calcio voltaje-dependientes. Respuesta correcta: B. La variante C1 de la toxina botulínica escinde específicamente Sintaxina y SNAP-25.
+48. El complejo SNARE asegura que la vesícula se fusione exactamente en el lugar correcto en fracciones de milisegundo. En este proceso, el "v-SNARE" se une a los "t-SNAREs" durante la fase de: A) Endocitosis. B) Síntesis de neuropéptidos en el soma. C) Acoplamiento y fijación (docking/priming) en la membrana de la zona activa. D) Viaje por los microtúbulos del axón. Respuesta correcta: C. Esta unión forma el complejo estable que "ancla" la vesícula a la espera del calcio.
+49. Si inyectamos un antagonista químico que bloquee a la enzima "Dinamina" en un terminal sináptico muy activo, la consecuencia celular más probable a largo plazo será: A) Que las vesículas se fusionen solas sin calcio. B) Una depleción total de vesículas sinápticas, ya que la membrana endocitada no podrá ser "estrangulada" ni escindida para formar nuevas vesículas. C) Un aumento de la síntesis de neuropéptidos. D) Una parálisis espástica. Respuesta correcta: B. Sin dinamina, la invaginación de clatrina nunca se suelta de la membrana, paralizando el reciclaje.
+50. ¿Cómo difieren los neuropéptidos de los neurotransmisores pequeños en su proceso de eliminación tras la liberación? A) Los neuropéptidos se eliminan casi exclusivamente por recaptación de alta afinidad. B) Los neuropéptidos no se eliminan y se quedan para siempre. C) Los neuropéptidos difunden lejos y son degradados por enzimas proteolíticas inespecíficas, sin un mecanismo de recaptación presináptica rápido. D) Vuelven a entrar por canales iónicos pasivos. Respuesta correcta: C. Dado su carácter difusible y neuromodulador, suelen ser destruidos por peptidasas extracelulares en lugar de recaptarse enteros.
+51. En una sinapsis química, la información pasa de ser una señal ELÉCTRICA (potencial de acción) a ser una señal QUÍMICA (neurotransmisor), y finalmente en la célula postsináptica se convierte de nuevo en: A) Un cambio estructural anatómico. B) Una señal eléctrica (potenciales postsinápticos excitadores o inhibidores). C) Un pulso magnético. D) Una hormona esteroidea celular. Respuesta correcta: B. La unión al receptor postsináptico abre canales iónicos, alterando el potencial de membrana (señal eléctrica).
+52. La célula postsináptica recibe miles de contactos de diferentes neuronas simultáneamente. Al fenómeno de evaluar y combinar toda esa información excitadora e inhibidora se le denomina: A) Reciclaje vesicular. B) Integración sináptica. C) Retraso refractario. D) Acoplamiento metabólico. Respuesta correcta: B. La neurona suma y evalúa todas las señales químicas recibidas para decidir si dispara o no un nuevo potencial de acción.
+53. (Repaso clínico) Durante el botulismo, se administra la toxina cosméticamente ("Botox") porque su efecto local en el músculo produce: A) Un aumento del tono muscular permanente. B) Una contracción tetánica. C) Una relajación o parálisis flácida que hace desaparecer las arrugas al no excitarse el músculo. D) Una inflamación roja de la piel. Respuesta correcta: C. Al bloquear la acetilcolina, el músculo esquelético hiperactivo o contraído se relaja.
+54. ¿Qué neurotransmisor es clásicamente inhibidor en el sistema nervioso central y su liberación se ve bloqueada trágicamente por la toxina tetánica? A) Glutamato. B) Acetilcolina. C) Glicina (y GABA). D) Dopamina. Respuesta correcta: C. La falta de glicina elimina el "freno" sobre las motoneuronas, provocando los clásicos espasmos del tétanos.
+55. Según el tamaño que se indica en las diapositivas, las vesículas de neurotransmisores de bajo peso molecular (centro claro) miden: A) De 4 a 6 nanómetros. B) De 40 a 60 nanómetros. C) De 90 a 250 nanómetros. D) De 1 a 2 micrómetros. Respuesta correcta: B. Son vesículas "pequeñas" comparadas con las de los neuropéptidos.
+56. A nivel del terminal presináptico, el transporte axonal rápido utilizado para los neuropéptidos requiere energía (ATP) e infraestructuras del citoesqueleto. ¿Sobre qué filamentos viajan estas vesículas? A) Filamentos de actina. B) Filamentos intermedios de queratina. C) Microtúbulos. D) Malla de colágeno extracelular. Respuesta correcta: C. El esquema muestra las vesículas y enzimas viajando a lo largo de las vías de microtúbulos.
+57. Las uniones "Gap Junction" de la sinapsis eléctrica están separadas por un espacio intermembrana de aproximadamente: A) 20 nm. B) 50 nm. C) 3.5 nm. D) 0.1 nm. Respuesta correcta: C. Las membranas están extremadamente cerca (3.5 nm) en comparación con los 20 nm de la sinapsis química.
+58. En el esquema que detalla las posibilidades de eliminación del neurotransmisor, se menciona que el glutamato y GABA a menudo son retirados agresivamente del espacio extracelular por: A) Las enzimas colinesterasas. B) Los astrocitos (células gliales), previniendo la excitotoxicidad. C) Los vasos linfáticos capilares de la duramadre. D) Las vacuolas nucleares. Respuesta correcta: B. La glía es fundamental expresando transportadores para recaptar activamente los transmisores de la hendidura.
+59. En el experimento de HRP que demuestra el reciclaje vesicular, ¿qué indica la existencia de invaginaciones marcadas con una "corona" perimetral (cubierta de clatrina)? A) Que la vesícula está liberando neurotransmisor. B) Que está ocurriendo el proceso de endocitosis acoplado, recuperando membrana presináptica. C) Que la neurona está sufriendo necrosis. D) Que la clatrina es el neurotransmisor principal. Respuesta correcta: B. La "corona" característica al microscopio indica que la membrana se está replegando recubierta de clatrina para formar un endosoma.
+60. Como resumen integrador del tema: la principal ventaja funcional de que el ser humano posea predominantemente sinapsis químicas frente a las eléctricas (mucho más rápidas y baratas metabólicamente) es: A) Que no gastan calcio. B) Que evitan la sudoración. C) La inmensa capacidad de neuromodulación, variedad de respuestas (inhibición/excitación) y plasticidad fundamental para procesos complejos anatómicos. D) Que son completamente insensibles a toxinas bacterianas. Respuesta correcta: C. La sinapsis química permite computar, aprender, inhibir circuitos y procesar información compleja, cosas que el simple puente eléctrico no puede hacer.
+</textarea>
+
+<script>
+    let masterDB = [];
+    let currentQuiz = [];
+    let state = {
+        answered: {},
+        marked: new Set()
+    };
+
+    function parseData() {
+        let text = document.getElementById('raw-data').value;
+        text = text.replace(/-+\nBLOQUE.*?\n/g, '').replace(/\r\n/g, '\n');
+        
+        let blocks = text.split(/(?=Respuesta correcta:)/);
+        let currentQText = blocks[0];
+
+        for(let i=1; i<blocks.length; i++) {
+            let block = blocks[i];
+            
+            // Expresión regular ajustada para capturar sin la palabra explícita "Explicación:"
+            let ansMatch = block.match(/^Respuesta correcta:\s*([A-D])\.?\s*(.*?)(?=\n\d+\.\s|$)/s);
+            let correctLetter = ansMatch ? ansMatch[1] : '';
+            let exp = ansMatch ? ansMatch[2].trim() : '';
+            
+            let nextQText = block.substring(ansMatch ? ansMatch[0].length : 0);
+            
+            let qMatch = currentQText.match(/(\d+)\.\s+(.*?)\s+A\)\s+(.*?)\s+B\)\s+(.*?)\s+C\)\s+(.*?)\s+D\)\s+(.*)/s);
+            
+            if(qMatch) {
+                masterDB.push({
+                    id: parseInt(qMatch[1]),
+                    q: qMatch[2].trim(),
+                    opts: [
+                        { letter: 'A', t: qMatch[3].trim(), c: correctLetter === 'A' },
+                        { letter: 'B', t: qMatch[4].trim(), c: correctLetter === 'B' },
+                        { letter: 'C', t: qMatch[5].trim(), c: correctLetter === 'C' },
+                        { letter: 'D', t: qMatch[6].trim(), c: correctLetter === 'D' }
+                    ],
+                    exp: exp
+                });
+            }
+            currentQText = nextQText;
+        }
+    }
+
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
+    }
+
+    function startQuiz(dataset) {
+        let isRandom = confirm("¿Deseas mezclar las preguntas aleatoriamente?\n\nAceptar = Orden Aleatorio\nCancelar = Orden Preestablecido");
+        
+        currentQuiz = isRandom ? shuffleArray([...dataset]) : [...dataset];
+        state.answered = {};
+        
+        renderQuiz();
+    }
+
+    function renderQuiz() {
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        
+        const quizArea = document.getElementById('quiz-area');
+        const indexArea = document.getElementById('index-container');
+        
+        quizArea.innerHTML = '';
+        indexArea.innerHTML = '';
+        updateProgress();
+
+        currentQuiz.forEach((q, index) => {
+            let actualNumber = index + 1;
+            
+            let btn = document.createElement('div');
+            btn.className = 'index-btn';
+            if(state.marked.has(q.id)) btn.classList.add('marked');
+            btn.id = `index-${q.id}`;
+            btn.innerText = actualNumber;
+            btn.onclick = () => document.getElementById(`q-${q.id}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+            indexArea.appendChild(btn);
+
+            let optionsShuffled = shuffleArray([...q.opts]);
+
+            let card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${q.id}`;
+            
+            let isMarked = state.marked.has(q.id) ? 'checked' : '';
+            
+            let html = `
+                <div class="question-header">
+                    <div class="question-text">${actualNumber}. ${q.q}</div>
+                    <label class="mark-container">
+                        <input type="checkbox" onchange="toggleMark(${q.id}, this)" ${isMarked}> Marcar
+                    </label>
+                </div>
+                <div class="options-list" id="opts-${q.id}">
+            `;
+
+            optionsShuffled.forEach((opt, optIndex) => {
+                html += `<div class="option" id="opt-${q.id}-${optIndex}" onclick='selectOption(${q.id}, ${optIndex}, ${opt.c})'>
+                            ${opt.t}
+                         </div>`;
+            });
+
+            html += `</div>
+                <div class="explanation" id="exp-${q.id}">
+                    <strong>Respuesta correcta:</strong> ${q.opts.find(o => o.c).t}<br><br>
+                    <em>Explicación:</em> ${q.exp}
+                </div>
+            `;
+            
+            card.innerHTML = html;
+            quizArea.appendChild(card);
+        });
+    }
+
+    window.toggleMark = function(qId, checkbox) {
+        if(checkbox.checked) {
+            state.marked.add(qId);
+            document.getElementById(`index-${qId}`).classList.add('marked');
+        } else {
+            state.marked.delete(qId);
+            document.getElementById(`index-${qId}`).classList.remove('marked');
+        }
+    };
+
+    window.selectOption = function(qId, optIndex, isCorrect) {
+        if(state.answered.hasOwnProperty(qId)) return;
+
+        state.answered[qId] = isCorrect;
+        updateProgress();
+
+        let optsContainer = document.getElementById(`opts-${qId}`);
+        let allOpts = optsContainer.getElementsByClassName('option');
+        
+        for(let i = 0; i < allOpts.length; i++) {
+            allOpts[i].classList.add('disabled');
+            if(allOpts[i].getAttribute('onclick').includes('true')) {
+                allOpts[i].classList.add('correct');
+            }
+        }
+
+        let selected = document.getElementById(`opt-${qId}-${optIndex}`);
+        if(!isCorrect) {
+            selected.classList.add('incorrect');
+            document.getElementById(`index-${qId}`).classList.add('incorrect');
+        } else {
+            document.getElementById(`index-${qId}`).classList.add('correct');
+        }
+
+        document.getElementById(`exp-${qId}`).style.display = 'block';
+    };
+
+    function updateProgress() {
+        let answeredCount = Object.keys(state.answered).length;
+        document.getElementById('progress-text').innerText = `Preguntas respondidas: ${answeredCount} / ${currentQuiz.length}`;
+    }
+
+    window.finishQuiz = function() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        let correctCount = Object.values(state.answered).filter(v => v === true).length;
+        let incorrectCount = Object.values(state.answered).filter(v => v === false).length;
+        let missedCount = currentQuiz.length - (correctCount + incorrectCount);
+        
+        let markedInCurrent = currentQuiz.filter(q => state.marked.has(q.id)).length;
+
+        document.getElementById('score-correct').innerText = correctCount;
+        document.getElementById('score-incorrect').innerText = incorrectCount + missedCount + " (incluyendo no respondidas)";
+        document.getElementById('score-marked').innerText = markedInCurrent;
+    };
+
+    window.retake = function(mode) {
+        if(mode === 'all') {
+            startQuiz(masterDB);
+        } 
+        else if (mode === 'failed') {
+            let toRetake = currentQuiz.filter(q => state.answered[q.id] !== true);
+            if(toRetake.length === 0) return alert("¡No hay fallos para repetir!");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'marked') {
+            let toRetake = masterDB.filter(q => state.marked.has(q.id));
+            if(toRetake.length === 0) return alert("No hay preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+        else if (mode === 'failed_marked') {
+            let toRetakeIds = new Set(currentQuiz.filter(q => state.answered[q.id] !== true).map(q => q.id));
+            state.marked.forEach(id => toRetakeIds.add(id));
+            
+            let toRetake = masterDB.filter(q => toRetakeIds.has(q.id));
+            if(toRetake.length === 0) return alert("No hay fallos ni preguntas marcadas.");
+            startQuiz(toRetake);
+        }
+    };
+
+    window.onload = () => {
+        parseData();
+        startQuiz(masterDB);
+    };
+
+</script>
+
+</body>
+</html>

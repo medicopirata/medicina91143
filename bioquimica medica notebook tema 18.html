@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizz de Fisiología: Compartimentos e Hidratación</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --marked: #f1c40f;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Pantalla de Inicio */
+        #setup-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+
+        .setup-box {
+            background: white;
+            color: var(--primary);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Layout Principal */
+        #sidebar {
+            width: 250px;
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Índice en 3 columnas */
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .index-item {
+            background: var(--secondary);
+            border: 1px solid #455a64;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .index-item.active { border: 2px solid var(--accent); }
+        .index-item.correct { background: var(--success) !important; }
+        .index-item.wrong { background: var(--error) !important; }
+        .index-item.marked { border: 2px solid var(--marked); }
+
+        /* Estilo de Pregunta */
+        .question-card {
+            background: white;
+            max-width: 800px;
+            width: 100%;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-btn:hover:not(:disabled) { background: #f8f9fa; border-color: var(--accent); }
+        .option-btn.correct { background: #d4edda; border-color: var(--success); color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: var(--error); color: #721c24; }
+
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-left: 5px solid var(--accent);
+            display: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button.main-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-mark { background: var(--marked); color: #000; }
+        .btn-finish { background: var(--error); color: white; }
+        .btn-next { background: var(--accent); color: white; }
+
+        /* Pantalla Final */
+        #final-screen {
+            display: none;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .summary-box {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .retry-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <h2>Configuración del Cuestionario</h2>
+            <p>Selecciona el orden de las preguntas:</p>
+            <button class="main-btn btn-next" onclick="startQuiz(false)">Orden Preestablecido</button>
+            <button class="main-btn btn-next" onclick="startQuiz(true)">Mezclar Aleatoriamente</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <h3>Preguntas</h3>
+        <div id="index-container" class="index-grid"></div>
+        <hr style="width:100%; margin: 20px 0;">
+        <button class="main-btn btn-finish" onclick="finishQuiz()">Finalizar Cuestionario</button>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container"></div>
+        
+        <div id="final-screen">
+            <div class="summary-box">
+                <h2>Cuestionario Finalizado</h2>
+                <p id="score-text"></p>
+                <div class="retry-options">
+                    <button class="main-btn btn-next" onclick="reloadQuiz('all')">Repetir Todo</button>
+                    <button class="main-btn btn-next" onclick="reloadQuiz('failed')">Repetir Falladas</button>
+                    <button class="main-btn btn-next" onclick="reloadQuiz('marked')">Repetir Marcadas</button>
+                    <button class="main-btn btn-next" onclick="reloadQuiz('both')">Falladas + Marcadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawQuestions = [
+            // BLOQUE 1
+            { n: 1, q: "Sabiendo que el agua es fundamental para la supervivencia, ¿cuál de los siguientes tejidos presenta una MENOR proporción de agua en su composición?", options: ["Cerebro", "Músculo esquelético", "Tejido adiposo", "Sangre"], correct: 2, exp: "En las diapositivas se especifica que el cerebro tiene un 90% de agua, mientras que el tejido adiposo apenas tiene un 10%." },
+            { n: 2, q: "En un adulto sano, el agua corporal total se distribuye en diferentes compartimentos. ¿Cuál es la proporción correcta de esta distribución?", options: ["1/3 en el Líquido Intracelular (LIC) y 2/3 en el Líquido Extracelular (LEC)", "2/3 en el Líquido Intracelular (LIC) y 1/3 en el Líquido Extracelular (LEC)", "50% en el LIC y 50% en el plasma", "90% en el LIC y 10% en el líquido intersticial"], correct: 1, exp: "Aproximadamente dos tercios del agua total del cuerpo se hallan en el LIC y el tercio restante permanece en el LEC." },
+            { n: 3, q: "El Líquido Extracelular (LEC) está compuesto por varios subcompartimentos. ¿Cuál de los siguientes representa el mayor porcentaje del peso corporal dentro del LEC?", options: ["El plasma (3%)", "Los líquidos transcelulares (LCR, orina)", "El líquido intersticial y linfático (15%)", "El líquido intracelular"], correct: 2, exp: "Dentro del tercio que representa el LEC, el intersticio y la linfa suponen un 15% del peso corporal, frente al 3% del plasma." },
+            { n: 4, q: "¿Qué barrera separa el plasma sanguíneo del líquido intersticial?", options: ["La membrana celular de los eritrocitos", "La pared de los capilares (células endoteliales)", "La membrana plasmática de los hepatocitos", "La barrera hematoencefálica exclusivamente"], correct: 1, exp: "La pared capilar (células endoteliales) separa el plasma del líquido intersticial, permitiendo el paso de agua y electrolitos, pero NO de proteínas grandes." },
+            { n: 5, q: "Si analizamos la composición iónica del Líquido Intracelular (LIC), ¿cuál es el catión predominante?", options: ["Sodio (Na+)", "Calcio (Ca2+)", "Potasio (K+)", "Magnesio (Mg2+)"], correct: 2, exp: "En el LIC la concentración de Potasio es altísima (aprox. 110 mmol/L), mientras que la de Sodio es muy baja." },
+            { n: 6, q: "En el plasma (Líquido Extracelular), los iones predominantes que determinan la osmolaridad son:", options: ["Potasio y Fosfato", "Sodio (140 mmol/L) y Cloruro (100 mmol/L)", "Calcio y Bicarbonato", "Magnesio y Proteínas"], correct: 1, exp: "El plasma es rico en Na+ y Cl-, lo que genera el gradiente electroquímico vital para la célula." },
+            { n: 7, q: "En el tracto gastrointestinal se produce un recambio hídrico masivo diariamente. Según el esquema de equilibrio hídrico, ¿qué volumen de líquido se intercambia en el intestino al día?", options: ["0,5 Litros", "2 Litros", "7 Litros", "15 Litros"], correct: 2, exp: "El recambio es de 7 L/día, razón por la cual las diarreas causan deshidrataciones tan severas." },
+            { n: 8, q: "En condiciones fisiológicas basales, ¿cuál es el volumen de orina diario y cuál es el volumen MÍNIMO necesario para eliminar los productos de desecho nitrogenados?", options: ["Normal: 1-2 L/día. Mínimo: 0,5 L/día", "Normal: 5 L/día. Mínimo: 2 L/día", "Normal: 0,5 L/día. Mínimo: 0,1 L/día", "Normal: 10 L/día. Mínimo: 5 L/día"], correct: 0, exp: "El riñón produce 1-2 litros normales, pero requiere un volumen mínimo de 0,5 L/día para lavar la urea." },
+            { n: 9, q: "Además de potasio, el Líquido Intracelular (LIC) se caracteriza por tener una alta concentración de ciertos aniones comparado con el plasma. ¿Cuáles son?", options: ["Bicarbonato y Cloro", "Fosfatos, Proteínas y Aniones orgánicos", "Únicamente cloruro", "Sulfato de heparina"], correct: 1, exp: "El LIC está lleno de proteínas (con carga negativa), fosfato inorgánico (Pi) y otros aniones orgánicos." },
+            { n: 10, q: "¿Qué determina primariamente el movimiento de agua (libre difusión) entre compartimentos?", options: ["El gradiente electroquímico", "El consumo de ATP por las acuaporinas", "El gradiente osmótico", "La bomba Na+/K+-ATPasa de forma directa"], correct: 2, exp: "Transporte de iones determinado por gradiente electroquímico; Transporte de agua determinado por un gradiente osmótico." },
+            
+            // BLOQUE 2
+            { n: 11, q: "¿Qué representa conceptualmente el valor del 'Anion Gap'?", options: ["La cantidad total de sodio en el plasma", "La diferencia de voltaje transmembrana", "La suma de aniones que habitualmente NO se miden de forma rutinaria", "El cociente entre sodio y potasio en orina"], correct: 2, exp: "Engloba aniones orgánicos y proteínas (como albúmina, fosfato, lactato) que no se cuantifican de rutina." },
+            { n: 12, q: "¿Cuál es el valor considerado normal para la Diferencia Aniónica (AG) en una persona sana?", options: ["0 mmol/L", "10 mmol/L", "140 mmol/L", "300 mmol/L"], correct: 1, exp: "AG = 10 mmol/L es el estándar de normalidad." },
+            { n: 13, q: "Un paciente diabético ingresa con un Anion Gap muy ELEVADO. Esto se debe muy probablemente a:", options: ["Una intoxicación por agua", "La acumulación masiva de aniones orgánicos como el acetoacetato", "Una pérdida masiva de albúmina", "Una deficiencia en la bomba de sodio-potasio"], correct: 1, exp: "En la cetoacidosis diabética se acumulan aniones constituyentes que elevan el AG." },
+            { n: 14, q: "¿Qué otra patología típica cursa con un aumento patológico del Anion Gap al no poder excretar fosfatos y sulfatos?", options: ["Diabetes insípida", "Insuficiencia renal", "Edema pulmonar", "Hipertensión arterial esencial"], correct: 1, exp: "La insuficiencia renal impide la excreción de estos aniones, acumulándolos en plasma." },
+            { n: 15, q: "Un paciente sufre una hipoalbuminemia severa. ¿Qué alteración esperaríamos encontrar en su Anion Gap?", options: ["Un Anion Gap anormalmente alto", "Un Anion Gap inalterado", "Un Anion Gap anormalmente bajo", "Un Anion Gap negativo"], correct: 2, exp: "Si la albúmina (proteína aniónica) disminuye, la 'bolsa' de aniones no medidos se reduce." },
+            { n: 16, q: "Químicamente, el Anion Gap se calcula típicamente usando los cationes:", options: ["Calcio y Magnesio", "Sodio y Potasio", "Hierro y Zinc", "Litio y Amonio"], correct: 1, exp: "Se restan los aniones principales (Cl- y HCO3-) a los cationes principales (Na+ y K+)." },
+            { n: 17, q: "Si un paciente presenta una intoxicación que libera lactato al plasma, ¿cómo se diagnostica rápidamente?", options: ["Midiendo solo el pH", "Calculando el Anion Gap, que aparecerá elevado", "Haciendo una ecografía renal", "Midiendo la albúmina en orina"], correct: 1, exp: "El lactato es un anión no medido que hará subir el valor del AG." },
+            { n: 18, q: "La osmolalidad normal del líquido extracelular (LEC) está en torno a:", options: ["50 mmol/L", "140 mmol/L", "300 mmol/kg agua", "1200 mmol/L"], correct: 2, exp: "El plasma es estable en aproximadamente 300 mmol/kg." },
+            { n: 19, q: "¿Cuál es la consecuencia celular inmediata si la osmolalidad del LEC AUMENTA (hipertónico)?", options: ["El agua entra a la célula (edema)", "El agua se mueve del LIC al LEC (deshidratación celular)", "La célula expulsa sodio", "No ocurre nada"], correct: 1, exp: "El agua sale de la célula hacia el compartimento con mayor osmolalidad." },
+            { n: 20, q: "Si un paciente recibe agua destilada (hipotónico), diluyendo el plasma, el riesgo es:", options: ["Deshidratación tisular", "Paro cardíaco por exceso de Na+", "Edema celular (el agua entra a las células)", "Aumento de la presión oncótica"], correct: 2, exp: "El agua se mueve hacia donde está más concentrado (el interior celular), inflando las células." },
+
+            // BLOQUE 3
+            { n: 21, q: "La función catalítica básica de la bomba Na+/K+-ATPasa consiste en:", options: ["Introducir 3 Na+ y sacar 2 K+", "Sacar 3 Na+ e introducir 2 K+ hidrolizando ATP", "Sacar 3 K+ e introducir 2 Na+", "Transportar Na+ y glucosa sin energía"], correct: 1, exp: "Saca 3 de sodio y mete 2 de potasio contra gradiente usando ATP." },
+            { n: 22, q: "¿Cuál es la subunidad de la bomba encargada de la función catalítica?", options: ["Subunidad Beta (β)", "Subunidad Gamma (γ)", "Subunidad Alfa (α)", "Subunidad Delta (δ)"], correct: 2, exp: "La subunidad alfa se fosforila y realiza el transporte activo." },
+            { n: 23, q: "¿Qué característica define a la forma 'E1' de la enzima?", options: ["Alta afinidad por el Potasio", "Está fosforilada y abierta al exterior", "Alta afinidad por ATP, Mg2+ y Na+ intracelular", "Libera el Sodio al exterior"], correct: 2, exp: "En E1 la bomba está abierta al interior capturando el sodio para expulsarlo." },
+            { n: 24, q: "¿Dónde se localiza la bomba Na+/K+-ATPasa en las células epiteliales?", options: ["Membrana apical", "Citoplasma", "Membrana basolateral", "Núcleo"], correct: 2, exp: "Se sitúa en la parte que mira al tejido/intersticio para bombear el sodio hacia la sangre." },
+            { n: 25, q: "¿Qué hormonas AUMENTAN la afinidad de la bomba por el sodio?", options: ["Dopamina y PTH", "Angiotensina II e Insulina", "Glucagón y Adrenalina", "Vasopresina"], correct: 1, exp: "La Angiotensina II y la Insulina estimulan la actividad de la bomba." },
+            { n: 26, q: "Mecanismo de acción de la DIGOXINA:", options: ["Activa la bomba Na+/K+", "Inhibe canales de calcio", "Inhibe la bomba Na+/K+, aumentando el Na+ intracelular", "Es un diurético de asa"], correct: 2, exp: "Al inhibir la bomba, sube el Na+ interno, lo que afecta al intercambiador Na/Ca y aumenta el calcio." },
+            { n: 27, q: "La actividad de la bomba es 'electrogénica' porque:", options: ["Genera electricidad estática", "Mantiene un interior celular negativo (-50 a -90 mV)", "Iguala las cargas", "Produce calor"], correct: 1, exp: "Al sacar más cargas positivas de las que mete, genera un potencial negativo interno." },
+            { n: 28, q: "¿Cómo controla la bomba el volumen celular?", options: ["Sintetiza membrana", "El sodio rompe la célula", "Al sacar sodio, el agua lo sigue hacia fuera", "Saca agua directamente"], correct: 2, exp: "El agua sigue osmóticamente al sodio; al expulsar sodio, se reduce el volumen celular." },
+            { n: 29, q: "¿Qué moléculas actúan como 'osmolitos' protectores?", options: ["Colesterol", "ADN y ARN", "Glutamato, taurina, mioinositol", "Amoníaco"], correct: 2, exp: "Son sustancias osmóticamente activas generadas por la célula para regular su volumen." },
+            { n: 30, q: "El transporte PASIVO de glucosa o aminoácidos depende de:", options: ["Consumo directo de ATP", "Presión hidrostática", "Gradiente de sodio generado por la bomba", "Anion Gap"], correct: 2, exp: "El sodio entra a favor de gradiente arrastrando estas moléculas (cotransporte)." },
+
+            // BLOQUE 4
+            { n: 31, q: "¿Qué fuerza tiende a RETENER agua dentro del capilar sanguíneo?", options: ["Presión Hidrostática", "Presión de Oxígeno", "Presión Oncótica (proteínas)", "Presión arterial sistólica"], correct: 2, exp: "La albúmina ejerce presión osmótica (oncótica) que retiene el agua en el vaso." },
+            { n: 32, q: "¿Qué fuerza empuja al líquido a SALIR del capilar hacia el tejido?", options: ["Presión Oncótica", "Presión Atmosférica", "Presión Hidrostática", "Fuerza de Van der Waals"], correct: 2, exp: "La presión hidrostática es la fuerza física de la sangre contra la pared del vaso." },
+            { n: 33, q: "En el EXTREMO ARTERIAL de un capilar:", options: ["Hidrostática > Oncótica (Filtración)", "Oncótica > Hidrostática (Reabsorción)", "Son iguales", "Solo hay oncótica"], correct: 0, exp: "Prevalece la hidrostática, forzando la salida del agua hacia el tejido." },
+            { n: 34, q: "En el EXTREMO VENOSO de un capilar:", options: ["Sube la hidrostática", "Oncótica > Hidrostática (Reabsorción)", "Proteínas salen a la vena", "Es impermeable"], correct: 1, exp: "La presión hidrostática cae y la oncótica recupera el agua hacia el vaso." },
+            { n: 35, q: "La hipoalbuminemia causa edema porque:", options: ["Sube la hidrostática", "Cae la presión oncótica, dejando escapar el agua", "El riñón no excreta agua", "Aumenta el AG"], correct: 1, exp: "Sin albúmina no hay fuerza que retenga el agua dentro del capilar." },
+            { n: 36, q: "¿Cuál es la Presión Oncótica normal en plasma?", options: ["100 mmHg", "5 mmHg", "25 mmHg (3,32 kPa)", "120 mmHg"], correct: 2, exp: "Es la presión osmótica constante ejercida por las proteínas plasmáticas." },
+            { n: 37, q: "El agua fluye a través de membranas mediante:", options: ["Bombas de ATP", "Cotransporte con Glucosa", "Endocitosis", "Difusión libre por gradiente osmótico"], correct: 3, exp: "El agua siempre se mueve de donde hay menos solutos a donde hay más." },
+            { n: 38, q: "¿A qué moléculas es casi IMPERMEABLE la pared capilar?", options: ["Agua", "Electrolitos", "Glucosa", "Proteínas grandes (Albúmina)"], correct: 3, exp: "Esto permite mantener el gradiente osmótico (oncótico) entre plasma e intersticio." },
+            { n: 39, q: "Fuerza que evita la entrada de agua a una solución hiperosmótica:", options: ["Presión Atmosférica", "Presión Osmótica", "Potencial de Reposo", "Diferencia Aniónica"], correct: 1, exp: "Definición física de la presión osmótica." },
+            { n: 40, q: "Proteínas de alto peso molecular en orina indican:", options: ["Buena hidratación", "Riñón sano", "Rotura de la barrera de filtración glomerular", "Bomba Na/K hiperactiva"], correct: 2, exp: "Las proteínas no deben filtrarse; su presencia indica daño capilar en el riñón." },
+
+            // BLOQUE 5
+            { n: 41, q: "¿En qué gasta el riñón el 70% de su consumo de oxígeno?", options: ["Filtrado pasivo", "Síntesis de urea", "Transporte activo de Sodio", "Producción de glóbulos rojos"], correct: 2, exp: "La mayor carga metabólica renal es el mantenimiento de gradientes iónicos." },
+            { n: 42, q: "¿En qué segmento se reabsorbe el 80% del Sodio filtrado?", options: ["Conducto colector", "Túbulo distal", "Asa de Henle", "Túbulo proximal"], correct: 3, exp: "El túbulo proximal es el principal sitio de reabsorción masiva." },
+            { n: 43, q: "Diurético que bloquea el transportador NKCC2 en el Asa de Henle:", options: ["Amilorida", "Espironolactona", "Furosemida", "Penicilina"], correct: 2, exp: "La furosemida impide la reabsorción de Na, K y Cl, provocando diuresis." },
+            { n: 44, q: "Las Tiazidas actúan en el túbulo distal bloqueando:", options: ["Bomba de protones", "Cotransportador Na-Cl", "Beta-bloqueantes", "Insulina"], correct: 1, exp: "Son diuréticos que actúan específicamente sobre el transporte de Na-Cl distal." },
+            { n: 45, q: "Papel principal de la ALDOSTERONA:", options: ["Bloquear la bomba Na/K", "Retener Sodio y excretar Potasio/H+", "Aumentar excreción de Sodio", "Dilatar poros"], correct: 1, exp: "Hormona clave para elevar el volumen sanguíneo y la presión arterial." },
+            { n: 46, q: "Antagonista directo de la aldosterona:", options: ["Furosemida", "Tiazidas", "Espironolactona", "Digoxina"], correct: 2, exp: "Impide la acción de la aldosterona, ahorrando potasio." },
+            { n: 47, q: "Hormona que regula la reabsorción de agua en el conducto colector:", options: ["Vasopresina (ADH)", "Renina", "Péptido Natriurético", "Insulina"], correct: 0, exp: "La ADH determina la permeabilidad al agua del tramo final de la nefrona." },
+            { n: 48, q: "Mecanismo de la Vasopresina:", options: ["Romper la membrana", "Vía AMPc/PKA para insertar Acuaporinas 2 (AQP2)", "Inhibir síntesis proteica", "Activar canales de cloro"], correct: 1, exp: "La inserción de canales AQP2 permite el paso de agua al interior celular." },
+            { n: 49, q: "Defectos en vasopresina o acuaporinas causan:", options: ["Diabetes Mellitus", "Diabetes Insípida", "Enfermedad de Addison", "Síndrome Nefrótico"], correct: 1, exp: "Se producen grandes volúmenes de orina diluida por incapacidad de retener agua." },
+            { n: 50, q: "Canal de sodio epitelial (ENaC) es inhibido por:", options: ["NKCC2", "CFTR", "Amilorida", "Bomba de protones"], correct: 2, exp: "La amilorida bloquea específicamente la entrada de sodio en el colector." },
+
+            // BLOQUE 6
+            { n: 51, q: "Molécula muscular usada para medir el filtrado glomerular:", options: ["Glucosa", "Urea", "Creatinina", "Ácido úrico"], correct: 2, exp: "Su nivel en sangre es inversamente proporcional a la capacidad de filtración renal." },
+            { n: 52, q: "Si se pierde el 50% de las nefronas, la creatinina sérica:", options: ["Baja a la mitad", "Se mantiene estable", "Casi se duplica", "Desaparece"], correct: 2, exp: "Al filtrar la mitad, se acumula el doble en plasma." },
+            { n: 53, q: "La urea es el producto final del catabolismo de:", options: ["Ácidos grasos", "Purinas", "Proteínas (Aminoácidos)", "Glucógeno"], correct: 2, exp: "Es la forma principal de eliminar el nitrógeno proteico." },
+            { n: 54, q: "Estímulo para la liberación de Renina:", options: ["Presión alta", "Alta osmolalidad", "Baja de Sodio en túbulo distal", "Exceso de potasio"], correct: 2, exp: "Detectado por la mácula densa ante una caída de presión o volumen." },
+            { n: 55, q: "Función de los péptidos natriuréticos:", options: ["Excreción de sodio y agua (bajan la presión)", "Cierran túbulos", "Vasoconstricción", "Adrenalina"], correct: 0, exp: "Se liberan por estiramiento cardíaco para aliviar la sobrecarga de líquido." },
+            { n: 56, q: "Aumento de urea/creatinina con baja diuresis define:", options: ["Insuficiencia Hepática", "Insuficiencia Renal", "Diabetes Insípida", "Enfermedad Celíaca"], correct: 1, exp: "Signo clínico de fracaso en la función excretora del riñón." },
+            { n: 57, q: "El ácido úrico procede de la degradación de:", options: ["Urea", "Proteína muscular", "Bases púricas (purinas)", "Colesterol"], correct: 2, exp: "Producto final del metabolismo de nucleótidos purínicos." },
+            { n: 58, q: "Límites de osmolalidad de la orina humana:", options: ["Siempre 300", "290-310", "50-1.200 mmol/L", "Siempre > 1000"], correct: 2, exp: "Demuestra la enorme capacidad renal para concentrar o diluir la orina." },
+            { n: 59, q: "Localización de los osmorreceptores de la sed y ADH:", options: ["Riñón", "Corazón", "Hígado", "SNC (Hipotálamo)"], correct: 3, exp: "El cerebro detecta directamente la concentración del plasma." },
+            { n: 60, q: "Riesgo inminente de una hiponatremia/hipoosmolaridad severa:", options: ["Parálisis", "Intoxicación", "Edema cerebral masivo", "Deshidratación"], correct: 2, exp: "El agua entra a las neuronas desde el plasma diluido, causando daño neurológico." }
+        ];
+
+        let currentQuestions = [];
+        let userAnswers = {}; // { index: { choice, correct, marked } }
+        let currentIdx = 0;
+
+        function startQuiz(shuffle) {
+            document.getElementById('setup-screen').style.display = 'none';
+            currentQuestions = JSON.parse(JSON.stringify(rawQuestions));
+            
+            if (shuffle) {
+                currentQuestions.sort(() => Math.random() - 0.5);
+            }
+
+            // Inicializar estado
+            currentQuestions.forEach((q, i) => {
+                userAnswers[i] = { choice: null, correct: false, marked: false };
+            });
+
+            renderIndex();
+            showQuestion(0);
+        }
+
+        function renderIndex() {
+            const container = document.getElementById('index-container');
+            container.innerHTML = '';
+            currentQuestions.forEach((q, i) => {
+                const item = document.createElement('div');
+                item.className = 'index-item';
+                item.id = `idx-${i}`;
+                item.innerText = q.n;
+                item.onclick = () => showQuestion(i);
+                container.appendChild(item);
+            });
+        }
+
+        function showQuestion(index) {
+            currentIdx = index;
+            const qData = currentQuestions[index];
+            const state = userAnswers[index];
+            
+            // Actualizar índice visual
+            document.querySelectorAll('.index-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`idx-${index}`).classList.add('active');
+
+            const container = document.getElementById('quiz-container');
+            container.style.display = 'block';
+            document.getElementById('final-screen').style.display = 'none';
+
+            // Mezclar opciones
+            let options = qData.options.map((t, i) => ({ t, i }));
+            // El usuario pidió que cada vez que se cargue ordene diferente
+            options.sort(() => Math.random() - 0.5);
+
+            container.innerHTML = `
+                <div class="question-card">
+                    <div style="display:flex; justify-content:space-between">
+                        <strong>Pregunta ${qData.n}</strong>
+                        <label><input type="checkbox" onchange="toggleMark(${index})" ${state.marked ? 'checked' : ''}> Marcar pregunta</label>
+                    </div>
+                    <p style="font-size:1.1rem; margin-top:15px;">${qData.q}</p>
+                    <div class="options-container">
+                        ${options.map(opt => `
+                            <button class="option-btn ${state.choice !== null ? (opt.i === qData.correct ? 'correct' : (opt.i === state.choice ? 'wrong' : '')) : ''}" 
+                                onclick="selectOption(${index}, ${opt.i})" 
+                                ${state.choice !== null ? 'disabled' : ''}>
+                                ${opt.t}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp-${index}" style="${state.choice !== null ? 'display:block' : 'display:none'}">
+                        <strong>Explicación:</strong> ${qData.exp}
+                    </div>
+                    <div class="controls">
+                        <button class="main-btn btn-next" onclick="prevQ()" ${index === 0 ? 'disabled' : ''}>Anterior</button>
+                        <button class="main-btn btn-next" onclick="nextQ()" ${index === currentQuestions.length - 1 ? 'disabled' : ''}>Siguiente</button>
+                    </div>
+                </div>
+            `;
+            
+            if (window.MathJax) MathJax.typeset();
+        }
+
+        function selectOption(qIdx, choiceIdx) {
+            const qData = currentQuestions[qIdx];
+            const isCorrect = choiceIdx === qData.correct;
+            
+            userAnswers[qIdx].choice = choiceIdx;
+            userAnswers[qIdx].correct = isCorrect;
+
+            // Actualizar índice
+            const idxEl = document.getElementById(`idx-${qIdx}`);
+            idxEl.classList.add(isCorrect ? 'correct' : 'wrong');
+
+            showQuestion(qIdx);
+        }
+
+        function toggleMark(index) {
+            userAnswers[index].marked = !userAnswers[index].marked;
+            const idxEl = document.getElementById(`idx-${index}`);
+            if (userAnswers[index].marked) idxEl.classList.add('marked');
+            else idxEl.classList.remove('marked');
+        }
+
+        function nextQ() { if (currentIdx < currentQuestions.length - 1) showQuestion(currentIdx + 1); }
+        function prevQ() { if (currentIdx > 0) showQuestion(currentIdx - 0); }
+
+        function finishQuiz() {
+            const container = document.getElementById('quiz-container');
+            const final = document.getElementById('final-screen');
+            container.style.display = 'none';
+            final.style.display = 'block';
+
+            let correctCount = 0;
+            Object.values(userAnswers).forEach(v => { if (v.correct) correctCount++; });
+
+            document.getElementById('score-text').innerText = `Has acertado ${correctCount} de ${currentQuestions.length} preguntas.`;
+        }
+
+        function reloadQuiz(mode) {
+            let nextSet = [];
+            const allIndices = Object.keys(userAnswers);
+
+            if (mode === 'all') {
+                startQuiz(confirm("¿Mezclar preguntas aleatoriamente?"));
+                return;
+            } else if (mode === 'failed') {
+                nextSet = allIndices.filter(i => !userAnswers[i].correct && userAnswers[i].choice !== null);
+            } else if (mode === 'marked') {
+                nextSet = allIndices.filter(i => userAnswers[i].marked);
+            } else if (mode === 'both') {
+                nextSet = allIndices.filter(i => (!userAnswers[i].correct && userAnswers[i].choice !== null) || userAnswers[i].marked);
+            }
+
+            if (nextSet.length === 0) {
+                alert("No hay preguntas que cumplan ese criterio.");
+                return;
+            }
+
+            const filteredQuestions = nextSet.map(i => currentQuestions[i]);
+            currentQuestions = filteredQuestions;
+            userAnswers = {};
+            currentQuestions.forEach((q, i) => {
+                userAnswers[i] = { choice: null, correct: false, marked: false };
+            });
+
+            renderIndex();
+            showQuestion(0);
+        }
+    </script>
+</body>
+</html>
