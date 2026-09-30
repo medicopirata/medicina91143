@@ -40,6 +40,10 @@ EJERCICIOS = [
     ("Tronco del encéfalo",   "I5", "Mesencéfalo",                           "T5-mesencefalo"),
     ("Cerebelo",              "I1", "Cerebelo, visión general",              "C1-cerebelo-general"),
     ("Cerebelo",              "I2", "Cerebelo, corte",                       "C2-cerebelo-corte"),
+    ("Pares craneales",       "I4", "Pares craneales en la pieza real",      "T6-pares-pieza-real"),
+    ("Pares craneales",       "I5", "Orígenes aparentes, visión lateral",    "T7-tronco-lateral-pares"),
+    ("Pares craneales",       "I6", "Ángulo pontocerebeloso",                "T8-angulo-pontocerebeloso"),
+    ("Pares craneales",       "I7", "Columnas de la formación reticular",    "T9-formacion-reticular"),
 ]
 
 
