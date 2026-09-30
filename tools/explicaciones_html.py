@@ -20,12 +20,18 @@ quitada la etiqueta de procedencia, no llegan a N caracteres.
 Uso:  python3 tools/explicaciones_html.py <plataforma.html> <explicaciones.json>
                 [--ampliar | --ampliar-hasta=N]
 """
-import json, re, sys
+import json, re, sys, unicodedata
 
 # Los bancos de apuntes llevan delante la etiqueta de procedencia («🎓 Dicha en
 # clase.»), que no explica nada: con --ampliar-hasta=N se amplían las preguntas
 # que, descontada esa etiqueta, no llegan a N caracteres de explicación de
 # verdad (las de los demás bancos no la llevan y cuentan su texto entero).
+def nfc(s):
+    """Las preguntas copiadas del PDF traen la ñ descompuesta (n + tilde): sin
+    normalizar, la misma frase no casa con la clave del JSON."""
+    return unicodedata.normalize("NFC", s or "")
+
+
 ETIQUETA = re.compile(r"^\s*(?:🎓 Dicha en clase\.|📌 Deducida de sus pistas\.|"
                       r"🤖 Propuesta por Claude, no dicha en clase\.|"
                       r"🖼️ Pregunta con imagen\.)\s*")
@@ -47,7 +53,7 @@ def main():
         raise SystemExit("No encuentro const ALL_QUESTIONS en %s" % ruta_html)
     preguntas = json.loads(m.group(1))
 
-    exp = {k: v for k, v in json.load(open(ruta_exp, encoding="utf-8")).items()
+    exp = {nfc(k): v for k, v in json.load(open(ruta_exp, encoding="utf-8")).items()
            if not k.startswith("_")}
 
     usadas, puestas, añadidas = set(), 0, 0
@@ -55,9 +61,9 @@ def main():
         correcta = ""
         if isinstance(p.get("correct"), int) and p.get("options"):
             correcta = p["options"][p["correct"]]
-        for clave in ("%s || %s" % (p.get("q", ""), p.get("img", "")),
-                      "%s || =%s" % (p.get("q", ""), correcta),
-                      p.get("q", "")):
+        for clave in (nfc("%s || %s" % (p.get("q", ""), p.get("img", ""))),
+                      nfc("%s || =%s" % (p.get("q", ""), correcta)),
+                      nfc(p.get("q", ""))):
             if clave in exp:
                 break
         else:

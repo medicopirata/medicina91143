@@ -67,7 +67,7 @@
           titulo: "2º Cuatrimestre",
           asignaturas: [
             { nombre: "Fisiología Humana II",   emoji: "🫁", archivo: "plataforma_fisio2.html",    n: 906  },
-            { nombre: "Histología Especial II", emoji: "🧫", archivo: "plataforma_histoesp2.html", n: 1968 },
+            { nombre: "Histología Especial II", emoji: "🧫", archivo: "plataforma_histoesp2.html", n: 1958 },
           ]
         },
       ]
