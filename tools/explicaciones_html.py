@@ -23,8 +23,9 @@ Uso:  python3 tools/explicaciones_html.py <plataforma.html> <explicaciones.json>
 import json, re, sys
 
 # Los bancos de apuntes llevan delante la etiqueta de procedencia («🎓 Dicha en
-# clase.»), que no explica nada: con --ampliar-hasta N se amplían las que, tras
-# quitarla, no llegan a N caracteres de explicación de verdad.
+# clase.»), que no explica nada: con --ampliar-hasta=N se amplían las preguntas
+# que, descontada esa etiqueta, no llegan a N caracteres de explicación de
+# verdad (las de los demás bancos no la llevan y cuentan su texto entero).
 ETIQUETA = re.compile(r"^\s*(?:🎓 Dicha en clase\.|📌 Deducida de sus pistas\.|"
                       r"🤖 Propuesta por Claude, no dicha en clase\.|"
                       r"🖼️ Pregunta con imagen\.)\s*")
@@ -66,7 +67,7 @@ def main():
         viejo = (p.get("exp") or "").strip()
         if not viejo:
             p["exp"] = texto; puestas += 1
-        elif hasta and texto not in viejo and ETIQUETA.search(viejo) \
+        elif hasta and texto not in viejo \
                 and len(ETIQUETA.sub("", viejo).strip()) < hasta:
             p["exp"] = viejo.rstrip(".") + ". " + texto; añadidas += 1
         elif ampliar and texto not in viejo:
