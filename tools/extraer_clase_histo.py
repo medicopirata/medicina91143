@@ -31,18 +31,28 @@ def plano(x):
 
 
 def opciones(txt):
-    """Parte 'enunciado: a) X · b) Y · c) Z · d) W' en (enunciado, [X,Y,Z,W])."""
-    m = re.search(r"(?:^|[:·\s])a\)\s", txt)
-    if not m:
-        return None, None
-    enunciado = txt[:m.start()].rstrip(" :·")
-    trozos = re.split(r"\s·\s(?=[b-d]\))", txt[m.start():].lstrip(" :·"))
-    ops = []
-    for t in trozos:
-        o = re.match(r"^[a-d]\)\s*(.+)$", t.strip(), re.S)
-        if not o:
+    """Parte el enunciado y sus cuatro opciones.
+
+    El doc usa dos formatos según la clase:
+        enunciado: a) X · b) Y · c) Z · d) W
+        enunciado: (a) X; (b) Y; (c) Z; (d) W
+    Se localizan las marcas a)…d) en orden y se corta entre ellas, así que
+    da igual el separador (·, ; o coma) y que lleven paréntesis o no.
+    """
+    marcas = []
+    for letra in "abcd":
+        desde = marcas[-1][1] if marcas else 0
+        m = re.compile(r"(?:^|[\s:;·,])\(?%s\)\s" % letra).search(txt, desde)
+        if not m:
             return None, None
-        ops.append(o.group(1).strip().rstrip("."))
+        marcas.append((m.start(), m.end()))
+    enunciado = txt[:marcas[0][0]].rstrip(" :·;,")
+    ops = []
+    for i, (ini, fin) in enumerate(marcas):
+        hasta = marcas[i + 1][0] if i + 1 < len(marcas) else len(txt)
+        ops.append(txt[fin:hasta].strip().rstrip(" .;·,"))
+    if not enunciado or not all(ops):
+        return None, None
     return enunciado, ops
 
 
@@ -109,7 +119,7 @@ def main():
         cuerpo = seccion(xml, plano(titulos[0]))
 
         # unos apartados ponen "Soluciones A:" y otros solo "Soluciones:"
-        m = (re.search(r"Soluciones\s*%s\s*:(.*?)</paragraph>" % letra, cuerpo, re.S)
+        m = (re.search(r"Soluciones\s*%s\b[^:<]{0,24}:(.*?)</paragraph>" % letra, cuerpo, re.S)
              or re.search(r"Soluciones\s*:(.*?)</paragraph>", cuerpo, re.S))
         if not m:
             raise SystemExit("el apartado %s no trae solucionario" % letra)
@@ -126,16 +136,28 @@ def main():
                     raise SystemExit("%s no está en el solucionario" % clave)
                 blobs[clave] = blob
                 img = "apuntes_img/%s-%s.jpg" % (prefijo, blob.split("-")[0])
+                # Desde la clase del 2/10 cada apartado va en su propio párrafo
+                # y las opciones también llevan paréntesis, así que el corte
+                # «hasta el (b)» del formato viejo partiría por la opción b.
+                sueltos = {}
+                for t in re.findall(r"<paragraph\b[^>]*>(.*?)</paragraph>", resto, re.S):
+                    mm = re.match(r"^\((a|b)\)\s*(.+)$", plano(t), re.S)
+                    if mm and mm.group(1) not in sueltos:
+                        sueltos[mm.group(1)] = mm.group(2)
                 for k, (marca, letra_ok) in enumerate(zip("ab", sol[clave])):
                     # Los dos apartados pueden ir en el mismo párrafo —«(a) … d)
                     # Manto (b) El 2 es: a) Cápsula …»—, así que el (a) se corta
                     # al llegar al (b); si no, se lleva pegado todo el segundo.
-                    p = re.search(r"\(%s\)\s*(.*?)(?=\(%s\)|</paragraph>)"
-                                  % (marca, "b" if marca == "a" else "\uffff"),
-                                  resto, re.S)
-                    if not p:
-                        raise SystemExit("falta el apartado (%s) de %s" % (marca, clave))
-                    enun, ops = opciones(plano(p.group(1)))
+                    if len(sueltos) == 2:
+                        texto_sub = sueltos[marca]
+                    else:
+                        p = re.search(r"\(%s\)\s*(.*?)(?=\(%s\)|</paragraph>)"
+                                      % (marca, "b" if marca == "a" else "\uffff"),
+                                      resto, re.S)
+                        if not p:
+                            raise SystemExit("falta el apartado (%s) de %s" % (marca, clave))
+                        texto_sub = plano(p.group(1))
+                    enun, ops = opciones(texto_sub)
                     if not ops:
                         raise SystemExit("no entiendo las opciones de %s(%s)" % (clave, marca))
                     preguntas.append({"g": "D", "q": enun, "options": ops,
