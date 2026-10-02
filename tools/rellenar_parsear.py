@@ -44,6 +44,10 @@ EJERCICIOS = [
     ("Pares craneales",       "I5", "Orígenes aparentes, visión lateral",    "T7-tronco-lateral-pares"),
     ("Pares craneales",       "I6", "Ángulo pontocerebeloso",                "T8-angulo-pontocerebeloso"),
     ("Pares craneales",       "I7", "Columnas de la formación reticular",    "T9-formacion-reticular"),
+    ("Diencéfalo: el tálamo", "I1", "Tronco y diencéfalo numerados",        "DI1-tronco-diencefalo-numerado"),
+    ("Diencéfalo: el tálamo", "I2", "Corte coronal del diencéfalo",         "DI2-corte-coronal-diencefalo"),
+    ("Telencéfalo",           "I1", "Hemisferio, cara lateral",             "TE1-hemisferio-lateral"),
+    ("Telencéfalo",           "I2", "Hemisferio, cara medial",              "TE2-hemisferio-medial"),
 ]
 
 
