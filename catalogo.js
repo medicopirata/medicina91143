@@ -47,8 +47,8 @@
         {
           titulo: "1er Cuatrimestre",
           asignaturas: [
-            { nombre: "Histología Especial I", emoji: "🔬", archivo: "plataforma_histologia2.1.html", n: 3578 },
-            { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 1056  },
+            { nombre: "Histología Especial I", emoji: "🔬", archivo: "plataforma_histologia2.1.html", n: 3628 },
+            { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 1063  },
             { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 1881 },
             { nombre: "Anatomía 3 · Rellenar", emoji: "🖼️", archivo: "rellenar_anatomia3.html",
               nota: "Las imágenes de los apuntes, con los nombres tapados" },
