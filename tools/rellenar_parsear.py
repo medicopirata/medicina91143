@@ -48,6 +48,13 @@ EJERCICIOS = [
     ("Diencéfalo: el tálamo", "I2", "Corte coronal del diencéfalo",         "DI2-corte-coronal-diencefalo"),
     ("Telencéfalo",           "I1", "Hemisferio, cara lateral",             "TE1-hemisferio-lateral"),
     ("Telencéfalo",           "I2", "Hemisferio, cara medial",              "TE2-hemisferio-medial"),
+    ("Núcleos de la base",    "I1", "Corte coronal a nivel de Monro",       "NB1-coronal-monro"),
+    ("Núcleos de la base",    "I2", "Pieza coronal: ínsula y claustro",     "NB2-pieza-coronal"),
+    ("Núcleos de la base",    "I4", "Caudado, putamen y globos pálidos",    "NB3-pieza-nucleos"),
+    ("Sustancia blanca",      "I5", "Comisuras en el corte sagital medio",  "SB1-sagital-comisuras"),
+    ("Sustancia blanca",      "I6", "Disección de fibras",                  "SB2-diseccion-fibras"),
+    ("Sistema ventricular",   "I2", "Ventrículo lateral y sus astas",       "V1-ventriculo-lateral"),
+    ("Sistema ventricular",   "I3", "Ventrículos laterales, visión craneal","V2-ventriculos-craneal"),
 ]
 
 
