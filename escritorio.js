@@ -14,7 +14,7 @@
 
   var ASIGNATURAS = [
     { clave: "fisio1_study_v1",    nombre: "Fisiología I",       archivo: "plataforma_fisio1.html",        emoji: "🫀", total: 1152  },
-    { clave: "histo21_study_v1",   nombre: "Histología Esp. I",  archivo: "plataforma_histologia2.1.html", emoji: "🔬", total: 3692 },
+    { clave: "histo21_study_v1",   nombre: "Histología Esp. I",  archivo: "plataforma_histologia2.1.html", emoji: "🔬", total: 3787 },
     { clave: "anat3_study_v1",     nombre: "Anatomía 3",         archivo: "plataforma_anatomia3.html",     emoji: "🧠", total: 1932 },
     { clave: "medint_study_v1",    nombre: "Medicina Interna",   archivo: "plataforma_medint.html",        emoji: "🩺", total: 6842 },
     { clave: "genetica_study_v1",  nombre: "Genética",           archivo: "plataforma_genetica.html",      emoji: "🧬", total: 793  },
