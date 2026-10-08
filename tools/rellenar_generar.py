@@ -33,6 +33,7 @@ CABECERA = """<!DOCTYPE html>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#14364a">
 <script src="acceso.js"></script>
+<script src="sync.js"></script>
 <style>
 :root{
   --bg:#f6f0e5; --card:#fffdf8; --ink:#173140; --muted:#5c6f78;
@@ -281,6 +282,12 @@ document.addEventListener("keydown", e => {
 });
 
 pintarPortada();
+
+// Las notas se comparten entre dispositivos; si llega una nueva con la portada
+// a la vista, se repinta.
+MPSync.usar({ clave: CLAVE, modo: "max", alCambiar: function () {
+  if (!document.getElementById("ejercicio").classList.contains("on")) pintarPortada();
+} });
 </script>
 </body>
 </html>
