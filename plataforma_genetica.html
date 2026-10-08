@@ -2564,7 +2564,10 @@ let _fbDB = null, _fbUser = null, _fbTimer = null, _fbAuth = null, _fbListener =
 function initFirebase() {
   try {
     if (typeof firebase === 'undefined') { setFbStatus('Local ✓ · Sin conexión a la nube', '#94a3b8'); return; }
-    const _app = firebase.initializeApp(FB_CONFIG, STORAGE_KEY);
+    // La misma aplicación (y por tanto la misma sesión) que index.html: con un nombre
+    // propio, cada plataforma pedía su inicio de sesión aparte en cada dispositivo y,
+    // sin él, el avance se quedaba solo en ese aparato.
+    const _app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CONFIG);
     _fbAuth = firebase.auth(_app);
     _fbDB   = firebase.database(_app);
     _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
@@ -2713,6 +2716,38 @@ function fbMerge(local, remote) {
   return pruneData(merged);
 }
 
+// ¿Tiene este dispositivo algo que la nube no? (estudiado sin sesión o sin conexión).
+// Comparación estricta, para que dos dispositivos abiertos a la vez no se reenvíen
+// lo mismo sin fin.
+function fbLocalAporta(local, remote) {
+  local = local || {}; remote = remote || {};
+  var resetAt = Math.max(local.resetAt || 0, remote.resetAt || 0);
+  if ((local.resetAt || 0) > (remote.resetAt || 0)) return true;
+  var lq = local.qs || {}, rq = remote.qs || {};
+  for (var id in lq) {
+    var l = lq[id], r = rq[id];
+    if (!l || (l.t || 0) < resetAt) continue;
+    if (!l.a && !l.c && !l.d && !l.m && !l.note && !l.t && !l.h && !Number.isInteger(l.ck)) continue;
+    if (!r || (l.t || 0) > (r.t || 0)) return true;
+    // Registros antiguos sin marca de tiempo: se fusionan por máximos
+    if (!l.t && !r.t && ((l.a || 0) > (r.a || 0) || (l.c || 0) > (r.c || 0) || (l.m && !r.m) || (l.d && !r.d) || (l.note && !r.note))) return true;
+  }
+  var lf = local.topicFlags || {}, rf = remote.topicFlags || {};
+  for (var k in lf) {
+    var a = lf[k], b = rf[k];
+    if (!a || (a.t || 0) < resetAt || !(a.e || a.i || a.r || a.t)) continue;
+    if (!b || (a.t || 0) > (b.t || 0)) return true;
+  }
+  var ld = local.daily || {}, rd = remote.daily || {};
+  for (var dia in ld) {
+    var x = ld[dia] || {}, y = rd[dia] || {};
+    if ((x.n || 0) > (y.n || 0) || (x.ok || 0) > (y.ok || 0)) return true;
+  }
+  var enNube = {};
+  (remote.sims || []).forEach(function(s) { if (s) enNube[s.t] = 1; });
+  return (local.sims || []).some(function(s) { return s && !enNube[s.t]; });
+}
+
 function fbLoad() {
   const ref = fbRef();
   if (!ref) return;
@@ -2726,12 +2761,15 @@ function fbLoad() {
 
   _fbListener = ref.on('value', function(snap) {
     const d = snap.val();
+    // Se mira antes de fusionar: después, local y nube ya son lo mismo
+    const aporta = fbLocalAporta(State.data, d);
     if (d && d.qs && Object.keys(d.qs).length > 0) {
       State.data = fbMerge(State.data, d);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(State.data)); } catch(e) {}
       App.updateHomeStats();
       App.renderTopicsGrid();
     }
+    if (aporta) { fbSave(); return; }
     setFbStatus('Sincronizado ✓', '#22c55e');
   }, function(e) {
     console.error('FB load error:', e.code, e.message);
