@@ -156,6 +156,7 @@
         if (t.indexOf("Apuntes:") === 0) p += 0.8;            // lo de clase va antes
         else if (t.indexOf("⭐") === 0) p += 0.6;
         if (ctx.cerrados.has(t)) p *= 0.15;
+        if (q.ia) { p += 4; por = "Escrita por la IA para una confusión tuya"; }
       } else if (k === 0) {
         if (isSureFail(s)) { p = 6; por = "La fallaste yendo seguro: es un error de concepto"; }
         else { p = 4.5; por = "La fallaste la última vez"; }
