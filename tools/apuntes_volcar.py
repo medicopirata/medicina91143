@@ -49,6 +49,7 @@ def trocear(texto, origen):
             continue
         if fuera_nivel is None:
             linea = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', linea)           # imágenes
+            linea = re.sub(r'\[image:[^\]]*\]', '', linea)                # marcadores de imagen de la exportación
             linea = re.sub(r'\[([^\]]*)\]\(#[^)]*\)', r'\1', linea)      # enlaces internos
             buf.append(linea)
     soltar()
