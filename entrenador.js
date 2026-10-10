@@ -89,6 +89,56 @@
     return m;
   }
 
+  // ------------------------------------------------- de dónde sale cada pregunta
+  // Se deduce del nombre del banco, así que vale para los bancos que se añadan.
+  // tipo: examen (cayó en un examen) · recop (recopilación de años anteriores,
+  // sin convocatoria) · oficial (cuestionarios del campus) · profesor (la puso
+  // el profesor en clase) · clase (de tus apuntes) · entreno · ia
+  var RE_EXAMEN = /ex[aá]men(es)?|parcial|convocatoria|\bglobal\b|\b(enero|febrero|junio|julio|septiembre|diciembre)\b|a[ñn]os anteriores/i;
+  function limpio(t) { return String(t).replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9¿¡«]+/, "").trim(); }
+  function origenBanco(t) {
+    var n = limpio(t);
+    if (t.indexOf("🧠") === 0) return { tipo: "ia", txt: "🤖 Entrenamiento · escrita por la IA para una confusión tuya" };
+    if (/kahoot|taller|seminario/i.test(n) && t.indexOf("🎯") !== 0 && t.indexOf("🧪") !== 0 && t.indexOf("Apuntes:") !== 0) return { tipo: "profesor", txt: "🎯 De clase (Kahoot, taller o seminario) · " + n };
+    if (t.indexOf("📝") === 0 && RE_EXAMEN.test(t)) return { tipo: "examen", txt: "📝 Salió en examen · " + n };
+    if (t.indexOf("📝") === 0 || /^Banco (General|Parcial)|Recopilaci[oó]n/i.test(n)) return { tipo: "recop", txt: "📝 De recopilaciones de años anteriores · " + n };
+    if (t.indexOf("💻") === 0) return { tipo: "oficial", txt: "💻 Cuestionario del campus · " + n };
+    if (t.indexOf("🎯") === 0) return { tipo: "profesor", txt: "🎯 La puso el profesor en clase · " + n };
+    if (t.indexOf("🧪") === 0) return { tipo: "profesor", txt: "🧪 De un seminario de clase · " + n };
+    if (t.indexOf("Apuntes:") === 0) return { tipo: "clase", txt: "📓 Entrenamiento · de tus apuntes de clase" };
+    if (t.indexOf("⭐") === 0) return { tipo: "clase", txt: "⭐ Entrenamiento · sobre una imagen que el profesor marcó como importante" };
+    if (t.indexOf("🖼️") === 0) return { tipo: "entreno", txt: "🖼️ Entrenamiento · sobre una imagen de clase o del atlas" };
+    return { tipo: "entreno", txt: "🏋️ Entrenamiento · banco por temas" };
+  }
+  function norma(x) { return String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+  // Enunciado + respuesta correcta de todo lo que cayó en examen, para reconocer
+  // la misma pregunta cuando aparece repetida en un banco de entrenamiento
+  var _caidas = null, _caidasN = 0;
+  function caidas() {
+    if (_caidas && _caidasN === ALL_QUESTIONS.length) return _caidas;
+    _caidas = new Map(); _caidasN = ALL_QUESTIONS.length;
+    ALL_QUESTIONS.forEach(function (q) {
+      if (origenBanco(q.topicBase).tipo !== "examen") return;
+      var k = norma(q.q);
+      if (k.length < 25) return;
+      if (!_caidas.has(k)) _caidas.set(k, new Set());
+      _caidas.get(k).add(limpio(q.topicBase));
+    });
+    return _caidas;
+  }
+  function origen(q) {
+    var o = origenBanco(q.topicBase);
+    if (o.tipo === "clase" && /kahoot/i.test(q.exp || "")) o = { tipo: "profesor", txt: "🎯 La puso el profesor en clase (Kahoot)" };
+    var ex = caidas().get(norma(q.q));
+    if (o.tipo === "examen") {
+      if (ex && ex.size > 1) o.txt += " · repetida en " + ex.size + " exámenes";
+      o.veces = ex ? ex.size : 1;
+    } else if (ex) {
+      o = { tipo: "examen", txt: o.txt.split(" · ")[0].replace("Entrenamiento", "Banco de entrenamiento") + " · y además cayó en: " + Array.from(ex).slice(0, 3).join("; "), veces: ex.size };
+    }
+    return o;
+  }
+
   // ------------------------------------------------- parecido entre preguntas
   var VACIAS = /^(cual|cuales|siguiente|siguientes|sobre|entre|respecto|senale|senala|indique|indica|correcta|incorrecta|falsa|verdadera|afirmacion|afirmaciones|respuesta|imagen|estructura|numero|senalada|corresponde|siguientes)$/;
   var _pal = new Map();
@@ -171,6 +221,10 @@
         p = 0.05; por = "Mantenimiento";
         if (tm.estado === "sabido") por = "Tema sabido: comprobación de mantenimiento";
       }
+
+      // Lo que ya cayó en un examen o puso el profesor va antes que el resto, a igualdad de lo demás
+      var og = origenBanco(t).tipo;
+      if (og === "examen") p *= 1.3; else if (og === "profesor" || og === "oficial") p *= 1.2;
 
       // Lo recién fallado o adivinado: otra del mismo tema, la más parecida, dejando una por medio
       var d = ctx.deuda.get(t);
@@ -257,6 +311,7 @@
   var css = document.createElement("style");
   css.textContent =
     "#q-coach{font-size:.8rem;color:var(--text2);border-left:3px solid var(--accent);padding:6px 10px;margin:0 0 10px;background:var(--surface2);border-radius:0 8px 8px 0}" +
+    "#q-origen{font-size:.76rem;color:var(--text2);margin:0 0 8px}#q-origen.examen{color:#fbbf24;font-weight:600}#q-origen.profesor,#q-origen.oficial{color:#34d399}" +
     "#q-coach b{color:var(--text)}#q-coach .dec{display:block;margin-top:4px;color:var(--text)}" +
     ".mode-btn.coach{border-color:#a78bfa;background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(167,139,250,.03))}" +
     "#coach-panel{margin:14px 0 0;border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:10px 14px;font-size:.85rem}" +
@@ -268,6 +323,19 @@
     "#coach-res{margin:14px auto 0;max-width:560px;text-align:left;border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-size:.88rem;background:var(--surface)}" +
     "#coach-res li{margin:4px 0 4px 18px}";
   document.head.appendChild(css);
+
+  function chipOrigen() {
+    var sess = State.session, chip = document.getElementById("q-origen");
+    if (!sess) return;
+    if (!chip) {
+      chip = document.createElement("div"); chip.id = "q-origen";
+      var txt = document.getElementById("q-text");
+      txt.parentNode.insertBefore(chip, txt);
+    }
+    var o = origen(sess.questions[sess.currentIdx]);
+    chip.className = o.tipo;
+    chip.textContent = o.txt;
+  }
 
   function avisoPregunta() {
     var sess = State.session, caja = document.getElementById("q-coach");
@@ -386,6 +454,7 @@
   var pintar0 = App.renderQuizQuestion;
   App.renderQuizQuestion = function () {
     pintar0.apply(this, arguments);
+    try { chipOrigen(); } catch (e) { console.warn("entrenador", e); }
     avisoPregunta();
   };
 
@@ -423,7 +492,12 @@
       var h = ultimo(State.data.qs[q.id]);
       if (!a.wasCorrect && h && h[5]) motivos[h[5]]++;
     });
-    var li = [];
+    var li = [], deExamen = 0;
+    sess.questions.forEach(function (q) {
+      var a = sess.answers[q.id];
+      if (a && !a.wasCorrect && origen(q).tipo === "examen") deExamen++;
+    });
+    if (deExamen) li.push("<b>" + deExamen + " de tus fallos " + (deExamen > 1 ? "eran preguntas" : "era una pregunta") + " que ya " + (deExamen > 1 ? "cayeron" : "cayó") + " en examen</b>: son lo primero que hay que cerrar.");
     var peores = Array.from(porTema.entries()).filter(function (e) { return e[1].mal > 0; })
       .sort(function (a, b) { return b[1].mal - a[1].mal; }).slice(0, 3);
     if (peores.length) li.push("Donde más has fallado: " + peores.map(function (e) { return esc(e[0]) + " (" + e[1].mal + ")"; }).join("; ") + ".");
@@ -449,5 +523,5 @@
   };
   try { pintarPortada(); } catch (e) { console.warn("entrenador", e); }
 
-  window.Entrenador = { estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { origen: origen, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();
