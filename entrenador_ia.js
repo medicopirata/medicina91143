@@ -83,15 +83,57 @@
     });
   }
 
+  // ------------------------------------------------------ apuntes de clase
+  // apuntes_txt/<clave>.json lo genera tools/apuntes_volcar.py a partir de los
+  // documentos de apuntes. Se pide solo al analizar y sin caché, para leer
+  // siempre la última versión volcada.
+  var CLAVE_APUNTES = STORAGE_KEY.replace(/_study_v\d+$/, "");
+  var _apuntes = null;
+  function apuntes() {
+    if (!_apuntes) _apuntes = fetch("apuntes_txt/" + CLAVE_APUNTES + ".json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    return _apuntes;
+  }
+  function fichas(s) {
+    return (String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z]{5,}/g) || []);
+  }
+  // Para cada fallo, los dos apartados de los apuntes que más palabras raras comparten con él
+  function trozosPara(d, consultas, tope) {
+    if (!d || !Array.isArray(d.trozos) || !d.trozos.length) return [];
+    if (!d._ix) {
+      var df = new Map();
+      d._ix = d.trozos.map(function (t) {
+        var set = new Set(fichas(t[0] + " " + t[1]));
+        set.forEach(function (w) { df.set(w, (df.get(w) || 0) + 1); });
+        return set;
+      });
+      d._df = df;
+    }
+    var N = d.trozos.length, elegidos = [], vistos = new Set();
+    consultas.forEach(function (c) {
+      var q = new Set(fichas(c)), punt = [];
+      d._ix.forEach(function (set, i) {
+        var p = 0;
+        q.forEach(function (w) { if (set.has(w)) p += Math.log(1 + N / d._df.get(w)); });
+        if (p > 0) punt.push([p / Math.sqrt(20 + set.size), i]);
+      });
+      punt.sort(function (a, b) { return b[0] - a[0]; });
+      punt.slice(0, 2).forEach(function (x) { if (!vistos.has(x[1]) && elegidos.length < tope) { vistos.add(x[1]); elegidos.push(x[1]); } });
+    });
+    elegidos.sort(function (a, b) { return a - b; });
+    return elegidos.map(function (i) { return "[" + d.trozos[i][0] + "]\n" + d.trozos[i][1]; });
+  }
+
   var SISTEMA =
     "Eres el entrenador de un estudiante de 2.º de Medicina que prepara exámenes tipo test. " +
     "Recibes lo que ha fallado, adivinado o respondido con dudas en una sesión, con la explicación de cada pregunta " +
-    "(sale de sus apuntes de clase) y más material del mismo tema. " +
+    "y, cuando existen, los apartados de sus APUNTES DE CLASE más cercanos a cada fallo, además de otras preguntas del mismo tema. " +
+    "Los apuntes de clase mandan sobre cualquier otra fuente: es lo que el profesor dijo y lo que entra en el examen. " +
     "Tu trabajo: 1) decir qué idea concreta se le escapa en cada caso, mirando qué opción eligió y con cuánta seguridad " +
     "(fallar seguro es un error de concepto; fallar dudando entre dos es una distinción que no tiene clara); " +
     "agrupa los fallos que nacen de la misma confusión. 2) Escribir preguntas tipo test nuevas que ataquen justo esa confusión " +
     "desde otro ángulo, no la misma pregunta reformulada. " +
-    "Reglas estrictas: usa SOLO hechos que estén en el material que recibes; si para una confusión el material no basta, no escribas pregunta. " +
+    "Reglas estrictas: usa SOLO hechos que estén en los apuntes o en el material que recibes; si para una confusión el material no basta, no escribas pregunta. " +
     "No escribas preguntas que necesiten ver una imagen. Cuatro opciones, una sola correcta, distractores verosímiles " +
     "(a ser posible, aquello con lo que lo confunde), la correcta en posiciones variadas, sin «todas las anteriores». " +
     "La explicación de cada pregunta dice por qué es esa y por qué no la que él habría elegido. Todo en español. " +
@@ -106,8 +148,8 @@
   function corta(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n) + "…" : s; }
   function letra(i) { return String.fromCharCode(65 + i); }
 
-  function expediente(sess) {
-    var casos = [], temas = new Map(), qs = State.data.qs || {};
+  function expediente(sess, ap) {
+    var casos = [], consultas = [], temas = new Map(), qs = State.data.qs || {};
     sess.questions.forEach(function (q) {
       var a = sess.answers[q.id];
       if (!a) return;
@@ -123,6 +165,7 @@
         (h && h[5] ? " · él dice: " + MOTIVO[h[5]] : "") +
         (s.a > 1 ? " · historial: " + s.c + " aciertos de " + s.a : "") + "\n" +
         "EXPLICACIÓN: " + corta(q.exp, 700));
+      consultas.push(q.q + " " + q.displayOptions.join(" ") + " " + (q.exp || ""));
       if (!temas.has(q.topicBase)) temas.set(q.topicBase, new Set());
       temas.get(q.topicBase).add(q.id);
     });
@@ -133,7 +176,7 @@
     temas.forEach(function (ids, tema) {
       var base = tema.indexOf(PREFIJO) === 0 ? tema.slice(PREFIJO.length) : tema;
       var otras = (BY_TOPIC.get(base) || []).filter(function (q) { return !ids.has(q.id) && !q.img && q.exp && q.exp.length > 60 && Number.isInteger(q.correct); });
-      otras = shuffle(otras).slice(0, 12);
+      otras = shuffle(otras).slice(0, ap ? 6 : 12);
       if (!otras.length) return;
       material.push("== " + base + " ==\n" + otras.map(function (q) {
         return "· " + corta(q.q, 220) + " → " + corta(q.options[q.correct], 120) + ". " + corta(q.exp, 420);
@@ -146,10 +189,14 @@
       window.Entrenador.temas().forEach(function (t) { if (t.estado === "flojo") flojos.push(t.tema + " (" + Math.round(t.dominio * 100) + " %)"); });
       if (flojos.length) estado = "\n\nTEMAS QUE LLEVA FLOJOS: " + flojos.slice(0, 12).join("; ");
     }
+    var clase = trozosPara(ap, consultas.slice(0, 25), 18);
     return {
       n: casos.length,
       texto: "ASIGNATURA: " + document.title + "\n\nLO QUE HA FALLADO, ADIVINADO O DUDADO EN ESTA SESIÓN (" + casos.length + "):\n\n" +
-             casos.slice(0, 25).join("\n\n") + "\n\nMATERIAL DE CLASE DE ESOS TEMAS:\n\n" + material.join("\n\n") + estado,
+             casos.slice(0, 25).join("\n\n") +
+             (clase.length ? "\n\nAPUNTES DE CLASE (los apartados más cercanos a cada fallo):\n\n" + clase.join("\n\n---\n\n") : "") +
+             "\n\nOTRAS PREGUNTAS DE ESOS TEMAS, CON SU RESPUESTA Y EXPLICACIÓN:\n\n" + material.join("\n\n") + estado,
+      conApuntes: clase.length,
       temas: Array.from(temas.keys())
     };
   }
@@ -161,11 +208,15 @@
   }
 
   function analizar(sess) {
-    var caja = cajaResultados();
-    var exp = expediente(sess);
-    if (!exp) { caja.innerHTML = "<b>🧠 IA</b> · Sin fallos ni dudas en esta sesión: no hay nada que analizar."; return Promise.resolve(); }
-    caja.innerHTML = "<b>🧠 IA</b> · Analizando " + exp.n + " respuestas…";
-    return llamar(SISTEMA, exp.texto).then(function (r) {
+    var caja = cajaResultados(), exp = null;
+    caja.innerHTML = "<b>🧠 IA</b> · Preparando el análisis…";
+    return apuntes().then(function (ap) {
+      exp = expediente(sess, ap);
+      if (!exp) { caja.innerHTML = "<b>🧠 IA</b> · Sin fallos ni dudas en esta sesión: no hay nada que analizar."; return null; }
+      caja.innerHTML = "<b>🧠 IA</b> · Analizando " + exp.n + " respuestas" + (exp.conApuntes ? " con " + exp.conApuntes + " apartados de tus apuntes" : " (sin apuntes volcados de esta asignatura)") + "…";
+      return llamar(SISTEMA, exp.texto);
+    }).then(function (r) {
+      if (!r) return;
       var inf = sacarJSON(r.txt), d = cargar(), base = Math.floor(Date.now() / 1000) * 20, n = 0;
       (inf.preguntas || []).forEach(function (p, i) {
         if (!p || !p.q || !Array.isArray(p.opciones) || p.opciones.length < 3 || !Number.isInteger(p.correcta) || !p.opciones[p.correcta]) return;
@@ -239,9 +290,15 @@
     }
     caja.innerHTML = "<b>🧠 Entrenador con IA: conectado</b> · " + d.qs.length + " preguntas escritas para ti" +
       (ult ? " · último análisis " + new Date(ult.t).toLocaleString("es", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "") +
+      '<br><span id="ia-apuntes" style="color:var(--text2)"></span>' +
       '<div class="fila"><select id="ia-modelo"><option value="claude-opus-5-5">Opus 5.5</option><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-fable-5-1">Fable 5.1</option></select>' +
       '<button class="sec" id="ia-probar">Probar conexión</button><button class="sec" id="ia-quitar">Quitar la clave</button><span id="ia-estado" style="color:var(--text2)"></span></div>' +
       (ult ? '<details style="margin-top:8px"><summary style="cursor:pointer">Último informe</summary>' + pintarInforme(ult) + "</details>" : "");
+    apuntes().then(function (ap) {
+      var el = document.getElementById("ia-apuntes");
+      if (el) el.textContent = ap && ap.trozos ? "Apuntes de clase cargados: " + ap.trozos.length + " apartados, volcados el " + ap.v.split("-").reverse().join("-")
+                                               : "Esta asignatura aún no tiene apuntes volcados: trabajo con las explicaciones de las preguntas.";
+    });
     var sel = document.getElementById("ia-modelo");
     sel.value = modelo();
     sel.onchange = function () { pon(K_MODELO, sel.value); };
