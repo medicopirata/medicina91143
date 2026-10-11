@@ -22,6 +22,32 @@
   "use strict";
   if (typeof App === "undefined" || typeof State === "undefined" || typeof ALL_QUESTIONS === "undefined") return;
 
+  // Preguntas que no se preguntan en una asignatura. En Anatomía 3 los profesores dijeron
+  // que preguntan lo que dicen en clase, así que las que Claude propuso por su cuenta
+  // («no dicha en clase») se retiran de todos los modos. Siguen en el archivo y conservan
+  // su progreso: para recuperarlas basta quitar la línea de aquí.
+  var BLOQUEAR = { anat3: /^🤖 Propuesta por Claude, no dicha en clase/ };
+  (function () {
+    var re = BLOQUEAR[STORAGE_KEY.replace(/_study_v\d+$/, "")];
+    if (!re) return;
+    var fuera = 0;
+    for (var i = ALL_QUESTIONS.length - 1; i >= 0; i--) {
+      var q = ALL_QUESTIONS[i];
+      if (!re.test(q.exp || "")) continue;
+      ALL_QUESTIONS.splice(i, 1);
+      BY_ID.delete(q.id);
+      var l = BY_TOPIC.get(q.topicBase);
+      if (l) { var k = l.indexOf(q); if (k >= 0) l.splice(k, 1); }
+      fuera++;
+    }
+    if (!fuera) return;
+    try {
+      var tot = document.getElementById("total-q-count");
+      if (tot) tot.textContent = ALL_QUESTIONS.length.toLocaleString("es");
+      App.renderTopicsGrid();
+    } catch (e) { console.warn("entrenador", e); }
+  })();
+
   var MODO = "coach";
   var TANDA = 30;        // preguntas por sesión si el selector está en «todas»
   var RACHA_CIERRE = 4;  // aciertos seguros seguidos para dejar un tema por hoy
