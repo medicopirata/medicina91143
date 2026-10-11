@@ -142,10 +142,10 @@
     "TU TRABAJO. 1) Diagnóstico: di qué idea concreta se le escapa, mirando qué opción eligió y con cuánta seguridad (fallar seguro = concepto equivocado; dudar entre dos = distinción que no domina; acertar adivinando = no la sabe; «leí mal» = fallo de técnica de examen, no de conocimiento). Agrupa los fallos que nacen de la misma confusión. Ordena por prioridad real para el examen: primero lo que ya cayó en examen o el profesor marcó, después lo demás. Cita lo que dicen sus apuntes sobre ese punto. 2) Preguntas nuevas: escribe preguntas tipo test que ataquen esa confusión desde otro ángulo (no la misma pregunta reformulada), con el estilo de las preguntas reales de examen que recibes, y dando preferencia a lo que el profesor marcó como importante dentro de ese tema. 3) Consejo: qué apartado concreto de sus apuntes releer y qué hacer antes de la próxima sesión.",
     "REGLAS. Usa SOLO hechos que estén en los apuntes o en el material que recibes; si no basta para una confusión, no escribas pregunta sobre ella. Si los apuntes y otra fuente se contradicen, mandan los apuntes de clase. No escribas preguntas que necesiten ver una imagen. Cuatro opciones, una sola correcta, distractores verosímiles (a ser posible aquello con lo que él lo confunde), la correcta en posiciones variadas, sin «todas las anteriores». La explicación dice por qué es esa y por qué no la que él habría elegido. Sé directo y concreto; nada de ánimos ni generalidades. Todo en español.",
     "FORMATO. Responde SOLO con un objeto JSON, sin texto alrededor: " +
-      '{"diagnostico":[{"idea":"la confusión, en una frase","prioridad":"alta|media|baja","motivo_prioridad":"p. ej. cayó en el examen de febrero / el profesor dijo «…» / no está marcado","por_que":"qué lo delata en sus respuestas","apuntes":"lo que dicen sus apuntes, con cita breve y el apartado","regla":"cómo distinguirlo, en una frase que pueda memorizar"}],' +
+      '{"diagnostico":[{"idea":"la confusión, en una frase","prioridad":"alta|media|baja","motivo_prioridad":"p. ej. cayó en el examen de febrero / el profesor dijo «…» / no está marcado","por_que":"qué lo delata en sus respuestas","apuntes":"lo que dicen sus apuntes, con cita breve y el apartado","regla":"cómo distinguirlo, en una frase que pueda memorizar","esquema":{"columnas":["",""],"filas":[["",""]]}}],' +
       '"preguntas":[{"tema":"nombre EXACTO del TEMA de la pregunta fallada de la que sale","q":"enunciado","opciones":["","","",""],"correcta":0,"explicacion":""}],' +
       '"consejo":"qué releer y qué hacer antes de la próxima sesión, tres frases como mucho"}. ' +
-      "Diagnóstico ordenado de mayor a menor prioridad. Entre 1 y 2 preguntas por confusión, 12 como máximo."
+      "El «esquema» es una tabla corta (como mucho 5 filas y 4 columnas) que ordena lo que está mezclando; ponlo en las confusiones de prioridad alta o media y déjalo vacío donde no aporte. Si en un tema falla mucho, dilo en el consejo y recomiéndale hacer un específico de ese tema en vez de seguir insistiendo. Diagnóstico ordenado de mayor a menor prioridad. Entre 1 y 2 preguntas por confusión, 12 como máximo."
   ].join("\n\n");
 
   var CONF = ["sin indicar", "seguro", "con dudas", "adivinando"];
@@ -248,6 +248,13 @@
     });
   }
 
+  function tablaEsquema(e) {
+    if (!e || !Array.isArray(e.filas) || !e.filas.length || !e.filas.some(function (f) { return Array.isArray(f) && f.some(function (c) { return String(c || "").trim(); }); })) return "";
+    var cols = Array.isArray(e.columnas) ? e.columnas : [];
+    return '<table style="border-collapse:collapse;margin:6px 0;font-size:.8rem;width:100%">' +
+      (cols.length ? "<tr>" + cols.map(function (c) { return '<th style="border:1px solid var(--border);padding:3px 6px;text-align:left">' + esc(c) + "</th>"; }).join("") + "</tr>" : "") +
+      e.filas.map(function (f) { return "<tr>" + (Array.isArray(f) ? f : [f]).map(function (c) { return '<td style="border:1px solid var(--border);padding:3px 6px;vertical-align:top">' + esc(c) + "</td>"; }).join("") + "</tr>"; }).join("") + "</table>";
+  }
   function pintarInforme(inf) {
     var h = "<b>🧠 Lo que ha visto la IA</b>";
     if (inf.diag && inf.diag.length) {
@@ -258,6 +265,7 @@
                (x.motivo_prioridad ? ' <span style="color:var(--text2)">(' + esc(x.motivo_prioridad) + ")</span>" : "") + "<br>" : "") +
                "<b>" + esc(x.idea || "") + "</b>" + (x.por_que ? " — " + esc(x.por_que) : "") +
                (x.apuntes ? '<br><span style="color:var(--text2)">📓 ' + esc(x.apuntes) + "</span>" : "") +
+               tablaEsquema(x.esquema) +
                (x.regla ? '<br><span style="color:var(--accent)">Regla: ' + esc(x.regla) + "</span>" : "") + "</li>";
       }).join("") + "</ul>";
     }
@@ -333,6 +341,43 @@
       nuevasIds.forEach(function (id) { mete(BY_ID.get(id)); });
       var deExamen = sesion.filter(function (q) { return window.Entrenador && window.Entrenador.origen(q).tipo === "examen"; }).length;
       return { titulo: String(inf.titulo || "Sesión a la carta"), nota: String(inf.nota || ""), preguntas: sesion, nuevas: nuevasIds.length, deExamen: deExamen };
+    });
+  }
+
+  // ------------------------------------------------- esquema de un tema que se resiste
+  // Lo pide entrenador.js en mitad de la sesión, cuando hay dos fallos en un tema.
+  var SISTEMA_ESQUEMA = [
+    "Eres el entrenador personal de Santiago, estudiante de 2.º de Medicina. En mitad de una sesión de test ha fallado dos veces en el mismo tema. No vas a insistir con muchas preguntas: vas a ACLARARLE el concepto con un esquema breve, para que pueda seguir avanzando.",
+    "RECIBES sus fallos (qué eligió, con qué seguridad) y los apartados de sus APUNTES DE CLASE sobre ese tema, con lo que el profesor marcó como importante (🔴, 🟠, ▶, ⭐, «Pista de examen», citas literales).",
+    "DEVUELVES un esquema que ordene justo lo que está mezclando: normalmente una tabla comparativa (los conceptos que confunde en filas y lo que los distingue en columnas), o una secuencia ordenada si lo que falla es un orden o un circuito. Corto: como mucho 6 filas y 4 columnas, celdas de pocas palabras. Solo hechos de sus apuntes; usa las palabras del profesor cuando las haya. Añade una regla de una frase para no volver a caer y, si procede, lo que el profesor dijo que se pregunta. Y UNA sola pregunta tipo test nueva que compruebe si lo ha entendido (cuatro opciones, una correcta, sin imagen); el resto de preguntas saldrán de su batería.",
+    'FORMATO: responde SOLO con JSON: {"titulo":"qué aclara el esquema","columnas":["",""],"filas":[["",""]],"regla":"","profesor":"lo que marcó el profesor sobre esto, o cadena vacía","pregunta":{"q":"","opciones":["","","",""],"correcta":0,"explicacion":""}}'
+  ].join("\n\n");
+
+  function aclarar(tema, fallos, sess) {
+    return apuntes().then(function (ap) {
+      var casos = fallos.map(function (q) {
+        var a = sess.answers[q.id] || {}, dc = dispCorrect(q);
+        return "PREGUNTA: " + q.q + "\n" + q.displayOptions.map(function (o, i) { return letra(i) + ") " + o; }).join("\n") +
+          "\nEligió: " + letra(a.chosen) + " · Correcta: " + letra(dc) + " · iba " + CONF[a.conf || 0] + "\nEXPLICACIÓN: " + corta(q.exp, 600);
+      });
+      var consultas = fallos.map(function (q) { return q.q + " " + q.displayOptions.join(" ") + " " + (q.exp || ""); });
+      consultas.push(tema);
+      var clase = trozosPara(ap, consultas, 10);
+      return llamar(SISTEMA_ESQUEMA, "ASIGNATURA: " + document.title + "\nTEMA: " + tema + "\n\nFALLOS:\n\n" + casos.join("\n\n") +
+        (clase.length ? "\n\nAPUNTES DE CLASE:\n\n" + clase.join("\n\n---\n\n") : "\n\n(Sin apuntes volcados: usa solo las explicaciones.)"));
+    }).then(function (r) {
+      var e = sacarJSON(r.txt), p = e.pregunta;
+      if (p && p.q && Array.isArray(p.opciones) && Number.isInteger(p.correcta) && p.opciones[p.correcta]) {
+        var d = cargar();
+        d.qs.push({ id: Math.floor(Date.now() / 1000) * 20 + 19, de: tema, q: String(p.q), options: p.opciones.map(String), correct: p.correcta, exp: String(p.explicacion || ""), t: Date.now() });
+        guardar(d); inyectar();
+      }
+      var cols = Array.isArray(e.columnas) ? e.columnas : [], filas = Array.isArray(e.filas) ? e.filas : [];
+      return (e.titulo ? "<b>" + esc(e.titulo) + "</b>" : "") +
+        (filas.length ? "<table>" + (cols.length ? "<tr>" + cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>" : "") +
+          filas.map(function (f) { return "<tr>" + (Array.isArray(f) ? f : [f]).map(function (c) { return "<td>" + esc(c) + "</td>"; }).join("") + "</tr>"; }).join("") + "</table>" : "") +
+        (e.regla ? "<div><b>Regla:</b> " + esc(e.regla) + "</div>" : "") +
+        (e.profesor ? '<div style="color:var(--text2)">🎯 ' + esc(e.profesor) + "</div>" : "");
     });
   }
 
@@ -446,5 +491,5 @@
   }
   refrescar();
 
-  window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir };
+  window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); } };
 })();
