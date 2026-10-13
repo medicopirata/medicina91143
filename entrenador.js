@@ -130,6 +130,9 @@
     if (t.indexOf("💻") === 0) return { tipo: "oficial", txt: "💻 Cuestionario del campus · " + n };
     if (t.indexOf("🎯") === 0) return { tipo: "profesor", txt: "🎯 La puso el profesor en clase · " + n };
     if (t.indexOf("🧪") === 0) return { tipo: "profesor", txt: "🧪 De un seminario de clase · " + n };
+    // Bancos que cuelgan de «Apuntes:» pero recogen preguntas reales, no de entrenamiento
+    if (t.indexOf("Apuntes:") === 0 && /examen real/i.test(n)) return { tipo: "examen", txt: "📝 Salió en examen · " + n.replace(/^Apuntes:\s*/, "") };
+    if (t.indexOf("Apuntes:") === 0 && /cuestionario|test de clase|test del campus|kahoot/i.test(n)) return { tipo: "profesor", txt: "🎯 La puso el profesor en clase · " + n.replace(/^Apuntes:\s*/, "") };
     if (t.indexOf("Apuntes:") === 0) return { tipo: "clase", txt: "📓 Entrenamiento · de tus apuntes de clase" };
     if (t.indexOf("⭐") === 0) return { tipo: "clase", txt: "⭐ Entrenamiento · sobre una imagen que el profesor marcó como importante" };
     if (t.indexOf("🖼️") === 0) return { tipo: "entreno", txt: "🖼️ Entrenamiento · sobre una imagen de clase o del atlas" };
