@@ -15,7 +15,7 @@ que hay que volcarlos cada vez que cambian.
 
 | Clave | Plataforma | Documento (id) | Qué exportar |
 | --- | --- | --- | --- |
-| `anat3` | plataforma_anatomia3.html | c0fe7be5-ed8a-43f6-b5d8-0b580a9a3a98 | la pestaña única |
+| `anat3` | plataforma_anatomia3.html | c0fe7be5-ed8a-43f6-b5d8-0b580a9a3a98 | las dos pestañas, en orden: «Apuntes Anatomía III» y «Parte 2 · Vascularización y siguientes» (y las que se añadan) |
 | `histo21` | plataforma_histologia2.1.html | 68865663-9398-45b9-a1d2-96004cfb4eda | la pestaña de apuntes |
 | `fisio1` | plataforma_fisio1.html | 7ba262e3-f1d0-4644-b13e-84d13bdff728 | las pestañas «Tema N · Apuntes» y «Pistas de examen» (no las «Preguntas») |
 | `genetica` | plataforma_genetica.html | 1mD1RqkYYhdtwHtrr8T7ey | la pestaña única |
