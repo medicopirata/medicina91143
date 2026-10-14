@@ -60,6 +60,7 @@
           asignaturas: [
             { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 7335 },
             { nombre: "Genética Médica",        emoji: "🧬", archivo: "plataforma_genetica.html", n: 885  },
+            { nombre: "Historia de la Medicina", emoji: "📜", archivo: "plataforma_historia.html", n: 72 },
             { nombre: "Fundamentos de Cirugía", emoji: "🔪" },
           ]
         },

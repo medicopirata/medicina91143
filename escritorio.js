@@ -18,6 +18,7 @@
     { clave: "anat3_study_v1",     nombre: "Anatomía 3",         archivo: "plataforma_anatomia3.html",     emoji: "🧠", total: 3699 },
     { clave: "medint_study_v1",    nombre: "Medicina Interna",   archivo: "plataforma_medint.html",        emoji: "🩺", total: 7335 },
     { clave: "genetica_study_v1",  nombre: "Genética",           archivo: "plataforma_genetica.html",      emoji: "🧬", total: 885  },
+    { clave: "historia_study_v1",  nombre: "Historia de la Med.", archivo: "plataforma_historia.html",      emoji: "📜", total: 72   },
     { clave: "fisio2_study_v1",    nombre: "Fisiología II",      archivo: "plataforma_fisio2.html",        emoji: "🫁", total: 917  },
     { clave: "histoesp2_study_v1", nombre: "Histología Esp. II", archivo: "plataforma_histoesp2.html",     emoji: "🧫", total: 1958 },
   ];

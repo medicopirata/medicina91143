@@ -28,6 +28,7 @@ PLATAFORMAS = {
     "anat3_study_v1":     "plataforma_anatomia3.html",
     "medint_study_v1":    "plataforma_medint.html",
     "genetica_study_v1":  "plataforma_genetica.html",
+    "historia_study_v1":  "plataforma_historia.html",
     "fisio2_study_v1":    "plataforma_fisio2.html",
     "histoesp2_study_v1": "plataforma_histoesp2.html",
 }
