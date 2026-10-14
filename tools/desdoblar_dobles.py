@@ -77,7 +77,8 @@ def una_version(q, conservar, otras, nuevo_id=None):
 
 # Preguntas que no se parten: con tantas correctas que cada versión se quedaría
 # en dos opciones, y eso es un verdadero/falso encubierto. Se tratan a mano.
-EXCLUIDAS = {333}
+EXCLUIDAS = {333,          # Fisio I · Junio 2018, 4 correctas de 5
+             11, 434, 1022}  # Histología, 3 correctas de 4
 
 
 def desdoblar(qs):
