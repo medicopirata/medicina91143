@@ -58,7 +58,7 @@
         {
           titulo: "Anuales",
           asignaturas: [
-            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 7073 },
+            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 7335 },
             { nombre: "Genética Médica",        emoji: "🧬", archivo: "plataforma_genetica.html", n: 885  },
             { nombre: "Fundamentos de Cirugía", emoji: "🔪" },
           ]
