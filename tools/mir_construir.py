@@ -123,6 +123,33 @@ def secciones_js(por_bloque):
     return "\n".join(lineas)
 
 
+def heredar(preguntas, ruta="plataforma_mir.html"):
+    """Rescata de una plataforma ya construida lo que se hizo a mano.
+
+    La clasificación automática es solo un andamio y las explicaciones se
+    escriben una a una, así que reconstruir no puede tirar ese trabajo: se
+    conservan, por id, la explicación y el bloque si se había recolocado.
+    """
+    import os
+    if not os.path.exists(ruta):
+        return 0, 0
+    viejo = open(ruta, encoding="utf-8").read()
+    m = re.search(r"const ALL_QUESTIONS = (\[.*?\]);\n", viejo, re.S)
+    if not m:
+        return 0, 0
+    previo = {q["id"]: q for q in json.loads(m.group(1))}
+    exps = bloques = 0
+    for p in preguntas:
+        v = previo.get(p["id"])
+        if not v:
+            continue
+        if v.get("exp"):
+            p["exp"] = v["exp"]; exps += 1
+        if v.get("topic") and v["topic"] != p["topic"]:
+            p["topic"] = p["topicBase"] = v["topic"]; bloques += 1
+    return exps, bloques
+
+
 def main(argv):
     origen = [a for a in argv if not a.startswith("--")][0]
     plantilla = "plataforma_genetica.html"
@@ -131,6 +158,11 @@ def main(argv):
 
     mc = cargar_clasificador()
     preguntas, por_bloque, fuera = construir_preguntas(origen, mc)
+    heredadas, recolocadas = heredar(preguntas)
+    if heredadas or recolocadas:
+        print("heredado de la versión anterior: %d explicaciones, %d bloques corregidos a mano"
+              % (heredadas, recolocadas), file=sys.stderr)
+        por_bloque = collections.Counter(p["topic"].split(" · MIR ")[0] for p in preguntas)
     counts = collections.Counter(p["topic"] for p in preguntas)
 
     s = open(plantilla, encoding="utf-8").read()
@@ -149,6 +181,13 @@ def main(argv):
     s = s.replace("<h1>🧬 Genética Médica</h1>", "<h1>🩺 MIR</h1>", 1)
     s = s.replace("const STORAGE_KEY = 'genetica_study_v1';",
                   "const STORAGE_KEY = 'mir_study_v1';", 1)
+    # la fuente oficial no trae explicaciones: todas las de aquí están escritas
+    # por Claude, y eso se dice una vez en la portada y no en cada pregunta
+    s = s.replace("<p>Plataforma de Estudio Inteligente &middot; "
+                  "<span id=\"total-q-count\"></span> preguntas</p>",
+                  "<p>Preguntas oficiales del Ministerio &middot; "
+                  "<span id=\"total-q-count\"></span> preguntas &middot; "
+                  "explicaciones escritas por Claude</p>", 1)
 
     # --- secciones: un bloque temático por sección, el año dentro ---
     viejo = ("const SECTIONS = [];\n"
