@@ -31,6 +31,7 @@ PLATAFORMAS = {
     "historia_study_v1":  "plataforma_historia.html",
     "fisio2_study_v1":    "plataforma_fisio2.html",
     "histoesp2_study_v1": "plataforma_histoesp2.html",
+    "mir_study_v1":       "plataforma_mir.html",
 }
 
 

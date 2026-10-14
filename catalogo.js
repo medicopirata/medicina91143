@@ -49,7 +49,7 @@
           asignaturas: [
             { nombre: "Histología Especial I", emoji: "🔬", archivo: "plataforma_histologia2.1.html", n: 7046 },
             { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 1384  },
-            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 3699 },
+            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 3737 },
             { nombre: "Anatomía 3 · Rellenar", emoji: "🖼️", archivo: "rellenar_anatomia3.html",
               nota: "Las imágenes de los apuntes, con los nombres tapados" },
             { nombre: "Diagnóstico por Imagen", emoji: "🩻" },
@@ -69,6 +69,19 @@
           asignaturas: [
             { nombre: "Fisiología Humana II",   emoji: "🫁", archivo: "plataforma_fisio2.html",    n: 917  },
             { nombre: "Histología Especial II", emoji: "🧫", archivo: "plataforma_histoesp2.html", n: 1958 },
+          ]
+        },
+      ]
+    },
+    {
+      curso: "MIR",
+      color: "curso3",
+      bloques: [
+        {
+          titulo: "Preguntas oficiales del Ministerio",
+          asignaturas: [
+            { nombre: "MIR · por bloques", emoji: "🩺", archivo: "plataforma_mir.html", n: 2202,
+              nota: "13 exámenes (2014-2026) repartidos por especialidad" },
           ]
         },
       ]
