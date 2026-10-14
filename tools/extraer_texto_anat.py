@@ -67,12 +67,12 @@ def main():
     en_solucionario = False
     for l in cuerpo:
         t = l.strip()
-        if re.fullmatch(r"\d{1,2}\. Solucionario", t):
+        if re.fullmatch(r"\d{1,2}\. Solucionario", t) or t == "Soluciones":
             en_solucionario = True
             continue
         if not en_solucionario:
             continue
-        g = re.match(r"^([A-D])\.\s", t)
+        g = re.match(r"^([A-D])\s*[·.]\s", t)
         if g:
             grupo = g.group(1)
             continue
@@ -88,16 +88,22 @@ def main():
             sol[clave] = ("abcd".index(letra), celdas[2] if len(celdas) > 2 else "")
 
     # --- preguntas ----------------------------------------------------------
-    preguntas, grupo, en_preguntas = [], None, False
+    # Anatomía abre con «N. Preguntas» y cierra con «N. Solucionario»; Genética
+    # no tiene esos encabezados: los apartados A/B/C arrancan solos y el
+    # solucionario es una sección «Soluciones». Una vez dentro del solucionario
+    # ya no se vuelve a leer ninguna pregunta.
+    preguntas, grupo, en_preguntas, fin = [], None, False, False
     i = 0
     while i < len(cuerpo):
         t = cuerpo[i].strip()
-        if re.fullmatch(r"\d{1,2}\. Preguntas", t):
+        if re.fullmatch(r"\d{1,2}\. Solucionario", t) or t == "Soluciones":
+            en_preguntas, fin = False, True
+        elif fin:
+            pass
+        elif re.fullmatch(r"\d{1,2}\. Preguntas", t):
             en_preguntas, grupo = True, None
-        elif re.fullmatch(r"\d{1,2}\. Solucionario", t):
-            en_preguntas = False
-        elif en_preguntas and re.match(r"^[A-D]\.\s", t):
-            grupo = etiqueta_de(t)
+        elif re.match(r"^[A-D]\s*[·.]\s", t):
+            en_preguntas, grupo = True, etiqueta_de(t)
         elif en_preguntas and grupo:
             # la numeración va como "1." o con el prefijo del grupo, "B1."
             m = re.match(r"^([A-D])?(\d{1,3})\.\s+(.+)$", t)
@@ -124,8 +130,10 @@ def main():
                         break
                     ops.append(o.group(2).strip())
                     j += 1
-                if len(ops) == 4 and (g, n) in sol:
-                    correcta, clave = sol[(g, n)]
+                # el solucionario de Genética numera sin letra de apartado
+                clave_sol = (g, n) if (g, n) in sol else (None, n)
+                if len(ops) == 4 and clave_sol in sol:
+                    correcta, clave = sol[clave_sol]
                     preguntas.append({"g": g, "n": n, "q": nfc(enun),
                                       "options": [nfc(o) for o in ops],
                                       "correct": correcta, "exp": nfc(clave)})
