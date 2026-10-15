@@ -30,27 +30,48 @@ def main(ruta_html, rutas_json):
         bancos += json.load(open(r, encoding="utf-8"))["bancos"]
     nombres = {b["banco"] for b in bancos}
 
+    # Los ids se conservan por pregunta, no por posición: si una pregunta ya
+    # estaba (mismo banco y mismo enunciado) se queda con su id, pase lo que
+    # pase con el orden en que se carguen los JSON. Si el id dependiera del
+    # orden, cargar dos ficheros al revés le cambiaría el id a todo y el
+    # progreso guardado dejaría de corresponder.
+    # Cola por (banco, enunciado): si un banco repite enunciado —pasa en las
+    # preguntas de imagen, «El 1 es…»— cada repetición recupera su propio id
+    # en el mismo orden en que estaba.
+    previos = collections.defaultdict(list)
+    for q in qs:
+        if q["id"] >= ID_BASE:
+            previos[(q["topic"], q["q"])].append(q["id"])
+    ocupados = {q["id"] for q in qs if q["id"] >= ID_BASE}
+
     antes = len(qs)
     qs = [q for q in qs if q["topic"] not in nombres]
     quitadas = antes - len(qs)
 
-    choques = sorted({q["id"] for q in qs if q["id"] >= ID_BASE})
-    sig = max(choques) + 1 if choques else ID_BASE
+    reservados = {i for b in bancos for p in b["preguntas"]
+                  for i in previos.get((b["banco"], p["q"]), [])}
+    libres = (i for i in range(ID_BASE, ID_BASE + 100000)
+              if i not in ocupados and i not in reservados)
 
-    nuevas = 0
+    nuevas, heredados = 0, 0
     for b in bancos:
         for i, p in enumerate(b["preguntas"], 1):
             if not (0 <= p["correct"] < len(p["options"])):
                 sys.exit("clave fuera de rango en «%s» pregunta %d" % (b["banco"], i))
             if not (p.get("exp") or "").strip():
                 sys.exit("pregunta sin explicación en «%s» nº %d" % (b["banco"], i))
+            cola = previos.get((b["banco"], p["q"]))
+            if cola:
+                idq = cola.pop(0)
+                heredados += 1
+            else:
+                idq = next(libres)
+                nuevas += 1
             qs.append({
-                "id": sig, "topic": b["banco"], "topicBase": b["banco"],
-                "fileId": sig, "origQ": i, "q": p["q"], "options": p["options"],
+                "id": idq, "topic": b["banco"], "topicBase": b["banco"],
+                "fileId": idq, "origQ": i, "q": p["q"], "options": p["options"],
                 "correct": p["correct"], "exp": p["exp"], "n": i,
             })
-            sig += 1
-            nuevas += 1
 
     counts = collections.Counter(q["topic"] for q in qs)
     s = s[:m.start()] + "const ALL_QUESTIONS = %s;\n" % json.dumps(qs, ensure_ascii=False) + s[m.end():]
@@ -59,8 +80,8 @@ def main(ruta_html, rutas_json):
                s, count=1, flags=re.S)
     open(ruta_html, "w", encoding="utf-8").write(s)
 
-    print("%s: %d preguntas (%d sustituidas, %d cargadas)"
-          % (ruta_html, len(qs), quitadas, nuevas))
+    print("%s: %d preguntas (%d sustituidas, %d con id conservado, %d nuevas)"
+          % (ruta_html, len(qs), quitadas, heredados, nuevas))
     for b in bancos:
         print("   %3d  %s" % (len(b["preguntas"]), b["banco"]))
     print("  sin explicación en toda la plataforma: %d"
