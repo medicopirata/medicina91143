@@ -829,12 +829,62 @@ const TOPIC_CAT = s => s.startsWith('Serie') ? 1 : 0;
 const SECTIONS = [{id:'tronco', title:'📘 Tronco y Esplacnología', color:'#60a5fa', match: t => { const q = (BY_TOPIC.get(t) || [])[0]; return !!q && q.id >= 3045 && q.id < 4000; }},{id:'extra', title:'📋 Banco Extra', color:'#a78bfa', match: t => { const q = (BY_TOPIC.get(t) || [])[0]; return !!q && q.id >= 4000; }}];
 // Rasgos propios de cada asignatura
 const FEATURES = Object.assign({
-  dupStar: false,          // ⭐ en las preguntas/bancos marcados con dup
+  dupStar: true,           // ⭐ en las preguntas repetidas en otro banco
   shuffleOptsDefault: false,
   persistPrefs: false,     // recordar las casillas de mezclado entre visitas
   pinned: [],              // bancos que van primero en la rejilla principal
   highlight: [],           // bancos resaltados en ámbar
 }, {});
+// ----- Preguntas repetidas en varios bancos -----
+// La misma pregunta puede estar en su banco temático, en el banco general y en
+// el del examen de donde salió. Se agrupan por contenido para poder dejar una
+// sola en los modos que juntan toda la plataforma. La firma se calcula sobre
+// ALL_QUESTIONS (las opciones originales) y se consulta por id, porque al
+// estudiar las opciones pueden ir mezcladas y entonces no cuadraría.
+// Sin tildes, sin espacios y sin el punto final, pero conservando TODO lo
+// demas: quitar la puntuacion a lo bruto igualaba «5,25» con «52,5», dejaba
+// vacias las opciones de flechas (↑↑↑ y ↑↓↑) y borraba el × y el / de las
+// formulas, de modo que opciones distintas parecian la misma.
+// Las opciones van ORDENADAS: la misma pregunta
+// aparece a veces con las opciones en otro orden, y entonces hay que
+// reconocerla igual. Por eso la clave lleva el TEXTO de la respuesta correcta
+// y no su índice, que con las opciones ordenadas no significaría nada.
+const _dupNorm = t => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+                               .toLowerCase().replace(/[−–—]/g, '-')
+                               .replace(/\s+/g, '').replace(/\.+$/, '');
+const _dupFirma = q => [_dupNorm(q.q),
+                        (q.options || []).map(_dupNorm).sort().join('|'),
+                        _dupNorm((q.options || [])[q.correct]),
+                        q.img || ''].join('~');
+const DUP_FIRMA = new Map();   // id -> firma
+const DUP_GRUPOS = new Map();  // firma -> [ids]
+for (const q of ALL_QUESTIONS) {
+  const f = _dupFirma(q);
+  DUP_FIRMA.set(q.id, f);
+  if (!DUP_GRUPOS.has(f)) DUP_GRUPOS.set(f, []);
+  DUP_GRUPOS.get(f).push(q.id);
+}
+for (const [f, ids] of DUP_GRUPOS) if (ids.length < 2) DUP_GRUPOS.delete(f);
+const DUP_IDS = new Set();
+for (const ids of DUP_GRUPOS.values()) for (const id of ids) DUP_IDS.add(id);
+
+function esRepetida(q) { return DUP_IDS.has(q.id); }
+
+// Deja una copia por grupo: la que tenga más intentos guardados, y si ninguno
+// tiene progreso, la primera que aparezca.
+function sinRepetidas(qs) {
+  if (!DUP_GRUPOS.size) return qs;
+  const intentos = id => { const s = State.data.qs[id]; return s && s.a ? s.a : 0; };
+  const elegida = new Map();
+  for (const q of qs) {
+    if (!DUP_IDS.has(q.id)) continue;
+    const f = DUP_FIRMA.get(q.id);
+    const actual = elegida.get(f);
+    if (actual === undefined || intentos(q.id) > intentos(actual)) elegida.set(f, q.id);
+  }
+  return qs.filter(q => !DUP_IDS.has(q.id) || elegida.get(DUP_FIRMA.get(q.id)) === q.id);
+}
+
 function sectionOf(topic) { return SECTIONS.find(s => s.match(topic)) || null; }
 
 // Índice (sobre q.options original) de la correcta: la marcada por el usuario manda sobre la predefinida.
@@ -1067,7 +1117,7 @@ const App = {
       const f = flags[topic] || {};
       const sec = sectionOf(topic);
       const shown = sec && sec.strip ? topic.replace(sec.strip, '') : topic;
-      const hasDup = FEATURES.dupStar && topicQs.some(q => q.dup);
+      const hasDup = FEATURES.dupStar && topicQs.some(q => q.dup || esRepetida(q));
       const cardClass = 'topic-card' + (f.e ? ' flagged-examen' : '') + (FEATURES.highlight.includes(topic) ? ' banco-nuevo' : '');
       return `<div class="${cardClass}" onclick="App.startSingleTopic(this.dataset.topic)" data-topic="${escTopic}" style="position:relative">
         ${hasDup ? '<span class="topic-dup-star" title="Contiene preguntas repetidas en otro cuestionario">⭐</span>' : ''}
@@ -1289,6 +1339,9 @@ const App = {
   },
 
   beginSession(questions, mode, opts) {
+    // Al estudiar un banco concreto se respeta lo que tiene; en cualquier modo
+    // que junte varios bancos se quita la repetición (ver sinRepetidas).
+    if (mode !== 'topic') questions = sinRepetidas(questions);
     if (questions.length === 0) { alert('No hay preguntas disponibles.'); return; }
     opts = opts || {};
     const shuffleOpts = document.getElementById('chk-shuffle-opts').checked;
@@ -1359,7 +1412,7 @@ const App = {
     markBtn.className = 'q-mark-btn' + (isMarked ? ' marked' : '');
     markBtn.textContent = isMarked ? '🔖 Marcada' : '🔖 Marcar';
 
-    document.getElementById('q-dup-star').classList.toggle('hidden', !(FEATURES.dupStar && q.dup));
+    document.getElementById('q-dup-star').classList.toggle('hidden', !(FEATURES.dupStar && (q.dup || esRepetida(q))));
 
     // Pregunta
     document.getElementById('q-text').textContent = q.q;
