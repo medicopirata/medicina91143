@@ -62,6 +62,21 @@ def main():
     lineas = [l.rstrip("\n") for l in open(sys.argv[1], encoding="utf-8")]
     cuerpo = tramo_del_tema(lineas, sys.argv[2])
 
+    # El tema empieza con su propio índice, y ahí figuran como entradas de
+    # lista las mismas líneas «11. Preguntas» y «12. Solucionario» que luego
+    # encabezan las secciones de verdad. Leyéndolas en orden, el extractor
+    # entraba en el solucionario en la línea 2 del tema y no veía ni una
+    # pregunta. Así que vale la ÚLTIMA aparición de cada marca, que es la real.
+    def ultima(patron):
+        pos = [i for i, l in enumerate(cuerpo)
+               if re.fullmatch(patron, l.strip())]
+        return pos[-1] if pos else None
+
+    i_preg = ultima(r"\d{1,2}\. Preguntas")
+    i_sol = ultima(r"\d{1,2}\. Solucionario|Soluciones")
+    if i_preg is not None and i_sol is not None and i_preg < i_sol:
+        cuerpo = cuerpo[i_preg:]
+
     # --- solucionario: filas "B1 | b | clave" --------------------------------
     sol, grupo = {}, None
     en_solucionario = False
