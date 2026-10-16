@@ -35,6 +35,9 @@ FILA_SOL = re.compile(r"^\|\s*([GDR]\d+(?:\.\d+)?)\s*\|\s*([a-h])\s*\|\s*(.*?)\s
 
 LETRAS = "abcdefgh"
 
+# Se rellena al leer la cabecera «Reserva para los temas 17–19 (aún no dados)»
+RANGO = [None]
+
 
 def nfc(s):
     return unicodedata.normalize("NFC", re.sub(r"[ \t]+", " ", s)).strip()
@@ -113,11 +116,15 @@ def nombre_banco(seccion, archivo):
     if m:
         return "📕 Guyton · Tema %s — %s" % (m.group(1), m.group(2))
     if seccion.startswith("Reserva para los temas"):
-        return "📕 Guyton · Reserva temas 16–19"
+        return "📕 Guyton · %s" % seccion.split(" (")[0]
     if "refuerzo" in archivo:
         return "📕 Guyton · Refuerzo cardiovascular — %s" % seccion
-    if "tema15" in archivo:
-        return "📕 Guyton · Reserva temas 16–19 — %s" % seccion
+    # Las subsecciones de la reserva (secreción, digestión, patología) no
+    # dicen en su título que son reserva, así que se les pone el prefijo del
+    # rango que el doc tenga en ese momento: era 16-19 y ahora es 17-19,
+    # porque el tema 16 ya se dio y sus preguntas salieron de aquí.
+    if RANGO[0]:
+        return "📕 Guyton · %s — %s" % (RANGO[0], seccion)
     return "📕 Guyton · %s" % seccion
 
 
@@ -126,6 +133,13 @@ def main(rutas):
     for ruta in rutas:
         secciones, soluciones = parsear(ruta)
         corto = ruta.rsplit("/", 1)[-1]
+        # La cabecera «Reserva para los temas 17–19 (aún no dados)» no trae
+        # preguntas propias —las tienen sus subsecciones—, así que parsear()
+        # la descarta. Se lee aquí directamente del fichero para saber qué
+        # rango de temas sigue en reserva, que cambia según se van dando.
+        crudo = open(ruta, encoding="utf-8").read()
+        mr = re.search(r"^Reserva para los temas ([^(\n·]+)", crudo, re.M)
+        RANGO[0] = ("Reserva temas %s" % mr.group(1).strip()) if mr else None
         for sec in secciones:
             preguntas = []
             for i, p in enumerate(sec["preguntas"], 1):
