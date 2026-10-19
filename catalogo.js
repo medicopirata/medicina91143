@@ -48,8 +48,8 @@
           titulo: "1er Cuatrimestre",
           asignaturas: [
             { nombre: "Histología Especial I", emoji: "🔬", archivo: "plataforma_histologia2.1.html", n: 7046 },
-            { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 1793  },
-            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 3761 },
+            { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 1829  },
+            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 3807 },
             { nombre: "Anatomía 3 · Rellenar", emoji: "🖼️", archivo: "rellenar_anatomia3.html",
               nota: "Las imágenes de los apuntes, con los nombres tapados" },
             { nombre: "Diagnóstico por Imagen", emoji: "🩻" },
@@ -58,7 +58,7 @@
         {
           titulo: "Anuales",
           asignaturas: [
-            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 7449 },
+            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 7577 },
             { nombre: "Genética Médica",        emoji: "🧬", archivo: "plataforma_genetica.html", n: 885  },
             { nombre: "Historia de la Medicina", emoji: "📜", archivo: "plataforma_historia.html", n: 72 },
             { nombre: "Fundamentos de Cirugía", emoji: "🔪" },

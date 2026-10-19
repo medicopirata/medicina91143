@@ -146,11 +146,14 @@
     if (_caidas && _caidasN === ALL_QUESTIONS.length) return _caidas;
     _caidas = new Map(); _caidasN = ALL_QUESTIONS.length;
     ALL_QUESTIONS.forEach(function (q) {
-      if (origenBanco(q.topicBase).tipo !== "examen") return;
       var k = norma(q.q);
       if (k.length < 25) return;
+      // q.caida: exámenes en que cayó una pregunta que solo está en un banco de entrenamiento
+      var en = (q.caida || []).slice();
+      if (origenBanco(q.topicBase).tipo === "examen") en.push(limpio(q.topicBase));
+      if (!en.length) return;
       if (!_caidas.has(k)) _caidas.set(k, new Set());
-      _caidas.get(k).add(limpio(q.topicBase));
+      en.forEach(function (n) { _caidas.get(k).add(n); });
     });
     return _caidas;
   }
