@@ -479,7 +479,9 @@
     h += "<p><b>" + FASES[p.fase].nom + ".</b> " + FASES[p.fase].txt + "</p>";
     h += "<p>Hoy: " + (p.objNuevas ? "<b>" + p.objNuevas + " nuevas</b> y " : "") + "<b>" + p.vencidas + " repasos</b>. " +
       (p.fase === "cobertura" ? (p.vaBien ? "Vas al ritmo que pide el plan." : '<span class="alerta">Vas por detrás:</span> para ver todo lo importante antes de la consolidación hacen falta ' + p.necImp + " nuevas al día; para verlo todo, " + p.necAll + ".") : "") +
-      " El entrenador ya sigue este plan: da prioridad a los temas de la semana y a lo que más pesa.</p>";
+      "</p>" +
+      '<button id="plan-ir" style="font-size:.95rem;padding:9px 18px">▶️ Hacer lo de hoy</button>' +
+      '<span class="sub"> Abre el entrenador, que sigue este plan: temas de la semana, lo que más pesa y los repasos que tocan. Es lo mismo que el botón 🧠 Entrenador.</span>';
 
     // Estrategia de la IA
     var e = _d.estrategia;
@@ -560,6 +562,8 @@
         pintar();
       };
     });
+    var ir = document.getElementById("plan-ir");
+    if (ir) ir.onclick = function () { if (window.Entrenador) window.Entrenador.abrir(); };
     var pm = document.getElementById("plan-mapa");
     if (pm) pm.onclick = function (ev) {
       ev.preventDefault();
