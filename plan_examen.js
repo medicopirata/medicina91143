@@ -442,7 +442,10 @@
       caja = document.createElement("details");
       caja.id = "plan-ex";
       try { caja.open = localStorage.getItem(K_PLAN + "_abierto") !== "0"; } catch (e) { caja.open = true; }
-      caja.addEventListener("toggle", function () { try { localStorage.setItem(K_PLAN + "_abierto", caja.open ? "1" : "0"); } catch (e) {} });
+      caja.addEventListener("toggle", function () {
+        try { localStorage.setItem(K_PLAN + "_abierto", caja.open ? "1" : "0"); } catch (e) {}
+        var sp = caja.querySelector("summary .sub"); if (sp) sp.textContent = "(pulsa para " + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")";
+      });
       rejilla.parentNode.insertBefore(caja, rejilla.nextSibling);
     }
     invalidar();
@@ -454,7 +457,10 @@
     }
     var p = planCache(), t = p.med.tot, f = foto(), h7 = fotoHace(7);
     var obj = objetivo(), fin = fechaExamen();
-    var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") + "</summary>";
+    var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") +
+      ' <span class="sub">(pulsa para ' + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")</span></summary>";
+    h += '<div style="margin:10px 0 4px"><button id="plan-ir" style="font-size:1rem;padding:10px 20px;margin:0">▶️ Hacer lo de hoy</button>' +
+      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · abre el entrenador con este plan</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>";
     if (conParciales()) {
       var n1 = BY_PARC(1), n2 = BY_PARC(2);
       h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
@@ -479,9 +485,7 @@
     h += "<p><b>" + FASES[p.fase].nom + ".</b> " + FASES[p.fase].txt + "</p>";
     h += "<p>Hoy: " + (p.objNuevas ? "<b>" + p.objNuevas + " nuevas</b> y " : "") + "<b>" + p.vencidas + " repasos</b>. " +
       (p.fase === "cobertura" ? (p.vaBien ? "Vas al ritmo que pide el plan." : '<span class="alerta">Vas por detrás:</span> para ver todo lo importante antes de la consolidación hacen falta ' + p.necImp + " nuevas al día; para verlo todo, " + p.necAll + ".") : "") +
-      "</p>" +
-      '<button id="plan-ir" style="font-size:.95rem;padding:9px 18px">▶️ Hacer lo de hoy</button>' +
-      '<span class="sub"> Abre el entrenador, que sigue este plan: temas de la semana, lo que más pesa y los repasos que tocan. Es lo mismo que el botón 🧠 Entrenador.</span>';
+      " El entrenador sigue este plan: temas de la semana, lo que más pesa y los repasos que tocan.</p>";
 
     // Estrategia de la IA
     var e = _d.estrategia;
