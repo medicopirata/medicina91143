@@ -252,6 +252,30 @@
     });
     return _dados;
   }
+  // Qué parcial es cada tema cuando el usuario no lo ha cambiado a mano. Sale de lo que dicen
+  // los apuntes de cada asignatura; sin regla, lo dado hasta hoy cuenta como 1.º y lo demás como 2.º
+  var PARCIAL_TEMA = {
+    // «1.er parcial: teoría hasta el Tema 12 (vascularización del SN), prácticas hasta la 6».
+    // Las vías y las funciones y recorridos de los pares craneales son del 2.º
+    anat3: function (t) {
+      if (/formaci[oó]n reticular|Tema 4 \(II\)/i.test(t)) return 1;
+      if (/v[ií]as? (motoras|sensitivas|[oó]ptica|piramidal|extrapiramidal|y pares)|piramidal|par(es)? craneal|globo ocular|Tema 1[4-9] —|Pr[aá]ctica ([7-9]|1\d)\b/i.test(t)) return 2;
+      return 1;
+    },
+    // Visto en los exámenes de parcial de otros años: el 1.º es etiología general, propedéutica,
+    // cardiovascular y respiratorio; el 2.º, digestivo, renal, sangre, endocrino, metabolismo,
+    // locomotor y nervioso. Los capítulos del Sisinio, por número (hasta el 34, 1.º)
+    medint: function (t) {
+      var m = /Sisinio cap\. (\d+)/i.exec(t);
+      if (m) return +m[1] <= 34 ? 1 : 2;
+      if (/digestiv|renal|hematolog|endocrin|metabolism|locomotor|nervios|hígado|tiroides|g[oó]nadas|vías urinarias/i.test(t)) return 2;
+      return 1;
+    }
+  };
+  function parcialPorDefecto(t) {
+    var f = PARCIAL_TEMA[STORAGE_KEY.replace(/_study_v\d+$/, "")];
+    return f ? f(limpio(t).replace(/^Apuntes:\s*/, "")) : (temasDados().has(t) ? 1 : 2);
+  }
   function hayParciales() { return TOPIC_NAMES.some(function (t) { return /parcial/i.test(t); }); }
   function parcialDelNombre(t) {
     if (/(1er|1\.?º|primer)\s+parcial/i.test(t)) return 1;
@@ -293,7 +317,7 @@
     if (p) return p;
     var t = temaDe(q);
     if (!t) return 0;
-    return a.mapa[t] || (temasDados().has(t) ? 1 : 2);
+    return a.mapa[t] || parcialPorDefecto(t);
   }
   // ¿Entra la pregunta en lo que se ha elegido?
   function enAmbito(q, a) {
@@ -331,9 +355,9 @@
       h += '<p style="margin-top:10px"><b>Parcial que preparas</b></p>' +
         '<label><input type="checkbox" id="amb-p1"' + (a.parciales.indexOf(1) >= 0 ? " checked" : "") + '> 1.er parcial</label>' +
         '<label><input type="checkbox" id="amb-p2"' + (a.parciales.indexOf(2) >= 0 ? " checked" : "") + '> 2.º parcial</label>' +
-        '<details><summary>Ajustar qué tema entra en cada parcial</summary><p class="sub">Por defecto, lo dado hasta hoy cuenta como 1.er parcial y lo demás como 2.º. Cámbialo aquí si no es así.</p>' +
+        '<details><summary>Ajustar qué tema entra en cada parcial</summary><p class="sub">Por defecto va según lo que dicen tus apuntes (o, si no dicen nada, lo dado hasta hoy cuenta como 1.er parcial y lo demás como 2.º). Cámbialo aquí si no es así: el plan de examen usa este mismo reparto.</p>' +
         tematicos.map(function (t, i) {
-          var p = a.mapa[t] || (dados.has(t) ? 1 : 2);
+          var p = a.mapa[t] || parcialPorDefecto(t);
           return '<div class="tm"><span>' + esc(t) + '</span><select data-i="' + i + '"><option value="1"' + (p === 1 ? " selected" : "") + '>1.º</option><option value="2"' + (p === 2 ? " selected" : "") + '>2.º</option></select></div>';
         }).join("") + '</details>';
     }
@@ -356,6 +380,7 @@
         if (document.getElementById("amb-p1").checked) a.parciales.push(1);
         if (document.getElementById("amb-p2").checked) a.parciales.push(2);
         if (!a.parciales.length) a.parciales = [1, 2];
+        if (window.PlanExamen && window.PlanExamen.fijarObjetivo) window.PlanExamen.fijarObjetivo(a.parciales.length === 1 ? "p" + a.parciales[0] : "final");
       }
       guardarAmbito(a);
       caja.hidden = true;
@@ -866,5 +891,11 @@
   if (window.MPSync && typeof MPSync.usar === "function") {
     try { MPSync.usar({ clave: K_AMBITO, modo: "reciente" }); } catch (e) {}
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  // El plan de examen fija el parcial que se prepara
+  function fijarParcial(n) {
+    var a = leerAmbito();
+    a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
+    guardarAmbito(a);
+  }
+  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();

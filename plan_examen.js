@@ -35,6 +35,12 @@
   var FECHAS = { medint: "2027-01-15", genetica: "2027-01-20", fisio1: "2027-01-25", anat3: "2027-01-29",
                  histoesp2: "2027-02-01", fisio2: "2027-02-02", histo21: "2027-02-04" };
 
+  // Parciales (solo en las asignaturas que los tienen). Anatomía 3: «1.er parcial: viernes 27 o
+  // lunes 30 de noviembre, a las 8:00»; el 2.º, el día del examen de enero. IMI es anual: el 1.º
+  // en enero y el 2.º en junio (sin fecha todavía: la pone el usuario)
+  var PARCIALES = { anat3: { 1: "2026-11-27", 2: "2027-01-29" }, medint: { 1: "2027-01-15", 2: null } };
+  var NOM_OBJ = { final: "examen final", p1: "1.er parcial", p2: "2.º parcial" };
+
   // ------------------------------------------------------------ orígenes
   var ORIGENES = [
     { k: "examen",   nom: "📝 Exámenes de otros años",          sub: "preguntas que cayeron en una convocatoria",        def: 3 },
@@ -81,7 +87,25 @@
     try { localStorage.setItem(K_PLAN, JSON.stringify(_d)); } catch (e) {}
   }
 
+  // ------------------------------------------------------------- objetivo
+  function conParciales() { var E = window.Entrenador; return !!(PARCIALES[CLAVE] || (E && E.hayParciales && E.hayParciales())); }
+  function fechaParcial(n) { return (_d.fParc || {})[n] || (PARCIALES[CLAVE] || {})[n] || null; }
+  // Lo que se prepara ahora: el examen final o uno de los parciales. Pasado el 1.º, se pasa solo al 2.º
+  function objetivo() {
+    if (!conParciales()) return "final";
+    var o = _d.objetivo || (PARCIALES[CLAVE] ? "p1" : "final");
+    if (o === "p1") { var d = diasHasta(fechaParcial(1)); if (d != null && d < 0) o = "p2"; }
+    return o;
+  }
+  function nParcial() { var o = objetivo(); return o === "p1" ? 1 : o === "p2" ? 2 : 0; }
+  function entraEnObjetivo(q) {
+    var n = nParcial(), E = window.Entrenador;
+    if (!n || !E || !E.parcialDe) return true;
+    return E.parcialDe(q, E.ambito()) === n;
+  }
+
   // ------------------------------------------------------------- fecha
+  function fechaObjetivo() { var n = nParcial(); return n ? fechaParcial(n) : fechaExamen(); }
   function fechaExamen() {
     if (_d.fecha) return _d.fecha;
     try {
@@ -100,14 +124,14 @@
 
   // ------------------------------------------------------------- pesos
   var _w = null, _wN = 0, _wV = "";
-  function firmaPesos() { return JSON.stringify(_d.pesos); }
+  function firmaPesos() { return JSON.stringify(_d.pesos) + objetivo() + JSON.stringify((window.Entrenador && window.Entrenador.ambito().mapa) || {}); }
   function pesos() {
     var v = firmaPesos();
     if (_w && _wN === ALL_QUESTIONS.length && _wV === v) return _w;
     _w = new Map(); _wN = ALL_QUESTIONS.length; _wV = v;
     var E = window.Entrenador;
     ALL_QUESTIONS.forEach(function (q) {
-      var t = tipoDe(q), w = _d.pesos[t];
+      var t = tipoDe(q), w = entraEnObjetivo(q) ? _d.pesos[t] : 0;
       if (t === "examen" && w > 0) {
         var veces = E ? (E.origen(q).veces || 1) : 1;
         w += Math.min(3, _d.pesos.repetida * (veces - 1));
@@ -191,8 +215,8 @@
   function faseDe(dias) { return dias > CONSOLIDA ? "cobertura" : dias > FINAL ? "consolidacion" : "final"; }
 
   function plan() {
-    var iso = fechaExamen(), dias = diasHasta(iso);
-    var med = medir(), r = ritmo(), out = { fecha: iso, dias: dias, med: med, ritmo: r, semanas: [] };
+    var iso = fechaObjetivo(), dias = diasHasta(iso);
+    var med = medir(), r = ritmo(), out = { fecha: iso, dias: dias, med: med, ritmo: r, semanas: [], objetivo: objetivo() };
     if (dias == null || dias < 0) return out;
     out.fase = faseDe(dias);
     var diasCob = Math.max(1, dias - CONSOLIDA);
@@ -259,14 +283,14 @@
   // Una foto por día: preparación, cobertura y preguntas de examen dominadas
   function foto() {
     var m = medir().tot, k = claveDia(hoy0());
-    var f = { p: Math.round(m.prep * 1000) / 10, c: Math.round(m.cob * 1000) / 10, ex: m.exDom, exN: m.exN, imp: m.impDom, impN: m.impN };
+    var f = { p: Math.round(m.prep * 1000) / 10, c: Math.round(m.cob * 1000) / 10, ex: m.exDom, exN: m.exN, imp: m.impDom, impN: m.impN, o: objetivo() };
     if (JSON.stringify(f) !== JSON.stringify(_d.diario[k])) { _d.diario[k] = f; guardar(); }   // solo si cambia: no subir a la nube en cada pintada
     return f;
   }
   function fotoHace(n) {
     var k = claveDia(new Date(hoy0().getTime() - n * DIA)), dias = Object.keys(_d.diario).sort(), r = null;
     for (var i = 0; i < dias.length; i++) if (dias[i] <= k) r = _d.diario[dias[i]];
-    return r;
+    return r && (r.o || "final") === objetivo() ? r : null;   // no comparar un parcial con el final
   }
 
   // Confusiones que ha visto la IA, con las preguntas que las delataron
@@ -296,7 +320,9 @@
   function contexto() {
     var p = planCache(), t = p.med.tot, h7 = fotoHace(7), h30 = fotoHace(30), out = [];
     if (p.fase) {
-      out.push("PLAN DE EXAMEN: examen el " + fmtIso(p.fecha) + " (faltan " + p.dias + " días) · " + FASES[p.fase].nom + ".");
+      out.push("PLAN DE EXAMEN: prepara el " + NOM_OBJ[p.objetivo] + ", el " + fmtIso(p.fecha) + " (faltan " + p.dias + " días) · " + FASES[p.fase].nom + "." +
+        (p.objetivo !== "final" ? " Solo cuenta la materia de ese parcial; lo demás no entra." : "") +
+        (p.objetivo === "p1" && fechaParcial(2) ? " Después, el 2.º parcial el " + fmtIso(fechaParcial(2)) + "." : ""));
       out.push("Preparación ponderada " + Math.round(t.prep * 100) + " %" + (h7 ? " (hace 7 días " + Math.round(h7.p) + " %)" : "") + (h30 ? " (hace 30 días " + Math.round(h30.p) + " %)" : "") +
         " · cobertura " + Math.round(t.cob * 100) + " % · preguntas de examen dominadas " + t.exDom + " de " + t.exN + ".");
       out.push("Ritmo: " + Math.round(p.ritmo.nuevasDia) + " nuevas/día en las dos últimas semanas (" + p.ritmo.diasActivos + " de 14 días con estudio); el plan pide " + p.objNuevas + "/día.");
@@ -339,7 +365,7 @@
     for (var i = 20; i >= 0; i--) { var k = claveDia(new Date(hoy0().getTime() - i * DIA)), x = daily[k] || {}; hist.push(k.slice(5) + ": " + (x.n || 0) + (x.n ? " (" + Math.round((x.ok || 0) * 100 / x.n) + " % bien)" : "")); }
     return (ia.apuntes ? ia.apuntes() : Promise.resolve(null)).then(function (ap) {
       var pistas = ia.pistasGenerales ? ia.pistasGenerales(ap, 7000) : "";
-      var usuario = "ASIGNATURA: " + document.title + "\nHOY: " + claveDia(hoy0()) + "\n\n" + contexto() +
+      var usuario = "ASIGNATURA: " + document.title + "\nHOY: " + claveDia(hoy0()) + "\nPREPARA: el " + NOM_OBJ[p.objetivo] + " (los temas que siguen son solo los que entran en él)\n\n" + contexto() +
         "\n\nRESPUESTAS POR DÍA (últimos 21 días):\n" + hist.join(" · ") +
         "\n\nTEMAS (ordenados por peso):\n" + filas.join("\n") +
         "\n\nREPARTO POR SEMANAS QUE PROPONE LA PLATAFORMA:\n" + sem.join("\n") +
@@ -350,14 +376,14 @@
       var txt = r.txt, a = txt.indexOf("{"), b = txt.lastIndexOf("}");
       if (a < 0 || b <= a) throw new Error("La IA no ha devuelto una estrategia legible.");
       var e = JSON.parse(txt.slice(a, b + 1));
-      e.t = Date.now(); e.fase = p.fase;
+      e.t = Date.now(); e.fase = p.fase; e.o = p.objetivo;
       _d.estrategia = e; guardar(); invalidar();
       return e;
     });
   }
   function estrategiaVieja() {
     var e = _d.estrategia, p = planCache();
-    return !e || Date.now() - e.t > 7 * DIA || (p.fase && e.fase !== p.fase);
+    return !e || Date.now() - e.t > 7 * DIA || (p.fase && e.fase !== p.fase) || (e.o || "final") !== objetivo();
   }
 
   // ------------------------------------------------------------- interfaz
@@ -387,7 +413,7 @@
   }
 
   function sparkline() {
-    var dias = Object.keys(_d.diario).sort().slice(-60);
+    var obj = objetivo(), dias = Object.keys(_d.diario).sort().filter(function (k) { return (_d.diario[k].o || "final") === obj; }).slice(-60);
     if (dias.length < 2) return "";
     var v = dias.map(function (k) { return _d.diario[k].p; }), max = Math.max.apply(null, v.concat([10])), W = 260, H = 40;
     var pts = v.map(function (y, i) { return (i * W / (v.length - 1)).toFixed(1) + "," + (H - 2 - y / max * (H - 4)).toFixed(1); }).join(" ");
@@ -402,7 +428,7 @@
     var s = p.semanas[0], t = p.med.tot;
     var temas = s && s.temas.length ? s.temas.slice(0, 3).map(function (x) { return "«" + esc(x.tema) + "»"; }).join(", ") : "";
     var e = _d.estrategia;
-    return '<div class="plan-brief">📅 <b>Plan de examen</b> · faltan <b>' + p.dias + " días</b> · " + FASES[p.fase].nom +
+    return '<div class="plan-brief">📅 <b>Plan de examen</b> · ' + (p.objetivo !== "final" ? "<b>" + NOM_OBJ[p.objetivo] + "</b> · " : "") + 'faltan <b>' + p.dias + " días</b> · " + FASES[p.fase].nom +
       " · preparación " + pct(t.prep) + "<br>Hoy toca: " + (p.objNuevas ? "<b>" + p.objNuevas + " nuevas</b>" + (temas ? " (" + temas + ")" : "") + " y " : "") +
       "<b>" + p.vencidas + " repasos</b>." + (p.fase === "cobertura" ? (p.vaBien ? " Vas al ritmo." : " Vas por detrás: llevas " + Math.round(p.ritmo.nuevasDia) + " nuevas al día.") : "") +
       (e && e.hoy && !estrategiaVieja() ? '<br><span class="sub">🧠 La IA: ' + esc(e.hoy) + "</span>" : "") + "</div>";
@@ -420,11 +446,29 @@
       rejilla.parentNode.insertBefore(caja, rejilla.nextSibling);
     }
     invalidar();
+    // El cuadro del entrenador prepara el mismo parcial que el plan
+    var E = window.Entrenador;
+    if (conParciales() && E && E.fijarParcial) {
+      var quiere = nParcial() ? [nParcial()] : [1, 2], tiene = E.ambito().parciales || [];
+      if (quiere.join() !== tiene.slice().sort().join()) E.fijarParcial(nParcial());
+    }
     var p = planCache(), t = p.med.tot, f = foto(), h7 = fotoHace(7);
-    var h = "<summary>📅 Mi plan de examen" + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") + "</summary>";
-    h += '<p class="sub" style="margin-top:6px">Examen: ' + (p.fecha ? "<b>" + fmtIso(p.fecha) + "</b>" : "sin fecha") +
-      ' · <label>cambiar <input type="date" id="plan-fecha" value="' + (p.fecha || "") + '"></label>' + (_d.fecha ? ' <a href="#" id="plan-fecha-x">usar la de la bitácora</a>' : "") + "</p>";
-    if (!p.fase) { caja.innerHTML = h + "<p>Pon la fecha del examen para que pueda planificar.</p>"; enganchar(caja); return; }
+    var obj = objetivo(), fin = fechaExamen();
+    var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") + "</summary>";
+    if (conParciales()) {
+      var n1 = BY_PARC(1), n2 = BY_PARC(2);
+      h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
+        [["p1", "1.er parcial", n1], ["p2", "2.º parcial", n2], ["final", "Examen final (todo)", 0]].map(function (o) {
+          var f = o[0] === "final" ? fin : fechaParcial(o[0] === "p1" ? 1 : 2);
+          return '<label style="margin-right:12px;white-space:nowrap"><input type="radio" name="plan-obj" value="' + o[0] + '"' + (obj === o[0] ? " checked" : "") + "> " + o[1] +
+            ' <span class="sub">(' + (f ? fmtIso(f) : "sin fecha") + (o[2] ? " · " + o[2].toLocaleString("es") + " preguntas" : "") + ")</span></label>";
+        }).join("") + "</div>";
+    }
+    h += '<p class="sub" style="margin-top:6px">' + (obj === "final" ? "Examen" : NOM_OBJ[obj].charAt(0).toUpperCase() + NOM_OBJ[obj].slice(1)) + ": " + (p.fecha ? "<b>" + fmtIso(p.fecha) + "</b>" : "sin fecha") +
+      ' · <label>cambiar <input type="date" id="plan-fecha" value="' + (p.fecha || "") + '"></label>' +
+      (obj === "final" && _d.fecha ? ' <a href="#" id="plan-fecha-x">usar la de la bitácora</a>' : "") +
+      (obj !== "final" ? ' · <a href="#" id="plan-mapa">ajustar qué temas entran en cada parcial</a>' : "") + "</p>";
+    if (!p.fase) { caja.innerHTML = h + "<p>Pon la fecha " + (obj === "final" ? "del examen" : "del " + NOM_OBJ[obj]) + " para que pueda planificar.</p>"; enganchar(caja); return; }
     h += '<div class="kpis">' +
       '<div class="kpi"><b>' + pct(t.prep) + flecha(f.p, h7 && h7.p) + '</b><span>preparación ponderada' + (h7 ? " (vs. hace 7 días)" : "") + "</span></div>" +
       '<div class="kpi"><b>' + t.exDom + " / " + t.exN + '</b><span>preguntas de examen dominadas</span></div>' +
@@ -493,9 +537,36 @@
     enganchar(caja);
   }
 
+  // Cuántas preguntas entran en cada parcial (con los pesos y el reparto de temas actuales)
+  function BY_PARC(n) {
+    var E = window.Entrenador;
+    if (!E || !E.parcialDe) return 0;
+    var a = E.ambito(), c = 0;
+    ALL_QUESTIONS.forEach(function (q) { if (E.parcialDe(q, a) === n) c++; });
+    return c;
+  }
+
   function enganchar(caja) {
     var fe = document.getElementById("plan-fecha");
-    if (fe) fe.onchange = function () { _d.fecha = fe.value || null; guardar(); pintar(); };
+    if (fe) fe.onchange = function () {
+      var n = nParcial();
+      if (n) { _d.fParc = _d.fParc || {}; _d.fParc[n] = fe.value || null; } else _d.fecha = fe.value || null;
+      guardar(); pintar();
+    };
+    caja.querySelectorAll('input[name="plan-obj"]').forEach(function (r) {
+      r.onchange = function () {
+        _d.objetivo = r.value; guardar(); invalidar();
+        if (window.Entrenador && window.Entrenador.fijarParcial) window.Entrenador.fijarParcial(nParcial());
+        pintar();
+      };
+    });
+    var pm = document.getElementById("plan-mapa");
+    if (pm) pm.onclick = function (ev) {
+      ev.preventDefault();
+      if (!window.Entrenador) return;
+      window.Entrenador.abrir();
+      var d = document.querySelector("#coach-ambito details"); if (d) d.open = true;
+    };
     var fx = document.getElementById("plan-fecha-x");
     if (fx) fx.onclick = function (ev) { ev.preventDefault(); _d.fecha = null; guardar(); pintar(); };
     var bia = document.getElementById("plan-ia");
@@ -568,6 +639,7 @@
     try { MPSync.usar({ clave: K_PLAN, modo: "reciente", alCambiar: function () { _d = leer(); invalidar(); try { pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
-  window.PlanExamen = { plan: planCache, peso: peso, factor: factor, tipo: tipoDe, temasSemana: temasSemana, cuota: cuota, contexto: contexto,
+  function fijarObjetivo(o) { if (NOM_OBJ[o] && o !== objetivo()) { _d.objetivo = o; guardar(); invalidar(); } }
+  window.PlanExamen = { objetivo: objetivo, fijarObjetivo: fijarObjetivo, entra: entraEnObjetivo, plan: planCache, peso: peso, factor: factor, tipo: tipoDe, temasSemana: temasSemana, cuota: cuota, contexto: contexto,
                         recordar: recordar, brief: brief, revisarConIA: revisarConIA, foto: foto, pintar: pintar, _datos: function () { return _d; } };
 })();

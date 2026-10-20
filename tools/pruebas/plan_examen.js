@@ -22,7 +22,7 @@ setTimeout(() => {
     ok(P && E, "PlanExamen y Entrenador cargados");
     const p = P.plan();
     ok(p.fase === "cobertura" && p.dias > 30, "fase " + p.fase + ", faltan " + p.dias + " días (" + p.fecha + ")");
-    ok(p.semanas.length >= 10, p.semanas.length + " semanas planificadas");
+    ok(p.semanas.length === Math.ceil(p.dias / 7), p.semanas.length + " semanas planificadas");
     ok(p.semanas[0].temas.length > 0, "semana 1: " + p.semanas[0].temas.slice(0, 3).map(t => t.tema + " (" + t.n + ")").join("; "));
     ok(w.document.getElementById("plan-ex"), "panel del plan en la portada");
     // Tipos de origen
@@ -30,6 +30,24 @@ setTimeout(() => {
     w.eval("ALL_QUESTIONS").forEach(q => { const t = P.tipo(q); tipos[t] = (tipos[t] || 0) + 1; });
     console.log("  orígenes:", JSON.stringify(tipos));
     ok(Object.keys(tipos).length >= 3, "varios orígenes distinguidos");
+    // Parciales
+    if (P.objetivo() !== "final") {
+      const AQ = w.eval("ALL_QUESTIONS"), a = E.ambito();
+      const n1 = AQ.filter(q => E.parcialDe(q, a) === 1).length, n2 = AQ.filter(q => E.parcialDe(q, a) === 2).length;
+      ok(P.objetivo() === "p1" && /1\.er parcial/.test(P.brief()), "prepara el 1.er parcial (" + n1 + " preguntas; 2.º: " + n2 + "), faltan " + p.dias + " días");
+      ok(JSON.stringify(E.ambito().parciales) === "[1]", "el cuadro del entrenador prepara el mismo parcial");
+      const fuera = AQ.filter(q => E.parcialDe(q, a) === 2);
+      ok(fuera.length && fuera.every(q => P.factor(q) === 0), "lo del 2.º parcial no entra en el plan del 1.º");
+      const t2 = new Set(fuera.map(q => E.temaDe(q) || q.topicBase)); console.log("  2.º parcial:", Array.from(t2).slice(0, 12).join(" | "));
+      const p1sem = P.plan().semanas.map(s => s.fin).pop();
+      ok(p1sem < P.plan().fecha, "las semanas acaban antes del parcial (" + p1sem + ")");
+      w.document.querySelector('input[name="plan-obj"][value="p2"]').click();
+      w.document.querySelector('input[name="plan-obj"][value="p2"]').dispatchEvent(new w.Event("change"));
+      ok(P.objetivo() === "p2" && JSON.stringify(E.ambito().parciales) === "[2]", "cambiar al 2.º parcial desde el panel");
+      ok(P.plan().med.tot.n <= n2 + 5, "el plan del 2.º solo mide su materia (" + P.plan().med.tot.n + ")");
+      w.document.querySelector('input[name="plan-obj"][value="p1"]').click();
+      w.document.querySelector('input[name="plan-obj"][value="p1"]').dispatchEvent(new w.Event("change"));
+    }
     // Sesión del entrenador simulada
     E.empezar();
     const S = w.eval("State");
@@ -42,6 +60,7 @@ setTimeout(() => {
       w.eval("App").answer(i % 4 === 0 ? (dc + 1) % q.displayOptions.length : dc);
       if (sess.currentIdx < sess.questions.length - 1) w.eval("App").nextQ();
     }
+    if (P.objetivo() === "p1") ok(S.session.questions.every(q => q.ia || E.parcialDe(q, E.ambito()) === 1), "todas las preguntas de la sesión son del 1.er parcial");
     const porPlan = Object.values(S.session.coachPor).filter(x => /Plan de examen/.test(x)).length;
     ok(porPlan > 0, porPlan + " preguntas elegidas por ser del plan de la semana");
     // Peso 0: fuera del entrenador
