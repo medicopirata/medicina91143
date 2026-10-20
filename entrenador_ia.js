@@ -146,6 +146,7 @@
     "CÓMO LEER SUS APUNTES. Están hechos con las transcripciones de clase y las diapositivas. Lo que el profesor considera importante está señalado: los apartados «Pistas de examen», «Lo esencial» y «Pistas para el examen»; las marcas 🔴 (lo dijo expresamente: se pregunta) y 🟠 (insistió en ello), ▶ o «Pista de examen», ⭐, ⚠ (trampas y confusiones típicas) y las citas literales del profesor entre comillas («esto cae», «lo tenéis que saber»). ⚪ es lo que dijo que no entra. «Nota de Claude» o 🤖 es un añadido que no viene del profesor. Lo marcado pesa más, pero NO descartes el resto: todo lo explicado en clase puede caer; solo cambia la prioridad.",
     "CÓMO LEER EL ORIGEN DE UNA PREGUNTA. «Salió en examen» o «cayó en» = pregunta real de una convocatoria anterior: fallarla es lo más grave, porque los profesores repiten preguntas y, sobre todo, repiten ideas. «La puso el profesor en clase» y «Cuestionario del campus» = casi tan valiosas. «Recopilaciones de años anteriores» = probablemente de examen, sin confirmar. «Entrenamiento» = escritas para practicar.",
     "TU TRABAJO. 1) Diagnóstico: di qué idea concreta se le escapa, mirando qué opción eligió y con cuánta seguridad (fallar seguro = concepto equivocado; dudar entre dos = distinción que no domina; acertar adivinando = no la sabe; «leí mal» = fallo de técnica de examen, no de conocimiento). Agrupa los fallos que nacen de la misma confusión. Ordena por prioridad real para el examen: primero lo que ya cayó en examen o el profesor marcó, después lo demás. Cita lo que dicen sus apuntes sobre ese punto. 2) Preguntas nuevas: escribe preguntas tipo test que ataquen esa confusión desde otro ángulo (no la misma pregunta reformulada), con el estilo de las preguntas reales de examen que recibes, y dando preferencia a lo que el profesor marcó como importante dentro de ese tema. 3) Consejo: qué apartado concreto de sus apuntes releer y qué hacer antes de la próxima sesión.",
+    "MEMORIA. Al final recibes lo que ya sabes de él: su plan de examen (días que faltan, fase, preparación y ritmo), los pesos que da a cada origen de pregunta y las CONFUSIONES QUE YA LE DIAGNOSTICASTE en sesiones anteriores, con si desde entonces las ha acertado o vuelto a fallar. Úsalo: si un fallo de hoy es una confusión que ya viste, dilo («vuelve a pasar lo del día…»), súbele la prioridad y cámbiale el enfoque, porque lo anterior no funcionó; no repitas como nuevo un diagnóstico que ya está resuelto; y orienta el consejo a la fase en que está (en cobertura, avanzar; cerca del examen, cerrar lo que más puntúa).",
     "REGLAS. Usa SOLO hechos que estén en los apuntes o en el material que recibes; si no basta para una confusión, no escribas pregunta sobre ella. Si los apuntes y otra fuente se contradicen, mandan los apuntes de clase. No escribas preguntas que necesiten ver una imagen. Cuatro opciones, una sola correcta, distractores verosímiles (a ser posible aquello con lo que él lo confunde), la correcta en posiciones variadas, sin «todas las anteriores». La explicación dice por qué es esa y por qué no la que él habría elegido. Sé directo y concreto; nada de ánimos ni generalidades. Todo en español.",
     "FORMATO. Responde SOLO con un objeto JSON, sin texto alrededor: " +
       '{"diagnostico":[{"idea":"la confusión, en una frase","prioridad":"alta|media|baja","motivo_prioridad":"p. ej. cayó en el examen de febrero / el profesor dijo «…» / no está marcado","por_que":"qué lo delata en sus respuestas","apuntes":"lo que dicen sus apuntes, con cita breve y el apartado","regla":"cómo distinguirlo, en una frase que pueda memorizar","esquema":{"columnas":["",""],"filas":[["",""]]}}],' +
@@ -213,9 +214,11 @@
              casos.slice(0, 25).join("\n\n") +
              (clase.length ? "\n\nAPUNTES DE CLASE (los apartados más cercanos a cada fallo):\n\n" + clase.join("\n\n---\n\n") : "") +
              "\n\nOTRAS PREGUNTAS DE ESOS TEMAS, CON SU RESPUESTA Y EXPLICACIÓN:\n\n" + material.join("\n\n") +
-             (muestras.length ? "\n\nASÍ PREGUNTAN EN LOS EXÁMENES DE ESTA ASIGNATURA (muestras reales, solo como estilo):\n\n" + muestras.join("\n\n") : "") + estado,
+             (muestras.length ? "\n\nASÍ PREGUNTAN EN LOS EXÁMENES DE ESTA ASIGNATURA (muestras reales, solo como estilo):\n\n" + muestras.join("\n\n") : "") + estado +
+             (window.PlanExamen ? "\n\nLO QUE YA SABES DE ÉL:\n" + window.PlanExamen.contexto() : ""),
       conApuntes: clase.length,
-      temas: Array.from(temas.keys())
+      temas: Array.from(temas.keys()),
+      ids: Array.from(temas.values()).reduce(function (a, set) { return a.concat(Array.from(set)); }, [])
     };
   }
 
@@ -245,6 +248,7 @@
         n++;
       });
       d.inf.push({ t: Date.now(), diag: inf.diagnostico || [], consejo: inf.consejo || "", n: n, uso: r.uso });
+      if (window.PlanExamen) window.PlanExamen.recordar(inf.diagnostico, exp.ids);
       guardar(d);
       inyectar();
       caja.innerHTML = pintarInforme(d.inf[d.inf.length - 1]) +
@@ -497,5 +501,20 @@
   }
   refrescar();
 
-  window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); } };
+  // Pistas de examen generales y de cada tema (para la estrategia del plan de examen)
+  function pistasGenerales(d, tope) {
+    if (!d || !Array.isArray(d.trozos)) return "";
+    var out = [], n = 0;
+    d.trozos.forEach(function (t) {
+      var partes = t[0].split(" › "), ultimo = partes[partes.length - 1];
+      if (!(GENERAL.test(ultimo) || /pistas|lo esencial/i.test(ultimo))) return;
+      var x = "[" + t[0] + "]\n" + corta(t[1], 900);
+      if (n + x.length > tope) return;
+      out.push(x); n += x.length;
+    });
+    return out.join("\n\n");
+  }
+
+  window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); },
+                          llamar: llamar, apuntes: apuntes, pistasGenerales: pistasGenerales };
 })();

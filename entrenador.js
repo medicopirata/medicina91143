@@ -322,7 +322,7 @@
     var clase = TOPIC_NAMES.filter(function (t) { return t.indexOf("Apuntes:") === 0; });
     var nDado = ALL_QUESTIONS.filter(function (q) { return enAmbito(q, { alcance: "dado", parciales: [1, 2], mapa: a.mapa }); }).length;
     var con = hayParciales();
-    var h = '<b>🧠 ¿Qué entra en esta sesión?</b>' +
+    var h = (window.PlanExamen ? window.PlanExamen.brief() : "") + '<b>🧠 ¿Qué entra en esta sesión?</b>' +
       '<p class="sub">Temario dado hasta hoy: <b>' + clase.length + ' temas con apuntes de clase</b>' +
       (clase.length ? ' (el último, «' + esc(limpio(clase[0].replace(/^Apuntes:\s*/, ""))) + '»)' : '') + '.</p>' +
       (!dados.size ? "" : '<label><input type="radio" name="amb-alc" value="dado"' + (a.alcance === "dado" ? " checked" : "") + '> Solo hasta donde va el temario <span class="sub">(' + nDado.toLocaleString("es") + ' preguntas)</span></label>') +
@@ -425,6 +425,8 @@
     var haceSemana = Date.now() / 1000 - 7 * 86400;
     var topeTema = Math.max(4, Math.round((largo || TANDA) * 0.2));
     var amb = ctx.ambito || (ctx.ambito = (function () { var a = leerAmbito(); a.conParciales = hayParciales(); if (!temasDados().size) a.alcance = "todo"; a.libre = a.alcance === "todo" && !(a.conParciales && a.parciales.length === 1); return a; })());
+    var plan = window.PlanExamen || null, semana = plan ? (ctx.semana || (ctx.semana = plan.temasSemana())) : null;
+    var cuota = (plan && plan.cuota()) || CUOTA;
     var deudaFam = new Map();
     ctx.deuda.forEach(function (d, t) { familia(t).forEach(function (u) { if (!deudaFam.has(u)) deudaFam.set(u, d); }); });
 
@@ -463,9 +465,15 @@
         if (tm.estado === "sabido") por = "Tema sabido: comprobación de mantenimiento";
       }
 
-      // Lo que ya cayó en un examen o puso el profesor va antes que el resto, a igualdad de lo demás
+      // Lo que ya cayó en un examen o puso el profesor va antes que el resto, a igualdad de lo demás.
+      // Con el plan de examen, cuánto vale cada origen lo decide el usuario (0 = fuera)
       var og = origenBanco(t).tipo;
-      if (og === "examen") p *= 1.3; else if (og === "profesor" || og === "oficial") p *= 1.2;
+      if (plan) {
+        var fx = plan.factor(q);
+        if (fx <= 0) continue;
+        p *= fx;
+        if (cat === "nuevo" && semana.has(temaReal(q))) { p += 1.2; por = "Plan de examen: tema de esta semana · " + por; }
+      } else if (og === "examen") p *= 1.3; else if (og === "profesor" || og === "oficial") p *= 1.2;
 
       var tt = temaReal(q);
       var b = ctx.bloque.get(tt), d = deudaFam.get(tt), dirigido = false;
@@ -493,8 +501,8 @@
         // Reparto: si una clase de pregunta va pasada de su parte, cede el sitio
         if (ctx.total >= 4) {
           var parte = ctx.cat[cat] / ctx.total;
-          if (parte > CUOTA[cat] + 0.08) p *= 0.35;
-          else if (parte < CUOTA[cat] - 0.12) p *= 1.7;
+          if (parte > cuota[cat] + 0.08) p *= 0.35;
+          else if (parte < cuota[cat] - 0.12) p *= 1.7;
         }
       }
 
@@ -660,8 +668,9 @@
     var por = (sess.coachPor || {})[q.id] || "";
     var dec = (sess.coachDec || {})[q.id] || "";
     var esq = (sess.esquemas || {})[temaReal(q)];
-    caja.hidden = !por && !dec && !esq;
-    caja.innerHTML = (por ? "🧠 <b>Por qué esta:</b> " + esc(por) : "") + (dec ? '<span class="dec">→ ' + esc(dec) + "</span>" : "") +
+    var plan = sess.currentIdx === 0 && window.PlanExamen ? window.PlanExamen.brief() : "";
+    caja.hidden = !por && !dec && !esq && !plan;
+    caja.innerHTML = plan + (por ? "🧠 <b>Por qué esta:</b> " + esc(por) : "") + (dec ? '<span class="dec">→ ' + esc(dec) + "</span>" : "") +
       (esq ? '<details class="esq"' + (esq.nuevo || sess.answers[q.id] ? " open" : "") + "><summary>📐 Esquema para aclarar este tema</summary>" + esq.html + "</details>" : "");
     if (esq && esq.nuevo && sess.answers[q.id]) esq.nuevo = false;
   }
