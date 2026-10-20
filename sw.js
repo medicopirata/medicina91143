@@ -15,7 +15,9 @@
 // cachear la plataforma visitada y sus imágenes. Son archivos grandes
 // (Histología ~7 MB), así que conviene hacerlo por plataforma y no de golpe.
 
-const FRESCOS = /\.(?:js|json|webmanifest)$/i;
+// También las páginas: las plataformas cargan sus scripts con ?v=<hash>, y eso
+// solo sirve si la página que trae esa marca no es la de hace diez minutos.
+const FRESCOS = /(?:\.(?:js|json|webmanifest|html)|\/)$/i;
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));

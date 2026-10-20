@@ -19,6 +19,7 @@ no se queden cortas cuando se añaden apuntes.
 
 Uso:  python3 tools/indice_temas.py
 """
+import sys
 import json, re, os, glob
 
 # Solo las de segundo: son las que mira el escritorio.
@@ -89,17 +90,23 @@ def reescribir(ruta, campo, busca, totales):
         print("  %s: los contadores ya estaban bien" % os.path.basename(ruta))
 
 
-def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js")):
-    """Pone ?v=<hash> a los scripts sueltos que carga index.html.
+# Scripts compartidos que cargan las plataformas: también llevan ?v=<hash>. Sin
+# eso, el 21-10-2026 el plan de examen nuevo no se veía porque el navegador
+# seguía usando el plan_examen.js de la víspera.
+SCRIPTS_PLATAFORMA = ("acceso.js", "sync.js", "entrenador.js", "entrenador_ia.js", "plan_examen.js")
+
+
+def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js"), pagina="index.html"):
+    """Pone ?v=<hash> a los scripts sueltos que carga una página (index.html por defecto).
 
     GitHub Pages los sirve con caché de varios minutos, así que al añadir algo
     al catálogo no aparecía hasta al rato. Con la marca de versión, cambiar el
     archivo cambia la URL y el navegador lo vuelve a pedir.
     """
     import hashlib
-    ruta = os.path.join(base, "index.html")
+    ruta = os.path.join(base, pagina)
     if not os.path.exists(ruta):
-        print("  falta index.html, no sello versiones"); return
+        print("  falta %s, no sello versiones" % pagina); return
     s = open(ruta, encoding="utf-8").read()
     cambios = []
     for archivo in archivos:
@@ -115,18 +122,28 @@ def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js"
         s = patron.sub(lambda m: m.group(1) + "?v=" + v + m.group(3), s)
     if cambios:
         open(ruta, "w", encoding="utf-8").write(s)
-        print("  index.html: %s" % ", ".join(cambios))
-    else:
+        print("  %s: %s" % (pagina, ", ".join(cambios)))
+    elif pagina == "index.html":
         print("  index.html: las versiones ya estaban al día")
+
+
+def sellar_plataformas(base):
+    import glob
+    for ruta in sorted(glob.glob(os.path.join(base, "plataforma_*.html"))):
+        sellar_versiones(base, SCRIPTS_PLATAFORMA, os.path.basename(ruta))
 
 
 def actualizar_totales(base, totales):
     reescribir(os.path.join(base, "escritorio.js"), "total", "clave", totales)
     reescribir(os.path.join(base, "catalogo.js"), "n", "archivo", totales)
     sellar_versiones(base)
+    sellar_plataformas(base)
 
 
 def main():
+    if "--versiones" in sys.argv:   # solo sellar, sin rehacer el índice (tras tocar entrenador.js, plan_examen.js…)
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sellar_versiones(base); sellar_plataformas(base); return
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     salida, filas, totales = {}, [], {}
     for clave, archivo in PLATAFORMAS.items():

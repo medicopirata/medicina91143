@@ -5,9 +5,9 @@ const { JSDOM } = require("jsdom");
 const raiz = path.join(__dirname, "..", "..");
 const pag = process.argv[2] || "plataforma_genetica.html";
 let html = fs.readFileSync(path.join(raiz, pag), "utf8");
-html = html.replace(/<script[^>]*src="(acceso|sync)\.js"[^>]*><\/script>/g, "")
+html = html.replace(/<script[^>]*src="(acceso|sync)\.js[^"]*"[^>]*><\/script>/g, "")
            .replace(/<script[^>]*src="https:[^"]*"[^>]*><\/script>/g, "")
-           .replace(/<script src="(entrenador|entrenador_ia|plan_examen)\.js"><\/script>/g,
+           .replace(/<script src="(entrenador|entrenador_ia|plan_examen)\.js[^"]*"><\/script>/g,
                     (m, n) => "<script>" + fs.readFileSync(path.join(raiz, n + ".js"), "utf8").replace(/<\/script>/g, "<\\/script>") + "</script>");
 const errores = [], pendientes = [];
 const dom = new JSDOM(html, { runScripts: "dangerously", url: "https://medicopirata.github.io/medicina91143/" + pag, pretendToBeVisual: true,
