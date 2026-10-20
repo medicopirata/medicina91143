@@ -460,7 +460,7 @@
     var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") +
       ' <span class="sub">(pulsa para ' + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")</span></summary>";
     h += '<div style="margin:10px 0 4px"><button id="plan-ir" style="font-size:1rem;padding:10px 20px;margin:0">▶️ Hacer lo de hoy</button>' +
-      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · abre el entrenador con este plan</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>";
+      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>";
     if (conParciales()) {
       var n1 = BY_PARC(1), n2 = BY_PARC(2);
       h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
@@ -567,7 +567,7 @@
       };
     });
     var ir = document.getElementById("plan-ir");
-    if (ir) ir.onclick = function () { if (window.Entrenador) window.Entrenador.abrir(); };
+    if (ir) ir.onclick = function () { var E = window.Entrenador; if (E) (E.empezarPlan || E.abrir)(); };
     var pm = document.getElementById("plan-mapa");
     if (pm) pm.onclick = function (ev) {
       ev.preventDefault();

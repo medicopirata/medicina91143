@@ -891,11 +891,22 @@
   if (window.MPSync && typeof MPSync.usar === "function") {
     try { MPSync.usar({ clave: K_AMBITO, modo: "reciente" }); } catch (e) {}
   }
+  // «Hacer lo de hoy» del plan de examen: sin preguntar, todo lo que entra en lo que se prepara
+  // (el parcial elegido entero, o todo el temario si es el examen final)
+  function empezarPlan() {
+    var a = leerAmbito(), o = window.PlanExamen ? window.PlanExamen.objetivo() : "final";
+    a.alcance = "todo";
+    a.parciales = o === "p1" ? [1] : o === "p2" ? [2] : [1, 2];
+    guardarAmbito(a);
+    var caja = document.getElementById("coach-ambito");
+    if (caja) caja.hidden = true;
+    empezar();
+  }
   // El plan de examen fija el parcial que se prepara
   function fijarParcial(n) {
     var a = leerAmbito();
     a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
     guardarAmbito(a);
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();
