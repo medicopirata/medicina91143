@@ -19,6 +19,34 @@ import json, os, re, sys, datetime
 MAX = 1800
 FUERA = re.compile(r'^[\d.]*\s*(preguntas|solucionario|índice|indice|índice de temas|fe de erratas)\b', re.I)
 
+# Asignaturas cuyo doc mete las preguntas tipo test y su solucionario dentro de
+# un apartado que también trae apuntes («6.9 Correcciones, glosario y
+# preguntas»), así que FUERA no lo deja fuera entero. En ellas se quitan solo
+# los bloques de pregunta (línea «N. enunciado» seguida de opciones «- a) …»)
+# y las tablas de soluciones («| N.º | Respuesta |…»), y se conserva lo demás.
+# Solo para las claves de la lista: las otras asignaturas se vuelcan igual que
+# antes.
+QUITAR_PREGUNTAS = {"genetica"}
+_OPCION = re.compile(r'^\s*-\s*[a-e]\)\s')
+_ENUNCIADO = re.compile(r'^\d+\.\s+\S')
+_TABLA_SOL = re.compile(r'^\|\s*N\.?\s*º\s*\|\s*(resp|respuesta|clave)', re.I)
+
+def quitar_preguntas(texto):
+    lineas, out, i = texto.splitlines(), [], 0
+    while i < len(lineas):
+        l = lineas[i]
+        if _ENUNCIADO.match(l):
+            j = i + 1
+            while j < len(lineas) and not lineas[j].strip(): j += 1
+            if j < len(lineas) and _OPCION.match(lineas[j]):
+                while j < len(lineas) and (_OPCION.match(lineas[j]) or not lineas[j].strip()): j += 1
+                i = j; continue
+        if _TABLA_SOL.match(l):
+            while i < len(lineas) and lineas[i].lstrip().startswith('|'): i += 1
+            continue
+        out.append(l); i += 1
+    return "\n".join(out)
+
 def trocear(texto, origen):
     ruta, fuera_nivel, buf, out = [], None, [], []
     def soltar():
@@ -62,6 +90,7 @@ def main():
         origen = re.sub(r'[-_]+', ' ', os.path.splitext(os.path.basename(f))[0])
         t = open(f, encoding='utf-8').read()
         if not re.search(r'^#{1,4}\s', t, re.M): t = "# " + origen + "\n\n" + t   # texto plano: una pestaña = un tema
+        if clave in QUITAR_PREGUNTAS: t = quitar_preguntas(t)
         trozos += trocear(t, origen)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sal = os.path.join(raiz, 'apuntes_txt', clave + '.json')
