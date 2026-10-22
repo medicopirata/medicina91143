@@ -26,7 +26,7 @@ FUERA = re.compile(r'^[\d.]*\s*(preguntas|solucionario|índice|indice|índice de
 # y las tablas de soluciones («| N.º | Respuesta |…»), y se conserva lo demás.
 # Solo para las claves de la lista: las otras asignaturas se vuelcan igual que
 # antes.
-QUITAR_PREGUNTAS = {"genetica"}
+QUITAR_PREGUNTAS = {"genetica", "histo21"}
 _OPCION = re.compile(r'^\s*-\s*[a-e]\)\s')
 _ENUNCIADO = re.compile(r'^\d+\.\s+\S')
 _TABLA_SOL = re.compile(r'^\|\s*N\.?\s*º\s*\|\s*(resp|respuesta|clave)', re.I)
@@ -90,6 +90,9 @@ def main():
         origen = re.sub(r'[-_]+', ' ', os.path.splitext(os.path.basename(f))[0])
         t = open(f, encoding='utf-8').read()
         if not re.search(r'^#{1,4}\s', t, re.M): t = "# " + origen + "\n\n" + t   # texto plano: una pestaña = un tema
+        if clave == "histo21":   # sus preguntas llevan las opciones en la misma línea: filtro propio
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from histo21_quitar_preguntas import filtrar; t = filtrar(t)
         if clave in QUITAR_PREGUNTAS: t = quitar_preguntas(t)
         trozos += trocear(t, origen)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

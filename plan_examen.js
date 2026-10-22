@@ -193,7 +193,7 @@
     }
     var daily = State.data.daily || {}, resp = 0, dias = 0, d = hoy0();
     for (var i = 0; i < 14; i++) {
-      var k = claveDia(new Date(d.getTime() - i * DIA)), n = (daily[k] || {}).n || 0;
+      var k = claveDia(new Date(d.getFullYear(), d.getMonth(), d.getDate() - i)), n = (daily[k] || {}).n || 0;
       resp += n; if (n) dias++;
     }
     return { nuevasDia: nuevas / 14, respDia: resp / 14, diasActivos: dias };
@@ -236,8 +236,10 @@
     var inicio = hoy0(), examen = new Date(iso + "T00:00:00");
     var flojos = Array.from(med.temas.values()).filter(function (m) { return m.n >= 4 && m.n - m.sinVer >= 4 && m.dominio < 0.55; })
       .sort(function (a, b) { return (b.w - b.sab) - (a.w - a.sab); });
-    for (var ini = new Date(inicio); ini < examen; ini = new Date(ini.getTime() + 7 * DIA)) {
-      var fin = new Date(Math.min(ini.getTime() + 6 * DIA, examen.getTime() - DIA));
+    // Se avanza por fechas de calendario (setDate): sumar 7×24 h se descuadra con el cambio de hora
+    for (var ini = new Date(inicio); ini < examen; ini = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() + 7)) {
+      var fin6 = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() + 6), finEx = new Date(examen.getFullYear(), examen.getMonth(), examen.getDate() - 1);
+      var fin = fin6 < finEx ? fin6 : finEx;
       var dIni = Math.round((examen - ini) / DIA), fase = faseDe(dIni);
       var s = { ini: claveDia(ini), fin: claveDia(fin), txtFechas: fmt(ini) + (fin > ini ? "–" + fmt(fin) : ""), fase: fase, temas: [], nuevas: 0 };
       var diasSem = Math.round((fin - ini) / DIA) + 1;
@@ -288,7 +290,7 @@
     return f;
   }
   function fotoHace(n) {
-    var k = claveDia(new Date(hoy0().getTime() - n * DIA)), dias = Object.keys(_d.diario).sort(), r = null;
+    var k = claveDia(new Date(hoy0().getFullYear(), hoy0().getMonth(), hoy0().getDate() - n)), dias = Object.keys(_d.diario).sort(), r = null;
     for (var i = 0; i < dias.length; i++) if (dias[i] <= k) r = _d.diario[dias[i]];
     return r && (r.o || "final") === objetivo() ? r : null;   // no comparar un parcial con el final
   }
@@ -362,7 +364,7 @@
       return "· " + s.ini + " a " + s.fin + " (" + FASES[s.fase].nom + "): " + (s.temas.length ? s.temas.map(function (x) { return x.tema + " (" + x.n + ")"; }).join("; ") : (s.foco ? "repaso de flojos: " + s.foco.join("; ") : "repaso"));
     });
     var daily = State.data.daily || {}, hist = [];
-    for (var i = 20; i >= 0; i--) { var k = claveDia(new Date(hoy0().getTime() - i * DIA)), x = daily[k] || {}; hist.push(k.slice(5) + ": " + (x.n || 0) + (x.n ? " (" + Math.round((x.ok || 0) * 100 / x.n) + " % bien)" : "")); }
+    for (var i = 20; i >= 0; i--) { var k = claveDia(new Date(hoy0().getFullYear(), hoy0().getMonth(), hoy0().getDate() - i)), x = daily[k] || {}; hist.push(k.slice(5) + ": " + (x.n || 0) + (x.n ? " (" + Math.round((x.ok || 0) * 100 / x.n) + " % bien)" : "")); }
     return (ia.apuntes ? ia.apuntes() : Promise.resolve(null)).then(function (ap) {
       var pistas = ia.pistasGenerales ? ia.pistasGenerales(ap, 7000) : "";
       var usuario = "ASIGNATURA: " + document.title + "\nHOY: " + claveDia(hoy0()) + "\nPREPARA: el " + NOM_OBJ[p.objetivo] + " (los temas que siguen son solo los que entran en él)\n\n" + contexto() +
