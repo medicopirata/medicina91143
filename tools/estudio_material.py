@@ -19,7 +19,10 @@ import json, math, os, re, sys, unicodedata
 from collections import Counter
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLATAFORMA = {"fisio1": "plataforma_fisio1.html"}
+PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html"}
+# Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
+RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"
+MAX_CAND = 300
 
 VACIAS = set("""sobre entre desde hasta cuando donde porque aunque mientras tambien siempre puede pueden
 tiene tienen hacia segun respecto cual cuales esta estas este estos esa esas ese esos aquel otra otras otro
@@ -71,8 +74,10 @@ def main():
     clave, n = sys.argv[1], int(sys.argv[2])
     sal = sys.argv[3] if len(sys.argv) > 3 else None
     ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
-    pre = "Tema %d · " % n
-    tema = [(t, x) for t, x in ap if t.startswith(pre)]
+    def num(t):
+        m = re.search(RE_TROZO, t)
+        return int(m.group(1)) if m else None
+    tema = [(t, x) for t, x in ap if num(t) == n]
     pistas = [(t, x) for t, x in ap if t.startswith("Pistas") and re.search(r"\b[Tt]ema %d\b|\bT%d\b" % (n, n), t + " " + x)]
     qs = preguntas(clave)
     re_tema = re.compile(r"\bTema %d\b" % n)
@@ -82,8 +87,8 @@ def main():
     # Parecido por vocabulario: tf-idf del tema contra cada pregunta sin tema
     docs = {}
     for t, x in ap:
-        m = re.match(r"Tema (\d+) · ", t)
-        if m: docs.setdefault(int(m.group(1)), Counter()).update(palabras(x))
+        k = num(t)
+        if k is not None: docs.setdefault(k, Counter()).update(palabras(x))
     df = Counter()
     for c in docs.values(): df.update(set(c))
     N = len(docs)
@@ -102,6 +107,7 @@ def main():
         mejor = max(sc, key=sc.get)
         if mejor == n and sc[n] > 0.04: cand.append((sc[n], q))
     cand.sort(key=lambda x: -x[0])
+    if len(cand) > MAX_CAND: print("aviso: %d candidatas; salen las %d más parecidas" % (len(cand), MAX_CAND)); cand = cand[:MAX_CAND]
 
     out = ["# Material para el modo estudio · %s · Tema %d\n" % (clave, n)]
     out.append("## 1. Apuntes del tema (%d trozos)\n" % len(tema))
