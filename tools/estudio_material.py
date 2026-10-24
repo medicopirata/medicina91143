@@ -22,6 +22,8 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html"}
 # Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
 RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"
+# Lecciones que se preparan por el libro (IMI): «… › Lección 6. … (Sisinio cap. 5; …)». Se piden como L6
+RE_LECCION = r"› Lección (\d+)\. [^›]*Sisinio cap\. (\d+)"
 MAX_CAND = 300
 
 VACIAS = set("""sobre entre desde hasta cuando donde porque aunque mientras tambien siempre puede pueden
@@ -71,18 +73,25 @@ def fmt_q(q, extra=""):
 
 def main():
     if len(sys.argv) < 3: raise SystemExit(__doc__)
-    clave, n = sys.argv[1], int(sys.argv[2])
+    clave, n = sys.argv[1], sys.argv[2].upper()
+    n = int(n) if n.isdigit() else n
     sal = sys.argv[3] if len(sys.argv) > 3 else None
     ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
+    caps = {}
     def num(t):
+        m = re.search(RE_LECCION, t)
+        if m and not re.search(RE_TROZO, t):
+            caps["L" + m.group(1)] = int(m.group(2))
+            return "L" + m.group(1)
         m = re.search(RE_TROZO, t)
         return int(m.group(1)) if m else None
     tema = [(t, x) for t, x in ap if num(t) == n]
-    pistas = [(t, x) for t, x in ap if t.startswith("Pistas") and re.search(r"\b[Tt]ema %d\b|\bT%d\b" % (n, n), t + " " + x)]
+    pistas = [(t, x) for t, x in ap if t.startswith("Pistas") and re.search(r"\b[Tt]ema %s\b|\bT%s\b" % (n, n), t + " " + x)]
     qs = preguntas(clave)
-    re_tema = re.compile(r"\bTema %d\b" % n)
+    # Banco propio: «… Tema N …», o para una lección, la autoevaluación de su capítulo del Sisinio
+    re_tema = re.compile(r"\bTema %d\b" % n) if isinstance(n, int) else re.compile(r"Sisinio cap\. %d\b" % caps.get(n, -1))
     propias = [q for q in qs if re_tema.search(q["topicBase"])]
-    otras = [q for q in qs if not re.search(r"\bTema \d+\b", q["topicBase"])]
+    otras = [q for q in qs if not re.search(r"\bTema \d+\b", q["topicBase"]) and not re_tema.search(q["topicBase"])]
 
     # Parecido por vocabulario: tf-idf del tema contra cada pregunta sin tema
     docs = {}
@@ -109,7 +118,7 @@ def main():
     cand.sort(key=lambda x: -x[0])
     if len(cand) > MAX_CAND: print("aviso: %d candidatas; salen las %d más parecidas" % (len(cand), MAX_CAND)); cand = cand[:MAX_CAND]
 
-    out = ["# Material para el modo estudio · %s · Tema %d\n" % (clave, n)]
+    out = ["# Material para el modo estudio · %s · %s\n" % (clave, ("Tema %d" % n) if isinstance(n, int) else "Lección %s (Sisinio cap. %s)" % (n[1:], caps.get(n)))]
     out.append("## 1. Apuntes del tema (%d trozos)\n" % len(tema))
     for t, x in tema: out.append("### %s\n\n%s\n" % (t, x))
     out.append("## 2. Pistas de examen que nombran el tema (%d)\n" % len(pistas))

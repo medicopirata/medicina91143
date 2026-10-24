@@ -14,7 +14,7 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLATAFORMA = {"fisio1": ("plataforma_fisio1.html", "Fisiología I"), "medint": ("plataforma_medint.html", "Introducción a la Medicina Interna (IMI)")}
 TIPOS = {"texto": ["md"], "clave": ["md"], "cuadro": ["cab", "filas"], "flujo": [],
          "bucle": ["estimulo", "respuesta"], "parejas": ["pares"], "cifras": ["items"], "formula": ["expr"], "porque": ["pregunta", "respuesta"],
-         "asi": ["md"], "trampa": ["md"], "img": ["src"]}
+         "asi": ["md"], "trampa": ["md"], "libro": ["md"], "img": ["src"]}
 
 
 def ids_plataforma(clave):
@@ -95,6 +95,8 @@ def main():
         indice.append({"tema": t.get("tema"), "titulo": t.get("titulo"), "bloque": t.get("bloque"), "archivo": nom,
                        "peso": t.get("peso", 0), "minutos": t.get("minutos", 0), "secciones": len(t.get("secciones", [])),
                        "bateria": len(t.get("bateria", []))})
+        for k in ("etiqueta", "corta"):
+            if t.get(k): indice[-1][k] = t[k]
     indice.sort(key=lambda x: x["tema"])
     json.dump({"asignatura": PLATAFORMA[clave][1], "temas": indice}, open(os.path.join(carpeta, "indice.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     for e in errores_suaves: print("· aviso:", e)

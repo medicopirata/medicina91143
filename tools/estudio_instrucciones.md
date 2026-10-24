@@ -101,6 +101,13 @@ algo del Guyton contradice los apuntes, manda lo de clase.
   (`{"tipo":"img","src":"ruta ya existente en el repo","pie":"…"}`). En `md`
   vale `**negrita**`, `*cursiva*`, listas con `- `, saltos de línea y
   sub/superíndices Unicode (Na⁺, O₂). Sin HTML.
+- `libro`: `{"tipo":"libro","md":"…"}` sale como recuadro «📗 Qué dice el Sisinio». Para IMI: cuando
+  un test, los apuntes y el libro no coinciden, la respuesta que se enseña es la del test (no se
+  toca ninguna clave), y aquí se apunta qué dice el Sisinio de Castro (8.ª ed., con capítulo y,
+  si se puede, la frase), justo después del «⚠️ Trampa» o del «🎯 Así lo preguntan» de esa duda.
+- `etiqueta` y `corta` (opcionales, en la raíz del tema): nombre en pantalla cuando no es un
+  «Tema N», p. ej. `"etiqueta": "Lección 6", "corta": "L6"` con `"tema": 106` (el número solo
+  ordena y sirve de clave).
 - `parejas`: asociaciones (estructura → propiedad); la columna derecha sale
   tapada y se destapa al tocarla. Úsalas para el formato de examen «¿qué
   asociación es correcta?».

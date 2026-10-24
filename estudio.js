@@ -44,6 +44,9 @@
     return out.join("");
   }
   function inl(s) { return s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, "$1<i>$2</i>"); }
+  // Nombre de un tema en pantalla: «Tema 7» o, si el índice trae etiqueta, «Lección 6» (corta: «L6»)
+  function nombre(e) { return e.etiqueta || "Tema " + e.tema; }
+  function corto(e) { return e.corta || "T" + e.tema; }
   function fuego(p) { p = p || 0; return p ? "🔥".repeat(p) : "·"; }
   function norma(x) { return String(x).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9⁺⁻₀-₉]+/g, " ").trim(); }
 
@@ -161,7 +164,7 @@
       (batN ? "<div><b>" + batBien + "/" + batN + "</b><span>baterías bien (" + batHechas + " hechas)</span></div>" : "") + "</div></div>";
     if (sig) {
       var ss = _d.t[sig.tema];
-      h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " el Tema " + sig.tema + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
+      h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " " + (sig.etiqueta ? "la " + sig.etiqueta : "el Tema " + sig.tema) + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
     }
     h += '<p class="est-ayuda">Un tema por sesión: lee por apartados, responde antes y después de cada uno, y termina con la batería del tema. 🔥 = cuánto cae en examen.</p>';
     bloques.forEach(function (bl) {
@@ -169,7 +172,7 @@
       lista.filter(function (e) { return e.bloque === bl; }).forEach(function (e) {
         var st = estadoTema(e), s = _d.t[e.tema];
         var av = Math.round(avanceTema(e) * 100);
-        h += '<div class="est-fila ' + st.cls + '"><button class="est-tema" data-est="abrir" data-n="' + e.tema + '"><span class="n">T' + e.tema + "</span> " + esc(e.titulo) +
+        h += '<div class="est-fila ' + st.cls + '"><button class="est-tema" data-est="abrir" data-n="' + e.tema + '"><span class="n">' + esc(corto(e)) + "</span> " + esc(e.titulo) +
           '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
           '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
           '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button></div>";
@@ -257,6 +260,7 @@
       case "texto": return '<div class="est-txt">' + md(b.md) + "</div>";
       case "clave": return '<div class="est-caja clave"><b>💡 La idea</b>' + md(b.md) + "</div>";
       case "asi": return '<div class="est-caja asi"><b>🎯 Así lo preguntan</b>' + md(b.md) + "</div>";
+      case "libro": return '<div class="est-caja libro"><b>📗 Qué dice el Sisinio</b>' + md(b.md) + "</div>";
       case "trampa": return '<div class="est-caja trampa"><b>⚠️ Trampa</b>' + md(b.md) + "</div>";
       case "porque": return '<details class="est-caja porque"><summary><b>🤔 ' + esc(b.pregunta) + '</b> <span class="sub">(piénsalo antes de abrir)</span></summary>' + md(b.respuesta) + "</details>";
       case "formula": return '<div class="est-formula"><div class="expr">' + esc(b.expr) + "</div>" + (b.md ? md(b.md) : "") + "</div>";
@@ -291,7 +295,7 @@
   function pintar() {
     if (!vista) return;
     var t = vista.t, s = est(vista.n), p = vista.pasos[s.paso], tot = vista.pasos.length;
-    var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">Tema ' + t.tema + " · " + esc(t.titulo) + "</div>" +
+    var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">' + esc(nombre(t)) + " · " + esc(t.titulo) + "</div>" +
       '<div class="est-barra"><div style="width:' + Math.round(s.paso * 100 / (tot - 1)) + '%"></div></div>' +
       '<div class="est-donde">' + (p.k === "sec" ? "Apartado " + (p.i + 1) + " de " + t.secciones.length : p.k === "intro" ? "Inicio" : p.k === "rellenar" ? "Rellenar" : p.k === "explicalo" ? "Explícalo" : "Batería") + " · " + Math.round(s.paso * 100 / (tot - 1)) + "% del tema</div>" +
       '<div class="est-migas">' + vista.pasos.map(function (x, i) {
@@ -301,7 +305,7 @@
       }).join("") + "</div></div>";
     h += '<div class="est-pag">';
     if (p.k === "intro") {
-      h += "<h2>Tema " + t.tema + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
+      h += "<h2>" + esc(nombre(t)) + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
       h += md(t.intro);
       if (t.pesoPorQue) h += '<div class="est-caja asi"><b>🔥 Qué cae de este tema</b>' + md(t.pesoPorQue) + "</div>";
       h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { var ok = notaSeccion(s, t, i); return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + (ok === 1 ? ' <span class="est-ok">✓ hecho</span>' : ok === 0 ? ' <span class="est-flojo">✓ hecho · repásalo</span>' : "") + "</li>"; }).join("") + "</ol>";
@@ -469,6 +473,7 @@
     ".est-lectura{margin-top:10px} .est-txt{margin:10px 0}",
     ".est-caja{border-radius:var(--radius);padding:10px 14px;margin:12px 0;border:1px solid var(--border);background:var(--surface)} .est-caja>b:first-child{display:block;margin-bottom:2px}",
     ".est-caja.clave{border-left:4px solid var(--accent)} .est-caja.asi{border-left:4px solid #60a5fa;background:rgba(96,165,250,.08)} .est-caja.trampa{border-left:4px solid var(--danger);background:rgba(239,68,68,.07)}",
+    ".est-caja.libro{border-left:4px solid #34d399;background:rgba(52,211,153,.07)}",
     ".est-caja.porque{border-left:4px solid #a78bfa} .est-caja.porque summary{cursor:pointer}",
     ".est-formula{text-align:center;margin:14px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px} .est-formula .expr{font-family:ui-monospace,Menlo,monospace;font-size:1.15rem;color:var(--accent2);font-weight:700}",
     ".est-formula p{color:var(--text2);font-size:.88rem}",
