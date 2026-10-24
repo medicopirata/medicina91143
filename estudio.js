@@ -73,15 +73,32 @@
 
   // Lo que se sabe de la batería, con lo que el motor ya apunta de cada pregunta
   function dominioBateria(ids) {
-    var hechas = 0, bien = 0;
+    var hechas = 0, bien = 0, ultima = 0;
     (ids || []).forEach(function (id) {
       var s = State.data.qs && State.data.qs[id];
       if (!s || !s.a) return;
       hechas++;
       var ult = Array.isArray(s.h) && s.h.length ? s.h[s.h.length - 1] : null;
       if (ult ? ult[1] : s.c >= s.a / 2) bien++;
+      if (ult && ult[0] * 1000 > ultima) ultima = ult[0] * 1000;
     });
-    return { n: (ids || []).length, hechas: hechas, bien: bien };
+    return { n: (ids || []).length, hechas: hechas, bien: bien, ultima: ultima };
+  }
+
+  // Cuánto lleva hecho de un tema, de 0 a 1: la lectura pesa la mitad y la batería la otra mitad
+  function avanceTema(e) {
+    var s = _d.t[e.tema];
+    if (!s) return 0;
+    var tot = (e.secciones || 1) + 3, lectura = s.fin ? 1 : Math.min(1, (s.paso || 0) / tot);
+    var b = s.bat, bat = b && b.n ? Math.min(1, b.bien / (b.n * 0.8)) : 0;
+    return lectura * 0.5 + bat * 0.5;
+  }
+  // Días desde que se estudió o se hizo la batería por última vez (para el repaso espaciado)
+  function diasSinTocar(e) {
+    var s = _d.t[e.tema];
+    if (!s || !s.fin) return 0;
+    var ult = Math.max(s.fin, (s.bat && s.bat.ultima) || 0);
+    return Math.floor((Date.now() - ult) / 864e5);
   }
 
   function estadoTema(e) {
@@ -89,6 +106,7 @@
     if (!s || (!s.paso && !s.fin)) return { txt: "Sin empezar", cls: "nada" };
     if (!s.fin) return { txt: "Leyendo · apartado " + Math.max(1, Math.min(s.paso, e.secciones)) + "/" + e.secciones, cls: "curso" };
     if (b && b.n && b.hechas >= b.n * 0.8 && b.bien >= b.hechas * 0.8) return { txt: "Dominado", cls: "dominado" };
+    if (b && b.hechas && diasSinTocar(e) >= 3) return { txt: "🔁 Toca repasar (hace " + diasSinTocar(e) + " días) · batería " + b.bien + "/" + b.n + " bien", cls: "hecho repasar" };
     if (b && b.hechas) return { txt: "Estudiado · batería " + b.bien + "/" + b.n + " bien", cls: "hecho" };
     return { txt: "Estudiado · falta la batería", cls: "hecho" };
   }
@@ -123,8 +141,24 @@
     var sig = lista.filter(function (e) { return !(_d.t[e.tema] && _d.t[e.tema].fin); })[0];
     var bloques = [];
     lista.forEach(function (e) { if (bloques.indexOf(e.bloque) < 0) bloques.push(e.bloque); });
-    var h = '<summary><b>📖 Sala de estudio</b> <span class="sub">· estudia los temas uno a uno, sabiendo qué cae · ' + hechos + "/" + lista.length + " estudiados</span></summary>";
+    var cuenta = { dominado: 0, hecho: 0, curso: 0, nada: 0 }, pct = 0, minTot = 0, minHechos = 0, batN = 0, batHechas = 0, batBien = 0;
+    lista.forEach(function (e) {
+      var c = estadoTema(e).cls.split(" ")[0], s = _d.t[e.tema];
+      cuenta[c]++;
+      pct += avanceTema(e);
+      minTot += e.minutos || 0;
+      if (s && s.fin) minHechos += e.minutos || 0;
+      if (s && s.bat) { batN += s.bat.n; batHechas += s.bat.hechas; batBien += s.bat.bien; }
+    });
+    pct = lista.length ? Math.round(pct * 100 / lista.length) : 0;
+    var h = '<summary><b>📖 Sala de estudio</b> <span class="sub">· estudia los temas uno a uno, sabiendo qué cae · ' + hechos + "/" + lista.length + " estudiados · " + pct + "%</span></summary>";
     h += '<div class="est-cuerpo">';
+    h += '<div class="est-prog"><div class="est-prog-barra">' + ["dominado", "hecho", "curso"].map(function (c) {
+      return cuenta[c] ? '<div class="' + c + '" style="width:' + (cuenta[c] * 100 / lista.length) + '%"></div>' : "";
+    }).join("") + "</div>";
+    h += '<div class="est-prog-ley"><span><i class="dominado"></i>' + cuenta.dominado + " dominados</span><span><i class=\"hecho\"></i>" + cuenta.hecho + " estudiados</span><span><i class=\"curso\"></i>" + cuenta.curso + " a medias</span><span><i></i>" + cuenta.nada + " sin empezar</span></div>";
+    h += '<div class="est-prog-num"><div><b>' + pct + "%</b><span>de la asignatura</span></div><div><b>" + Math.round(minHechos / 60 * 10) / 10 + "/" + Math.round(minTot / 60) + " h</b><span>de lectura</span></div>" +
+      (batN ? "<div><b>" + batBien + "/" + batN + "</b><span>baterías bien (" + batHechas + " hechas)</span></div>" : "") + "</div></div>";
     if (sig) {
       var ss = _d.t[sig.tema];
       h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " el Tema " + sig.tema + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
@@ -134,8 +168,10 @@
       h += '<div class="est-bloque"><div class="est-bloque-t">' + esc(bl) + "</div>";
       lista.filter(function (e) { return e.bloque === bl; }).forEach(function (e) {
         var st = estadoTema(e), s = _d.t[e.tema];
+        var av = Math.round(avanceTema(e) * 100);
         h += '<div class="est-fila ' + st.cls + '"><button class="est-tema" data-est="abrir" data-n="' + e.tema + '"><span class="n">T' + e.tema + "</span> " + esc(e.titulo) +
-          '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span></button>" +
+          '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
+          '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
           '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button></div>";
       });
       h += "</div>";
@@ -257,16 +293,18 @@
     var t = vista.t, s = est(vista.n), p = vista.pasos[s.paso], tot = vista.pasos.length;
     var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">Tema ' + t.tema + " · " + esc(t.titulo) + "</div>" +
       '<div class="est-barra"><div style="width:' + Math.round(s.paso * 100 / (tot - 1)) + '%"></div></div>' +
+      '<div class="est-donde">' + (p.k === "sec" ? "Apartado " + (p.i + 1) + " de " + t.secciones.length : p.k === "intro" ? "Inicio" : p.k === "rellenar" ? "Rellenar" : p.k === "explicalo" ? "Explícalo" : "Batería") + " · " + Math.round(s.paso * 100 / (tot - 1)) + "% del tema</div>" +
       '<div class="est-migas">' + vista.pasos.map(function (x, i) {
         var nom = x.k === "intro" ? "Inicio" : x.k === "sec" ? (i) + "" : x.k === "rellenar" ? "✍️" : x.k === "explicalo" ? "🗣️" : "🎯";
-        return '<button class="miga' + (i === s.paso ? " act" : i < s.paso ? " vista" : "") + '" data-acc="ir" data-i="' + i + '" title="' + esc(x.k === "sec" ? t.secciones[x.i].titulo : "") + '">' + nom + "</button>";
+        var ok = x.k === "sec" ? notaSeccion(s, t, x.i) : null;
+        return '<button class="miga' + (i === s.paso ? " act" : i < s.paso || s.fin ? " vista" : "") + (ok === 1 ? " bien" : ok === 0 ? " floja" : "") + '" data-acc="ir" data-i="' + i + '" title="' + esc(x.k === "sec" ? t.secciones[x.i].titulo + (ok === 1 ? " · comprobación bien" : ok === 0 ? " · falló alguna comprobación" : "") : "") + '">' + nom + (ok === 1 ? "✓" : "") + "</button>";
       }).join("") + "</div></div>";
     h += '<div class="est-pag">';
     if (p.k === "intro") {
       h += "<h2>Tema " + t.tema + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
       h += md(t.intro);
       if (t.pesoPorQue) h += '<div class="est-caja asi"><b>🔥 Qué cae de este tema</b>' + md(t.pesoPorQue) + "</div>";
-      h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + "</li>"; }).join("") + "</ol>";
+      h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { var ok = notaSeccion(s, t, i); return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + (ok === 1 ? ' <span class="est-ok">✓ hecho</span>' : ok === 0 ? ' <span class="est-flojo">✓ hecho · repásalo</span>' : "") + "</li>"; }).join("") + "</ol>";
       h += '<div class="est-caja clave"><b>Cómo se usa</b><ul><li>En cada apartado, primero una pregunta real <b>antes de leer</b>: respóndela aunque no la sepas (no cuenta; así lo retienes mejor).</li><li>Lee con calma y abre los 🤔 solo después de pensarlos.</li><li>Al final del apartado, la comprobación. Al final del tema, el cuadro para rellenar, el «explícalo» y la batería.</li></ul></div>';
       h += '<button class="est-sigue" data-acc="ir" data-i="1">Empezar →</button>';
     } else if (p.k === "sec") {
@@ -330,6 +368,15 @@
     }
     h += "</div>";
     pantalla().innerHTML = h;
+  }
+
+  // Un apartado está hecho cuando se han respondido sus comprobaciones: 1 si todas bien, 0 si falló alguna, null si no
+  function notaSeccion(s, t, i) {
+    var com = t.secciones[i].comprueba || [];
+    if (!com.length) return null;
+    var r = com.map(function (_, j) { return s.resp["com:" + i + ":" + j]; });
+    if (r.some(function (x) { return x === undefined; })) return null;
+    return r.every(function (x) { return x === 1; }) ? 1 : 0;
   }
 
   function examenes(t) {
@@ -449,6 +496,14 @@
     ".est-cifras .rej{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px} .est-cifras .cifra{background:var(--surface2);border-radius:8px;padding:8px 10px}",
     ".est-cifras .cifra b{display:block;color:var(--accent2);font-size:1.05rem} .est-cifras .cifra span{font-size:.8rem;color:var(--text2)}",
     ".est-flujo .ramas{display:flex;gap:10px;flex-wrap:wrap} .est-flujo .ramas>.pasos{flex:1;min-width:200px} .est-flujo .rama-t{font-weight:700;font-size:.82rem;color:var(--accent2);margin-bottom:4px}",
+    ".est-prog{background:var(--surface2);border-radius:8px;padding:10px 12px;margin:0 0 10px} .est-prog-barra{display:flex;height:10px;border-radius:5px;background:var(--border);overflow:hidden}",
+    ".est-prog-barra .dominado,.est-prog-ley i.dominado{background:var(--success)} .est-prog-barra .hecho,.est-prog-ley i.hecho{background:var(--warning)} .est-prog-barra .curso,.est-prog-ley i.curso{background:var(--accent)}",
+    ".est-prog-ley{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.75rem;color:var(--text2);margin-top:6px} .est-prog-ley i{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--border);margin-right:4px;vertical-align:-1px}",
+    ".est-prog-num{display:flex;gap:8px;margin-top:8px} .est-prog-num div{flex:1;text-align:center} .est-prog-num b{display:block;color:var(--accent2);font-size:1.1rem} .est-prog-num span{font-size:.72rem;color:var(--text2)}",
+    ".est-mini{display:block;height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden} .est-mini span{display:block;height:100%;background:var(--accent)}",
+    ".est-fila.dominado .est-mini span{background:var(--success)} .est-fila.repasar .est-tema{border-left-color:#60a5fa}",
+    ".est-donde{font-size:.75rem;color:var(--text2);margin-bottom:6px} .miga.bien{border-color:var(--success);color:var(--success)} .miga.floja{border-color:var(--warning);color:var(--warning)}",
+    ".est-ok{color:var(--success);font-size:.78rem} .est-flojo{color:var(--warning);font-size:.78rem}",
     "@media (max-width:600px){#estudio-screen{padding:0 12px 50px}.est-pag h2{font-size:1.15rem}.est-res b{font-size:1.2rem}}"
   ].join("\n");
   document.head.appendChild(css);

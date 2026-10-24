@@ -53,5 +53,11 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(w.eval("State.session") && w.eval("State.session").mode === "estudio" && w.eval("State.session").questions.length > 0, "  batería: sesión de " + (w.eval("State.session") ? w.eval("State.session").questions.length : 0) + " preguntas");
     w.eval("App.goHome()");
   }
+  w.eval("App.goHome()");
+  const h2 = d.getElementById("estudio-home"), n = E.indice().temas.length;
+  ok(h2.querySelector(".est-prog") && h2.querySelector("summary").textContent.includes(n + "/" + n + " estudiados"), "progreso en la portada: " + h2.querySelector("summary").textContent.replace(/\s+/g, " ").trim());
+  ok(h2.querySelectorAll(".est-mini").length === n, "  barra de avance en cada tema");
+  E.abrir(E.indice().temas[0].tema); await espera(60);
+  ok(d.querySelector("#estudio-screen .est-donde") && d.querySelectorAll("#estudio-screen .miga.bien, #estudio-screen .miga.floja").length > 0, "  dentro del tema: dónde vas y apartados hechos marcados");
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();
