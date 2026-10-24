@@ -164,7 +164,7 @@
       (batN ? "<div><b>" + batBien + "/" + batN + "</b><span>baterías bien (" + batHechas + " hechas)</span></div>" : "") + "</div></div>";
     if (sig) {
       var ss = _d.t[sig.tema];
-      h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " " + (sig.etiqueta ? "la " + sig.etiqueta : "el Tema " + sig.tema) + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
+      h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " " + (sig.etiqueta || "el Tema " + sig.tema) + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
     }
     h += '<p class="est-ayuda">Un tema por sesión: lee por apartados, responde antes y después de cada uno, y termina con la batería del tema. 🔥 = cuánto cae en examen.</p>';
     bloques.forEach(function (bl) {

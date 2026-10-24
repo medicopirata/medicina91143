@@ -3,6 +3,10 @@
 
 Uso:  python3 tools/estudio_material.py <clave> <N> [salida.md]
       p. ej.  python3 tools/estudio_material.py fisio1 7 /tmp/t7.md
+      Unidades que no son «Tema N» (Anatomía 3: «Tema 4 (II)», «Osteología…», talleres):
+      python3 tools/estudio_material.py anat3 - salida.md --unidad "Tema 4 (II)." --banco "Tema 4 \(II\)"
+      (--unidad: comienzo del título de la unidad en los apuntes; --banco: regex de sus bancos propios,
+      que se buscan en «Apuntes: …», «⭐ Imágenes clave · …» y «🖼️ Más imágenes · …»)
 
 Saca, en un markdown para leer:
   1. Los apuntes del tema (apuntes_txt/<clave>.json, trozos «Tema N · …»).
@@ -19,7 +23,8 @@ import json, math, os, re, sys, unicodedata
 from collections import Counter
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html"}
+PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html", "anat3": "plataforma_anatomia3.html"}
+PROPIOS = re.compile(r"^(Apuntes: |⭐ Imágenes clave · |🖼️ Más imágenes · )")
 # Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
 RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"
 # Lecciones que se preparan por el libro (IMI): «… › Lección 6. … (Sisinio cap. 5; …)». Se piden como L6
@@ -73,9 +78,14 @@ def fmt_q(q, extra=""):
 
 def main():
     if len(sys.argv) < 3: raise SystemExit(__doc__)
-    clave, n = sys.argv[1], sys.argv[2].upper()
+    args = sys.argv[1:]
+    opc = {}
+    for k in ("--unidad", "--banco"):
+        if k in args: i = args.index(k); opc[k] = args[i + 1]; del args[i:i + 2]
+    clave, n = args[0], args[1].upper()
     n = int(n) if n.isdigit() else n
-    sal = sys.argv[3] if len(sys.argv) > 3 else None
+    sal = args[2] if len(args) > 2 else None
+    if "--unidad" in opc: return por_unidad(clave, opc["--unidad"], opc.get("--banco") or re.escape(opc["--unidad"].rstrip(".")), sal)
     ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
     caps = {}
     def num(t):
@@ -130,5 +140,54 @@ def main():
     texto = "\n".join(out)
     if sal: open(sal, "w", encoding="utf-8").write(texto); print("%s · %d KB · %d propias · %d candidatas" % (sal, len(texto) // 1024, len(propias), len(cand)))
     else: print(texto)
+
+
+def por_unidad(clave, unidad, banco, sal):
+    """Material de una unidad por el comienzo de su título (primer nivel del trozo de apuntes)."""
+    ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
+    def uni(t): return t.split(" › ")[0].strip()
+    def es_unidad(u): return re.match(r"(Tema \d|Desarrollo|Osteolog|Taller)", u)
+    tema = [(t, x) for t, x in ap if uni(t).startswith(unidad)]
+    if not tema: raise SystemExit("no hay trozos de apuntes que empiecen por %r" % unidad)
+    clave_u = uni(tema[0][0])
+    generales = [(t, x) for t, x in ap if not es_unidad(uni(t)) and re.search(r"Pistas|examen", t, re.I)]
+    qs = preguntas(clave)
+    re_b = re.compile(banco)
+    propias = [q for q in qs if PROPIOS.match(q["topicBase"]) and re_b.search(q["topicBase"])]
+    otras = [q for q in qs if not PROPIOS.match(q["topicBase"])]
+    docs = {}
+    for t, x in ap:
+        if es_unidad(uni(t)): docs.setdefault(uni(t), Counter()).update(palabras(x))
+    df = Counter()
+    for c in docs.values(): df.update(set(c))
+    N = len(docs)
+    def peso(w): return math.log((N + 1) / (df.get(w, 0) + 1))
+    def vec(c): return {w: (1 + math.log(f)) * peso(w) for w, f in c.items()}
+    vt = {k: vec(c) for k, c in docs.items()}
+    def puntua(q, k):
+        v = vec(Counter(palabras(q["q"] + " " + " ".join(q["options"]) + " " + q.get("exp", "")))); a = vt[k]
+        num = sum(v[w] * a.get(w, 0) for w in v)
+        den = math.sqrt(sum(x * x for x in v.values())) * math.sqrt(sum(x * x for x in a.values())) or 1
+        return num / den
+    cand = []
+    for q in otras:
+        sc = {k: puntua(q, k) for k in vt}
+        mejor = max(sc, key=sc.get)
+        if mejor == clave_u and sc[mejor] > 0.04: cand.append((sc[mejor], q))
+    cand.sort(key=lambda x: -x[0])
+    if len(cand) > MAX_CAND: print("aviso: %d candidatas; salen las %d más parecidas" % (len(cand), MAX_CAND)); cand = cand[:MAX_CAND]
+    out = ["# Material para el modo estudio · %s · %s\n" % (clave, clave_u)]
+    out.append("## 1. Apuntes de la unidad (%d trozos)\n" % len(tema))
+    for t, x in tema: out.append("### %s\n\n%s\n" % (t, x))
+    out.append("## 2. Pistas generales de examen (%d)\n" % len(generales))
+    for t, x in generales: out.append("### %s\n\n%s\n" % (t, x))
+    out.append("## 3. Preguntas de los bancos de la unidad (%d)\n" % len(propias))
+    for q in propias: out.append(fmt_q(q))
+    out.append("## 4. Candidatas de exámenes, bancos de otros cursos, prácticas y Kahoot (%d; confirmar)\n" % len(cand))
+    for s_, q in cand: out.append(fmt_q(q, " · parecido %.2f" % s_))
+    texto = "\n".join(out)
+    if sal: open(sal, "w", encoding="utf-8").write(texto); print("%s · %d KB · %d propias · %d candidatas" % (sal, len(texto) // 1024, len(propias), len(cand)))
+    else: print(texto)
+
 
 main()
