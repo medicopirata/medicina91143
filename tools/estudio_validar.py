@@ -11,7 +11,7 @@ escribe estudio/<clave>/indice.json. Formato en tools/estudio_instrucciones.md.
 import glob, json, os, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLATAFORMA = {"fisio1": ("plataforma_fisio1.html", "Fisiología I"), "medint": ("plataforma_medint.html", "Introducción a la Medicina Interna (IMI)"), "anat3": ("plataforma_anatomia3.html", "Anatomía Humana III")}
+PLATAFORMA = {"fisio1": ("plataforma_fisio1.html", "Fisiología I"), "medint": ("plataforma_medint.html", "Introducción a la Medicina Interna (IMI)"), "anat3": ("plataforma_anatomia3.html", "Anatomía Humana III"), "histo21": ("plataforma_histologia2.1.html", "Histología Especial I")}
 TIPOS = {"texto": ["md"], "clave": ["md"], "cuadro": ["cab", "filas"], "flujo": [],
          "bucle": ["estimulo", "respuesta"], "parejas": ["pares"], "cifras": ["items"], "formula": ["expr"], "porque": ["pregunta", "respuesta"],
          "asi": ["md"], "trampa": ["md"], "libro": ["md"], "img": ["src"]}

@@ -7,6 +7,10 @@ Uso:  python3 tools/estudio_material.py <clave> <N> [salida.md]
       python3 tools/estudio_material.py anat3 - salida.md --unidad "Tema 4 (II)." --banco "Tema 4 \(II\)"
       (--unidad: comienzo del título de la unidad en los apuntes; --banco: regex de sus bancos propios,
       que se buscan en «Apuntes: …», «⭐ Imágenes clave · …» y «🖼️ Más imágenes · …»)
+      Unidades hechas de apartados sueltos (Histología: un bloque partido en varias unidades):
+      python3 tools/estudio_material.py histo21 3 salida.md --mapa mapa.json
+      mapa.json = {"3": {"trozo": "regex sobre el título del trozo", "banco": "regex sobre topicBase"}, …};
+      todas las unidades del mapa entran en el parecido por vocabulario.
 
 Saca, en un markdown para leer:
   1. Los apuntes del tema (apuntes_txt/<clave>.json, trozos «Tema N · …»).
@@ -23,7 +27,8 @@ import json, math, os, re, sys, unicodedata
 from collections import Counter
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html", "anat3": "plataforma_anatomia3.html"}
+PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html", "anat3": "plataforma_anatomia3.html",
+              "histo21": "plataforma_histologia2.1.html"}
 PROPIOS = re.compile(r"^(Apuntes: |⭐ Imágenes clave · |🖼️ Más imágenes · )")
 # Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
 RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"
@@ -80,11 +85,12 @@ def main():
     if len(sys.argv) < 3: raise SystemExit(__doc__)
     args = sys.argv[1:]
     opc = {}
-    for k in ("--unidad", "--banco"):
+    for k in ("--unidad", "--banco", "--mapa"):
         if k in args: i = args.index(k); opc[k] = args[i + 1]; del args[i:i + 2]
     clave, n = args[0], args[1].upper()
     n = int(n) if n.isdigit() else n
     sal = args[2] if len(args) > 2 else None
+    if "--mapa" in opc: return por_mapa(clave, str(args[1]), json.load(open(opc["--mapa"], encoding="utf-8")), sal)
     if "--unidad" in opc: return por_unidad(clave, opc["--unidad"], opc.get("--banco") or re.escape(opc["--unidad"].rstrip(".")), sal)
     ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
     caps = {}
@@ -184,6 +190,57 @@ def por_unidad(clave, unidad, banco, sal):
     out.append("## 3. Preguntas de los bancos de la unidad (%d)\n" % len(propias))
     for q in propias: out.append(fmt_q(q))
     out.append("## 4. Candidatas de exámenes, bancos de otros cursos, prácticas y Kahoot (%d; confirmar)\n" % len(cand))
+    for s_, q in cand: out.append(fmt_q(q, " · parecido %.2f" % s_))
+    texto = "\n".join(out)
+    if sal: open(sal, "w", encoding="utf-8").write(texto); print("%s · %d KB · %d propias · %d candidatas" % (sal, len(texto) // 1024, len(propias), len(cand)))
+    else: print(texto)
+
+
+def por_mapa(clave, n, mapa, sal):
+    """Material de la unidad n del mapa: trozos cuyo título casa con su regex «trozo»; banco propio, el de «banco»."""
+    ap = json.load(open(os.path.join(RAIZ, "apuntes_txt", clave + ".json"), encoding="utf-8"))["trozos"]
+    res = {k: re.compile(v["trozo"]) for k, v in mapa.items()}
+    def uni(t):
+        for k, r in res.items():
+            if r.search(t): return k
+    tema = [(t, x) for t, x in ap if uni(t) == n]
+    if not tema: raise SystemExit("ningún trozo casa con la unidad %s" % n)
+    generales = [(t, x) for t, x in ap if uni(t) is None and re.search(r"Pistas|examen", t, re.I)]
+    qs = preguntas(clave)
+    bancos = {k: re.compile(v["banco"]) for k, v in mapa.items()}
+    propias = [q for q in qs if bancos[n].search(q["topicBase"])]
+    de_otra = lambda q: any(r.search(q["topicBase"]) for k, r in bancos.items() if k != n) and q["topicBase"].startswith("Apuntes:")
+    otras = [q for q in qs if not bancos[n].search(q["topicBase"]) and not de_otra(q)]
+    docs = {}
+    for t, x in ap:
+        k = uni(t)
+        if k: docs.setdefault(k, Counter()).update(palabras(x))
+    df = Counter()
+    for c in docs.values(): df.update(set(c))
+    N = len(docs)
+    def peso(w): return math.log((N + 1) / (df.get(w, 0) + 1))
+    def vec(c): return {w: (1 + math.log(f)) * peso(w) for w, f in c.items()}
+    vt = {k: vec(c) for k, c in docs.items()}
+    def puntua(q, k):
+        v = vec(Counter(palabras(q["q"] + " " + " ".join(q["options"]) + " " + q.get("exp", "")))); a = vt[k]
+        num = sum(v[w] * a.get(w, 0) for w in v)
+        den = math.sqrt(sum(x * x for x in v.values())) * math.sqrt(sum(x * x for x in a.values())) or 1
+        return num / den
+    cand = []
+    for q in otras:
+        sc = {k: puntua(q, k) for k in vt}
+        mejor = max(sc, key=sc.get)
+        if mejor == n and sc[n] > 0.04: cand.append((sc[n], q))
+    cand.sort(key=lambda x: -x[0])
+    if len(cand) > MAX_CAND: print("aviso: %d candidatas; salen las %d más parecidas" % (len(cand), MAX_CAND)); cand = cand[:MAX_CAND]
+    out = ["# Material para el modo estudio · %s · unidad %s\n" % (clave, n)]
+    out.append("## 1. Apuntes de la unidad (%d trozos)\n" % len(tema))
+    for t, x in tema: out.append("### %s\n\n%s\n" % (t, x))
+    out.append("## 2. Pistas generales de examen (%d)\n" % len(generales))
+    for t, x in generales: out.append("### %s\n\n%s\n" % (t, x))
+    out.append("## 3. Preguntas de los bancos de la unidad (%d; si un banco abarca varias unidades, quédate con las que son de esta)\n" % len(propias))
+    for q in propias: out.append(fmt_q(q))
+    out.append("## 4. Candidatas de otros bancos parecidas por vocabulario (%d; confirmar)\n" % len(cand))
     for s_, q in cand: out.append(fmt_q(q, " · parecido %.2f" % s_))
     texto = "\n".join(out)
     if sal: open(sal, "w", encoding="utf-8").write(texto); print("%s · %d KB · %d propias · %d candidatas" % (sal, len(texto) // 1024, len(propias), len(cand)))
