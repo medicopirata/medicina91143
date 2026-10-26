@@ -33,7 +33,7 @@ PROPIOS = re.compile(r"^(Apuntes: |⭐ Imágenes clave · |🖼️ Más imágene
 # Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
 RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"
 # Lecciones que se preparan por el libro (IMI): «… › Lección 6. … (Sisinio cap. 5; …)». Se piden como L6
-RE_LECCION = r"› Lección (\d+)\. [^›]*Sisinio cap\. (\d+)"
+RE_LECCION = r"› Lección (\d+)\. (?:[^›]*Sisinio cap\. (\d+))?"
 MAX_CAND = 300
 
 VACIAS = set("""sobre entre desde hasta cuando donde porque aunque mientras tambien siempre puede pueden
@@ -97,7 +97,7 @@ def main():
     def num(t):
         m = re.search(RE_LECCION, t)
         if m and not re.search(RE_TROZO, t):
-            caps["L" + m.group(1)] = int(m.group(2))
+            if m.group(2): caps["L" + m.group(1)] = int(m.group(2))
             return "L" + m.group(1)
         m = re.search(RE_TROZO, t)
         return int(m.group(1)) if m else None
@@ -105,7 +105,7 @@ def main():
     pistas = [(t, x) for t, x in ap if t.startswith("Pistas") and re.search(r"\b[Tt]ema %s\b|\bT%s\b" % (n, n), t + " " + x)]
     qs = preguntas(clave)
     # Banco propio: «… Tema N …», o para una lección, la autoevaluación de su capítulo del Sisinio
-    re_tema = re.compile(r"\bTema %d\b" % n) if isinstance(n, int) else re.compile(r"Sisinio cap\. %d\b" % caps.get(n, -1))
+    re_tema = re.compile(r"\bTema %d\b" % n) if isinstance(n, int) else re.compile((r"Sisinio cap\. %d\b|" % caps[n] if n in caps else "") + r"Lección %s\b" % n[1:])
     propias = [q for q in qs if re_tema.search(q["topicBase"])]
     otras = [q for q in qs if not re.search(r"\bTema \d+\b", q["topicBase"]) and not re_tema.search(q["topicBase"])]
 

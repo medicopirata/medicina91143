@@ -78,11 +78,13 @@ setTimeout(() => {
     ok(w.document.getElementById("plan-cierre"), "cierre de sesión con el plan");
     const f = P.foto();
     ok(typeof f.p === "number", "foto del día: preparación " + f.p + " %");
-    // Estrategia con IA simulada
+    // Estrategia con IA simulada (la semana simulada es la de hoy, de lunes a domingo, para que la prueba no caduque)
+    function semanaDeHoy() { const d = new Date(), l = new Date(d); l.setDate(d.getDate() - (d.getDay() + 6) % 7); const dm = new Date(l); dm.setDate(l.getDate() + 6);
+      const f = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); return [f(l), f(dm)]; }
     const IA = w.EntrenadorIA; let pedido = "";
     IA.conectada = () => true;
     IA.llamar = (sis, usu) => { pedido = usu; return Promise.resolve({ txt: JSON.stringify({ resumen: "Vas empezando.", hoy: "Haz 20 de citogenética.", alertas: ["Ritmo bajo"],
-      semanas: [{ desde: "2026-10-19", hasta: "2026-10-25", objetivo: "Citogenética entera", temas: ["Tema 8: Citogenética · anomalías numéricas"], nuevas_dia: 20, repasos_dia: 10 }],
+      semanas: [{ desde: semanaDeHoy()[0], hasta: semanaDeHoy()[1], objetivo: "Citogenética entera", temas: ["Tema 8: Citogenética · anomalías numéricas"], nuevas_dia: 20, repasos_dia: 10 }],
       prioridades: [{ tema: "Tema 8: Citogenética · anomalías numéricas", por_que: "más peso" }] }) }); };
     pendientes.push(P.revisarConIA().then(e => { ok(e.resumen && /TEMAS \(ordenados por peso\)/.test(pedido), "estrategia de la IA guardada (" + pedido.length + " caracteres de contexto)");
       P.pintar(); ok(/Citogenética entera/.test(w.document.getElementById("plan-ex").innerHTML), "la estrategia sale en el panel semana a semana");
