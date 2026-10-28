@@ -21,7 +21,7 @@ setTimeout(() => {
     const P = w.PlanExamen, E = w.Entrenador;
     ok(P && E, "PlanExamen y Entrenador cargados");
     const p = P.plan();
-    ok(p.fase === "cobertura" && p.dias > 30, "fase " + p.fase + ", faltan " + p.dias + " días (" + p.fecha + ")");
+    ok(p.dias >= 0 && p.fase === (p.dias > 21 ? "cobertura" : p.dias > 7 ? "consolidacion" : "final"), "fase " + p.fase + ", faltan " + p.dias + " días (" + p.fecha + ")");
     ok(p.semanas.length === Math.ceil(p.dias / 7), p.semanas.length + " semanas planificadas");
     ok(p.semanas[0].temas.length > 0, "semana 1: " + p.semanas[0].temas.slice(0, 3).map(t => t.tema + " (" + t.n + ")").join("; "));
     ok(w.document.getElementById("plan-ex"), "panel del plan en la portada");

@@ -59,5 +59,31 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(h2.querySelectorAll(".est-mini").length === n, "  barra de avance en cada tema");
   E.abrir(E.indice().temas[0].tema); await espera(60);
   ok(d.querySelector("#estudio-screen .est-donde") && d.querySelectorAll("#estudio-screen .miga.bien, #estudio-screen .miga.floja").length > 0, "  dentro del tema: dónde vas y apartados hechos marcados");
+  // Repaso inteligente, «¿qué repaso?» y tutor (con la IA simulada)
+  w.eval("App.goHome()");
+  ok(d.querySelector("#estudio-home .est-hoy"), "cuadro «Hoy te conviene repasar» en la portada");
+  const t0 = E.indice().temas[0].tema;
+  E.repaso(t0); await espera(40);
+  ok(w.eval("State.session") && w.eval("State.session").questions.length > 0, "repaso inteligente: sesión de " + (w.eval("State.session") ? w.eval("State.session").questions.length : 0) + " preguntas");
+  w.eval("App.goHome()");
+  E.tutor.abrir(t0); await espera(40);
+  const tu = d.getElementById("est-tutor");
+  ok(tu && !tu.classList.contains("hidden") && tu.querySelectorAll(".tu-chips button").length >= 5, "tutor abierto con sus atajos");
+  tu.querySelector('[data-tu="que"]').click(); await espera(10);
+  ok(/Próximo repaso|Lo más urgente|próximo repaso/i.test(tu.textContent), "«¿Qué repaso y cuándo?» responde sin IA");
+  if (w.EntrenadorIA) {
+    const idBat = w.eval("BY_ID").keys().next().value;
+    w.EntrenadorIA.conectada = () => true;
+    w.EntrenadorIA.llamar = () => Promise.resolve({ txt: JSON.stringify({ md: "**Clave**: esto se distingue así.", tablas: [{ titulo: "Comparación", columnas: ["", "A", "B"], filas: [["x", "1", "2"]] }], ids: [idBat], nuevas: [{ q: "¿Pregunta nueva?", opciones: ["a", "b", "c", "d"], correcta: 1, explicacion: "Porque b." }] }) });
+    E.tutor.abrir(t0); await espera(20);
+    const inp = d.getElementById("est-tutor-in"); inp.value = "Hazme una tabla";
+    d.querySelector('#est-tutor [data-tu="enviar"]').click(); await espera(120);
+    ok(/Comparación/.test(tu.innerHTML) && tu.querySelector('[data-tu="hacer"]'), "tutor con IA: tabla y botón para hacer las preguntas");
+    tu.querySelector('[data-tu="nota"]').click(); await espera(10);
+    ok((E._datos().t[t0].notas || []).length === 1, "  la respuesta se guarda como nota del tema");
+    tu.querySelector('[data-tu="hacer"]').click(); await espera(30);
+    ok(w.eval("State.session") && w.eval("State.session").questions.length === 2, "  y lanza la sesión con la de la batería y la nueva");
+    w.eval("App.goHome()");
+  }
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();

@@ -28,7 +28,7 @@ from collections import Counter
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLATAFORMA = {"fisio1": "plataforma_fisio1.html", "medint": "plataforma_medint.html", "anat3": "plataforma_anatomia3.html",
-              "histo21": "plataforma_histologia2.1.html"}
+              "histo21": "plataforma_histologia2.1.html", "genetica": "plataforma_genetica.html"}
 PROPIOS = re.compile(r"^(Apuntes: |⭐ Imágenes clave · |🖼️ Más imágenes · )")
 # Título de un trozo de apuntes que es del Tema N: «Tema 7 · …» (Fisio) o «… › Tema 7. …» (IMI)
 RE_TROZO = r"(?:^|› )Tema (\d+)(?:[ .·]|$)"

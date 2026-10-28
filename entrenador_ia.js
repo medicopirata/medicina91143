@@ -515,6 +515,23 @@
     return out.join("\n\n");
   }
 
+  // Para el tutor de la sala de estudio (estudio.js): guardar preguntas nuevas en «🧠 A tu medida · <tema>»
+  // y sacar los apartados de los apuntes más cercanos a unas consultas
+  function guardarNuevas(lista, tema) {
+    var d = cargar(), base = Math.floor(Date.now() / 1000) * 20, ids = [];
+    (lista || []).forEach(function (p, i) {
+      if (!p || !p.q || !Array.isArray(p.opciones) || p.opciones.length < 3 || !Number.isInteger(p.correcta) || !p.opciones[p.correcta] || i > 18) return;
+      var de = String(p.tema || tema || "");
+      if (de.indexOf(PREFIJO) === 0) de = de.slice(PREFIJO.length);
+      if (!BY_TOPIC.has(de)) de = "Peticiones";
+      d.qs.push({ id: base + i, de: de, q: String(p.q), options: p.opciones.map(String), correct: p.correcta, exp: String(p.explicacion || ""), t: Date.now() });
+      ids.push(base + i);
+    });
+    if (ids.length) { guardar(d); inyectar(); if (typeof App.renderTopicsGrid === "function") App.renderTopicsGrid(); }
+    return ids;
+  }
+  function trozos(consultas, tope) { return apuntes().then(function (d) { return trozosPara(d, consultas, tope || 10); }); }
+
   window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); },
-                          llamar: llamar, apuntes: apuntes, pistasGenerales: pistasGenerales };
+                          llamar: llamar, apuntes: apuntes, pistasGenerales: pistasGenerales, guardarNuevas: guardarNuevas, trozos: trozos };
 })();
