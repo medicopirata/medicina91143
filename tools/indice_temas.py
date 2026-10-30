@@ -93,7 +93,7 @@ def reescribir(ruta, campo, busca, totales):
 # Scripts compartidos que cargan las plataformas: también llevan ?v=<hash>. Sin
 # eso, el 21-10-2026 el plan de examen nuevo no se veía porque el navegador
 # seguía usando el plan_examen.js de la víspera.
-SCRIPTS_PLATAFORMA = ("acceso.js", "sync.js", "entrenador.js", "entrenador_ia.js", "plan_examen.js", "estudio.js")
+SCRIPTS_PLATAFORMA = ("acceso.js", "sync.js", "entrenador.js", "entrenador_ia.js", "plan_examen.js", "estudio.js", "aspecto.js")
 
 
 def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js"), pagina="index.html"):
