@@ -57,6 +57,12 @@
   function cargarIndice() {
     return pedir("indice.json").then(function (d) { indice = d; return d; });
   }
+  // Diccionario de siglas de la asignatura (estudio/<clave>/siglas.json): {"PAM": "presión arterial media", …}
+  var siglas = null;
+  function cargarSiglas() {
+    if (siglas) return Promise.resolve(siglas);
+    return pedir("siglas.json").then(function (d) { siglas = d || {}; return siglas; }, function () { siglas = {}; return siglas; });
+  }
   function cargarTema(n) {
     if (temas[n]) return Promise.resolve(temas[n]);
     var e = (indice.temas || []).filter(function (x) { return x.tema === n; })[0];
@@ -394,7 +400,45 @@
     }
     h += "</div>";
     h += '<button class="est-flota" data-acc="tutor" title="Tutor con IA: tablas, explicaciones, repasos y preguntas de este tema">💬 Tutor</button>';
+    h += '<button class="est-flota siglas-b" data-acc="siglas" title="Siglas de este tema y su significado">🔤 Siglas</button><aside id="est-siglas"></aside>';
     pantalla().innerHTML = h;
+    cargarSiglas().then(pintarSiglas);
+  }
+
+  // ----- ventana de siglas: a la derecha del texto (en pantalla ancha), fija mientras se lee.
+  // Arriba, las siglas del apartado que se está leyendo, por orden de aparición; debajo, las del resto del tema.
+  function textoDe(x, acc) {
+    if (typeof x === "string") acc.push(x);
+    else if (Array.isArray(x)) x.forEach(function (y) { textoDe(y, acc); });
+    else if (x && typeof x === "object") Object.keys(x).forEach(function (k) { if (k !== "bateria" && k !== "src") textoDe(x[k], acc); });
+    return acc;
+  }
+  function siglasEn(txt) {
+    var out = [];
+    Object.keys(siglas || {}).forEach(function (sg) {
+      var re = new RegExp("(^|[^\\wÁÉÍÓÚÑáéíóúñ])" + sg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\wÁÉÍÓÚÑáéíóúñ])");
+      var m = re.exec(txt);
+      if (m) out.push([m.index, sg]);
+    });
+    return out.sort(function (a, b) { return a[0] - b[0]; }).map(function (x) { return x[1]; });
+  }
+  function pintarSiglas() {
+    var box = document.getElementById("est-siglas");
+    if (!box || !vista) return;
+    if (!siglas || !Object.keys(siglas).length) { box.innerHTML = ""; box.classList.add("vacia"); return; }
+    var pag = document.querySelector("#estudio-screen .est-pag");
+    var aqui = siglasEn(pag ? pag.textContent : "");
+    var cache = vista.siglasTema || (vista.siglasTema = siglasEn(textoDe(vista.t, []).join("\n")));
+    var resto = cache.filter(function (x) { return aqui.indexOf(x) < 0; });
+    var fila = function (sg) { return '<div class="sg"><b>' + esc(sg) + "</b><span>" + esc(siglas[sg]) + "</span></div>"; };
+    var plegado = false; try { plegado = localStorage.getItem(K + "_siglas_resto") === "0"; } catch (e) {}
+    var h = '<div class="sg-top"><b>🔤 Siglas</b><button class="sg-x" data-acc="siglas" title="Cerrar">✕</button></div><div class="sg-cuerpo">';
+    h += '<div class="sg-t">En lo que estás leyendo</div>' + (aqui.length ? aqui.map(fila).join("") : '<div class="sub">Aquí no sale ninguna sigla.</div>');
+    if (resto.length) h += '<details class="sg-resto"' + (plegado ? "" : " open") + '><summary class="sg-t">Resto del tema (' + resto.length + ")</summary>" + resto.map(fila).join("") + "</details>";
+    box.innerHTML = h + "</div>";
+    box.classList.remove("vacia");
+    var d = box.querySelector(".sg-resto");
+    if (d) d.addEventListener("toggle", function () { try { localStorage.setItem(K + "_siglas_resto", d.open ? "1" : "0"); } catch (e) {} });
   }
 
   // Un apartado está hecho cuando se han respondido sus comprobaciones: 1 si todas bien, 0 si falló alguna, null si no
@@ -454,6 +498,7 @@
       return;
     }
     var acc = b.getAttribute("data-acc");
+    if (acc === "siglas") { var sg = document.getElementById("est-siglas"); if (sg) sg.classList.toggle("abierta"); return; }
     if (acc === "salir") salir();
     else if (acc === "ir") irPaso(+b.getAttribute("data-i"));
     else if (acc === "velo") { s["leer" + b.getAttribute("data-i")] = 1; guardar(); pintar(); }
@@ -688,6 +733,14 @@
     ".est-bat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0 10px;cursor:pointer;white-space:nowrap}",
     ".est-fila.hecho .est-tema{border-left:3px solid var(--warning)} .est-fila.dominado .est-tema{border-left:3px solid var(--success)} .est-fila.curso .est-tema{border-left:3px solid var(--accent)}",
     "#estudio-screen{max-width:820px;margin:0 auto;padding:0 16px 60px;line-height:1.6}",
+    // Pantalla ancha: el texto a la izquierda y el lado derecho para la ventana de siglas y el tutor (que ya no tapa lo que se lee).
+    "@media (min-width:1100px){#estudio-screen{max-width:min(780px,calc(100vw - 500px));margin:0 0 0 max(32px,calc((100vw - 780px - 500px)/2))} #est-siglas:not(.vacia){display:flex} .est-flota.siglas-b{display:none}}",
+    "#est-siglas{display:none;position:fixed;top:60px;right:24px;bottom:72px;width:380px;z-index:15;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 18px rgba(0,0,0,.18);font-size:.88rem;line-height:1.4}",
+    "#est-siglas .sg-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)} #est-siglas .sg-x{display:none;background:none;border:0;color:var(--text2);font-size:1rem;cursor:pointer}",
+    "#est-siglas .sg-cuerpo{overflow-y:auto;padding:6px 14px 12px} #est-siglas .sg-t{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:10px 0 4px;cursor:default} #est-siglas summary.sg-t{cursor:pointer}",
+    "#est-siglas .sg{display:grid;grid-template-columns:minmax(52px,auto) 1fr;gap:10px;padding:5px 0;border-bottom:1px dashed var(--border)} #est-siglas .sg:last-child{border-bottom:0} #est-siglas .sg b{color:var(--accent2);font-weight:700;white-space:nowrap} #est-siglas .sg span{color:var(--text)}",
+    ".est-flota.siglas-b{right:128px;background:var(--surface2);color:var(--text);border:1px solid var(--border)}",
+    "@media (max-width:1099px){#est-siglas.abierta:not(.vacia){display:flex;left:12px;right:12px;width:auto;top:auto;bottom:70px;max-height:60vh;z-index:25} #est-siglas .sg-x{display:block}}",
     ".est-top{position:sticky;top:0;background:var(--bg);padding:10px 0 8px;z-index:5;border-bottom:1px solid var(--border)}",
     ".est-salir{background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 10px;cursor:pointer;float:right}",
     ".est-tit{font-weight:700;color:var(--accent2);font-size:.95rem;padding-right:90px} .est-barra{height:4px;background:var(--border);border-radius:2px;margin:8px 0 6px;overflow:hidden} .est-barra div{height:100%;background:var(--accent)}",

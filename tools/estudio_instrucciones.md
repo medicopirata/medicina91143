@@ -143,3 +143,7 @@ algo del Guyton contradice los apuntes, manda lo de clase.
 existen, huecos, campos, rangos) y rehace el índice. «aviso» no bloquea; «✗» sí.
 
 **Modelo de referencia:** `estudio/fisio1/tema-07.json` (el piloto). Mira su nivel de detalle, cómo justifica los pesos y cómo escribe los «Así lo preguntan».
+
+## Siglas `estudio/<clave>/siglas.json`
+
+`{"PAM": "presión arterial media", …}`: diccionario de la asignatura. En pantalla ancha la sala lo enseña en una ventana fija a la derecha del texto (las siglas del apartado que se lee y, debajo, las del resto del tema); en el móvil, con el botón «🔤 Siglas». Candidatas con contexto: `python3 tools/estudio_siglas.py <clave> salida.md`. Si un tema nuevo trae siglas nuevas, añádelas aquí (escritas exactamente como salen en el texto).

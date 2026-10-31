@@ -70,7 +70,7 @@
 
   var FIJO = [
     // Lectura de la sala de estudio: letra algo mayor, más interlineado y líneas más cortas.
-    "#estudio-screen{font-size:1.0625rem;line-height:1.7;max-width:780px}",
+    "#estudio-screen{font-size:1.0625rem;line-height:1.7}",
     "#estudio-screen .est-pag p,#estudio-screen .est-pag li{max-width:70ch}",
     "#estudio-screen .est-pag h2{font-size:1.45rem}",
     // Botones con fondo de acento: texto blanco, que se lee con cualquier color de asignatura.
