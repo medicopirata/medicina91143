@@ -104,7 +104,7 @@ algo del Guyton contradice los apuntes, manda lo de clase.
 - `libro`: `{"tipo":"libro","md":"…"}` sale como recuadro «📗 Qué dice el Sisinio». Para IMI: cuando
   un test, los apuntes y el libro no coinciden, la respuesta que se enseña es la del test (no se
   toca ninguna clave), y aquí se apunta qué dice el Sisinio de Castro (8.ª ed., con capítulo y,
-  si se puede, la frase), justo después del «⚠️ Trampa» o del «🎯 Así lo preguntan» de esa duda.
+  si se puede, la frase), justo después del «⚠️ Trampa» o del «🎯 Así lo preguntan» de esa duda. En otras asignaturas, con `"titulo"` (p. ej. `"Qué dicen los libros"`) para que no salga «el Sisinio».
 - `etiqueta` y `corta` (opcionales, en la raíz del tema): nombre en pantalla cuando no es un
   «Tema N», p. ej. `"etiqueta": "Lección 6", "corta": "L6"` con `"tema": 106` (el número solo
   ordena y sirve de clave).

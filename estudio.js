@@ -278,7 +278,7 @@
       case "texto": return '<div class="est-txt">' + md(b.md) + "</div>";
       case "clave": return '<div class="est-caja clave"><b>💡 La idea</b>' + md(b.md) + "</div>";
       case "asi": return '<div class="est-caja asi"><b>🎯 Así lo preguntan</b>' + md(b.md) + "</div>";
-      case "libro": return '<div class="est-caja libro"><b>📗 Qué dice el Sisinio</b>' + md(b.md) + "</div>";
+      case "libro": return '<div class="est-caja libro"><b>📗 ' + esc(b.titulo || "Qué dice el Sisinio") + '</b>' + md(b.md) + "</div>";
       case "trampa": return '<div class="est-caja trampa"><b>⚠️ Trampa</b>' + md(b.md) + "</div>";
       case "porque": return '<details class="est-caja porque"><summary><b>🤔 ' + esc(b.pregunta) + '</b> <span class="sub">(piénsalo antes de abrir)</span></summary>' + md(b.respuesta) + "</details>";
       case "formula": return '<div class="est-formula"><div class="expr">' + esc(b.expr) + "</div>" + (b.md ? md(b.md) : "") + "</div>";
