@@ -47,6 +47,9 @@ def preguntas(ruta):
     return json.loads(re.search(r"^const ALL_QUESTIONS = (.*?);$", s, re.M | re.S).group(1))
 
 
+RE_REMITE = re.compile(r"\b(caso anterior|paciente anterior|pregunta anterior|enunciado anterior|caso previo|mismo caso|mismo paciente|imagen anterior|seg[uú]n lo anterior)\b", re.I)
+
+
 def revisar(ruta):
     qs = preguntas(ruta)
     base = os.path.dirname(os.path.abspath(ruta))
@@ -62,6 +65,12 @@ def revisar(ruta):
             fallos["enunciado demasiado corto"].append(ident)
         elif q["q"].rstrip().endswith(("...", "…")) and "?" not in q["q"]:
             fallos["enunciado que parece cortado"].append(ident)
+
+        # Remite a un caso o a una pregunta que no está en el enunciado («en el caso anterior…»):
+        # hay que poner delante «📋 Caso: …» con los datos (y el original en qAntes).
+        qq = q.get("q") or ""
+        if RE_REMITE.search(qq) and not qq.startswith("📋"):
+            fallos["remite a un caso que no está en el enunciado"].append(ident)
 
         if len(ops) < 2:
             fallos["menos de dos opciones"].append(ident)

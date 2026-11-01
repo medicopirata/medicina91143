@@ -25,10 +25,10 @@ DARROW = "Diagramas de Darrow-Yannet (anchura = volumen, altura = osmolaridad): 
 # id -> {"q": enunciado nuevo, "options": opciones nuevas (opcional)}
 CAMBIOS = {
     # Tema 2 · bucle presión-volumen
-    95004: {"q": "En la paciente del caso, la frecuencia cardíaca es de 70 latidos/min y en su bucle presión-volumen el volumen ventricular pasa de 250 ml en el punto C (apertura aórtica) a 150 ml en el punto D (cierre aórtico). ¿Cuál es su gasto cardíaco en ml/min?"},
+    95004: {"q": "En la paciente del caso, la frecuencia cardíaca es de 70 latidos/min y en su bucle presión-volumen el volumen ventricular pasa de 150 ml en el punto C (apertura aórtica) a 50 ml en el punto D (cierre aórtico). ¿Cuál es su gasto cardíaco en ml/min?"},
     95005: {"q": BUCLE + "¿Cuándo aparece el primer tono cardíaco?"},
     95006: {"q": BUCLE + "¿Cuándo se produce el cuarto tono cardíaco?"},
-    95007: {"q": "En la paciente del caso, el volumen sistólico es de 100 ml y el volumen telesistólico (punto D del bucle presión-volumen) es de 150 ml. ¿Cuál es su fracción de eyección ventricular?"},
+    95007: {"q": "En la paciente del caso, el volumen sistólico es de 100 ml y el volumen telesistólico (punto D del bucle presión-volumen) es de 50 ml. ¿Cuál es su fracción de eyección ventricular?"},
     # Tema 4 · ECG
     95035: {"q": "En el registro de la derivación II de la mujer del caso, el intervalo RR es de 0,86 s. ¿Cuál es su frecuencia cardíaca en latidos por minuto?"},
     95036: {"q": "En el ECG de la mujer del caso, el voltaje del QRS es de 0,9 mV en la derivación II y de 0,4 mV en la derivación III. De acuerdo con la ley de Einthoven, ¿cuál es el voltaje del QRS en la derivación I?"},
