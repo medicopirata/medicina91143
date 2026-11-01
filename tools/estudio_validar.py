@@ -24,6 +24,14 @@ def ids_plataforma(clave):
     return {q["id"] for q in qs}
 
 
+def de_examen(clave):
+    """Ids de preguntas de examen (mismo criterio que examenes() en estudio.js)."""
+    s = open(os.path.join(RAIZ, PLATAFORMA[clave][0]), encoding="utf-8").read()
+    i = s.index("const ALL_QUESTIONS = ") + len("const ALL_QUESTIONS = ")
+    qs, _ = json.JSONDecoder().raw_decode(s[i:])
+    return {q["id"] for q in qs if (q.get("topicBase") or "").startswith("📝") or "Examen" in (q.get("topicBase") or "") or q.get("caida")}
+
+
 def imagenes(clave):
     s = open(os.path.join(RAIZ, PLATAFORMA[clave][0]), encoding="utf-8").read()
     i = s.index("const ALL_QUESTIONS = ") + len("const ALL_QUESTIONS = ")
@@ -38,6 +46,7 @@ def main():
     carpeta = os.path.join(RAIZ, "estudio", clave)
     errores, errores_suaves, indice = [], [], []
     qimg = imagenes(clave)
+    examen = de_examen(clave)
     for f in sorted(glob.glob(os.path.join(carpeta, "tema-*.json"))):
         nom = os.path.basename(f)
         def mal(m): errores.append("%s: %s" % (nom, m))
@@ -94,7 +103,8 @@ def main():
         if len(set(t.get("bateria", []))) != len(t.get("bateria", [])): mal("batería con ids repetidos")
         indice.append({"tema": t.get("tema"), "titulo": t.get("titulo"), "bloque": t.get("bloque"), "archivo": nom,
                        "peso": t.get("peso", 0), "minutos": t.get("minutos", 0), "secciones": len(t.get("secciones", [])),
-                       "bateria": len(t.get("bateria", []))})
+                       "bateria": len(t.get("bateria", [])),
+                       "examen": sum(1 for x in t.get("bateria", []) if x in examen)})
         for k in ("etiqueta", "corta"):
             if t.get(k): indice[-1][k] = t[k]
     indice.sort(key=lambda x: x["tema"])

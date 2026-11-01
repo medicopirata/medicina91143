@@ -199,7 +199,8 @@
         h += '<div class="est-fila ' + st.cls + '"><button class="est-tema" data-est="abrir" data-n="' + e.tema + '"><span class="n">' + esc(corto(e)) + "</span> " + esc(e.titulo) +
           '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
           '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
-          '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button></div>";
+          '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button>" +
+          (e.examen ? '<button class="est-bat ex" data-est="bat-ex" data-n="' + e.tema + '" title="Solo las preguntas de exámenes de otros años">📝 ' + e.examen + "</button>" : "") + "</div>";
       });
       h += "</div>";
     });
@@ -731,6 +732,7 @@
     ".est-fila{display:flex;gap:6px;margin-bottom:6px} .est-tema{flex:1;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);cursor:pointer}",
     ".est-tema:hover,.est-bat:hover{border-color:var(--accent)} .est-tema .n{color:var(--accent2);font-weight:700} .est-tema .meta{display:block;font-size:.75rem;color:var(--text2);margin-top:2px}",
     ".est-bat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0 10px;cursor:pointer;white-space:nowrap}",
+    ".est-bat{min-width:66px} .est-bat.ex{color:var(--warning)} @media (max-width:600px){.est-bat{padding:0 7px;font-size:.85rem}}",
     ".est-fila.hecho .est-tema{border-left:3px solid var(--warning)} .est-fila.dominado .est-tema{border-left:3px solid var(--success)} .est-fila.curso .est-tema{border-left:3px solid var(--accent)}",
     "#estudio-screen{max-width:820px;margin:0 auto;padding:0 16px 60px;line-height:1.6}",
     // Pantalla ancha: el texto a la izquierda y el lado derecho para la ventana de siglas y el tutor (que ya no tapa lo que se lee).
