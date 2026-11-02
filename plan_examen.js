@@ -45,6 +45,7 @@
   var ORIGENES = [
     { k: "examen",   nom: "📝 Exámenes de otros años",          sub: "preguntas que cayeron en una convocatoria",        def: 3 },
     { k: "repetida", nom: "🔁 Extra por cada examen en que se repite", sub: "si cayó en varios, suma esto por cada uno más", def: 0.75, extra: true },
+    { k: "cae",      nom: "🔴 Lo que el profesor dijo que cae", sub: "preguntas sobre algo que dijo en clase que se pregunta", def: 3 },
     { k: "profesor", nom: "🎯 Las que dan los profesores",       sub: "dichas en clase, Kahoot, seminarios, campus, ⭐ imágenes que marcó", def: 2.5 },
     { k: "pistas",   nom: "📌 Sacadas de sus pistas",            sub: "construidas con lo que dijo que cae",             def: 2 },
     { k: "recop",    nom: "📚 Recopilaciones sin convocatoria",  sub: "probablemente de examen, sin confirmar",          def: 1.8 },
@@ -60,6 +61,7 @@
     if (q.ia) return "ia";
     var e = q.exp || "", E = window.Entrenador, o = E ? E.origen(q) : { tipo: "entreno" };
     if (o.tipo === "examen") return "examen";
+    if (q.cae) return "cae";
     if (o.tipo === "profesor" || o.tipo === "oficial" || /^(🎓 Dicha en clase|⭐ En clase)/.test(e)) return "profesor";
     if (/^📌 Deducida de sus pistas/.test(e)) return "pistas";
     if (o.tipo === "recop") return "recop";
@@ -135,6 +137,8 @@
       if (t === "examen" && w > 0) {
         var veces = E ? (E.origen(q).veces || 1) : 1;
         w += Math.min(3, _d.pesos.repetida * (veces - 1));
+        // Cayó en examen y además el profesor dijo que cae: lo más seguro de todo
+        if (q.cae) w += _d.pesos.repetida;
       }
       _w.set(q.id, { tipo: t, w: Math.max(0, w) });
     });
@@ -299,14 +303,19 @@
   function recordar(diag, ids) {
     if (!Array.isArray(diag)) return;
     var t = Date.now();
-    diag.forEach(function (x) {
+    diag.forEach(function (x, k) {
       if (!x || !x.idea) return;
-      _d.confus.push({ t: t, idea: String(x.idea).slice(0, 300), regla: String(x.regla || "").slice(0, 300), pr: String(x.prioridad || ""), ids: (ids || []).slice(0, 30) });
+      var c = { t: t + k, idea: String(x.idea).slice(0, 300), regla: String(x.regla || "").slice(0, 300), pr: String(x.prioridad || ""), ids: (Array.isArray(x.ids) ? x.ids : ids || []).slice(0, 30) };
+      // Dónde se explica en la sala de estudio ({n: tema, i: apartado, tit}) y de dónde salió (sesión o «explícalo»)
+      if (x.sala && x.sala.n != null) c.sala = { n: x.sala.n, i: x.sala.i, tit: String(x.sala.tit || "").slice(0, 120) };
+      if (x.de) c.de = String(x.de);
+      _d.confus.push(c);
     });
     guardar();
   }
   // ¿Sigue? Mira lo que ha respondido de esas preguntas desde que se diagnosticó
   function estadoConfusion(c) {
+    if (c.res) return { e: "resuelta", txt: "resuelta: la explicaste bien después" };
     var qs = State.data.qs || {}, ok = 0, mal = 0, desde = c.t / 1000;
     (c.ids || []).forEach(function (id) {
       var h = qs[id] && qs[id].h;
@@ -649,7 +658,10 @@
     try { MPSync.usar({ clave: K_PLAN, modo: "reciente", alCambiar: function () { _d = leer(); invalidar(); try { pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
+  // Para la sala de estudio: las confusiones con su estado, y marcar una como resuelta
+  function confusiones() { return _d.confus.map(function (c) { var st = estadoConfusion(c); return { t: c.t, idea: c.idea, regla: c.regla, pr: c.pr, sala: c.sala, de: c.de, e: st.e, txt: st.txt }; }); }
+  function resolver(t) { _d.confus.forEach(function (c) { if (c.t === t) c.res = Date.now(); }); guardar(); }
   function fijarObjetivo(o) { if (NOM_OBJ[o] && o !== objetivo()) { _d.objetivo = o; guardar(); invalidar(); } }
   window.PlanExamen = { objetivo: objetivo, fijarObjetivo: fijarObjetivo, entra: entraEnObjetivo, plan: planCache, peso: peso, factor: factor, tipo: tipoDe, temasSemana: temasSemana, cuota: cuota, contexto: contexto,
-                        recordar: recordar, brief: brief, revisarConIA: revisarConIA, foto: foto, pintar: pintar, _datos: function () { return _d; } };
+                        recordar: recordar, confusiones: confusiones, resolver: resolver, brief: brief, revisarConIA: revisarConIA, foto: foto, pintar: pintar, _datos: function () { return _d; } };
 })();

@@ -32,6 +32,14 @@ def de_examen(clave):
     return {q["id"] for q in qs if (q.get("topicBase") or "").startswith("📝") or "Examen" in (q.get("topicBase") or "") or q.get("caida")}
 
 
+def de_cae(clave):
+    """Ids de preguntas sobre lo que el profesor dijo que cae (q.cae, tools/marcar_cae.py)."""
+    s = open(os.path.join(RAIZ, PLATAFORMA[clave][0]), encoding="utf-8").read()
+    i = s.index("const ALL_QUESTIONS = ") + len("const ALL_QUESTIONS = ")
+    qs, _ = json.JSONDecoder().raw_decode(s[i:])
+    return {q["id"] for q in qs if q.get("cae")}
+
+
 def imagenes(clave):
     s = open(os.path.join(RAIZ, PLATAFORMA[clave][0]), encoding="utf-8").read()
     i = s.index("const ALL_QUESTIONS = ") + len("const ALL_QUESTIONS = ")
@@ -47,6 +55,7 @@ def main():
     errores, errores_suaves, indice = [], [], []
     qimg = imagenes(clave)
     examen = de_examen(clave)
+    caen = examen | de_cae(clave)
     for f in sorted(glob.glob(os.path.join(carpeta, "tema-*.json"))):
         nom = os.path.basename(f)
         def mal(m): errores.append("%s: %s" % (nom, m))
@@ -104,7 +113,8 @@ def main():
         indice.append({"tema": t.get("tema"), "titulo": t.get("titulo"), "bloque": t.get("bloque"), "archivo": nom,
                        "peso": t.get("peso", 0), "minutos": t.get("minutos", 0), "secciones": len(t.get("secciones", [])),
                        "bateria": len(t.get("bateria", [])),
-                       "examen": sum(1 for x in t.get("bateria", []) if x in examen)})
+                       "examen": sum(1 for x in t.get("bateria", []) if x in examen),
+                       "caen": sum(1 for x in t.get("bateria", []) if x in caen)})
         for k in ("etiqueta", "corta"):
             if t.get(k): indice[-1][k] = t[k]
     indice.sort(key=lambda x: x["tema"])

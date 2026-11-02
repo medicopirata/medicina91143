@@ -190,7 +190,7 @@
       h += '<button class="est-sig" data-est="abrir" data-n="' + sig.tema + '">▶️ ' + (ss && ss.paso ? "Seguir con" : "Estudiar") + " " + (sig.etiqueta || "el Tema " + sig.tema) + " · " + esc(sig.titulo) + ' <span class="sub">(' + (sig.minutos || "?") + " min)</span></button>";
     }
     h += cuadroRepasos(lista);
-    h += '<p class="est-ayuda">Un tema por sesión: lee por apartados, responde antes y después de cada uno, y termina con la batería del tema. 🔥 = cuánto cae en examen.</p>';
+    h += '<p class="est-ayuda">Un tema por sesión: lee por apartados, responde antes y después de cada uno, y termina con la batería del tema. 🔥 = cuánto cae en examen · 📝 = las que más caen (exámenes de otros años y lo que el profesor dijo que cae).</p>';
     bloques.forEach(function (bl) {
       h += '<div class="est-bloque"><div class="est-bloque-t">' + esc(bl) + "</div>";
       lista.filter(function (e) { return e.bloque === bl; }).forEach(function (e) {
@@ -200,7 +200,7 @@
           '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
           '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
           '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button>" +
-          (e.examen ? '<button class="est-bat ex" data-est="bat-ex" data-n="' + e.tema + '" title="Solo las preguntas de exámenes de otros años">📝 ' + e.examen + "</button>" : "") + "</div>";
+          ((e.caen || e.examen) ? '<button class="est-bat ex" data-est="bat-ex" data-n="' + e.tema + '" title="Las que más caen: exámenes de otros años y lo que el profesor dijo que cae">📝 ' + (e.caen || e.examen) + "</button>" : "") + "</div>";
       });
       h += "</div>";
     });
@@ -218,7 +218,11 @@
       var home = document.getElementById("home-screen");
       home.parentNode.insertBefore(p, home.nextSibling);
       p.addEventListener("click", clic);
-      p.addEventListener("input", function (ev) { if (ev.target.matches(".est-hueco")) ev.target.classList.remove("ok", "mal"); });
+      p.addEventListener("input", function (ev) {
+        if (ev.target.matches(".est-hueco")) ev.target.classList.remove("ok", "mal");
+        // Lo que escribe en «explícalo» se guarda, para que no se pierda al corregir o al volver
+        if (ev.target.matches(".est-expl textarea") && vista) { var s = est(vista.n); (s.explTxt = s.explTxt || {})[ev.target.getAttribute("data-i")] = ev.target.value; guardar(); }
+      });
     }
     return p;
   }
@@ -231,11 +235,12 @@
   var show0 = App.showScreen;
   App.showScreen = function () { var p = document.getElementById("estudio-screen"); if (p) p.classList.add("hidden"); return show0.apply(this, arguments); };
 
-  function abrir(n) {
+  function abrir(n, paso) {
     cargarTema(n).then(function (t) {
       var s = est(n);
       if (!s.ini) { s.ini = Date.now(); guardar(); }
       vista = { n: n, t: t, pasos: pasos(t) };
+      if (typeof paso === "number") s.paso = paso;
       if (s.paso >= vista.pasos.length) s.paso = vista.pasos.length - 1;
       mostrar(true);
       pintar();
@@ -259,7 +264,8 @@
     var orden = q.options.map(function (_, i) { return i; });
     var h = '<div class="est-q' + (hecha ? " hecha" : "") + '" data-clave="' + esc(clave) + '">';
     var deExamen = q.topicBase && (/^📝/.test(q.topicBase) || /Examen/.test(q.topicBase));
-    h += '<div class="est-q-et">' + etiqueta + (deExamen ? " · 📝 " + esc(q.topicBase.replace(/^📝\s*/, "")) : q.caida ? " · 📝 cayó en " + esc(q.caida.join(", ")) : /^🎯/.test(q.topicBase || "") ? " · 🎯 Kahoot / clase" : "") + "</div>";
+    h += '<div class="est-q-et">' + etiqueta + (deExamen ? " · 📝 " + esc(q.topicBase.replace(/^📝\s*/, "")) : q.caida ? " · 📝 cayó en " + esc(q.caida.join(", ")) : /^🎯/.test(q.topicBase || "") ? " · 🎯 Kahoot / clase" : "") +
+      (q.cae ? ' · <span class="est-cae" title="' + esc(q.cae.p || "") + '">🔴 el profesor dijo que cae</span>' : "") + "</div>";
     if (q.img) h += '<img class="est-img" src="' + esc(q.img) + '" alt="" loading="lazy">';
     h += '<div class="est-q-txt">' + esc(q.q) + "</div>";
     orden.forEach(function (i) {
@@ -333,6 +339,12 @@
       h += "<h2>" + esc(nombre(t)) + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
       h += md(t.intro);
       if (t.pesoPorQue) h += '<div class="est-caja asi"><b>🔥 Qué cae de este tema</b>' + md(t.pesoPorQue) + "</div>";
+      var cc = cuentaCae(t);
+      if (cc.n) h += '<div class="est-caja cae"><b>📝 Lo que más cae, en preguntas</b><p>' +
+        [cc.ex ? cc.ex + " de exámenes de otros años" + (cc.rep ? " (" + cc.rep + " repetidas en varias convocatorias)" : "") : "", cc.cae ? "🔴 " + cc.cae + " sobre lo que el profesor dijo que cae" : ""].filter(Boolean).join(" · ") +
+        ". " + (cc.sinVer === cc.n ? "Aún no has hecho ninguna." : "Te faltan " + cc.sinVer + " por ver y fallas " + cc.falladas + ".") + "</p>" +
+        '<div class="est-botones"><button data-acc="bat-ex">▶️ Hacer primero las que más caen (' + cc.n + ")</button></div></div>";
+      h += cajaConfusiones(confusionesTema(vista.n), true);
       h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { var ok = notaSeccion(s, t, i); return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + (ok === 1 ? ' <span class="est-ok">✓ hecho</span>' : ok === 0 ? ' <span class="est-flojo">✓ hecho · repásalo</span>' : "") + "</li>"; }).join("") + "</ol>";
       if (s.notas && s.notas.length) h += '<details class="est-caja notas" open><summary><b>🗂️ Tus notas del tutor</b> <span class="sub">(' + s.notas.length + ")</span></summary>" + s.notas.map(function (x, i) { return '<div class="est-nota">' + pintarRespuesta(x) + '<button class="est-mini-b" data-acc="borra-nota" data-i="' + i + '">Quitar</button></div>'; }).join("") + "</details>";
       h += '<div class="est-caja clave"><b>Cómo se usa</b><ul><li>En cada apartado, primero una pregunta real <b>antes de leer</b>: respóndela aunque no la sepas (no cuenta; así lo retienes mejor).</li><li>Lee con calma y abre los 🤔 solo después de pensarlos.</li><li>Al final del apartado, la comprobación. Al final del tema, el cuadro para rellenar, el «explícalo» y la batería.</li></ul></div>';
@@ -341,6 +353,7 @@
       var sec = t.secciones[p.i], previas = sec.previa || [], pend = previas.some(function (_, j) { return s.resp["pre:" + p.i + ":" + j] === undefined; });
       h += '<div class="est-meta">Apartado ' + (p.i + 1) + " de " + t.secciones.length + ' · <span title="Peso en examen">' + fuego(sec.peso) + "</span></div><h2>" + esc(sec.titulo) + "</h2>";
       if (sec.pesoPorQue) h += '<div class="est-peso">🔥 ' + esc(sec.pesoPorQue) + "</div>";
+      h += cajaConfusiones(confusionesTema(vista.n).filter(function (c) { return c.sala.i === p.i; }), false);
       if (previas.length) {
         h += '<div class="est-previa"><div class="est-sec-t">🧩 Antes de leer <span class="sub">(no cuenta: respóndela aunque no la sepas)</span></div>';
         previas.forEach(function (r, j) { h += pregunta(r, "pre:" + p.i + ":" + j, "Pregunta previa"); });
@@ -376,10 +389,14 @@
       h += '<button class="est-sigue" data-acc="ir" data-i="' + (s.paso + 1) + '">Seguir →</button>';
     } else if (p.k === "explicalo") {
       h += '<h2>🗣️ Explícalo sin mirar</h2><p class="est-ayuda">Respóndelo en voz alta o por escrito, y solo después mira la respuesta modelo y puntúate con sinceridad.</p>';
+      var ia = window.EntrenadorIA && EntrenadorIA.conectada();
+      if (ia) h += '<p class="est-ayuda">🧠 Si lo escribes, la IA te lo corrige como en un examen: qué tienes, qué te falta (primero lo que cae) y qué está mal.</p>';
       t.explicalo.forEach(function (x, i) {
-        var v = s.expl[i];
-        h += '<div class="est-expl"><div class="est-q-txt">' + esc(x.pide) + '</div><textarea rows="3" placeholder="Tu explicación (opcional)…"></textarea>';
-        h += '<details' + (v !== undefined ? " open" : "") + '><summary>Ver la respuesta modelo</summary>' + md(x.modelo) +
+        var v = s.expl[i], cor = (s.explIA || {})[i], txt = (s.explTxt || {})[i] || "";
+        h += '<div class="est-expl"><div class="est-q-txt">' + esc(x.pide) + '</div><textarea rows="' + (ia ? 5 : 3) + '" data-i="' + i + '" placeholder="Tu explicación' + (ia ? "" : " (opcional)") + '…">' + esc(txt) + "</textarea>";
+        if (ia) h += '<div class="est-botones"><button data-acc="corrige" data-i="' + i + '"' + (corrigiendo[i] ? " disabled" : "") + ">" + (corrigiendo[i] ? "Corrigiendo…" : cor ? "🧠 Corregir otra vez" : "🧠 Corrígemelo") + "</button></div>";
+        if (cor) h += pintarCorreccion(cor);
+        h += '<details' + (v !== undefined || cor ? " open" : "") + '><summary>Ver la respuesta modelo</summary>' + md(x.modelo) +
           '<div class="est-botones">' + ["❌ No me salía", "〰️ A medias", "✅ Lo tenía"].map(function (nm, j) { return '<button class="' + (v === j ? "act" : "") + '" data-acc="expl" data-i="' + i + '" data-v="' + j + '">' + nm + "</button>"; }).join("") + "</div></details></div>";
       });
       h += '<button class="est-sigue" data-acc="ir" data-i="' + (s.paso + 1) + '">Seguir →</button>';
@@ -451,8 +468,22 @@
     return r.every(function (x) { return x === 1; }) ? 1 : 0;
   }
 
+  function deExamen(q) { return !!q && (/^📝/.test(q.topicBase) || /Examen/.test(q.topicBase) || !!(q.caida && q.caida.length) || (window.Entrenador && Entrenador.origen(q).tipo === "examen")); }
+  // Las que más caen: las de exámenes de otros años y las de lo que el profesor dijo en clase que se pregunta
   function examenes(t) {
-    return (t.bateria || []).filter(function (id) { var q = BY_ID.get(id); return q && (/^📝/.test(q.topicBase) || /Examen/.test(q.topicBase) || (q.caida && q.caida.length)); });
+    return (t.bateria || []).filter(function (id) { var q = BY_ID.get(id); return q && (deExamen(q) || q.cae); });
+  }
+  // Cuánto vale una pregunta para el examen (1 = entrenamiento normal): el mismo peso que usa el plan
+  function valor(q) {
+    if (window.PlanExamen && PlanExamen.factor) { try { return PlanExamen.factor(q); } catch (e) {} }
+    return deExamen(q) && q.cae ? 2.2 : deExamen(q) || q.cae ? 1.9 : /^🎯/.test(q.topicBase || "") ? 1.6 : 1;
+  }
+  // Orden de una batería: primero lo que cayó en examen y además dijo que cae, luego examen o «cae»,
+  // luego lo que puso el profesor y al final el resto; dentro de cada grupo, al azar
+  function porPrioridad(qs) {
+    return shuffle(qs).map(function (q, i) { return [q, i, Math.round(valor(q) * 4)]; }).sort(function (a, b) {
+      return b[2] - a[2] || a[1] - b[1];
+    }).map(function (x) { return x[0]; });
   }
   function bateria(n, soloExamen) {
     cargarTema(n).then(function (t) {
@@ -461,8 +492,21 @@
       if (!qs.length) return alert("Este tema aún no tiene batería.");
       vista = null;
       document.getElementById("estudio-screen") && document.getElementById("estudio-screen").classList.add("hidden");
-      App.beginSession(shuffle(qs), "estudio");
+      App.beginSession(porPrioridad(qs), "estudio");
     });
+  }
+  // Lo que cae de un tema, contado: exámenes (y cuántas repetidas), lo que dijo el profesor y cuántas fallas
+  function cuentaCae(t) {
+    var c = { ex: 0, rep: 0, cae: 0, falladas: 0, sinVer: 0, n: 0 }, qs = State.data.qs || {};
+    examenes(t).forEach(function (id) {
+      var q = BY_ID.get(id), s = qs[id];
+      c.n++;
+      if (deExamen(q)) { c.ex++; if (window.Entrenador && (Entrenador.origen(q).veces || 1) > 1) c.rep++; }
+      if (q.cae) c.cae++;
+      if (!s || !s.a) c.sinVer++;
+      else { var h = Array.isArray(s.h) && s.h.length ? s.h[s.h.length - 1] : null; if (h ? h[1] !== 1 : s.l === 0) c.falladas++; }
+    });
+    return c;
   }
 
   function corregirHuecos(revelar) {
@@ -512,6 +556,9 @@
     else if (acc === "tutor") Tutor.abrir(vista.n);
     else if (acc === "borra-nota") { (s.notas || []).splice(+b.getAttribute("data-i"), 1); guardar(); pintar(); }
     else if (acc === "bat-ex") bateria(vista.n, true);
+    else if (acc === "corrige") corregirExplicalo(+b.getAttribute("data-i"));
+    else if (acc === "conf-ir") irPaso(+b.getAttribute("data-i") + 1);
+    else if (acc === "conf-ok") { if (window.PlanExamen && PlanExamen.resolver) PlanExamen.resolver(+b.getAttribute("data-t")); var y3 = window.scrollY; pintar(); window.scrollTo(0, y3); }
   }
 
   // ------------------------------------------------------------------ repaso inteligente
@@ -519,23 +566,23 @@
   function puntoRepaso(id) {
     var q = BY_ID.get(id), s = State.data.qs && State.data.qs[id];
     if (!q) return null;
-    var ex = /^📝/.test(q.topicBase) || /Examen/.test(q.topicBase) || (q.caida && q.caida.length);
+    var ex = deExamen(q) || !!q.cae, v = valor(q);
     var p = 0, por = "";
-    if (!s || !s.a) { p = ex ? 1.5 : 0.6; por = "nueva"; }
+    if (!s || !s.a) { p = 0.5 * v * v; por = "nueva"; }
     else {
       var h = Array.isArray(s.h) && s.h.length ? s.h[s.h.length - 1] : null, ok = h ? h[1] === 1 : s.l !== 0;
       if (!ok) { p += 5; por = "fallada"; if (h && h[3] === 1) { p += 2; por = "fallada con seguridad"; } }
       if (typeof isDue === "function" && isDue(s)) { p += 4; por = por || "le toca repaso"; }
       if (ok && h && (h[3] === 2 || h[3] === 3)) { p += 1.5; por = por || "acertada dudando"; }
     }
-    if (ex) p *= 1.3;
-    return { q: q, p: p, por: por, ex: !!ex };
+    if (s && s.a) p *= v;
+    return { q: q, p: p, por: por, ex: !!ex, cae: !!q.cae };
   }
   function repasoTema(t) {
     var l = (t.bateria || []).map(puntoRepaso).filter(function (x) { return x && x.p > 0; });
     l.sort(function (a, b) { return b.p - a.p; });
-    var c = { fallos: 0, vencidas: 0, dudosas: 0, nuevas: 0 };
-    l.forEach(function (x) { if (/fallada/.test(x.por)) c.fallos++; else if (x.por === "le toca repaso") c.vencidas++; else if (x.por === "acertada dudando") c.dudosas++; else if (x.por === "nueva") c.nuevas++; });
+    var c = { fallos: 0, fallosEx: 0, vencidas: 0, dudosas: 0, nuevas: 0 };
+    l.forEach(function (x) { if (/fallada/.test(x.por) && x.ex) c.fallosEx++; if (/fallada/.test(x.por)) c.fallos++; else if (x.por === "le toca repaso") c.vencidas++; else if (x.por === "acertada dudando") c.dudosas++; else if (x.por === "nueva") c.nuevas++; });
     return { lista: l, c: c };
   }
   function repasoInteligente(n, cuantas) {
@@ -558,7 +605,9 @@
       if (s.fin && !(s.bat && s.bat.hechas)) { p += 8; mot.push("aún no has hecho la batería"); }
       if (pr !== null && pr <= 0) { p += 6 + Math.min(10, -pr); mot.push("le toca repaso espaciado (hace " + diasSinTocar(e) + " días)"); }
       if (!s.fin) { p += 3; mot.push("lo dejaste a medias"); }
-      if (rt.c.fallos) { p += rt.c.fallos * 0.6; mot.push(rt.c.fallos + " falladas"); }
+      if (rt.c.fallos) { p += rt.c.fallos * 0.6 + rt.c.fallosEx * 0.6; mot.push(rt.c.fallos + " falladas" + (rt.c.fallosEx ? " (" + rt.c.fallosEx + " de las que caen)" : "")); }
+      var cf = confusionesTema(e.tema).length;
+      if (cf) { p += 4 * cf; mot.push(cf + (cf === 1 ? " confusión pendiente" : " confusiones pendientes")); }
       if (rt.c.vencidas) { p += rt.c.vencidas * 0.4; mot.push(rt.c.vencidas + " con repaso pendiente"); }
       p *= 1 + (e.peso || 0) * 0.15;
       if (p > 0) r.push({ e: e, p: p, mot: mot, rt: rt, pr: pr });
@@ -577,6 +626,137 @@
     var prox = (lista || []).map(function (e) { return { e: e, d: proximoRepaso(e) }; }).filter(function (x) { return x.d !== null && x.d > 0; }).sort(function (a, b) { return a.d - b.d; })[0];
     if (prox) h += '<div class="sub">📅 Siguiente repaso programado: ' + esc(corto(prox.e)) + " " + textoRepaso(prox.d) + ".</div>";
     return h + "</div>";
+  }
+
+  // ------------------------------------------------------------------ confusiones de la IA
+  // Las que ha diagnosticado la IA (tras una sesión o al corregir un «explícalo») y no están resueltas,
+  // con el apartado de la sala donde se explica. Viven en el plan de examen (plan_examen.js).
+  function confusionesTema(n) {
+    if (!(window.PlanExamen && PlanExamen.confusiones)) return [];
+    try { return PlanExamen.confusiones().filter(function (c) { return c.sala && c.sala.n === n && c.e !== "resuelta"; }); } catch (e) { return []; }
+  }
+  function cajaConfusiones(l, conEnlace) {
+    if (!l.length) return "";
+    return '<div class="est-caja confus"><b>🧠 ' + (l.length === 1 ? "Una confusión tuya pendiente" : l.length + " confusiones tuyas pendientes") + (conEnlace ? " en este tema" : " en este apartado") + "</b>" +
+      l.map(function (c) {
+        var t = (vista && vista.t && vista.t.secciones[c.sala.i]) ? vista.t.secciones[c.sala.i].titulo : "";
+        return '<div class="est-conf"><b>' + esc(c.idea) + "</b>" + (c.regla ? '<div class="regla">Regla: ' + esc(c.regla) + "</div>" : "") +
+          '<div class="sub">' + (c.de === "explícalo" ? "Al corregir tu «explícalo»" : "Tras una sesión de test") + " · " + new Date(c.t).toLocaleDateString("es") + " · " + esc(c.txt) + "</div>" +
+          '<div class="est-botones">' + (conEnlace && t ? '<button data-acc="conf-ir" data-i="' + c.sala.i + '">📖 ' + esc(t) + "</button>" : "") +
+          '<button data-acc="conf-ok" data-t="' + c.t + '">✓ Ya lo tengo claro</button></div></div>';
+      }).join("") + "</div>";
+  }
+
+  // ----- dónde se explica algo en la sala: el apartado que más palabras poco corrientes comparte con ello
+  function palabrasDe(x) { return norma(x).match(/[a-z]{5,}/g) || []; }
+  var _ixs = null, _ixsN = -1;
+  function indiceSecciones() {
+    var cargados = Object.keys(temas).length;
+    if (_ixs && _ixsN === cargados) return _ixs;
+    var secs = [], df = new Map();
+    (indice && indice.temas || []).forEach(function (e) {
+      var t = temas[e.tema];
+      if (!t) return;
+      var bat = new Set(t.bateria || []);
+      t.secciones.forEach(function (sec, i) {
+        var set = new Set(palabrasDe(sec.titulo + " " + sec.titulo + " " + textoDe(sec.bloques || [], []).join(" ")));
+        set.forEach(function (w) { df.set(w, (df.get(w) || 0) + 1); });
+        secs.push({ n: e.tema, i: i, tit: nombre(e) + " · " + sec.titulo, set: set, bat: bat });
+      });
+    });
+    _ixs = { secs: secs, df: df }; _ixsN = cargados;
+    return _ixs;
+  }
+  function mejorSeccion(texto, ids, soloTema) {
+    var ix = indiceSecciones(), N = ix.secs.length || 1, q = new Set(palabrasDe(texto)), mejor = null;
+    ix.secs.forEach(function (sc) {
+      if (soloTema != null && sc.n !== soloTema) return;
+      var p = 0, comun = 0;
+      q.forEach(function (w) { if (sc.set.has(w)) { p += Math.log(1 + N / ix.df.get(w)); comun++; } });
+      if (comun < 2) return;
+      p = p / Math.sqrt(15 + sc.set.size);
+      if ((ids || []).some(function (id) { return sc.bat.has(id); })) p *= 2.5;
+      if (!mejor || p > mejor.p) mejor = { n: sc.n, i: sc.i, tit: sc.tit, p: p };
+    });
+    return mejor;
+  }
+  // Para entrenador_ia.js: el apartado de la sala de cada confusión diagnosticada (o null)
+  function ubicar(items, ids) {
+    var listo = indice ? Promise.resolve(indice) : cargarIndice();
+    return listo.then(function () {
+      return Promise.all((indice.temas || []).map(function (e) { return cargarTema(e.tema).catch(function () { return null; }); }));
+    }).then(function () {
+      return (items || []).map(function (x) {
+        if (!x || !x.idea) return null;
+        var m = mejorSeccion([x.idea, x.regla, x.apuntes, x.por_que].join(" "), x.ids || ids);
+        return m ? { n: m.n, i: m.i, tit: m.tit } : null;
+      });
+    });
+  }
+  // Las preguntas de la batería que más se parecen a una idea (para seguir si la confusión se resuelve)
+  function parecidas(t, texto, tope) {
+    var q = new Set(palabrasDe(texto));
+    return (t.bateria || []).map(function (id) {
+      var x = BY_ID.get(id); if (!x) return null;
+      var comun = 0; new Set(palabrasDe(x.q + " " + (x.options[x.correct] || ""))).forEach(function (w) { if (q.has(w)) comun++; });
+      return comun >= 2 ? [comun, id] : null;
+    }).filter(Boolean).sort(function (a, b) { return b[0] - a[0]; }).slice(0, tope).map(function (x) { return x[1]; });
+  }
+
+  // ------------------------------------------------------------------ «explícalo» corregido por la IA
+  var corrigiendo = {};
+  var SISTEMA_CORRIGE = [
+    "Eres el profesor que corrige a Santiago, estudiante de 2.º de Medicina (Universidad de Cádiz), en su sala de estudio. Le has pedido que explique algo sin mirar, como una pregunta de desarrollo, y ahora corriges lo que ha escrito.",
+    "RECIBES: la pregunta, la respuesta modelo (sacada de sus apuntes), lo que ha escrito él, los apartados más cercanos de sus APUNTES DE CLASE y lo que el profesor dijo que cae en ese tema.",
+    "CÓMO CORRIGES. Compara sus ideas con las de la respuesta modelo, no sus palabras: no le quites nota por redacción, orden o sinónimos; sí por imprecisiones de concepto. Si escribe algo correcto que no está en la modelo pero sí en los apuntes, cuenta a su favor. En «falta», pon primero lo que el profesor dijo que cae o lo que se pregunta en examen, y di que es eso. En «errores», lo que afirma mal, con la corrección según los apuntes. Si un error muestra una CONFUSIÓN de concepto (no un simple olvido), descríbela en «confusion» con una regla corta para distinguirlo; si no la hay, null. Nivel: 2 si tiene las ideas clave y nada mal; 1 si le faltan ideas importantes o hay algún error menor; 0 si no contesta lo que se pide o tiene errores de concepto graves. Nota de 0 a 10 como en un examen de desarrollo.",
+    "REGLAS. Solo hechos de la respuesta modelo y de los apuntes; si los apuntes y otra fuente chocan, mandan los apuntes de clase. Frases cortas y concretas, sin ánimos ni relleno. Todo en español.",
+    'FORMATO: responde SOLO con JSON: {"nivel":0,"nota":0,"bien":["idea que tiene"],"falta":["idea que falta"],"errores":["lo que dice mal → lo correcto"],"confusion":{"idea":"la confusión, en una frase","regla":"cómo distinguirlo"},"consejo":"qué releer, una frase"}'
+  ].join("\n\n");
+  function pintarCorreccion(c) {
+    var niv = ["❌ No te salía", "〰️ A medias", "✅ Lo tenías"][c.nivel] || "";
+    var lista = function (tit, l, cls) { return l && l.length ? '<div class="' + cls + '"><b>' + tit + "</b><ul>" + l.map(function (x) { return "<li>" + inl(esc(x)) + "</li>"; }).join("") + "</ul></div>" : ""; };
+    return '<div class="est-corr"><div class="est-corr-t">🧠 Corrección' + (typeof c.nota === "number" ? " · <b>" + c.nota + "/10</b>" : "") + " · " + niv + '<span class="sub"> · ' + new Date(c.t).toLocaleDateString("es") + "</span></div>" +
+      lista("✅ Lo que tienes", c.bien, "bien") + lista("➕ Lo que te falta", c.falta, "falta") + lista("⚠️ Lo que está mal", c.errores, "mal") +
+      (c.confusion && c.confusion.idea ? '<div class="conf"><b>🧩 Confusión:</b> ' + esc(c.confusion.idea) + (c.confusion.regla ? "<br>Regla: " + esc(c.confusion.regla) : "") + '<br><span class="sub">Apuntada en tus confusiones: la verás en el apartado donde se explica y en «Hoy te conviene repasar».</span></div>' : "") +
+      (c.consejo ? '<div class="sub">📖 ' + esc(c.consejo) + "</div>" : "") + "</div>";
+  }
+  function repintar() { var y = window.scrollY; pintar(); window.scrollTo(0, y); }
+  function corregirExplicalo(i) {
+    if (!vista || !(window.EntrenadorIA && EntrenadorIA.conectada())) return;
+    var n = vista.n, t = vista.t, x = t.explicalo[i], s = est(n), txt = String((s.explTxt || {})[i] || "").trim();
+    if (!txt) return alert("Escribe primero tu explicación: la IA corrige lo que escribas.");
+    if (corrigiendo[i]) return;
+    corrigiendo[i] = true; repintar();
+    var cae = [], vistas = {};
+    examenes(t).forEach(function (id) { var q = BY_ID.get(id); if (q && q.cae && !vistas[q.cae.p]) { vistas[q.cae.p] = 1; cae.push(q.cae.p); } });
+    EntrenadorIA.trozos([x.pide + " " + x.modelo, t.titulo + " " + x.pide], 8).then(function (ap) {
+      var u = ["ASIGNATURA: " + document.title, "TEMA: " + nombre(t) + " · " + t.titulo,
+        t.pesoPorQue ? "QUÉ CAE DE ESTE TEMA (según su sala de estudio): " + t.pesoPorQue : "",
+        cae.length ? "LO QUE EL PROFESOR DIJO QUE CAE EN ESTE TEMA:\n- " + cae.slice(0, 15).join("\n- ") : "",
+        "PREGUNTA: " + x.pide, "RESPUESTA MODELO:\n" + x.modelo, "LO QUE HA ESCRITO SANTIAGO:\n" + txt,
+        ap && ap.length ? "APUNTES DE CLASE MÁS CERCANOS:\n\n" + ap.join("\n\n---\n\n") : ""];
+      return EntrenadorIA.llamar(SISTEMA_CORRIGE, u.filter(Boolean).join("\n\n"));
+    }).then(function (res) {
+      var j; try { var m = String(res.txt).match(/\{[\s\S]*\}/); j = JSON.parse(m ? m[0] : res.txt); } catch (e) { throw new Error("la IA no ha devuelto una corrección legible"); }
+      var arr = function (v) { return Array.isArray(v) ? v.map(String).slice(0, 8) : []; };
+      var nivel = [0, 1, 2].indexOf(+j.nivel) >= 0 ? +j.nivel : 1;
+      var cor = { t: Date.now(), nivel: nivel, nota: isFinite(+j.nota) ? Math.max(0, Math.min(10, Math.round(+j.nota * 10) / 10)) : null,
+        bien: arr(j.bien), falta: arr(j.falta), errores: arr(j.errores), consejo: String(j.consejo || ""), txt: txt.slice(0, 3000) };
+      var prev = (s.explIA || {})[i];
+      if (j.confusion && j.confusion.idea && window.PlanExamen && PlanExamen.recordar) {
+        cor.confusion = { idea: String(j.confusion.idea), regla: String(j.confusion.regla || "") };
+        var texto = x.pide + " " + cor.confusion.idea + " " + cor.confusion.regla, sec = mejorSeccion(texto, [], n);
+        PlanExamen.recordar([{ idea: cor.confusion.idea, regla: cor.confusion.regla, prioridad: nivel === 0 ? "alta" : "media", de: "explícalo",
+          sala: sec ? { n: n, i: sec.i, tit: sec.tit } : null, ids: parecidas(t, texto, 6) }], []);
+        var ult = PlanExamen.confusiones().slice(-1)[0]; if (ult) cor.ct = ult.t;
+      }
+      // Si antes le salió una confusión y ahora lo explica bien, queda resuelta
+      if (nivel === 2 && prev && prev.ct && window.PlanExamen && PlanExamen.resolver) PlanExamen.resolver(prev.ct);
+      (s.explIA = s.explIA || {})[i] = cor;
+      s.expl[i] = nivel;
+      guardar();
+    }).catch(function (e) { alert("No se ha podido corregir: " + (e && e.message || e)); })
+      .then(function () { corrigiendo[i] = false; if (vista && vista.n === n) repintar(); });
   }
 
   // ------------------------------------------------------------------ tutor con IA
@@ -811,6 +991,11 @@
     ".tu-go{display:block;margin:8px 0 4px;background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:600}",
     ".tu-in{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border)} .tu-in textarea{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:16px;resize:none}",
     ".tu-in button{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:0 14px;cursor:pointer} .tu-in button[disabled]{opacity:.5} .tu-borra{background:none;border:0;color:var(--text2);font-size:.75rem;cursor:pointer;margin:0 14px 10px;text-align:left}",
+    ".est-cae{color:#f87171;font-weight:700;text-transform:none;letter-spacing:0}",
+    ".est-caja.cae{border-left:4px solid #f87171;background:rgba(248,113,113,.07)} .est-caja.confus{border-left:4px solid #a78bfa;background:rgba(167,139,250,.08)}",
+    ".est-conf{border-top:1px solid var(--border);padding-top:8px;margin-top:8px} .est-conf:first-of-type{border-top:0;margin-top:4px;padding-top:0} .est-conf .regla{color:var(--accent);font-size:.9rem} .est-conf .est-botones{margin:6px 0 0}",
+    ".est-corr{background:rgba(167,139,250,.08);border:1px solid #a78bfa66;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.9rem} .est-corr-t{margin-bottom:4px} .est-corr ul{margin:2px 0 6px 20px}",
+    ".est-corr .falta b{color:var(--warning)} .est-corr .mal b{color:var(--danger)} .est-corr .bien b{color:var(--success)} .est-corr .conf{margin:6px 0;padding:6px 8px;border-radius:6px;background:var(--surface)}",
     "@media (max-width:600px){#estudio-screen{padding:0 12px 50px}.est-pag h2{font-size:1.15rem}.est-res b{font-size:1.2rem}}"
   ].join("\n");
   document.head.appendChild(css);
@@ -831,5 +1016,5 @@
     try { MPSync.usar({ clave: K, modo: "reciente", alCambiar: function () { _d = leer(); if (!_d.t) _d.t = {}; try { pintarPortada(); if (vista) pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
-  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, tutor: Tutor, indice: function () { return indice; }, _datos: function () { return _d; } };
+  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
 })();

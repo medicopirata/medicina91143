@@ -84,6 +84,50 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     tu.querySelector('[data-tu="hacer"]').click(); await espera(30);
     ok(w.eval("State.session") && w.eval("State.session").questions.length === 2, "  y lanza la sesión con la de la batería y la nueva");
     w.eval("App.goHome()");
+
+    // «Explícalo» corregido por la IA: guarda lo escrito, pone la nota y apunta la confusión en su apartado
+    const te = E.indice().temas.find((e) => true);
+    E.abrir(te.tema); await espera(40);
+    const pasosT = E._datos().t[te.tema];
+    const tT = await new Promise((r) => { E.abrir(te.tema); setTimeout(() => r(w.eval("1")), 30); });
+    const scr = d.getElementById("estudio-screen");
+    // ir al paso «explícalo»
+    const miga = Array.from(scr.querySelectorAll(".miga")).find((b) => b.textContent.includes("🗣"));
+    if (miga) {
+      miga.click(); await espera(20);
+      const ta = scr.querySelector(".est-expl textarea");
+      ta.value = "Mi explicación de prueba"; ta.dispatchEvent(new w.Event("input", { bubbles: true }));
+      ok(E._datos().t[te.tema].explTxt && E._datos().t[te.tema].explTxt[0] === "Mi explicación de prueba", "explícalo: lo escrito se guarda");
+      const sec0 = (await new Promise((r) => r(null)));
+      w.EntrenadorIA.llamar = () => Promise.resolve({ txt: JSON.stringify({ nivel: 1, nota: 6, bien: ["Idea A"], falta: ["Idea B, que el profesor dijo que cae"], errores: ["X → Y"],
+        confusion: { idea: scr.querySelector(".est-expl .est-q-txt").textContent.slice(0, 80), regla: "Regla corta" }, consejo: "Relee el apartado 1." }) });
+      w.EntrenadorIA.trozos = () => Promise.resolve([]);
+      scr.querySelector('[data-acc="corrige"]').click(); await espera(60);
+      ok(/6\/10/.test(scr.textContent) && /Lo que te falta/.test(scr.textContent) && scr.querySelector(".est-expl textarea").value === "Mi explicación de prueba", "  la IA corrige: nota, lo que falta, y el texto sigue ahí");
+      ok(E._datos().t[te.tema].expl[0] === 1, "  la nota de la IA queda como autoevaluación (a medias)");
+      const cf = w.PlanExamen.confusiones().slice(-1)[0];
+      ok(cf && cf.de === "explícalo" && cf.sala && cf.sala.n === te.tema, "  la confusión queda apuntada con su apartado (" + (cf && cf.sala ? cf.sala.tit : "sin apartado") + ")");
+      scr.querySelector('.miga[data-i="0"]').click(); await espera(20);
+      ok(scr.querySelector(".est-caja.confus") && scr.querySelector('.est-caja.confus [data-acc="conf-ir"]'), "  en el inicio del tema sale la confusión con un botón a su apartado");
+      scr.querySelector('.est-caja.confus [data-acc="conf-ir"]').click(); await espera(20);
+      ok(scr.querySelector(".est-caja.confus") && /Apartado/.test(scr.querySelector(".est-donde").textContent), "  y en el apartado también");
+      w.eval("App.goHome()");
+      ok(/confusión pendiente/.test(d.getElementById("estudio-home").textContent), "  y en «Hoy te conviene repasar»");
+      E.abrir(te.tema, 0); await espera(20);
+      scr.querySelector('.est-caja.confus [data-acc="conf-ok"]').click(); await espera(20);
+      ok(!scr.querySelector(".est-caja.confus") && w.PlanExamen.confusiones().slice(-1)[0].e === "resuelta", "  «Ya lo tengo claro» la da por resuelta");
+      w.eval("App.goHome()");
+    }
+    // Las que más caen van primero en la batería
+    const t1 = E.indice().temas[0].tema;
+    E.bateria(t1, false); await espera(40);
+    const qsB = w.eval("State.session").questions, val = (q) => w.PlanExamen.factor(q);
+    let orden = true; for (let k = 1; k < qsB.length; k++) if (Math.round(val(qsB[k]) * 4) > Math.round(val(qsB[k - 1]) * 4)) orden = false;
+    ok(orden, "batería ordenada por lo que más cae (" + qsB.filter((q) => val(q) > 1.5).length + " de " + qsB.length + " primero)");
+    w.eval("App.goHome()");
+    // El informe de la IA tras una sesión lleva a la sala
+    const ub = await E.ubicar([{ idea: (w.eval("BY_ID").get(E._datos && qsB[0].id) || qsB[0]).q }], [qsB[0].id]);
+    ok(ub[0] && typeof ub[0].n === "number", "ubicar: la confusión de una pregunta de la batería cae en " + (ub[0] ? ub[0].tit : "ningún apartado"));
   }
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();

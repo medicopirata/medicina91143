@@ -167,6 +167,8 @@
     } else if (ex) {
       o = { tipo: "examen", txt: o.txt.split(" · ")[0].replace("Entrenamiento", "Banco de entrenamiento") + " · y además cayó en: " + Array.from(ex).slice(0, 3).join("; "), veces: ex.size };
     }
+    // q.cae: el profesor dijo en clase que esto se pregunta (lo marca tools/marcar_cae.py con la cita)
+    if (q.cae) { o.cae = q.cae; o.txt += " · 🔴 El profesor dijo que cae" + (q.cae.c ? ": «" + q.cae.c + "»" : ""); }
     return o;
   }
 
@@ -659,6 +661,7 @@
         var s = qs[q.id], k = saber(s), og = origen(q).tipo;
         var p = k == null ? 2 : k === 0 ? (isSureFail(s) ? 6 : 5) : k <= 0.3 ? 3 : k < 0.7 ? 1.5 : 0.3;
         if (og === "examen") p += 3; else if (og === "profesor" || og === "oficial") p += 2.5; else if (og === "clase") p += 1;
+        if (q.cae) p += og === "examen" ? 1 : 3;
         lista.push([p * (0.8 + Math.random() * 0.4), q]);
       })();
     });
