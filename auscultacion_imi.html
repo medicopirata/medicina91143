@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IMI · Sonidos de auscultación</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14364a">
+<script src="acceso.js"></script>
+<script src="sync.js"></script>
+<style>
+:root{
+  --bg:#f6f0e5; --card:#fffdf8; --ink:#173140; --muted:#5c6f78;
+  --line:rgba(23,49,64,.12); --navy:#14364a; --gold:#d4a85d;
+  --ok:#2d7b57; --ok-soft:#e8f4ee; --mal:#b43e36; --mal-soft:#fbeceb;
+  --radius:18px; --sombra:0 10px 30px rgba(13,34,46,.10);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+     -webkit-text-size-adjust:100%}
+.cab{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;
+     padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
+     display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.cab h1{margin:0;font-size:17px;font-weight:650;letter-spacing:.2px;flex:1}
+.cab .volver{color:#fff;text-decoration:none;font-size:14px;opacity:.85;
+     border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.cab .volver:hover{opacity:1}
+.env{max-width:760px;margin:0 auto;padding:18px 16px 60px}
+.intro{color:var(--muted);margin:0 0 16px}
+
+/* --- pestañas -------------------------------------------------------- */
+.pestanas{display:flex;gap:8px;margin:0 0 18px}
+.pestanas button{font:inherit;font-weight:650;border:1px solid var(--line);background:#fff;color:var(--navy);
+     border-radius:999px;padding:8px 16px;cursor:pointer}
+.pestanas button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.vista{display:none}.vista.on{display:block}
+
+/* --- tarjetas -------------------------------------------------------- */
+.caja{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+      padding:16px;box-shadow:var(--sombra);margin:0 0 16px}
+.cuenta{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;margin:0 0 10px}
+.cuenta b{color:var(--ink)}
+.cuenta .aciertos{margin-left:auto;font-weight:700;color:var(--ok)}
+
+/* --- reproductor ----------------------------------------------------- */
+.repro{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.play{flex:0 0 64px;width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;
+      background:var(--navy);color:#fff;font-size:26px;display:grid;place-items:center;
+      box-shadow:0 6px 16px rgba(20,54,74,.25)}
+.play:active{transform:scale(.96)}
+.pista{flex:1;min-width:160px}
+.barra-t{position:relative;height:10px;border-radius:999px;background:rgba(23,49,64,.10);cursor:pointer}
+.barra-t i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--gold);width:0}
+.tiempos{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.mandos{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mando{font:inherit;font-size:14px;border:1px solid var(--line);background:#fff;color:var(--navy);
+       border-radius:999px;padding:6px 12px;cursor:pointer}
+.mando.on{background:#eaf0f3;border-color:#b9cbd5;font-weight:650}
+
+/* --- opciones -------------------------------------------------------- */
+.pregunta{font-weight:650;margin:18px 0 10px}
+.ops{display:grid;gap:8px}
+.op{font:inherit;text-align:left;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:12px;padding:11px 14px;cursor:pointer;display:flex;gap:10px;align-items:center}
+.op:hover:not([disabled]){border-color:#9db3bf}
+.op .l{flex:0 0 26px;height:26px;border-radius:50%;background:#eef2f4;display:grid;place-items:center;
+       font-weight:700;font-size:13px;color:var(--muted)}
+.op[disabled]{cursor:default}
+.op.bien{background:var(--ok-soft);border-color:#b7ddc8;color:var(--ok);font-weight:650}
+.op.bien .l{background:var(--ok);color:#fff}
+.op.mal{background:var(--mal-soft);border-color:#eec3bf;color:var(--mal)}
+.op.mal .l{background:var(--mal);color:#fff}
+.op .oir{margin-left:auto;font-size:12.5px;border:1px solid currentColor;border-radius:999px;padding:2px 9px;
+         background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;opacity:.85}
+
+.expl{margin:14px 0 0;padding:12px 14px;background:#fff8e8;border:1px solid #efdcb4;border-radius:12px;font-size:14.5px}
+.expl b{color:#8a6414}
+.expl p{margin:6px 0 0}
+.barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 0}
+button.acc{font:inherit;font-weight:650;border:0;border-radius:999px;padding:11px 20px;cursor:pointer}
+.prim{background:var(--navy);color:#fff}
+.sec{background:#fff;color:var(--navy);border:1px solid var(--line)!important}
+.atajos{font-size:12.5px;color:var(--muted);margin-left:auto}
+
+/* --- inicio y final -------------------------------------------------- */
+.modos{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.modo{font:inherit;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+      padding:14px 16px;cursor:pointer;box-shadow:var(--sombra);color:inherit}
+.modo b{display:block;font-size:16px}
+.modo span{color:var(--muted);font-size:13.5px}
+.modo[disabled]{opacity:.5;cursor:default}
+.resumen{font-size:15px}
+.resumen ul{padding-left:20px;margin:8px 0 0}
+
+/* --- biblioteca ------------------------------------------------------ */
+.grupo h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin:22px 0 10px;font-weight:700}
+.son{display:flex;gap:12px;align-items:flex-start}
+.son .play{flex:0 0 46px;width:46px;height:46px;font-size:18px}
+.son h3{margin:0 0 2px;font-size:16px}
+.son p{margin:0;font-size:14px;color:var(--muted)}
+.son .marca{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:#eee;color:var(--muted)}
+.son .marca.bien{background:var(--ok-soft);color:var(--ok)}
+.son .marca.regular{background:#fdf3e0;color:#9a6b14}
+.son .marca.malo{background:var(--mal-soft);color:var(--mal)}
+.nota-fuente{font-size:13px;color:var(--muted);margin-top:22px}
+</style>
+</head>
+<body>
+<header class="cab">
+  <a class="volver" href="index.html">‹ Bitácora</a>
+  <h1>IMI · Sonidos de auscultación</h1>
+</header>
+<div class="env">
+  <p class="intro">Escucha el sonido las veces que quieras y elige qué es entre cinco opciones.
+    Usa cascos: los soplos de baja frecuencia casi no se oyen por el altavoz del móvil.</p>
+  <div class="pestanas">
+    <button data-v="test" class="on">🎧 Test</button>
+    <button data-v="biblio">📚 Biblioteca</button>
+  </div>
+  <div id="test" class="vista on"></div>
+  <div id="biblio" class="vista"></div>
+</div>
+<audio id="audio" preload="auto"></audio>
+<script>
+// Grupos: sirven para elegir distractores parecidos (un soplo sistólico se
+// confunde con otro sistólico, no con un roce) y para ordenar la biblioteca.
+const GRUPOS = { base: "Normal y otros", sis: "Soplos sistólicos", dia: "Valvulopatías con componente diastólico" };
+const SONIDOS = [
+  { id: "normal", nombre: "Ruidos cardiacos normales", grupo: "base", archivo: "sonidos-normales",
+    oir: "Solo R1 y R2, nítidos, sin soplos ni extratonos. R1 coincide con el pulso carotídeo; el pequeño silencio (sístole) es más corto que el gran silencio (diástole)." },
+  { id: "roce", nombre: "Roce pericárdico", grupo: "base", archivo: "roce-pericardico",
+    oir: "Ruido áspero, rasposo y superficial («como cuero»), por la fricción de las hojas del pericardio inflamadas. Puede tener componente sistólico y diastólico (hasta tres). Se oye mejor sentado e inclinado hacia delante y cambia con la postura (Tema 9)." },
+  { id: "cia", nombre: "Comunicación interauricular", grupo: "base", archivo: "comunicacion-interauricular",
+    oir: "Desdoblamiento fijo de R2: no varía con la respiración. Suele acompañarse de un soplo sistólico eyectivo suave en foco pulmonar por hiperflujo (no es el paso de sangre por el defecto)." },
+  { id: "sis_alta", nombre: "Soplo sistólico de alta frecuencia", grupo: "sis", archivo: "soplo-sistolico-de-alta-frecuencia",
+    oir: "Soplo agudo, soplante, que ocupa parte de la sístole (empieza tras R1 y termina antes de R2). Lo agudo se oye mejor con la membrana." },
+  { id: "sis_rudo", nombre: "Soplo sistólico áspero o rudo", grupo: "sis", archivo: "soplo-sistolico-aspero-o-rudo",
+    oir: "Soplo sistólico de tono rudo, «rasposo», que no llega a R2: el timbre típico de los soplos eyectivos por estenosis de una sigmoidea." },
+  { id: "sis_musical", nombre: "Soplo sistólico musical", grupo: "sis", archivo: "soplo-sistolico-musical",
+    oir: "Soplo sistólico con un tono puro, casi de nota musical o «graznido». Ejemplos: el soplo inocente de Still en niños o el fenómeno de Gallavardin de la estenosis aórtica (el soplo se oye musical en la punta)." },
+  { id: "holo_alta", nombre: "Soplo holosistólico de alta frecuencia", grupo: "sis", archivo: "soplo-holosistolico-de-alta-frecuencia",
+    oir: "Ocupa toda la sístole, de R1 a R2, con intensidad uniforme (en meseta) y tono agudo y soplante: es el soplo de regurgitación, típico de la insuficiencia mitral (punta → axila)." },
+  { id: "holo_rudo", nombre: "Soplo holosistólico áspero o rudo", grupo: "sis", archivo: "soplo-holosistolico-aspero-o-rudo",
+    oir: "Holosistólico, de R1 a R2, pero rudo y áspero, a menudo con frémito: el típico es el de la comunicación interventricular (borde esternal izquierdo bajo)." },
+  { id: "prolapso", nombre: "Prolapso mitral", grupo: "sis", archivo: "prolapso-mitral",
+    oir: "Clic mesosistólico (un chasquido seco en mitad de la sístole) a veces seguido de un soplo telesistólico hasta R2. Se oye en la punta (síndrome de Barlow)." },
+  { id: "ea", nombre: "Estenosis aórtica", grupo: "sis", archivo: "estenosis-aortica",
+    oir: "Soplo mesosistólico eyectivo, rudo, en rombo (crescendo-decrescendo), en foco aórtico e irradiado a las carótidas. Puede haber clic de eyección y un R2 débil o con A2 retrasado." },
+  { id: "it", nombre: "Insuficiencia tricuspídea", grupo: "sis", archivo: "insuficiencia-tricuspidea",
+    oir: "Holosistólico en foco tricuspídeo (borde esternal izquierdo bajo) que aumenta en inspiración (maniobra de Rivero-Carvallo), con onda v yugular." },
+  { id: "ia", nombre: "Insuficiencia aórtica", grupo: "dia", archivo: "insuficiencia-aortica",
+    oir: "Soplo diastólico precoz: empieza justo después de R2, agudo, aspirativo y en decrescendo, en el foco de Erb. Se oye mejor sentado, inclinado hacia delante y en espiración." },
+  { id: "em_sinusal", nombre: "Estenosis mitral con ritmo sinusal", grupo: "dia", archivo: "estenosis-mitral-con-ritmo-sinusal",
+    oir: "R1 fuerte, chasquido de apertura tras R2 y retumbo diastólico de baja frecuencia (campana, decúbito lateral izquierdo) con refuerzo presistólico, porque la aurícula todavía se contrae." },
+  { id: "em_fc", nombre: "Estenosis mitral con frecuencia cardiaca rápida", grupo: "dia", archivo: "estenosis-mitral-con-fc-rapida",
+    oir: "Mismos hallazgos que la estenosis mitral, pero la taquicardia acorta la diástole: el retumbo queda comprimido y cuesta separarlo de los tonos. El ritmo es rápido pero regular." },
+  { id: "em_fa", nombre: "Estenosis mitral con fibrilación auricular", grupo: "dia", archivo: "estenosis-mitral-con-fa",
+    oir: "Ritmo irregularmente irregular (diástoles de distinta longitud) y sin refuerzo presistólico: en la FA no hay contracción auricular eficaz. La FA es la complicación típica de la estenosis mitral." },
+  { id: "doble_mitral", nombre: "Doble lesión mitral", grupo: "dia", archivo: "doble-lesion-mitral",
+    oir: "Soplo sistólico-diastólico: un holosistólico de insuficiencia mitral y, separado por R2, el retumbo diastólico de la estenosis mitral." },
+];
+const POR_ID = Object.fromEntries(SONIDOS.map(s => [s.id, s]));
+const CLAVE = "mp_auscultacion_imi";        // {"<id>_a": aciertos, "<id>_f": fallos}
+const LETRAS = "ABCDE";
+
+const audio = document.getElementById("audio");
+let sonando = null;                          // id del sonido cargado
+let botonActivo = null;                      // botón ▶ que lo controla
+
+function leer() { try { return JSON.parse(localStorage.getItem(CLAVE) || "{}"); } catch (e) { return {}; } }
+function sumar(id, campo) {
+  const m = leer(); const k = id + "_" + campo; m[k] = (m[k] || 0) + 1;
+  try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) {}
+}
+function barajar(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function ruta(s) { return "audio/auscultacion/" + s.archivo + ".m4a"; }
+function mmss(t) { if (!isFinite(t)) t = 0; return Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0"); }
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+/* --- audio compartido ----------------------------------------------- */
+function cargar(id) {
+  if (sonando === id) return;
+  sonando = id; audio.src = ruta(POR_ID[id]); audio.load();
+}
+function tocar(id, boton) {
+  if (sonando === id && !audio.paused) { audio.pause(); return; }
+  if (botonActivo && botonActivo !== boton) botonActivo.textContent = "▶";
+  cargar(id); botonActivo = boton;
+  audio.play().catch(() => {});
+}
+audio.addEventListener("play", () => { if (botonActivo) botonActivo.textContent = "❚❚"; });
+audio.addEventListener("pause", () => { if (botonActivo) botonActivo.textContent = "▶"; });
+audio.addEventListener("ended", () => { if (botonActivo) botonActivo.textContent = "▶"; });
+audio.addEventListener("timeupdate", pintarTiempo);
+audio.addEventListener("loadedmetadata", pintarTiempo);
+audio.addEventListener("seeked", pintarTiempo);
+function pintarTiempo() {
+  const r = document.getElementById("relleno"); if (!r) return;
+  const d = audio.duration || 0;
+  r.style.width = (d ? 100 * audio.currentTime / d : 0) + "%";
+  document.getElementById("t1").textContent = mmss(audio.currentTime);
+  document.getElementById("t2").textContent = mmss(d);
+}
+
+/* --- test ------------------------------------------------------------ */
+let serie = [], pos = 0, aciertos = 0, fallados = [], respondida = false, preguntaId = null, opciones = [];
+
+function peso(id) {
+  // Los que más fallas salen antes y, en la serie corta, más a menudo.
+  const m = leer(); const a = m[id + "_a"] || 0, f = m[id + "_f"] || 0;
+  return (1 + 2 * f) / (1 + a);
+}
+function nuevaSerie(modo) {
+  let ids = SONIDOS.map(s => s.id);
+  if (modo === "fallos") ids = ids.filter(id => (leer()[id + "_f"] || 0) > (leer()[id + "_a"] || 0) / 2);
+  // Orden ponderado: clave aleatoria elevada al inverso del peso.
+  ids = ids.map(id => [id, Math.pow(Math.random(), 1 / peso(id))]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+  if (modo === "corta") ids = ids.slice(0, 8);
+  serie = ids; pos = 0; aciertos = 0; fallados = [];
+  pregunta();
+}
+function distractores(id) {
+  const s = POR_ID[id];
+  const mismo = barajar(SONIDOS.filter(o => o.id !== id && o.grupo === s.grupo)).slice(0, 3);
+  const resto = barajar(SONIDOS.filter(o => o.id !== id && !mismo.includes(o)));
+  return barajar([s].concat(mismo, resto.slice(0, 4 - mismo.length)));
+}
+function pregunta() {
+  respondida = false;
+  preguntaId = serie[pos]; opciones = distractores(preguntaId);
+  audio.pause(); sonando = null; cargar(preguntaId); audio.loop = bucle;
+  const t = document.getElementById("test");
+  t.innerHTML = `
+    <div class="caja">
+      <div class="cuenta">Sonido <b>${pos + 1}</b> de ${serie.length}<span class="aciertos">${aciertos} ✓</span></div>
+      <div class="repro">
+        <button class="play" id="bplay" aria-label="Reproducir o pausar">▶</button>
+        <div class="pista">
+          <div class="barra-t" id="barra"><i id="relleno"></i></div>
+          <div class="tiempos"><span id="t1">0:00</span><span id="t2">0:00</span></div>
+        </div>
+      </div>
+      <div class="mandos">
+        <button class="mando" id="bini">⟲ Desde el principio</button>
+        <button class="mando ${bucle ? "on" : ""}" id="bbucle">🔁 Repetir en bucle</button>
+        <button class="mando ${lento ? "on" : ""}" id="blento">🐢 Más lento</button>
+      </div>
+      <div class="pregunta">¿Qué se oye?</div>
+      <div class="ops" id="ops">${opciones.map((o, i) => `
+        <button class="op" data-id="${o.id}"><span class="l">${LETRAS[i]}</span><span>${esc(o.nombre)}</span></button>`).join("")}
+      </div>
+      <div id="tras"></div>
+    </div>`;
+  const bp = document.getElementById("bplay");
+  botonActivo = bp;
+  bp.onclick = () => tocar(preguntaId, bp);
+  document.getElementById("bini").onclick = () => { cargar(preguntaId); botonActivo = bp; audio.currentTime = 0; audio.play().catch(() => {}); };
+  document.getElementById("bbucle").onclick = e => { bucle = !bucle; audio.loop = bucle; e.currentTarget.classList.toggle("on", bucle); guardarPref(); };
+  document.getElementById("blento").onclick = e => { lento = !lento; audio.playbackRate = lento ? 0.75 : 1; e.currentTarget.classList.toggle("on", lento); guardarPref(); };
+  document.getElementById("barra").onclick = e => {
+    if (sonando !== preguntaId) { cargar(preguntaId); botonActivo = bp; }
+    const r = e.currentTarget.getBoundingClientRect();
+    if (audio.duration) audio.currentTime = audio.duration * (e.clientX - r.left) / r.width;
+  };
+  document.querySelectorAll("#ops .op").forEach(b => b.onclick = ev => { if (!ev.target.closest(".oir")) responder(b.dataset.id); });
+  audio.playbackRate = lento ? 0.75 : 1;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function responder(id) {
+  if (respondida) return;
+  respondida = true;
+  const bien = id === preguntaId;
+  sumar(preguntaId, bien ? "a" : "f");
+  if (bien) aciertos++; else fallados.push([preguntaId, id]);
+  document.querySelectorAll("#ops .op").forEach(b => {
+    b.disabled = true;
+    if (b.dataset.id === preguntaId) b.classList.add("bien");
+    else if (b.dataset.id === id) b.classList.add("mal");
+    // Cada opción se puede escuchar después de responder, para comparar.
+    const o = document.createElement("span"); o.className = "oir"; o.textContent = "▶ escuchar"; o.setAttribute("role", "button");
+    o.onclick = ev => { ev.stopPropagation(); botonActivo = null; cargar(b.dataset.id); audio.currentTime = 0; audio.play().catch(() => {}); };
+    b.appendChild(o); b.disabled = false; b.style.cursor = "default";
+  });
+  const s = POR_ID[preguntaId];
+  let html = `<div class="expl"><b>${bien ? "✓ Correcto" : "✗ Era: " + esc(s.nombre)}.</b><p>${esc(s.oir)}</p>`;
+  if (!bien) html += `<p><b>Lo que marcaste, ${esc(POR_ID[id].nombre.toLowerCase())}:</b> ${esc(POR_ID[id].oir)}</p>`;
+  html += `</div><div class="barra"><button class="acc prim" id="bsig">${pos + 1 < serie.length ? "Siguiente ›" : "Ver resultado"}</button>
+    <span class="atajos">Espacio: ▶/❚❚ · 1-5: responder · Intro: siguiente</span></div>`;
+  document.getElementById("tras").innerHTML = html;
+  document.getElementById("bsig").onclick = siguiente;
+  document.querySelector(".cuenta .aciertos").textContent = aciertos + " ✓";
+}
+function siguiente() {
+  audio.pause();
+  pos++;
+  if (pos < serie.length) pregunta(); else final();
+}
+function final() {
+  const t = document.getElementById("test");
+  const pct = Math.round(100 * aciertos / serie.length);
+  t.innerHTML = `<div class="caja resumen"><b>${aciertos} de ${serie.length}</b> (${pct} %).
+    ${fallados.length ? `<ul>${fallados.map(([a, b]) => `<li><b>${esc(POR_ID[a].nombre)}</b>: marcaste ${esc(POR_ID[b].nombre.toLowerCase())}</li>`).join("")}</ul>` : "<p>Ninguno fallado. 🎉</p>"}
+    <div class="barra"><button class="acc prim" id="botra">Otra serie</button><button class="acc sec" id="binicio">Volver</button></div></div>`;
+  document.getElementById("botra").onclick = () => nuevaSerie(modoActual);
+  document.getElementById("binicio").onclick = inicio;
+}
+let modoActual = "todos";
+function inicio() {
+  audio.pause(); sonando = null;
+  const m = leer();
+  const nFallos = SONIDOS.filter(s => (m[s.id + "_f"] || 0) > (m[s.id + "_a"] || 0) / 2).length;
+  const t = document.getElementById("test");
+  t.innerHTML = `<div class="modos">
+    <button class="modo" data-m="todos"><b>Los ${SONIDOS.length} sonidos</b><span>Todos, en orden aleatorio; los que más fallas, antes.</span></button>
+    <button class="modo" data-m="corta"><b>Serie corta</b><span>8 sonidos, con preferencia por los que fallas.</span></button>
+    <button class="modo" data-m="fallos" ${nFallos ? "" : "disabled"}><b>Repasar fallos</b><span>${nFallos ? nFallos + " sonido" + (nFallos === 1 ? "" : "s") + " que todavía fallas" : "Aún no hay fallos que repasar"}</span></button>
+  </div>`;
+  t.querySelectorAll(".modo").forEach(b => b.onclick = () => { modoActual = b.dataset.m; nuevaSerie(modoActual); });
+}
+
+/* --- biblioteca ------------------------------------------------------ */
+function biblioteca() {
+  const m = leer();
+  const el = document.getElementById("biblio");
+  el.innerHTML = Object.keys(GRUPOS).map(g => `<div class="grupo"><h2>${GRUPOS[g]}</h2>
+    ${SONIDOS.filter(s => s.grupo === g).map(s => {
+      const a = m[s.id + "_a"] || 0, f = m[s.id + "_f"] || 0;
+      const marca = a + f === 0 ? "" : `<span class="marca ${f === 0 ? "bien" : (a >= 2 * f ? "regular" : "malo")}">${a} ✓ · ${f} ✗</span>`;
+      return `<div class="caja son"><button class="play" data-id="${s.id}" aria-label="Escuchar">▶</button>
+        <div><h3>${esc(s.nombre)}</h3><p>${esc(s.oir)}</p>${marca}</div></div>`;
+    }).join("")}</div>`).join("") +
+    `<p class="nota-fuente">Para identificarlos en el examen, repasa también el Tema 9 (exploración cardiaca) y la Lección 19 (valvulopatías) en la sala de estudio.</p>`;
+  el.querySelectorAll(".play").forEach(b => b.onclick = () => { audio.loop = false; tocar(b.dataset.id, b); });
+}
+
+/* --- preferencias, pestañas y teclado -------------------------------- */
+let bucle = true, lento = false;
+try { const p = JSON.parse(localStorage.getItem("mp_auscultacion_pref") || "{}"); if ("bucle" in p) bucle = p.bucle; if ("lento" in p) lento = p.lento; } catch (e) {}
+function guardarPref() { try { localStorage.setItem("mp_auscultacion_pref", JSON.stringify({ bucle, lento })); } catch (e) {} }
+
+document.querySelectorAll(".pestanas button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".pestanas button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".vista").forEach(v => v.classList.toggle("on", v.id === b.dataset.v));
+  audio.pause();
+  if (b.dataset.v === "biblio") biblioteca();
+  else { audio.loop = bucle; audio.playbackRate = lento ? 0.75 : 1; if (preguntaId && sonando !== preguntaId) { cargar(preguntaId); botonActivo = document.getElementById("bplay"); } }
+});
+document.addEventListener("keydown", e => {
+  if (!document.getElementById("test").classList.contains("on") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const bp = document.getElementById("bplay"); if (!bp) return;
+  if (e.key === " ") { e.preventDefault(); if (respondida && sonando !== preguntaId) { cargar(preguntaId); } botonActivo = bp; tocar(preguntaId, bp); }
+  else if (/^[1-5]$/.test(e.key) && !respondida) responder(opciones[+e.key - 1].id);
+  else if (e.key === "Enter" && respondida) { e.preventDefault(); siguiente(); }
+});
+
+inicio();
+MPSync.usar({ clave: CLAVE, modo: "max", alCambiar: function () {
+  if (document.getElementById("biblio").classList.contains("on")) biblioteca();
+  else if (!document.getElementById("bplay")) inicio();
+} });
+</script>
+</body>
+</html>
