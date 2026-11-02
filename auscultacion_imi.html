@@ -104,6 +104,10 @@ button.acc{font:inherit;font-weight:650;border:0;border-radius:999px;padding:11p
 .son .marca.regular{background:#fdf3e0;color:#9a6b14}
 .son .marca.malo{background:var(--mal-soft);color:var(--mal)}
 .nota-fuente{font-size:13px;color:var(--muted);margin-top:22px}
+.son .botones{display:flex;flex-direction:column;gap:6px}
+.son .play[data-n]:not([data-n=""]){font-size:15px;letter-spacing:-1px}
+.son .focos{font-size:12.5px;margin-top:4px}
+.foco{margin:14px 0 0;font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -113,6 +117,7 @@ button.acc{font:inherit;font-weight:650;border:0;border-radius:999px;padding:11p
 </header>
 <div class="env">
   <p class="intro">Escucha el sonido las veces que quieras y elige qué es entre cinco opciones.
+    Las grabaciones de Michigan indican dónde y cómo se ausculta.
     Usa cascos: los soplos de baja frecuencia casi no se oyen por el altavoz del móvil.</p>
   <div class="pestanas">
     <button data-v="test" class="on">🎧 Test</button>
@@ -125,47 +130,97 @@ button.acc{font:inherit;font-weight:650;border:0;border-radius:999px;padding:11p
 <script>
 // Grupos: sirven para elegir distractores parecidos (un soplo sistólico se
 // confunde con otro sistólico, no con un roce) y para ordenar la biblioteca.
-const GRUPOS = { base: "Normal y otros", sis: "Soplos sistólicos", dia: "Valvulopatías con componente diastólico" };
+const GRUPOS = { base: "Normal y otros", ruidos: "Ruidos añadidos y desdoblamientos", sis: "Soplos sistólicos", dia: "Valvulopatías con componente diastólico" };
 const SONIDOS = [
-  { id: "normal", nombre: "Ruidos cardiacos normales", grupo: "base", archivo: "sonidos-normales",
+  { id: "normal", nombre: "Ruidos cardiacos normales", grupo: "base", archivo: "sonidos-normales", um: [["01-apex-normal-s1-s2-supine-bell", "punta"], ["14-aortic-normal-s1-s2-sitting-bell", "ao"]], choca: ["r2_unico", "r2_fisio"],
     oir: "Solo R1 y R2, nítidos, sin soplos ni extratonos. R1 coincide con el pulso carotídeo; el pequeño silencio (sístole) es más corto que el gran silencio (diástole)." },
   { id: "roce", nombre: "Roce pericárdico", grupo: "base", archivo: "roce-pericardico",
     oir: "Ruido áspero, rasposo y superficial («como cuero»), por la fricción de las hojas del pericardio inflamadas. Puede tener componente sistólico y diastólico (hasta tres). Se oye mejor sentado e inclinado hacia delante y cambia con la postura (Tema 9)." },
-  { id: "cia", nombre: "Comunicación interauricular", grupo: "base", archivo: "comunicacion-interauricular",
+  { id: "cia", nombre: "Comunicación interauricular", grupo: "base", archivo: "comunicacion-interauricular", choca: ["r2_pers", "eyec_pers"],
     oir: "Desdoblamiento fijo de R2: no varía con la respiración. Suele acompañarse de un soplo sistólico eyectivo suave en foco pulmonar por hiperflujo (no es el paso de sangre por el defecto)." },
-  { id: "sis_alta", nombre: "Soplo sistólico de alta frecuencia", grupo: "sis", archivo: "soplo-sistolico-de-alta-frecuencia",
+  { id: "sis_alta", choca: ["proto", "meso", "tele", "holo", "eyec_fisio", "eyec_pers", "clic_eyec"], nombre: "Soplo sistólico de alta frecuencia", grupo: "sis", archivo: "soplo-sistolico-de-alta-frecuencia",
     oir: "Soplo agudo, soplante, que ocupa parte de la sístole (empieza tras R1 y termina antes de R2). Lo agudo se oye mejor con la membrana." },
-  { id: "sis_rudo", nombre: "Soplo sistólico áspero o rudo", grupo: "sis", archivo: "soplo-sistolico-aspero-o-rudo",
+  { id: "sis_rudo", choca: ["proto", "meso", "tele", "holo", "eyec_fisio", "eyec_pers", "clic_eyec"], nombre: "Soplo sistólico áspero o rudo", grupo: "sis", archivo: "soplo-sistolico-aspero-o-rudo",
     oir: "Soplo sistólico de tono rudo, «rasposo», que no llega a R2: el timbre típico de los soplos eyectivos por estenosis de una sigmoidea." },
-  { id: "sis_musical", nombre: "Soplo sistólico musical", grupo: "sis", archivo: "soplo-sistolico-musical",
+  { id: "sis_musical", choca: ["proto", "meso", "tele", "holo", "eyec_fisio", "eyec_pers", "clic_eyec"], nombre: "Soplo sistólico musical", grupo: "sis", archivo: "soplo-sistolico-musical",
     oir: "Soplo sistólico con un tono puro, casi de nota musical o «graznido». Ejemplos: el soplo inocente de Still en niños o el fenómeno de Gallavardin de la estenosis aórtica (el soplo se oye musical en la punta)." },
-  { id: "holo_alta", nombre: "Soplo holosistólico de alta frecuencia", grupo: "sis", archivo: "soplo-holosistolico-de-alta-frecuencia",
+  { id: "holo_alta", nombre: "Soplo holosistólico de alta frecuencia", grupo: "sis", archivo: "soplo-holosistolico-de-alta-frecuencia", choca: ["holo", "r3_holo"],
     oir: "Ocupa toda la sístole, de R1 a R2, con intensidad uniforme (en meseta) y tono agudo y soplante: es el soplo de regurgitación, típico de la insuficiencia mitral (punta → axila)." },
-  { id: "holo_rudo", nombre: "Soplo holosistólico áspero o rudo", grupo: "sis", archivo: "soplo-holosistolico-aspero-o-rudo",
+  { id: "holo_rudo", nombre: "Soplo holosistólico áspero o rudo", grupo: "sis", archivo: "soplo-holosistolico-aspero-o-rudo", choca: ["holo", "r3_holo"],
     oir: "Holosistólico, de R1 a R2, pero rudo y áspero, a menudo con frémito: el típico es el de la comunicación interventricular (borde esternal izquierdo bajo)." },
-  { id: "prolapso", nombre: "Prolapso mitral", grupo: "sis", archivo: "prolapso-mitral",
+  { id: "prolapso", nombre: "Prolapso mitral", grupo: "sis", archivo: "prolapso-mitral", um: [["04-apex-mid-sys-click-supine-bell", "punta"], ["10-apex-sys-click-late-sys-mur-lld-bell", "lld"]], choca: ["tele"],
     oir: "Clic mesosistólico (un chasquido seco en mitad de la sístole) a veces seguido de un soplo telesistólico hasta R2. Se oye en la punta (síndrome de Barlow)." },
-  { id: "ea", nombre: "Estenosis aórtica", grupo: "sis", archivo: "estenosis-aortica",
-    oir: "Soplo mesosistólico eyectivo, rudo, en rombo (crescendo-decrescendo), en foco aórtico e irradiado a las carótidas. Puede haber clic de eyección y un R2 débil o con A2 retrasado." },
-  { id: "it", nombre: "Insuficiencia tricuspídea", grupo: "sis", archivo: "insuficiencia-tricuspidea",
+  { id: "ea", nombre: "Estenosis aórtica", grupo: "sis", archivo: "estenosis-aortica", um: [["15-aortic-sys-mur-absent-s2-sitting-bell", "ao"]], choca: ["meso", "r4_meso", "doble_ao"],
+    oir: "Soplo mesosistólico eyectivo, rudo, en rombo (crescendo-decrescendo), en foco aórtico e irradiado a las carótidas. Puede haber clic de eyección y un R2 débil, ausente (estenosis grave) o con A2 retrasado." },
+  { id: "it", nombre: "Insuficiencia tricuspídea", grupo: "sis", archivo: "insuficiencia-tricuspidea", choca: ["holo", "r3_holo"],
     oir: "Holosistólico en foco tricuspídeo (borde esternal izquierdo bajo) que aumenta en inspiración (maniobra de Rivero-Carvallo), con onda v yugular." },
-  { id: "ia", nombre: "Insuficiencia aórtica", grupo: "dia", archivo: "insuficiencia-aortica",
+  { id: "ia", nombre: "Insuficiencia aórtica", grupo: "dia", archivo: "insuficiencia-aortica", um: [["16-aortic-early-dias-mur-sitting-bell", "ao"]], choca: ["doble_ao"],
     oir: "Soplo diastólico precoz: empieza justo después de R2, agudo, aspirativo y en decrescendo, en el foco de Erb. Se oye mejor sentado, inclinado hacia delante y en espiración." },
-  { id: "em_sinusal", nombre: "Estenosis mitral con ritmo sinusal", grupo: "dia", archivo: "estenosis-mitral-con-ritmo-sinusal",
+  { id: "em_sinusal", nombre: "Estenosis mitral con ritmo sinusal", grupo: "dia", archivo: "estenosis-mitral-con-ritmo-sinusal", choca: ["ca_retumbo"],
     oir: "R1 fuerte, chasquido de apertura tras R2 y retumbo diastólico de baja frecuencia (campana, decúbito lateral izquierdo) con refuerzo presistólico, porque la aurícula todavía se contrae." },
-  { id: "em_fc", nombre: "Estenosis mitral con frecuencia cardiaca rápida", grupo: "dia", archivo: "estenosis-mitral-con-fc-rapida",
+  { id: "em_fc", nombre: "Estenosis mitral con frecuencia cardiaca rápida", grupo: "dia", archivo: "estenosis-mitral-con-fc-rapida", choca: ["ca_retumbo"],
     oir: "Mismos hallazgos que la estenosis mitral, pero la taquicardia acorta la diástole: el retumbo queda comprimido y cuesta separarlo de los tonos. El ritmo es rápido pero regular." },
-  { id: "em_fa", nombre: "Estenosis mitral con fibrilación auricular", grupo: "dia", archivo: "estenosis-mitral-con-fa",
+  { id: "em_fa", nombre: "Estenosis mitral con fibrilación auricular", grupo: "dia", archivo: "estenosis-mitral-con-fa", choca: ["ca_retumbo"],
     oir: "Ritmo irregularmente irregular (diástoles de distinta longitud) y sin refuerzo presistólico: en la FA no hay contracción auricular eficaz. La FA es la complicación típica de la estenosis mitral." },
-  { id: "doble_mitral", nombre: "Doble lesión mitral", grupo: "dia", archivo: "doble-lesion-mitral",
+  { id: "doble_mitral", nombre: "Doble lesión mitral", grupo: "dia", archivo: "doble-lesion-mitral", choca: ["ca_retumbo"],
     oir: "Soplo sistólico-diastólico: un holosistólico de insuficiencia mitral y, separado por R2, el retumbo diastólico de la estenosis mitral." },
+
+  // Heart Sound & Murmur Library (Universidad de Michigan): grabaciones con
+  // nombre de hallazgo, no de enfermedad. Las que coinciden con otro nombre
+  // de la lista («choca») nunca salen juntas como opciones.
+  { id: "r1_desd", nombre: "Desdoblamiento de R1", grupo: "ruidos", um: [["02-apex-split-s1-supine-bell", "punta"]], choca: ["r4"],
+    oir: "R1 se oye doble (componentes mitral y tricuspídeo separados); se busca en el foco tricuspídeo. Puede ser normal o deberse a un bloqueo de rama derecha. No lo confundas con el R4 (grave, justo antes de R1) ni con el clic de eyección (agudo, justo después)." },
+  { id: "r3", nombre: "Tercer ruido (R3)", grupo: "ruidos", um: [["05-apex-s3-lld-bell", "lld"]],
+    oir: "Tono grave protodiastólico, poco después de R2: galope ventricular por llenado rápido de un ventrículo dilatado. Acompaña a la insuficiencia cardiaca sistólica; en jóvenes puede ser fisiológico. Campana, punta, decúbito lateral izquierdo." },
+  { id: "r4", nombre: "Cuarto ruido (R4)", grupo: "ruidos", um: [["03-apex-s4-lld-bell", "lld"]], choca: ["r1_desd"],
+    oir: "Tono grave presistólico, justo antes de R1: galope auricular por contracción de la aurícula contra un ventrículo rígido (hipertrofia, HTA, isquemia, insuficiencia cardiaca diastólica). Desaparece si hay fibrilación auricular." },
+  { id: "r2_unico", nombre: "R2 único (sin desdoblamiento)", grupo: "ruidos", um: [["18-pulm-single-s2-supine-diaph", "pulm"]], choca: ["normal", "r2_fisio"],
+    oir: "En el foco pulmonar solo se oye un componente de R2, sin separarse en inspiración. Puede ser normal (P2 inaudible) o deberse a un P2 débil o ausente, como en la estenosis pulmonar." },
+  { id: "r2_fisio", nombre: "Desdoblamiento fisiológico de R2", grupo: "ruidos", um: [["20-pulm-spilt-s2-transient-supine-diaph", "pulm"]], choca: ["normal", "r2_unico", "eyec_fisio"],
+    oir: "R2 se separa en A2 y P2 en inspiración y vuelve a ser único en espiración. Es normal, sobre todo en jóvenes. Foco pulmonar, membrana." },
+  { id: "r2_pers", nombre: "Desdoblamiento persistente de R2", grupo: "ruidos", um: [["19-pulm-spilt-s2-persistent-supine-diaph", "pulm"]], choca: ["cia", "eyec_pers"],
+    oir: "R2 está desdoblado en inspiración y en espiración, aunque se abre más al inspirar (si no variara nada sería fijo, el de la CIA). Se debe a un P2 retrasado (bloqueo de rama derecha, estenosis pulmonar) o a un A2 adelantado (insuficiencia mitral)." },
+  { id: "proto", nombre: "Soplo protosistólico", grupo: "sis", um: [["06-apex-early-sys-mur-supine-bell", "punta"]], choca: ["sis_alta", "sis_rudo", "sis_musical"],
+    oir: "Empieza con R1 y se apaga antes de la mitad de la sístole. Ejemplos: CIV pequeña muscular, insuficiencia tricuspídea sin hipertensión pulmonar o insuficiencia mitral aguda." },
+  { id: "meso", nombre: "Soplo mesosistólico", grupo: "sis", um: [["07-apex-mid-sys-mur-supine-bell", "punta"]], choca: ["sis_alta", "sis_rudo", "sis_musical", "ea", "r4_meso", "eyec_fisio", "eyec_pers", "clic_eyec"],
+    oir: "Soplo eyectivo: empieza tras R1, crece y decrece (en rombo) y acaba antes de R2. Es el soplo del flujo por las sigmoideas: estenosis aórtica o pulmonar, soplos funcionales e inocentes." },
+  { id: "tele", nombre: "Soplo telesistólico", grupo: "sis", um: [["08-apex-late-sys-mur-supine-bell", "punta"]], choca: ["sis_alta", "sis_rudo", "sis_musical", "prolapso"],
+    oir: "Empieza a mitad o al final de la sístole y llega hasta R2. Es típico del prolapso mitral (a menudo tras un clic mesosistólico) y de la disfunción del músculo papilar." },
+  { id: "holo", nombre: "Soplo holosistólico", grupo: "sis", um: [["09-apex-holo-sys-mur-supine-bell", "punta"]], choca: ["sis_alta", "sis_rudo", "sis_musical", "holo_alta", "holo_rudo", "it", "r3_holo"],
+    oir: "Ocupa toda la sístole, de R1 a R2, con intensidad uniforme (en meseta): soplo de regurgitación, como el de la insuficiencia mitral o tricuspídea o la CIV." },
+  { id: "r4_meso", nombre: "R4 y soplo mesosistólico", grupo: "sis", um: [["11-apex-s4-mid-sys-mur-lld-bell", "lld"]], choca: ["r4", "meso", "ea"],
+    oir: "Un R4 justo antes de R1 y un soplo mesosistólico eyectivo: lo propio de un ventrículo hipertrófico y rígido que eyecta contra una obstrucción (estenosis aórtica o miocardiopatía hipertrófica)." },
+  { id: "r3_holo", nombre: "R3 y soplo holosistólico", grupo: "sis", um: [["12-apex-s3-holo-sys-mur-lld-bell", "lld"]], choca: ["r3", "holo", "holo_alta", "holo_rudo", "it"],
+    oir: "Soplo holosistólico en la punta y un R3 tras R2: insuficiencia mitral significativa (el volumen regurgitado vuelve al ventrículo en diástole y produce el R3)." },
+  { id: "eyec_fisio", nombre: "Soplo eyectivo pulmonar con desdoblamiento fisiológico de R2", grupo: "sis", um: [["21-pulm-eject-sys-mur-trans-split-s2-supine-diaph", "pulm"]], choca: ["r2_fisio", "meso", "sis_alta", "sis_rudo", "sis_musical", "eyec_pers"],
+    oir: "Soplo mesosistólico suave en foco pulmonar con un R2 que se desdobla solo en inspiración: es lo propio de un soplo funcional o inocente (niños, embarazo, fiebre, anemia)." },
+  { id: "eyec_pers", nombre: "Soplo eyectivo pulmonar con desdoblamiento persistente de R2", grupo: "sis", um: [["22-pulm-split-s2-eject-sys-mur-supine-diaph", "pulm"]], choca: ["r2_pers", "cia", "meso", "sis_alta", "sis_rudo", "sis_musical", "eyec_fisio"],
+    oir: "Soplo eyectivo en foco pulmonar con R2 desdoblado en las dos fases de la respiración. Si el desdoblamiento no cambia nada con la respiración (fijo), piensa en CIA; si se abre más al inspirar, en bloqueo de rama derecha o estenosis pulmonar." },
+  { id: "clic_eyec", nombre: "Clic de eyección, soplo eyectivo pulmonar y R2 único", grupo: "sis", um: [["23-pulm-eject-sys-mur-single-s2-eject-click-supine-diaph", "pulm"]], choca: ["r2_unico", "meso", "sis_alta", "sis_rudo", "sis_musical"],
+    oir: "Un clic agudo justo después de R1 (apertura de una sigmoidea estenótica), un soplo mesosistólico en foco pulmonar y un R2 único porque P2 es débil: estenosis valvular pulmonar." },
+  { id: "ca_retumbo", nombre: "Chasquido de apertura y retumbo diastólico", grupo: "dia", um: [["13-apex-os-dias-mur-lld-bell", "lld"]], choca: ["em_sinusal", "em_fc", "em_fa", "doble_mitral"],
+    oir: "Chasquido de apertura (breve y agudo, poco después de R2) seguido de un retumbo diastólico grave en la punta: estenosis mitral. Mejor con la campana y en decúbito lateral izquierdo." },
+  { id: "doble_ao", nombre: "Doble lesión aórtica", grupo: "dia", um: [["17-aortic-sys-dias-mur-sitting-bell", "ao"]], choca: ["ea", "ia"],
+    oir: "Soplo sistólico eyectivo y, separado por R2, soplo diastólico aspirativo en foco aórtico: estenosis más insuficiencia aórtica (soplo sistólico-diastólico, no continuo)." },
 ];
+const FOCOS = {
+  punta: "Punta · decúbito supino · campana",
+  lld: "Punta · decúbito lateral izquierdo · campana",
+  ao: "Foco aórtico · sentado · campana",
+  pulm: "Foco pulmonar · decúbito supino · membrana",
+};
+// Cada sonido puede tener varias grabaciones; en el test sale una al azar.
+SONIDOS.forEach(s => {
+  s.audios = [];
+  if (s.archivo) s.audios.push({ f: s.archivo, foco: "" });
+  (s.um || []).forEach(([f, foco]) => s.audios.push({ f: "umich-" + f, foco: FOCOS[foco], um: true }));
+});
 const POR_ID = Object.fromEntries(SONIDOS.map(s => [s.id, s]));
 const CLAVE = "mp_auscultacion_imi";        // {"<id>_a": aciertos, "<id>_f": fallos}
 const LETRAS = "ABCDE";
 
 const audio = document.getElementById("audio");
-let sonando = null;                          // id del sonido cargado
+let sonando = null;                          // grabación cargada, "<id>#<n>"
 let botonActivo = null;                      // botón ▶ que lo controla
 
 function leer() { try { return JSON.parse(localStorage.getItem(CLAVE) || "{}"); } catch (e) { return {}; } }
@@ -174,24 +229,27 @@ function sumar(id, campo) {
   try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) {}
 }
 function barajar(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function ruta(s) { return "audio/auscultacion/" + s.archivo + ".m4a"; }
+function ruta(c) { const [id, k] = c.split("#"); return "audio/auscultacion/" + POR_ID[id].audios[+k || 0].f + ".m4a"; }
+function chocan(a, b) { return (POR_ID[a].choca || []).includes(b) || (POR_ID[b].choca || []).includes(a); }
 function mmss(t) { if (!isFinite(t)) t = 0; return Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0"); }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 /* --- audio compartido ----------------------------------------------- */
 function cargar(id) {
   if (sonando === id) return;
-  sonando = id; audio.src = ruta(POR_ID[id]); audio.load();
+  sonando = id; audio.src = ruta(id); audio.load();
 }
 function tocar(id, boton) {
   if (sonando === id && !audio.paused) { audio.pause(); return; }
-  if (botonActivo && botonActivo !== boton) botonActivo.textContent = "▶";
+  if (botonActivo && botonActivo !== boton) icono(botonActivo, false);
   cargar(id); botonActivo = boton;
   audio.play().catch(() => {});
 }
-audio.addEventListener("play", () => { if (botonActivo) botonActivo.textContent = "❚❚"; });
-audio.addEventListener("pause", () => { if (botonActivo) botonActivo.textContent = "▶"; });
-audio.addEventListener("ended", () => { if (botonActivo) botonActivo.textContent = "▶"; });
+// En la biblioteca, si un sonido tiene varias grabaciones, cada botón lleva su número.
+function icono(b, suena) { if (b) b.textContent = suena ? "❚❚" : "▶" + (b.dataset.n || ""); }
+audio.addEventListener("play", () => icono(botonActivo, true));
+audio.addEventListener("pause", () => icono(botonActivo, false));
+audio.addEventListener("ended", () => icono(botonActivo, false));
 audio.addEventListener("timeupdate", pintarTiempo);
 audio.addEventListener("loadedmetadata", pintarTiempo);
 audio.addEventListener("seeked", pintarTiempo);
@@ -204,7 +262,7 @@ function pintarTiempo() {
 }
 
 /* --- test ------------------------------------------------------------ */
-let serie = [], pos = 0, aciertos = 0, fallados = [], respondida = false, preguntaId = null, opciones = [];
+let serie = [], pos = 0, aciertos = 0, fallados = [], respondida = false, preguntaId = null, grab = null, opciones = [];
 
 function peso(id) {
   // Los que más fallas salen antes y, en la serie corta, más a menudo.
@@ -222,14 +280,24 @@ function nuevaSerie(modo) {
 }
 function distractores(id) {
   const s = POR_ID[id];
-  const mismo = barajar(SONIDOS.filter(o => o.id !== id && o.grupo === s.grupo)).slice(0, 3);
-  const resto = barajar(SONIDOS.filter(o => o.id !== id && !mismo.includes(o)));
-  return barajar([s].concat(mismo, resto.slice(0, 4 - mismo.length)));
+  const validos = SONIDOS.filter(o => o.id !== id && !chocan(id, o.id));
+  // Las opciones tampoco pueden chocar entre sí: si no, dos serían correctas a la vez.
+  const elegidos = [];
+  for (const o of barajar(validos.filter(o => o.grupo === s.grupo)).concat(barajar(validos.filter(o => o.grupo !== s.grupo)))) {
+    if (elegidos.length === 4) break;
+    if (elegidos.some(e => chocan(e.id, o.id))) continue;
+    if (o.grupo === s.grupo && elegidos.length >= 3) continue;
+    elegidos.push(o);
+  }
+  for (const o of barajar(validos)) { if (elegidos.length === 4) break; if (!elegidos.includes(o) && !elegidos.some(e => chocan(e.id, o.id))) elegidos.push(o); }
+  return barajar([s].concat(elegidos));
 }
 function pregunta() {
   respondida = false;
   preguntaId = serie[pos]; opciones = distractores(preguntaId);
-  audio.pause(); sonando = null; cargar(preguntaId); audio.loop = bucle;
+  const auds = POR_ID[preguntaId].audios, k = Math.floor(Math.random() * auds.length);
+  grab = preguntaId + "#" + k;
+  audio.pause(); sonando = null; cargar(grab); audio.loop = bucle;
   const t = document.getElementById("test");
   t.innerHTML = `
     <div class="caja">
@@ -246,6 +314,7 @@ function pregunta() {
         <button class="mando ${bucle ? "on" : ""}" id="bbucle">🔁 Repetir en bucle</button>
         <button class="mando ${lento ? "on" : ""}" id="blento">🐢 Más lento</button>
       </div>
+      ${auds[k].foco ? `<div class="foco">📍 ${auds[k].foco}</div>` : ""}
       <div class="pregunta">¿Qué se oye?</div>
       <div class="ops" id="ops">${opciones.map((o, i) => `
         <button class="op" data-id="${o.id}"><span class="l">${LETRAS[i]}</span><span>${esc(o.nombre)}</span></button>`).join("")}
@@ -254,12 +323,12 @@ function pregunta() {
     </div>`;
   const bp = document.getElementById("bplay");
   botonActivo = bp;
-  bp.onclick = () => tocar(preguntaId, bp);
-  document.getElementById("bini").onclick = () => { cargar(preguntaId); botonActivo = bp; audio.currentTime = 0; audio.play().catch(() => {}); };
+  bp.onclick = () => tocar(grab, bp);
+  document.getElementById("bini").onclick = () => { cargar(grab); botonActivo = bp; audio.currentTime = 0; audio.play().catch(() => {}); };
   document.getElementById("bbucle").onclick = e => { bucle = !bucle; audio.loop = bucle; e.currentTarget.classList.toggle("on", bucle); guardarPref(); };
   document.getElementById("blento").onclick = e => { lento = !lento; audio.playbackRate = lento ? 0.75 : 1; e.currentTarget.classList.toggle("on", lento); guardarPref(); };
   document.getElementById("barra").onclick = e => {
-    if (sonando !== preguntaId) { cargar(preguntaId); botonActivo = bp; }
+    if (sonando !== grab) { cargar(grab); botonActivo = bp; }
     const r = e.currentTarget.getBoundingClientRect();
     if (audio.duration) audio.currentTime = audio.duration * (e.clientX - r.left) / r.width;
   };
@@ -279,7 +348,7 @@ function responder(id) {
     else if (b.dataset.id === id) b.classList.add("mal");
     // Cada opción se puede escuchar después de responder, para comparar.
     const o = document.createElement("span"); o.className = "oir"; o.textContent = "▶ escuchar"; o.setAttribute("role", "button");
-    o.onclick = ev => { ev.stopPropagation(); botonActivo = null; cargar(b.dataset.id); audio.currentTime = 0; audio.play().catch(() => {}); };
+    o.onclick = ev => { ev.stopPropagation(); botonActivo = null; cargar(b.dataset.id + "#0"); audio.currentTime = 0; audio.play().catch(() => {}); };
     b.appendChild(o); b.disabled = false; b.style.cursor = "default";
   });
   const s = POR_ID[preguntaId];
@@ -327,11 +396,16 @@ function biblioteca() {
     ${SONIDOS.filter(s => s.grupo === g).map(s => {
       const a = m[s.id + "_a"] || 0, f = m[s.id + "_f"] || 0;
       const marca = a + f === 0 ? "" : `<span class="marca ${f === 0 ? "bien" : (a >= 2 * f ? "regular" : "malo")}">${a} ✓ · ${f} ✗</span>`;
-      return `<div class="caja son"><button class="play" data-id="${s.id}" aria-label="Escuchar">▶</button>
-        <div><h3>${esc(s.nombre)}</h3><p>${esc(s.oir)}</p>${marca}</div></div>`;
+      const botones = s.audios.map((au, k) => { const n = s.audios.length > 1 ? k + 1 : ""; return `<button class="play" data-c="${s.id}#${k}" data-n="${n}" aria-label="Escuchar" title="${esc(au.foco || "Grabación")}">▶${n}</button>`; }).join("");
+      const focos = s.audios.some(au => au.foco) ? `<p class="focos">${s.audios.map((au, k) => (s.audios.length > 1 ? (k + 1) + ": " : "") + (au.foco || "sin foco indicado")).join(" · ")}</p>` : "";
+      return `<div class="caja son"><div class="botones">${botones}</div>
+        <div><h3>${esc(s.nombre)}</h3><p>${esc(s.oir)}</p>${focos}${marca}</div></div>`;
     }).join("")}</div>`).join("") +
-    `<p class="nota-fuente">Para identificarlos en el examen, repasa también el Tema 9 (exploración cardiaca) y la Lección 19 (valvulopatías) en la sala de estudio.</p>`;
-  el.querySelectorAll(".play").forEach(b => b.onclick = () => { audio.loop = false; tocar(b.dataset.id, b); });
+    `<p class="nota-fuente">Para identificarlos en el examen, repasa también el Tema 9 (exploración cardiaca) y la Lección 19 (valvulopatías) en la sala de estudio.</p>
+    <p class="nota-fuente">Las grabaciones con foco indicado son de la <a href="https://hdl.handle.net/2027.42/120554" target="_blank" rel="noopener">Heart Sound &amp; Murmur Library</a>
+    (R. D. Judge y R. Mangrulkar, Universidad de Michigan, 2015), con licencia
+    <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.es" target="_blank" rel="noopener">CC BY-SA 4.0</a>; aquí están convertidas a AAC, sin otros cambios.</p>`;
+  el.querySelectorAll(".play").forEach(b => b.onclick = () => { audio.loop = false; tocar(b.dataset.c, b); });
 }
 
 /* --- preferencias, pestañas y teclado -------------------------------- */
@@ -344,12 +418,12 @@ document.querySelectorAll(".pestanas button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".vista").forEach(v => v.classList.toggle("on", v.id === b.dataset.v));
   audio.pause();
   if (b.dataset.v === "biblio") biblioteca();
-  else { audio.loop = bucle; audio.playbackRate = lento ? 0.75 : 1; if (preguntaId && sonando !== preguntaId) { cargar(preguntaId); botonActivo = document.getElementById("bplay"); } }
+  else { audio.loop = bucle; audio.playbackRate = lento ? 0.75 : 1; if (grab && sonando !== grab) { cargar(grab); botonActivo = document.getElementById("bplay"); } }
 });
 document.addEventListener("keydown", e => {
   if (!document.getElementById("test").classList.contains("on") || e.metaKey || e.ctrlKey || e.altKey) return;
   const bp = document.getElementById("bplay"); if (!bp) return;
-  if (e.key === " ") { e.preventDefault(); if (respondida && sonando !== preguntaId) { cargar(preguntaId); } botonActivo = bp; tocar(preguntaId, bp); }
+  if (e.key === " ") { e.preventDefault(); if (respondida && sonando !== grab) { cargar(grab); } botonActivo = bp; tocar(grab, bp); }
   else if (/^[1-5]$/.test(e.key) && !respondida) responder(opciones[+e.key - 1].id);
   else if (e.key === "Enter" && respondida) { e.preventDefault(); siguiente(); }
 });
