@@ -18,7 +18,7 @@ import glob, json, os, re, sys
 from collections import Counter, defaultdict
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-APUNTES = {"fisio1": "fisio1", "medint": "medint", "anat3": "anat3", "histo21": "histo21", "genetica": "genetica"}
+APUNTES = {"fisio1": "fisio1", "medint": "medint", "anat3": "anat3", "histo21": "histo21", "genetica": "genetica", "tecdiag": "tecdiag"}
 # Sigla: empieza por mayúscula, tiene al menos dos mayúsculas y como mucho 8 caracteres.
 RE_SIGLA = re.compile(r"(?<![\wÁÉÍÓÚÑáéíóúñ])([A-ZÁÉÍÓÚÑ][A-Za-z0-9ÁÉÍÓÚÑ₀-₉⁺⁻αβγ\-]{1,7})(?![\wÁÉÍÓÚÑáéíóúñ])")
 NO = {"NO", "SI", "II", "III", "IV", "VI", "VII", "VIII", "IX", "XI", "XII", "OK", "UCA", "MIR", "ECG"}  # ECG sí entra: se quita de NO abajo

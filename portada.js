@@ -23,6 +23,7 @@
     { k: "anat3",     nombre: "Anatomía 3",          emoji: "🧠", archivo: "plataforma_anatomia3.html",     cuatri: 1, sala: true },
     { k: "fisio1",    nombre: "Fisiología I",        emoji: "🫀", archivo: "plataforma_fisio1.html",        cuatri: 1, sala: true },
     { k: "histo21",   nombre: "Histología Esp. I",   emoji: "🔬", archivo: "plataforma_histologia2.1.html", cuatri: 1, sala: true },
+    { k: "tecdiag",   nombre: "Técnicas Diagnósticas", emoji: "🩻", archivo: "plataforma_tecdiag.html",     cuatri: 1, sala: true },
     { k: "medint",    nombre: "Medicina Interna",    emoji: "🩺", archivo: "plataforma_medint.html",        cuatri: 0, sala: true },
     { k: "genetica",  nombre: "Genética",            emoji: "🧬", archivo: "plataforma_genetica.html",      cuatri: 0, sala: true },
     { k: "historia",  nombre: "Historia de la Medicina", emoji: "📜", archivo: "plataforma_historia.html",  cuatri: 0, sinEntrenador: true },

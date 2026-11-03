@@ -10,8 +10,13 @@ html = html.replace(/<script[^>]*src="(acceso|sync)\.js[^"]*"[^>]*><\/script>/g,
            .replace(/<script src="(entrenador|entrenador_ia|plan_examen)\.js[^"]*"><\/script>/g,
                     (m, n) => "<script>" + fs.readFileSync(path.join(raiz, n + ".js"), "utf8").replace(/<\/script>/g, "<\\/script>") + "</script>");
 const errores = [], pendientes = [];
+// Asignatura sin fecha por defecto en plan_examen.js (FECHAS) ni en la bitácora: se le da una a 60 días,
+// como si Santiago la hubiera puesto, para poder probar el reparto por semanas
+const claveSK = (html.match(/const STORAGE_KEY = '([a-z0-9]+)_study_v\d+'/) || [])[1];
+const conFecha = new RegExp("\\b" + claveSK + ":\\s*\"\\d{4}-").test(fs.readFileSync(path.join(raiz, "plan_examen.js"), "utf8"));
+const fechaPrueba = conFecha ? null : new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10);
 const dom = new JSDOM(html, { runScripts: "dangerously", url: "https://medicopirata.github.io/medicina91143/" + pag, pretendToBeVisual: true,
-  beforeParse(w) { w.MPSync = { usar() {} }; w.alert = () => {}; w.confirm = () => true; w.scrollTo = () => {}; w.Element.prototype.scrollIntoView = () => {};
+  beforeParse(w) { if (fechaPrueba) w.localStorage.setItem("mp_examenes", JSON.stringify({ [claveSK + "_study_v1"]: { fecha: fechaPrueba } })); w.MPSync = { usar() {} }; w.alert = () => {}; w.confirm = () => true; w.scrollTo = () => {}; w.Element.prototype.scrollIntoView = () => {};
     w.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
     w.console.warn = (...a) => errores.push(a.join(" ")); w.console.error = (...a) => errores.push(a.join(" ")); } });
 const w = dom.window;
@@ -21,9 +26,14 @@ setTimeout(() => {
     const P = w.PlanExamen, E = w.Entrenador;
     ok(P && E, "PlanExamen y Entrenador cargados");
     const p = P.plan();
+    if (!p.fecha) {
+      // Asignatura sin fecha de examen todavía (p. ej. recién creada): el plan pide la fecha en vez de planificar
+      ok(!p.fase && /Pon la fecha/.test((w.document.getElementById("plan-ex") || {}).textContent || ""), "sin fecha de examen: el plan la pide");
+    } else {
     ok(p.dias >= 0 && p.fase === (p.dias > 21 ? "cobertura" : p.dias > 7 ? "consolidacion" : "final"), "fase " + p.fase + ", faltan " + p.dias + " días (" + p.fecha + ")");
     ok(p.semanas.length === Math.ceil(p.dias / 7), p.semanas.length + " semanas planificadas");
     ok(p.semanas[0].temas.length > 0, "semana 1: " + p.semanas[0].temas.slice(0, 3).map(t => t.tema + " (" + t.n + ")").join("; "));
+    }
     ok(w.document.getElementById("plan-ex"), "panel del plan en la portada");
     // Tipos de origen
     const tipos = {};

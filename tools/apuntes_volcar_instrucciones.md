@@ -19,7 +19,8 @@ que hay que volcarlos cada vez que cambian.
 | `histo21` | plataforma_histologia2.1.html | 68865663-9398-45b9-a1d2-96004cfb4eda | la pestaña de apuntes |
 | `fisio1` | plataforma_fisio1.html | 7ba262e3-f1d0-4644-b13e-84d13bdff728 | las pestañas «Tema N · Apuntes» y «Pistas de examen» (no las «Preguntas») |
 | `genetica` | plataforma_genetica.html | 1mD1RqkYYhdtwHtrr8T7ey | la pestaña única |
-| `medint` | plataforma_medint.html | 3mPeKhvrMznMmCv4Q35SVy | la pestaña única |
+| `medint` | plataforma_medint.html | 3mPeKhvrMznMmCv4Q35SVy | las 4 pestañas, en orden: Vol. 1 (apuntes), Vol. 2, Vol. 3 y Vol. 4 |
+| `tecdiag` | plataforma_tecdiag.html | 7iewqfUhJnFGS1HA8QUFkz | en orden: «Guía» y las «Tema N · Apuntes» de cada bloque (no las «Preguntas», ni «Erratas del manual», ni las portadas de bloque); quitar antes los marcadores `&#91;image: …\]` de la exportación |
 
 `fisio2` e `histoesp2` no tienen todavía documento apuntado aquí:
 cuando lo tengan, se añade la fila y se vuelcan igual.
