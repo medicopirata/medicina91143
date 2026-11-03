@@ -1006,10 +1006,25 @@
     stats0.apply(this, arguments);
     try { pintarPortada(); } catch (e) { console.warn("estudio", e); }
   };
+  // Enlaces directos desde la portada de la bitácora:
+  //   #estudio=9 (tema 9) · #estudio=9.2 (tema 9, apartado 3) · #repaso=9 · #estudio (la sala) · #entrenador
+  function irPorEnlace() {
+    var m = String(location.hash).match(/^#(estudio|repaso|entrenador)(?:=(\d+)(?:\.(\d+))?)?$/);
+    if (!m) return;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    if (m[1] === "entrenador") { if (window.Entrenador && Entrenador.abrir) Entrenador.abrir(); return; }
+    if (!indice) return;
+    var n = m[2] != null ? +m[2] : null, e = n != null && (indice.temas || []).filter(function (x) { return x.tema === n; })[0];
+    if (m[1] === "repaso" && e) return repasoInteligente(n);
+    if (m[1] === "estudio" && e) return abrir(n, m[3] != null ? +m[3] + 1 : undefined);
+    var caja = document.getElementById("estudio-home");
+    if (caja) { caja.open = true; caja.scrollIntoView({ behavior: "smooth" }); }
+  }
   cargarIndice().then(function () {
     // Se cargan en segundo plano los temas empezados, para saber cómo va su batería
     (indice.temas || []).forEach(function (e) { if (_d.t[e.tema]) cargarTema(e.tema).then(pintarPortada).catch(function () {}); });
     pintarPortada();
+    setTimeout(irPorEnlace, 300);
   }).catch(function () { /* esta plataforma aún no tiene sala de estudio */ });
 
   if (window.MPSync && typeof MPSync.usar === "function") {

@@ -96,7 +96,7 @@ def reescribir(ruta, campo, busca, totales):
 SCRIPTS_PLATAFORMA = ("acceso.js", "sync.js", "entrenador.js", "entrenador_ia.js", "plan_examen.js", "estudio.js", "aspecto.js")
 
 
-def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js"), pagina="index.html"):
+def sellar_versiones(base, archivos=("catalogo.js", "escritorio.js", "acceso.js", "portada.js"), pagina="index.html"):
     """Pone ?v=<hash> a los scripts sueltos que carga una página (index.html por defecto).
 
     GitHub Pages los sirve con caché de varios minutos, así que al añadir algo
