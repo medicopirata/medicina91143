@@ -66,7 +66,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(scr.querySelector(".est-caja.confus"), "  y allí sale la confusión pendiente");
   }
   // «🔴 El profesor dijo que cae» pesa como una de examen en el plan
-  const q0 = w.eval("ALL_QUESTIONS").find(q => P.tipo(q) === "entreno" || P.tipo(q) === "clase");
+  const q0 = w.eval("ALL_QUESTIONS").find(q => (P.tipo(q) === "entreno" || P.tipo(q) === "clase") && P.factor(q) > 0);  // del parcial que se prepara
   if (q0) {
     const antes = P.factor(q0);
     q0.cae = { p: "Prueba", c: "esto cae", r: "", f: 2 };
