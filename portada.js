@@ -91,10 +91,13 @@
     var sala = null;
     if (a.sala) {
       var est = (extra(prog, clave + "_estudio") || {}).t || {}, ind = (indices[a.k] || {}).temas || [];
-      var leidos = 0, aMedias = null, toca = [];
+      var leidos = 0, aMedias = null, toca = [], cambiadas = [];
       ind.forEach(function (t) {
         var s = est[t.tema];
         if (!s) return;
+        // Lección cambiada desde la última vez que se abrió (igual que cambiada() de estudio.js)
+        var vis = s.vis || Math.max(s.ini || 0, s.fin || 0);
+        if (vis && t.mod && t.mod > vis) cambiadas.push(t);
         if (s.fin) {
           leidos++;
           var b = s.bat, p = b && b.n ? b.bien / b.n : 0;
@@ -104,7 +107,7 @@
         } else if (s.paso && !aMedias) aMedias = t;
       });
       var siguiente = ind.filter(function (t) { return !(est[t.tema] && est[t.tema].fin); })[0] || null;
-      sala = { total: ind.length, leidos: leidos, aMedias: aMedias, siguiente: siguiente, toca: toca.sort(function (x, y) { return (y.t.peso || 0) - (x.t.peso || 0) || y.hace - x.hace; }) };
+      sala = { total: ind.length, leidos: leidos, aMedias: aMedias, siguiente: siguiente, toca: toca.sort(function (x, y) { return (y.t.peso || 0) - (x.t.peso || 0) || y.hace - x.hace; }), cambiadas: cambiadas };
     }
     return { a: a, vencidas: vencidas, vistas: vistas, acierto: intentos ? Math.round(bien * 100 / intentos) : null, semana: semana, ultima: ult,
              meta: meta, foto: foto, hace7: hace7, confus: confus, sala: sala, conv: ex.convocatoria || "enero", ex: ex };
@@ -128,6 +131,9 @@
           l.push({ p: (x.sinBat ? 7 : 5 + (x.t.peso || 0)) * urg, ico: "📖", s: s, txt: (x.sinBat ? "Falta la batería de " : "Toca repasar ") + (x.t.etiqueta || "Tema " + x.t.tema) + " · " + x.t.titulo + (x.sinBat ? "" : " (hace " + x.hace + " días)"),
                    url: url + (x.sinBat ? "#estudio=" + x.t.tema : "#repaso=" + x.t.tema), boton: x.sinBat ? "Hacer la batería" : "Repaso del tema" });
         });
+        var cb = s.sala.cambiadas;
+        if (cb.length) l.push({ p: 6.5 * urg, ico: "🆕", s: s, txt: (cb.length === 1 ? "Ha cambiado " + (cb[0].etiqueta || "el Tema " + cb[0].tema) + " · " + cb[0].titulo : cb.length + " lecciones han cambiado desde que las abriste: " + cb.map(function (t) { return t.corta || "T" + t.tema; }).join(", ")),
+                                url: url + "#estudio=" + cb[0].tema, boton: "Ver qué cambió" });
         var sig = s.sala.aMedias || s.sala.siguiente;
         if (sig) l.push({ p: (s.sala.aMedias ? 6 : 4) * urg, ico: "▶️", s: s, txt: (s.sala.aMedias ? "Sigue con " : "Siguiente tema: ") + (sig.etiqueta || "Tema " + sig.tema) + " · " + sig.titulo + " (" + (sig.minutos || "?") + " min)",
                          url: url + "#estudio=" + sig.tema, boton: s.sala.aMedias ? "Seguir" : "Estudiar" });
@@ -153,7 +159,7 @@
         (tend ? ' <em class="' + (tend > 0 ? "sube" : "baja") + '">' + (tend > 0 ? "▲ " : "▼ ") + Math.abs(tend) + " en 7 días</em>" : "") + "</span></div>";
       if (f.exN) h += '<div class="as-dato">📝 De examen dominadas: <b>' + f.ex + "/" + f.exN + "</b></div>";
     } else h += '<div class="as-dato sub">Abre la plataforma para calcular tu preparación.</div>';
-    if (sala && sala.total) h += '<div class="as-dato">📖 Sala: <b>' + sala.leidos + "/" + sala.total + "</b> temas estudiados" + (sala.toca.length ? " · " + sala.toca.length + " por repasar" : "") + "</div>";
+    if (sala && sala.total) h += '<div class="as-dato">📖 Sala: <b>' + sala.leidos + "/" + sala.total + "</b> temas estudiados" + (sala.toca.length ? " · " + sala.toca.length + " por repasar" : "") + (sala.cambiadas.length ? " · 🆕 " + sala.cambiadas.length + (sala.cambiadas.length === 1 ? " cambiada" : " cambiadas") : "") + "</div>";
     h += '<div class="as-dato">' + (s.vencidas ? "🔁 <b>" + s.vencidas + "</b> repasos vencidos · " : "") + (s.semana ? s.semana + " preguntas esta semana" : s.ultima ? "Última vez: " + fmt(s.ultima) : "Sin empezar") + (s.acierto != null ? " · " + s.acierto + " % aciertos" : "") + "</div>";
     if (s.confus.length) h += '<div class="as-dato">🧩 ' + s.confus.length + (s.confus.length === 1 ? " confusión pendiente" : " confusiones pendientes") + "</div>";
     h += '<div class="as-btns"><a href="' + esc(A.archivo) + '">Abrir</a>' + (A.sala ? '<a href="' + esc(A.archivo) + '#estudio">📖 Sala</a>' : "") + (A.sinEntrenador ? "" : '<a href="' + esc(A.archivo) + '#entrenador">🧠 Entrenador</a>') + "</div>";

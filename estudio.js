@@ -123,6 +123,22 @@
     return Math.floor((Date.now() - ult) / 864e5);
   }
 
+  // Lo que ha cambiado desde la última vez que se abrió el tema. El índice trae
+  // «mod» (cuándo cambió el contenido) y «nov» (los últimos cambios, con las
+  // huellas de los apartados que entraron o se retocaron); lo saca
+  // tools/estudio_validar.py del historial de git. Un tema que nunca se ha abierto
+  // no se marca: entero es nuevo.
+  function ultimaVisita(n) { var s = _d.t[n]; return s ? s.vis || Math.max(s.ini || 0, s.fin || 0) : 0; }
+  function cambiada(e) { var v = ultimaVisita(e.tema); return !!(v && e.mod && e.mod > v); }
+  // Índices de los apartados nuevos o retocados después de «desde»
+  function novedades(e, desde) {
+    var hs = {};
+    (e.nov || []).forEach(function (c) { if (c.t > desde) (c.s || []).forEach(function (x) { hs[x] = 1; }); });
+    return (e.sh || []).map(function (x, i) { return hs[x] ? i : -1; }).filter(function (i) { return i >= 0; });
+  }
+  function diaMes(ms) { var d = new Date(ms); return d.getDate() + "/" + (d.getMonth() + 1); }
+  var cambiosVistos = {};   // lo que había cambiado al abrir cada tema, mientras dure la página
+
   function estadoTema(e) {
     var s = _d.t[e.tema], b = s && s.bat;
     if (!s || (!s.paso && !s.fin)) return { txt: "Sin empezar", cls: "nada" };
@@ -164,6 +180,7 @@
       if (s && temas[e.tema]) s.bat = dominioBateria(temas[e.tema].bateria);
     });
     var hechos = lista.filter(function (e) { return _d.t[e.tema] && _d.t[e.tema].fin; }).length;
+    var nCamb = lista.filter(cambiada).length;
     var sig = lista.filter(function (e) { return !(_d.t[e.tema] && _d.t[e.tema].fin); })[0];
     var bloques = [];
     lista.forEach(function (e) { if (bloques.indexOf(e.bloque) < 0) bloques.push(e.bloque); });
@@ -177,7 +194,7 @@
       if (s && s.bat) { batN += s.bat.n; batHechas += s.bat.hechas; batBien += s.bat.bien; }
     });
     pct = lista.length ? Math.round(pct * 100 / lista.length) : 0;
-    var h = '<summary><b>📖 Sala de estudio</b> <span class="sub">· estudia los temas uno a uno, sabiendo qué cae · ' + hechos + "/" + lista.length + " estudiados · " + pct + "%</span></summary>";
+    var h = '<summary><b>📖 Sala de estudio</b> <span class="sub">· estudia los temas uno a uno, sabiendo qué cae · ' + hechos + "/" + lista.length + " estudiados · " + pct + "%" + (nCamb ? ' · <span class="est-nuevo">🆕 ' + nCamb + (nCamb === 1 ? " lección cambiada" : " lecciones cambiadas") + "</span>" : "") + "</span></summary>";
     h += '<div class="est-cuerpo">';
     h += '<div class="est-prog"><div class="est-prog-barra">' + ["dominado", "hecho", "curso"].map(function (c) {
       return cuenta[c] ? '<div class="' + c + '" style="width:' + (cuenta[c] * 100 / lista.length) + '%"></div>' : "";
@@ -197,7 +214,7 @@
         var st = estadoTema(e), s = _d.t[e.tema];
         var av = Math.round(avanceTema(e) * 100);
         h += '<div class="est-fila ' + st.cls + '"><button class="est-tema" data-est="abrir" data-n="' + e.tema + '"><span class="n">' + esc(corto(e)) + "</span> " + esc(e.titulo) +
-          '<span class="meta"><span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
+          '<span class="meta">' + (cambiada(e) ? '<span class="est-nuevo" title="Ha cambiado desde que la abriste el ' + diaMes(ultimaVisita(e.tema)) + '">🆕 Cambiada el ' + diaMes(e.mod) + "</span> · " : "") + '<span title="Peso en examen">' + fuego(e.peso) + "</span> · " + (e.minutos || "?") + " min · " + st.txt + "</span>" +
           '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
           '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button>" +
           ((e.caen || e.examen) ? '<button class="est-bat ex" data-est="bat-ex" data-n="' + e.tema + '" title="Las que más caen: exámenes de otros años y lo que el profesor dijo que cae">📝 ' + (e.caen || e.examen) + "</button>" : "") + "</div>";
@@ -237,9 +254,11 @@
 
   function abrir(n, paso) {
     cargarTema(n).then(function (t) {
-      var s = est(n);
-      if (!s.ini) { s.ini = Date.now(); guardar(); }
-      vista = { n: n, t: t, pasos: pasos(t) };
+      var s = est(n), e = (indice.temas || []).filter(function (x) { return x.tema === n; })[0] || {};
+      if (!cambiosVistos[n] && cambiada(e)) { var desde = ultimaVisita(n); cambiosVistos[n] = { desde: desde, mod: e.mod, secs: novedades(e, desde) }; }
+      if (!s.ini) s.ini = Date.now();
+      s.vis = Date.now(); guardar();
+      vista = { n: n, t: t, pasos: pasos(t), cambios: cambiosVistos[n] || null };
       if (typeof paso === "number") s.paso = paso;
       if (s.paso >= vista.pasos.length) s.paso = vista.pasos.length - 1;
       mostrar(true);
@@ -322,6 +341,19 @@
     return "";
   }
 
+  // ----- lo que ha cambiado desde la última visita
+  function esNueva(i) { return !!(vista && vista.cambios && vista.cambios.secs.indexOf(i) >= 0); }
+  function cajaCambios(p) {
+    var c = vista.cambios;
+    if (!c) return "";
+    var t = vista.t, enlaces = c.secs.map(function (i) {
+      return '<button class="est-mini-b" data-acc="ir" data-i="' + (i + 1) + '">' + (i + 1) + ". " + esc(t.secciones[i] ? t.secciones[i].titulo : "") + "</button>";
+    }).join(" ");
+    if (p.k !== "intro") return c.secs.length ? '<div class="est-nuevo-caja corta">🆕 Cambiado desde tu última visita: ' + enlaces + "</div>" : "";
+    return '<div class="est-nuevo-caja"><b>🆕 Esta lección ha cambiado</b> el ' + diaMes(c.mod) + " (la abriste por última vez el " + diaMes(c.desde) + "). " +
+      (c.secs.length ? "Apartados nuevos o retocados:<div class=\"est-botones\">" + enlaces + "</div>" : "El cambio está en la introducción o en el cierre del tema.") + "</div>";
+  }
+
   // ----- pintar el paso actual
   function pintar() {
     if (!vista) return;
@@ -332,9 +364,11 @@
       '<div class="est-migas">' + vista.pasos.map(function (x, i) {
         var nom = x.k === "intro" ? "Inicio" : x.k === "sec" ? (i) + "" : x.k === "rellenar" ? "✍️" : x.k === "explicalo" ? "🗣️" : "🎯";
         var ok = x.k === "sec" ? notaSeccion(s, t, x.i) : null;
-        return '<button class="miga' + (i === s.paso ? " act" : i < s.paso || s.fin ? " vista" : "") + (ok === 1 ? " bien" : ok === 0 ? " floja" : "") + '" data-acc="ir" data-i="' + i + '" title="' + esc(x.k === "sec" ? t.secciones[x.i].titulo + (ok === 1 ? " · comprobación bien" : ok === 0 ? " · falló alguna comprobación" : "") : "") + '">' + nom + (ok === 1 ? "✓" : "") + "</button>";
+        var nueva = x.k === "sec" && esNueva(x.i);
+        return '<button class="miga' + (i === s.paso ? " act" : i < s.paso || s.fin ? " vista" : "") + (ok === 1 ? " bien" : ok === 0 ? " floja" : "") + (nueva ? " nueva" : "") + '" data-acc="ir" data-i="' + i + '" title="' + esc(x.k === "sec" ? t.secciones[x.i].titulo + (nueva ? " · 🆕 cambiado desde tu última visita" : "") + (ok === 1 ? " · comprobación bien" : ok === 0 ? " · falló alguna comprobación" : "") : "") + '">' + nom + (ok === 1 ? "✓" : "") + "</button>";
       }).join("") + "</div></div>";
     h += '<div class="est-pag">';
+    h += cajaCambios(p);
     if (p.k === "intro") {
       h += "<h2>" + esc(nombre(t)) + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
       h += md(t.intro);
@@ -345,13 +379,13 @@
         ". " + (cc.sinVer === cc.n ? "Aún no has hecho ninguna." : "Te faltan " + cc.sinVer + " por ver y fallas " + cc.falladas + ".") + "</p>" +
         '<div class="est-botones"><button data-acc="bat-ex">▶️ Hacer primero las que más caen (' + cc.n + ")</button></div></div>";
       h += cajaConfusiones(confusionesTema(vista.n), true);
-      h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { var ok = notaSeccion(s, t, i); return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + (ok === 1 ? ' <span class="est-ok">✓ hecho</span>' : ok === 0 ? ' <span class="est-flojo">✓ hecho · repásalo</span>' : "") + "</li>"; }).join("") + "</ol>";
+      h += '<ol class="est-indice">' + t.secciones.map(function (x, i) { var ok = notaSeccion(s, t, i); return '<li><button data-acc="ir" data-i="' + (i + 1) + '">' + esc(x.titulo) + "</button> " + fuego(x.peso) + (esNueva(i) ? ' <span class="est-nuevo">🆕 cambiado</span>' : "") + (ok === 1 ? ' <span class="est-ok">✓ hecho</span>' : ok === 0 ? ' <span class="est-flojo">✓ hecho · repásalo</span>' : "") + "</li>"; }).join("") + "</ol>";
       if (s.notas && s.notas.length) h += '<details class="est-caja notas" open><summary><b>🗂️ Tus notas del tutor</b> <span class="sub">(' + s.notas.length + ")</span></summary>" + s.notas.map(function (x, i) { return '<div class="est-nota">' + pintarRespuesta(x) + '<button class="est-mini-b" data-acc="borra-nota" data-i="' + i + '">Quitar</button></div>'; }).join("") + "</details>";
       h += '<div class="est-caja clave"><b>Cómo se usa</b><ul><li>En cada apartado, primero una pregunta real <b>antes de leer</b>: respóndela aunque no la sepas (no cuenta; así lo retienes mejor).</li><li>Lee con calma y abre los 🤔 solo después de pensarlos.</li><li>Al final del apartado, la comprobación. Al final del tema, el cuadro para rellenar, el «explícalo» y la batería.</li></ul></div>';
       h += '<button class="est-sigue" data-acc="ir" data-i="1">Empezar →</button>';
     } else if (p.k === "sec") {
       var sec = t.secciones[p.i], previas = sec.previa || [], pend = previas.some(function (_, j) { return s.resp["pre:" + p.i + ":" + j] === undefined; });
-      h += '<div class="est-meta">Apartado ' + (p.i + 1) + " de " + t.secciones.length + ' · <span title="Peso en examen">' + fuego(sec.peso) + "</span></div><h2>" + esc(sec.titulo) + "</h2>";
+      h += '<div class="est-meta">Apartado ' + (p.i + 1) + " de " + t.secciones.length + ' · <span title="Peso en examen">' + fuego(sec.peso) + "</span></div><h2>" + esc(sec.titulo) + (esNueva(p.i) ? ' <span class="est-nuevo">🆕 cambiado desde tu última visita</span>' : "") + "</h2>";
       if (sec.pesoPorQue) h += '<div class="est-peso">🔥 ' + esc(sec.pesoPorQue) + "</div>";
       h += cajaConfusiones(confusionesTema(vista.n).filter(function (c) { return c.sala.i === p.i; }), false);
       if (previas.length) {
@@ -992,6 +1026,8 @@
     ".tu-in{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border)} .tu-in textarea{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:16px;resize:none}",
     ".tu-in button{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:0 14px;cursor:pointer} .tu-in button[disabled]{opacity:.5} .tu-borra{background:none;border:0;color:var(--text2);font-size:.75rem;cursor:pointer;margin:0 14px 10px;text-align:left}",
     ".est-cae{color:#f87171;font-weight:700;text-transform:none;letter-spacing:0}",
+    ".est-nuevo{color:#38bdf8;font-weight:700} .est-nuevo-caja{border:1px solid #38bdf8;background:rgba(56,189,248,.08);border-radius:8px;padding:10px 12px;margin:10px 0} .est-nuevo-caja.corta{padding:6px 10px;font-size:.9em}",
+    ".est-nuevo-caja .est-mini-b{margin:4px 4px 0 0;white-space:normal;text-align:left} .miga.nueva{box-shadow:inset 0 -3px 0 #38bdf8}",
     ".est-caja.cae{border-left:4px solid #f87171;background:rgba(248,113,113,.07)} .est-caja.confus{border-left:4px solid #a78bfa;background:rgba(167,139,250,.08)}",
     ".est-conf{border-top:1px solid var(--border);padding-top:8px;margin-top:8px} .est-conf:first-of-type{border-top:0;margin-top:4px;padding-top:0} .est-conf .regla{color:var(--accent);font-size:.9rem} .est-conf .est-botones{margin:6px 0 0}",
     ".est-corr{background:rgba(167,139,250,.08);border:1px solid #a78bfa66;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.9rem} .est-corr-t{margin-bottom:4px} .est-corr ul{margin:2px 0 6px 20px}",

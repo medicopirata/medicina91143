@@ -8,7 +8,7 @@ los ids de previa/comprueba/bateria existen en la plataforma, que las preguntas
 propias están bien formadas y que el cuadro de rellenar tiene huecos. Después
 escribe estudio/<clave>/indice.json. Formato en tools/estudio_instrucciones.md.
 """
-import glob, json, os, sys
+import glob, hashlib, json, os, subprocess, sys, time
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLATAFORMA = {"fisio1": ("plataforma_fisio1.html", "Fisiología I"), "medint": ("plataforma_medint.html", "Introducción a la Medicina Interna (IMI)"), "anat3": ("plataforma_anatomia3.html", "Anatomía Humana III"), "histo21": ("plataforma_histologia2.1.html", "Histología Especial I"), "genetica": ("plataforma_genetica.html", "Genética Clínica"), "tecdiag": ("plataforma_tecdiag.html", "Técnicas de Diagnóstico Anatómicas")}
@@ -45,6 +45,51 @@ def imagenes(clave):
     i = s.index("const ALL_QUESTIONS = ") + len("const ALL_QUESTIONS = ")
     qs, _ = json.JSONDecoder().raw_decode(s[i:])
     return {q["id"]: q["img"] for q in qs if q.get("img")}
+
+
+# ------------------------------------------------------------- qué ha cambiado
+# La sala marca las lecciones que han cambiado desde la última vez que se
+# abrieron, y dentro de ellas los apartados nuevos o retocados. Para eso el
+# índice lleva, de cada tema, «mod» (cuándo cambió por última vez su contenido,
+# en ms) y «nov» (los últimos cambios: [{t, s: [huellas de los apartados que
+# entraron o cambiaron]}]). Se saca del historial de git del archivo, así que
+# no depende de cómo estuviera el índice antes. La batería y las preguntas de
+# previa/comprueba no cuentan: solo lo que se lee.
+def huellas(t):
+    h = lambda x: hashlib.sha1(json.dumps(x, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:8]
+    secs = [{k: v for k, v in s.items() if k not in ("previa", "comprueba")} for s in t.get("secciones", [])]
+    resto = {k: v for k, v in t.items() if k not in ("bateria", "secciones")}
+    sh = [h(x) for x in secs]
+    return h([resto, sh]), sh
+
+
+def historia(ruta, actual):
+    rel = os.path.relpath(ruta, RAIZ)
+    try:
+        log = subprocess.run(["git", "log", "--format=%H %ct", "--", rel], cwd=RAIZ, capture_output=True, text=True).stdout.split()
+    except Exception:
+        log = []
+    versiones = []
+    for i in range(len(log) - 2, -1, -2):          # de la más antigua a la más reciente
+        try:
+            txt = subprocess.run(["git", "show", "%s:%s" % (log[i], rel)], cwd=RAIZ, capture_output=True, text=True).stdout
+            versiones.append((int(log[i + 1]) * 1000, huellas(json.loads(txt))))
+        except Exception:
+            pass
+    ha = huellas(actual)
+    if not versiones or versiones[-1][1][0] != ha[0]:   # cambios sin publicar todavía
+        versiones.append((int(time.time() * 1000), ha))
+    mod, nov = versiones[0][0], []
+    for (t0, (h0, s0)), (t1, (h1, s1)) in zip(versiones, versiones[1:]):
+        if h1 == h0: continue
+        mod = t1
+        nuevas = [x for x in s1 if x not in s0]
+        if nov and t1 - nov[-1]["t"] < 6 * 3600 * 1000:   # varias tandas del mismo día: un solo cambio
+            nov[-1]["t"] = t1
+            nov[-1]["s"] = [x for x in nov[-1]["s"] if x in s1] + [x for x in nuevas if x not in nov[-1]["s"]]
+        else:
+            nov.append({"t": t1, "s": nuevas})
+    return mod, ha[1], nov[-12:]
 
 
 def main():
@@ -115,6 +160,8 @@ def main():
                        "bateria": len(t.get("bateria", [])),
                        "examen": sum(1 for x in t.get("bateria", []) if x in examen),
                        "caen": sum(1 for x in t.get("bateria", []) if x in caen)})
+        mod, sh, nov = historia(f, t)
+        indice[-1].update({"mod": mod, "sh": sh, "nov": nov})
         for k in ("etiqueta", "corta"):
             if t.get(k): indice[-1][k] = t[k]
     indice.sort(key=lambda x: x["tema"])

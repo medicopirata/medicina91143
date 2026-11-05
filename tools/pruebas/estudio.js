@@ -129,5 +129,25 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     const ub = await E.ubicar([{ idea: (w.eval("BY_ID").get(E._datos && qsB[0].id) || qsB[0]).q }], [qsB[0].id]);
     ok(ub[0] && typeof ub[0].n === "number", "ubicar: la confusión de una pregunta de la batería cae en " + (ub[0] ? ub[0].tit : "ningún apartado"));
   }
+  // Lección cambiada desde la última visita: marca en la portada, caja en el inicio y apartados señalados
+  {
+    const ec = E.indice().temas.filter((e) => e.mod && (e.nov || []).some((c) => c.s.length && e.sh.some((x) => c.s.includes(x)))).slice(-1)[0];
+    if (ec) {
+      const c = ec.nov.filter((c) => c.s.length && ec.sh.some((x) => c.s.includes(x))).slice(-1)[0];
+      E._datos().t[ec.tema].vis = c.t - 1000;
+      w.eval("App.goHome()"); await espera(30);
+      const fila = [...d.querySelectorAll("#estudio-home .est-tema")].find((b) => +b.getAttribute("data-n") === ec.tema);
+      ok(fila && /Cambiada el/.test(fila.textContent) && /cambiada/.test(d.querySelector("#estudio-home summary").textContent), "cambiada: " + (ec.etiqueta || "Tema " + ec.tema) + " sale marcada en la portada");
+      E.abrir(ec.tema, 0); await espera(60);
+      const scr = d.getElementById("estudio-screen"), caja = scr.querySelector(".est-nuevo-caja");
+      const nSec = ec.sh.filter((x) => ec.nov.some((k) => k.t > c.t - 1000 && k.s.includes(x))).length;
+      ok(caja && caja.querySelectorAll('[data-acc="ir"]').length === nSec && scr.querySelectorAll(".miga.nueva").length === nSec, "  al abrirla, el inicio dice qué " + nSec + " apartados cambiaron y las migas los señalan");
+      caja.querySelector('[data-acc="ir"]').click(); await espera(20);
+      ok(/cambiado desde tu última visita/.test(scr.querySelector("h2").textContent), "  y el apartado lleva su marca");
+      w.eval("App.goHome()"); await espera(30);
+      const fila2 = [...d.querySelectorAll("#estudio-home .est-tema")].find((b) => +b.getAttribute("data-n") === ec.tema);
+      ok(!/Cambiada el/.test(fila2.textContent), "  abierta ya no sale como cambiada en la portada");
+    } else console.log("· sin temas con cambios en el historial: no pruebo la marca de cambiada");
+  }
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();
