@@ -247,9 +247,14 @@
       var dIni = Math.round((examen - ini) / DIA), fase = faseDe(dIni);
       var s = { ini: claveDia(ini), fin: claveDia(fin), txtFechas: fmt(ini) + (fin > ini ? "–" + fmt(fin) : ""), fase: fase, temas: [], nuevas: 0 };
       var diasSem = Math.round((fin - ini) / DIA) + 1;
-      var diasCobSem = 0;
-      for (var j = 0; j < diasSem; j++) if (faseDe(dIni - j) === "cobertura") diasCobSem++;
-      var cap = diasCobSem * Math.max(out.objNuevas, 1);
+      // Capacidad de nuevas: los días de cobertura al ritmo del plan; los de consolidación, a un
+      // ritmo menor (hasta 25/día, lo importante); en el repaso final, nada nuevo. Antes solo
+      // contaban los de cobertura y, a 21 días o menos del examen, las semanas salían vacías.
+      var cap = 0;
+      for (var j = 0; j < diasSem; j++) {
+        var fj = faseDe(dIni - j);
+        cap += fj === "cobertura" ? Math.max(out.objNuevas, 1) : fj === "consolidacion" ? Math.min(Math.max(out.objNuevas, 1), 25) : 0;
+      }
       while (cap > 0 && pend.length) {
         var p = pend[0], toma = Math.min(p.quedan, cap);
         s.temas.push({ tema: p.tema, n: toma });
