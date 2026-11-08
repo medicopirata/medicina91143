@@ -2,7 +2,7 @@
 """Rehace los exámenes de un programa de repaso de la sala de estudio.
 
 Uso:  python3 tools/programa_repaso.py <clave> <archivo>
-      (p. ej. anat3 programa-01.json)
+      (p. ej. anat3 programa-t12.json)
 
 Un programa es un apartado de la sala hecho solo de preguntas: «las que más
 caen» (exámenes de otros años y lo que el profesor dijo que cae) de las
@@ -30,9 +30,20 @@ def preguntas(clave):
     return {q["id"]: q for q in json.JSONDecoder().raw_decode(s[i:])[0]}
 
 
-def de_examen(q):
+RE_EXAMEN = re.compile(r"ex[aá]men(es)?|parcial|convocatoria|\bglobal\b|\b(enero|febrero|junio|julio|septiembre|diciembre)\b|a[ñn]os anteriores", re.I)
+CAIDAS = set()
+
+
+def examen_real(q):
     tb = q.get("topicBase") or ""
-    return tb.startswith("📝") or "Examen" in tb or bool(q.get("caida"))
+    return bool(q.get("caida")) or (tb.startswith("📝") and bool(RE_EXAMEN.search(tb))) or (tb.startswith("Apuntes:") and "examen real" in tb.lower())
+
+
+def de_examen(q):
+    """Mismo criterio que deExamen() de estudio.js (con Entrenador.origen): también las de
+    un banco de entrenamiento cuyo enunciado es el de una pregunta que cayó en examen."""
+    tb = q.get("topicBase") or ""
+    return tb.startswith("📝") or "Examen" in tb or examen_real(q) or norma(q["q"]) in CAIDAS
 
 
 def norma(x):
@@ -47,6 +58,7 @@ def main():
     ruta = os.path.join(carpeta, nom)
     p = json.load(open(ruta, encoding="utf-8"))
     qs = preguntas(clave)
+    CAIDAS.update(k for k in (norma(q["q"]) for q in qs.values() if examen_real(q)) if len(k) >= 25)
     tam = p.get("tam", 100)
 
     # Qué entra, y de qué tema es cada una (el primero que la tenga en su batería)
