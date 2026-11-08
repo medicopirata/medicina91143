@@ -168,7 +168,8 @@
         ev.preventDefault();
         var n = +b.getAttribute("data-n");
         var acc = b.getAttribute("data-est");
-        if (acc === "abrir") abrir(n);
+        if (acc === "prog") abrirPrograma(b.getAttribute("data-a"));
+        else if (acc === "abrir") abrir(n);
         else if (acc === "rep") repasoInteligente(n);
         else if (acc === "tutor") Tutor.abrir(null);
         else bateria(n, acc === "bat-ex");
@@ -218,6 +219,7 @@
           '<span class="est-mini" title="' + av + '% del tema (lectura y batería)"><span style="width:' + av + '%"></span></span></button>' +
           '<button class="est-bat" data-est="bat" data-n="' + e.tema + '" title="Batería de preguntas del tema">🎯 ' + (e.bateria || "") + "</button>" +
           ((e.caen || e.examen) ? '<button class="est-bat ex" data-est="bat-ex" data-n="' + e.tema + '" title="Las que más caen: exámenes de otros años y lo que el profesor dijo que cae">📝 ' + (e.caen || e.examen) + "</button>" : "") + "</div>";
+        h += filasPrograma(e.tema);
       });
       h += "</div>";
     });
@@ -267,7 +269,7 @@
       b.textContent = "💬 Tutor";
       b.addEventListener("click", function () {
         var ses = State.session, q = ses && ses.questions && ses.questions[ses.currentIdx];
-        Tutor.abrir(temaBateria, q ? "Explícame esta pregunta: «" + q.q + "» (opciones: " + q.options.join(" / ") + "). " : "");
+        Tutor.abrir(temaBateria === "prog" ? temaDePrograma(q) : temaBateria, q ? "Explícame esta pregunta: «" + q.q + "» (opciones: " + q.options.join(" / ") + "). " : "");
       });
       document.body.appendChild(b);
     }
@@ -404,6 +406,7 @@
   // ----- pintar el paso actual
   function pintar() {
     if (!vista) return;
+    if (vista.prog) return pintarPrograma();
     var t = vista.t, s = est(vista.n), p = vista.pasos[s.paso], tot = vista.pasos.length;
     var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">' + esc(nombre(t)) + " · " + esc(t.titulo) + "</div>" +
       '<div class="est-barra"><div style="width:' + Math.round(s.paso * 100 / (tot - 1)) + '%"></div></div>' +
@@ -615,6 +618,7 @@
   function clic(ev) {
     var b = ev.target.closest("button");
     if (!b || !vista) return;
+    if (vista.prog) return clicPrograma(b);
     var s = est(vista.n);
     if (b.hasAttribute("data-o")) {
       var clave = b.getAttribute("data-q"), o = +b.getAttribute("data-o"), ref = refDe(clave);
@@ -651,6 +655,141 @@
     else if (acc === "conf-ir") irPaso(+b.getAttribute("data-i") + 1);
     else if (acc === "conf-ok") { if (window.PlanExamen && PlanExamen.resolver) PlanExamen.resolver(+b.getAttribute("data-t")); var y3 = window.scrollY; pintar(); window.scrollTo(0, y3); }
   }
+
+  // ------------------------------------------------------------------ programa de repaso
+  // Un apartado de la sala hecho solo de preguntas (estudio/<clave>/programa-NN.json, lo
+  // rehace tools/programa_repaso.py): las que más caen de unos temas y las preguntas de examen
+  // huérfanas de esos temas, repartidas en exámenes fijos de unas 100 con los temas mezclados.
+  // Los exámenes son fijos para ver cómo mejora la nota al repetirlos. Cada intento se guarda
+  // en _d.p[archivo][nº de examen] = [{t, n, ok, mal}]; «fall» son las falladas y «azar» uno
+  // al azar. Lo que se responde cuenta en el motor como cualquier otra pregunta.
+  var programas = {}, progActivo = null;
+  if (!_d.p) _d.p = {};
+  function cargarPrograma(a) {
+    if (programas[a]) return Promise.resolve(programas[a]);
+    return pedir(a).then(function (p) { programas[a] = p; return p; });
+  }
+  function intentos(a, ex) { var x = (_d.p || {})[a]; return (x && x[ex]) || []; }
+  function temaDePrograma(q) {
+    var a = progActivo && progActivo.a, p = a && programas[a];
+    return (p && q && p.tema[q.id]) || null;
+  }
+  function filasPrograma(n) {
+    return ((indice && indice.programas) || []).filter(function (g) { return g.despues === n; }).map(function (g) {
+      var hechos = g.examenes.filter(function (_, i) { return intentos(g.archivo, i).length; }).length;
+      var ult = [];
+      g.examenes.forEach(function (_, i) { var l = intentos(g.archivo, i); if (l.length) ult.push(l[l.length - 1]); });
+      var ok = ult.reduce(function (a, x) { return a + x.ok; }, 0), tot = ult.reduce(function (a, x) { return a + x.n; }, 0);
+      return '<div class="est-fila prog' + (hechos === g.examenes.length ? " dominado" : hechos ? " curso" : "") + '"><button class="est-tema" data-est="prog" data-a="' + esc(g.archivo) + '"><span class="n">📋</span> ' + esc(g.titulo) +
+        '<span class="meta">Solo preguntas · ' + g.examenes.length + " exámenes de ~" + Math.round(g.preguntas / g.examenes.length) + " · " + g.preguntas + " preguntas · " +
+        (hechos ? hechos + "/" + g.examenes.length + " hechos · " + Math.round(ok * 100 / (tot || 1)) + "% bien" : "sin empezar") + "</span></button></div>";
+    }).join("");
+  }
+  function abrirPrograma(a) {
+    cargarPrograma(a).then(function (p) {
+      vista = { prog: a, p: p };
+      mostrar(true);
+      pintar();
+    }).catch(function (e) { console.warn("estudio", e); alert("No se ha podido cargar el programa. Revisa la conexión."); });
+  }
+  function ultimaRespuesta(id) {
+    var s = State.data.qs && State.data.qs[id];
+    if (!s || !s.a) return null;
+    var h = Array.isArray(s.h) && s.h.length ? s.h[s.h.length - 1] : null;
+    return h ? h[1] === 1 : s.l !== 0;
+  }
+  function todasPrograma(p) { return [].concat.apply([], p.examenes); }
+  function falladasPrograma(p) { return todasPrograma(p).filter(function (id) { return ultimaRespuesta(id) === false; }); }
+  // Al azar, pero primero lo que no ha visto nunca y lo que falló
+  function azarPrograma(p) {
+    var l = shuffle(todasPrograma(p)).map(function (id) { var r = ultimaRespuesta(id); return [id, r === false ? 0 : r === null ? 1 : 2]; });
+    l.sort(function (x, y) { return x[1] - y[1]; });
+    return l.slice(0, p.tam || 100).map(function (x) { return x[0]; });
+  }
+  function comoExamen() { try { return localStorage.getItem(K + "_prog_corr") !== "cada"; } catch (e) { return true; } }
+  function nota(x) { return Math.round(x.ok * 100 / (x.n || 1)); }
+  function pintarPrograma() {
+    var a = vista.prog, p = vista.p, ex = comoExamen();
+    var porTema = {};
+    Object.keys(p.tema).forEach(function (id) { porTema[p.tema[id]] = (porTema[p.tema[id]] || 0) + 1; });
+    var ets = {};
+    (indice.temas || []).forEach(function (e) { ets[e.tema] = e; });
+    var todas = todasPrograma(p), vistas = 0, bien = 0;
+    todas.forEach(function (id) { var r = ultimaRespuesta(id); if (r !== null) { vistas++; if (r) bien++; } });
+    var fall = falladasPrograma(p), sig = -1;
+    p.examenes.forEach(function (_, i) { if (sig < 0 && !intentos(a, i).length) sig = i; });
+    var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">📋 ' + esc(p.titulo) + "</div></div>";
+    h += '<div class="est-pag"><h2>📋 ' + esc(p.titulo) + "</h2>";
+    h += '<div class="est-meta">' + todas.length + " preguntas · " + p.examenes.length + " exámenes · " + vistas + " respondidas alguna vez · " + bien + " bien la última vez</div>";
+    if (p.intro) h += '<div class="est-txt">' + md(p.intro) + "</div>";
+    h += '<div class="est-prog-temas">' + p.temas.map(function (n) {
+      return '<span title="' + esc(ets[n] ? ets[n].titulo : "") + '">' + esc(ets[n] ? corto(ets[n]) : "T" + n) + " · " + (porTema[n] || 0) + "</span>";
+    }).join("") + "</div>";
+    h += '<div class="est-prog-modo"><button data-acc="pmodo" data-v="examen" class="' + (ex ? "act" : "") + '">📝 Como en el examen: corrige al final</button>' +
+      '<button data-acc="pmodo" data-v="cada" class="' + (ex ? "" : "act") + '">✅ Corrigiendo cada pregunta (con tutor)</button></div>';
+    h += '<div class="est-pex-lista">';
+    p.examenes.forEach(function (ids, i) {
+      var l = intentos(a, i), u = l[l.length - 1], mejor = l.reduce(function (m, x) { return Math.max(m, nota(x)); }, 0);
+      h += '<div class="est-pex' + (u ? (nota(u) >= 80 ? " bien" : nota(u) >= 50 ? " medio" : " flojo") : "") + (i === sig ? " sig" : "") + '"><div class="est-pex-t"><b>Examen ' + (i + 1) + "</b> · " + ids.length + " preguntas" +
+        '<span class="meta">' + (u ? "Último (" + diaMes(u.t) + "): " + u.ok + "/" + u.n + " · " + nota(u) + "%" + (l.length > 1 ? " · mejor " + mejor + "% · " + l.length + " veces" : "") : i === sig ? "▶️ Te toca este" : "Sin hacer") + "</span></div>" +
+        '<button data-acc="pex" data-i="' + i + '">' + (u ? "🔁 Repetir" : "▶️ Hacer") + "</button></div>";
+    });
+    h += "</div>";
+    var lf = intentos(a, "fall"), lz = intentos(a, "azar");
+    h += '<div class="est-botones">' + (fall.length ? '<button data-acc="pex" data-i="fall">❌ Repasar las que fallé (' + Math.min(fall.length, p.tam || 100) + ")</button>" : "") +
+      '<button data-acc="pex" data-i="azar">🎲 Un examen al azar de ' + Math.min(todas.length, p.tam || 100) + " (primero lo no visto y lo fallado)</button></div>";
+    if (lf.length || lz.length) h += '<p class="est-ayuda">' + [lf.length ? "Falladas, la última vez: " + lf[lf.length - 1].ok + "/" + lf[lf.length - 1].n : "", lz.length ? "Al azar, la última vez: " + lz[lz.length - 1].ok + "/" + lz[lz.length - 1].n : ""].filter(Boolean).join(" · ") + "</p>";
+    h += '<p class="est-ayuda">Cada examen tiene siempre las mismas preguntas, en otro orden cada vez, para que veas cómo sube la nota al repetirlo. Lo que respondes aquí cuenta para el avance, los repasos y el plan como cualquier otra pregunta.</p>';
+    h += '<div class="est-botones"><button data-acc="salir">← Salir</button></div></div>';
+    var pan = pantalla();
+    pan.innerHTML = h;
+  }
+  function clicPrograma(b) {
+    var acc = b.getAttribute("data-acc"), p = vista.p, a = vista.prog;
+    if (acc === "salir") return salir();
+    if (acc === "pmodo") { try { localStorage.setItem(K + "_prog_corr", b.getAttribute("data-v")); } catch (e) {} return pintar(); }
+    if (acc !== "pex") return;
+    var i = b.getAttribute("data-i"), ids = i === "fall" ? falladasPrograma(p).slice(0, p.tam || 100) : i === "azar" ? azarPrograma(p) : p.examenes[+i];
+    var qs = (ids || []).map(function (id) { return BY_ID.get(id); }).filter(Boolean);
+    if (!qs.length) return alert("No hay preguntas para este examen.");
+    var ex = comoExamen(), pen = document.getElementById("exam-pen");
+    progActivo = { a: a, ex: i, ids: qs.map(function (q) { return q.id; }) };
+    _d.pAct = progActivo; guardar();
+    vista = null;
+    document.getElementById("estudio-screen").classList.add("hidden");
+    temaBateria = ex ? null : "prog";
+    App.beginSession(shuffle(qs), ex ? "exam" : "estudio", ex ? { exam: true, penaliza: !!(pen && pen.checked) } : undefined);
+    botonTutorQuiz();
+  }
+  // Al acabar un examen del programa se apunta la nota (si la sesión es la que se empezó aquí)
+  var fin0 = App.finishQuiz;
+  App.finishQuiz = function () {
+    var ses = State.session, act = progActivo || _d.pAct;
+    var r = fin0.apply(this, arguments);
+    var vuelta = document.getElementById("est-prog-volver");
+    if (vuelta) vuelta.remove();
+    try {
+      // (el motor quita las repetidas al empezar, así que puede traer alguna menos)
+      if (act && ses && ses.questions && ses.questions.length && ses.questions.length >= act.ids.length * 0.8 && ses.questions.every(function (q) { return act.ids.indexOf(q.id) >= 0; })) {
+        if (!_d.p) _d.p = {};
+        var x = _d.p[act.a] || (_d.p[act.a] = {});
+        (x[act.ex] = x[act.ex] || []).push({ t: Date.now(), n: ses.questions.length, ok: ses.correct, mal: ses.wrong });
+        if (x[act.ex].length > 30) x[act.ex].shift();
+        progActivo = null; delete _d.pAct; guardar();
+        if (temaBateria === "prog") temaBateria = null;
+        var res = document.getElementById("results-screen");
+        if (res) {
+          vuelta = document.createElement("button");
+          vuelta.id = "est-prog-volver"; vuelta.className = "btn btn-primary";
+          vuelta.textContent = "📋 Volver al programa de repaso";
+          vuelta.style.margin = "12px auto"; vuelta.style.display = "block";
+          vuelta.addEventListener("click", function () { vuelta.remove(); abrirPrograma(act.a); });
+          res.insertBefore(vuelta, res.firstChild);
+        }
+      }
+    } catch (e) { console.warn("estudio", e); }
+    return r;
+  };
 
   // ------------------------------------------------------------------ repaso inteligente
   // Sin IA: ordena las preguntas de la batería de un tema por lo que más conviene repasar.
@@ -1000,6 +1139,14 @@
     "#estudio-home{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:12px 16px;margin:0 0 18px}",
     "#estudio-home summary{cursor:pointer;color:var(--text)} #estudio-home .sub,#estudio-screen .sub{color:var(--text2);font-size:.82rem;font-weight:400}",
     ".est-cuerpo{margin-top:10px} .est-ayuda{color:var(--text2);font-size:.85rem;margin:8px 0}",
+    ".est-fila.prog .est-tema{border-left:3px solid var(--warning);background:linear-gradient(90deg,rgba(245,158,11,.10),var(--surface2) 60%)}",
+    ".est-prog-temas{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0} .est-prog-temas span{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:.78rem;color:var(--text2)}",
+    ".est-prog-modo{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0} .est-prog-modo button{flex:1;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;cursor:pointer}",
+    ".est-prog-modo button.act{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}",
+    ".est-pex{display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:6px}",
+    ".est-pex-t{flex:1;min-width:0} .est-pex-t .meta{display:block;font-size:.78rem;color:var(--text2);margin-top:2px}",
+    ".est-pex button{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;cursor:pointer;white-space:nowrap} .est-pex button:hover{border-color:var(--accent)}",
+    ".est-pex.sig{border-left-color:var(--accent)} .est-pex.bien{border-left-color:var(--success)} .est-pex.medio{border-left-color:var(--warning)} .est-pex.flojo{border-left-color:var(--danger)}",
     ".est-sig{width:100%;text-align:left;background:var(--accent);color:#04120c;border:0;border-radius:8px;padding:12px 14px;font-weight:700;cursor:pointer;font-size:.95rem}",
     ".est-bloque{margin-top:12px} .est-bloque-t{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:6px}",
     ".est-fila{display:flex;gap:6px;margin-bottom:6px} .est-tema{flex:1;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);cursor:pointer}",

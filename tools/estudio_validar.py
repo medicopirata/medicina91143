@@ -165,10 +165,26 @@ def main():
         for k in ("etiqueta", "corta"):
             if t.get(k): indice[-1][k] = t[k]
     indice.sort(key=lambda x: x["tema"])
-    json.dump({"asignatura": PLATAFORMA[clave][1], "temas": indice}, open(os.path.join(carpeta, "indice.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    # Programas de repaso (solo preguntas, tools/programa_repaso.py): van detrás del tema «despues»
+    programas = []
+    for f in sorted(glob.glob(os.path.join(carpeta, "programa-*.json"))):
+        nom = os.path.basename(f)
+        try: p = json.load(open(f, encoding="utf-8"))
+        except Exception as e: errores.append("%s: JSON inválido: %s" % (nom, e)); continue
+        exs = p.get("examenes") or []
+        if not exs: errores.append("%s: sin exámenes (pasa tools/programa_repaso.py)" % nom); continue
+        for x in {x for e in exs for x in e}:
+            if x not in ids: errores.append("%s: id %d no existe" % (nom, x))
+        if p.get("despues") not in {t["tema"] for t in indice}: errores.append("%s: «despues» no es ningún tema" % nom)
+        programas.append({"archivo": nom, "titulo": p.get("titulo") or nom, "despues": p.get("despues"),
+                          "examenes": [len(e) for e in exs], "preguntas": sum(len(e) for e in exs)})
+    salida = {"asignatura": PLATAFORMA[clave][1], "temas": indice}
+    if programas: salida["programas"] = programas
+    json.dump(salida, open(os.path.join(carpeta, "indice.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     for e in errores_suaves: print("· aviso:", e)
     for e in errores: print("✗", e)
     print("%d temas · %d errores · índice rehecho" % (len(indice), len(errores)))
     sys.exit(1 if errores else 0)
 
-main()
+if __name__ == "__main__":
+    main()

@@ -25,7 +25,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const E = w.Estudio;
   ok(E && E.indice(), "Estudio cargado con índice");
   const home = d.getElementById("estudio-home");
-  ok(home && home.querySelectorAll(".est-fila").length === E.indice().temas.length, "cuadro en la portada con " + E.indice().temas.length + " temas");
+  ok(home && home.querySelectorAll(".est-fila:not(.prog)").length === E.indice().temas.length, "cuadro en la portada con " + E.indice().temas.length + " temas");
   for (const e of E.indice().temas) {
     E.abrir(e.tema);
     await espera(60);
@@ -181,6 +181,36 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
       const fila2 = [...d.querySelectorAll("#estudio-home .est-tema")].find((b) => +b.getAttribute("data-n") === ec.tema);
       ok(!/Cambiada el/.test(fila2.textContent), "  abierta ya no sale como cambiada en la portada");
     } else console.log("· sin temas con cambios en el historial: no pruebo la marca de cambiada");
+  }
+  // Programa de repaso: apartado de solo preguntas, en exámenes fijos, detrás de su tema
+  for (const g of E.indice().programas || []) {
+    w.eval("App.goHome()"); await espera(30);
+    const fila = d.querySelector('#estudio-home [data-est="prog"][data-a="' + g.archivo + '"]');
+    const filas = [...d.querySelectorAll("#estudio-home .est-fila")], tras = filas[filas.indexOf(fila && fila.parentNode) - 1];
+    ok(fila && tras && +tras.querySelector(".est-tema").getAttribute("data-n") === g.despues, "programa: «" + g.titulo + "» sale detrás del tema " + g.despues);
+    fila.click(); await espera(60);
+    const scr = d.getElementById("estudio-screen");
+    ok(!scr.classList.contains("hidden") && scr.querySelectorAll(".est-pex").length === g.examenes.length, "  abre su pantalla con " + g.examenes.length + " exámenes (" + g.examenes.join("/") + ")");
+    scr.querySelector('[data-acc="pmodo"][data-v="examen"]').click(); await espera(10);
+    scr.querySelector('[data-acc="pex"][data-i="0"]').click(); await espera(40);
+    let ses = w.eval("State.session");
+    ok(ses && ses.exam && ses.questions.length >= g.examenes[0] * 0.8, "  el examen 1 empieza como simulacro con " + (ses && ses.questions.length) + " preguntas");
+    w.eval("App.finishQuiz()"); await espera(30);
+    const reg = E._datos().p[g.archivo];
+    ok(reg && reg[0] && reg[0].length === 1 && d.getElementById("est-prog-volver"), "  al acabar se apunta la nota y sale «Volver al programa»");
+    d.getElementById("est-prog-volver").click(); await espera(60);
+    ok(/Último/.test(scr.querySelector(".est-pex").textContent) && scr.querySelector(".est-pex.sig") === scr.querySelectorAll(".est-pex")[1], "  el examen 1 enseña su nota y el 2 queda como el siguiente");
+    scr.querySelector('[data-acc="pmodo"][data-v="cada"]').click(); await espera(10);
+    scr.querySelector('[data-acc="pex"][data-i="azar"]').click(); await espera(40);
+    ses = w.eval("State.session");
+    const bq = d.getElementById("est-tutor-quiz");
+    ok(ses && !ses.exam && ses.mode === "estudio" && bq && !bq.classList.contains("hidden"), "  corrigiendo cada pregunta: modo estudio y botón del tutor");
+    bq.click(); await espera(30);
+    const tp = d.getElementById("est-tutor");
+    ok(tp && !tp.classList.contains("hidden"), "  el tutor se abre con el tema de la pregunta en curso");
+    tp.querySelector('[data-tu="cerrar"]').click();
+    w.eval("App.goHome()"); await espera(30);
+    ok(/1\/\d+ hechos/.test(d.querySelector('#estudio-home [data-est="prog"]').textContent), "  la portada cuenta los exámenes hechos");
   }
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();
