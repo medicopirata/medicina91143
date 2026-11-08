@@ -129,6 +129,25 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     const ub = await E.ubicar([{ idea: (w.eval("BY_ID").get(E._datos && qsB[0].id) || qsB[0]).q }], [qsB[0].id]);
     ok(ub[0] && typeof ub[0].n === "number", "ubicar: la confusión de una pregunta de la batería cae en " + (ub[0] ? ub[0].tit : "ningún apartado"));
   }
+  // Hacer el tema otra vez desde cero: se borran sus respuestas, pero sigue contando como estudiado
+  {
+    const t0 = E.indice().temas[0].tema, s0 = E._datos().t[t0];
+    const antes = Object.keys(s0.resp).length, nEst = d.querySelector("#estudio-home summary").textContent.match(/(\d+)\/(\d+) estudiados/)[0];
+    E.abrir(t0, 0); await espera(60);
+    const scr = d.getElementById("estudio-screen");
+    let bt = scr.querySelector('[data-acc="reini"]');
+    ok(bt && antes > 0, "reiniciar: botón en el inicio del tema (" + antes + " respuestas guardadas)");
+    bt.click();
+    ok(Object.keys(E._datos().t[t0].resp).length === antes && bt.classList.contains("seguro"), "  el primer toque solo pregunta");
+    bt.click(); await espera(20);
+    const s1 = E._datos().t[t0];
+    ok(!Object.keys(s1.resp).length && !Object.keys(s1.huecos).length && s1.paso === 0 && s1.fin && s1.vueltas.length === 1, "  el segundo borra las respuestas y deja el tema como estudiado");
+    ok(/Vuelta 2/.test(scr.textContent) && !scr.querySelector('[data-acc="reini"]'), "  el inicio dice que es la vuelta 2");
+    scr.querySelector(".est-sigue[data-acc='ir']").click(); await espera(20);
+    ok(scr.querySelector(".est-q:not(.hecha)"), "  las preguntas salen otra vez sin responder");
+    w.eval("App.goHome()"); await espera(30);
+    ok(d.querySelector("#estudio-home summary").textContent.includes(nEst), "  la portada sigue contando lo estudiado (" + nEst + ")");
+  }
   // Lección cambiada desde la última visita: marca en la portada, caja en el inicio y apartados señalados
   {
     const ec = E.indice().temas.filter((e) => e.mod && (e.nov || []).some((c) => c.s.length && e.sh.some((x) => c.s.includes(x)))).slice(-1)[0];

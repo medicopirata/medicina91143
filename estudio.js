@@ -267,6 +267,31 @@
   }
   function salir() { vista = null; mostrar(false); App.goHome(); }
 
+  // Empezar de cero las preguntas del tema (previas, comprobaciones, huecos y explícalo) para
+  // volver a hacerlo sin ver lo que respondió antes. Lo hecho no se pierde: queda sumado en
+  // s.vueltas, y lo que cuenta en la portada (tema estudiado, batería, repasos) no se toca.
+  function respondidas(s) { return Object.keys(s.resp || {}).filter(function (c) { return /^(pre|com):\d+:\d+$/.test(c); }); }
+  function reiniciar(n) {
+    var s = est(n), cl = respondidas(s), hu = Object.keys(s.huecos || {});
+    (s.vueltas = s.vueltas || []).push({ t: Date.now(), n: cl.length, ok: cl.filter(function (c) { return s.resp[c]; }).length,
+      hu: hu.length, huOk: hu.filter(function (j) { return s.huecos[j]; }).length });
+    s.resp = {}; s.huecos = {}; s.expl = {};
+    delete s.explTxt; delete s.explIA;
+    Object.keys(s).forEach(function (k) { if (/^leer\d+$/.test(k)) delete s[k]; });
+    s.paso = 0;
+    guardar();
+  }
+  function botonReiniciar(s) {
+    if (!respondidas(s).length && !Object.keys(s.huecos || {}).length && !Object.keys(s.expl || {}).length) return "";
+    return '<button class="est-reini" data-acc="reini" title="Borra tus respuestas de este tema para volver a hacerlo. Lo estudiado sigue contando.">🔄 Hacer el tema otra vez desde cero</button>';
+  }
+  function textoVueltas(s) {
+    var v = s.vueltas || [];
+    if (!v.length) return "";
+    var u = v[v.length - 1];
+    return '<p class="est-ayuda">🔄 Vuelta ' + (v.length + 1) + " a este tema. La anterior (" + diaMes(u.t) + "): " + u.ok + "/" + u.n + " preguntas bien" + (u.hu ? " · " + u.huOk + "/" + u.hu + " huecos" : "") + ".</p>";
+  }
+
   function irPaso(i) {
     var s = est(vista.n);
     s.paso = Math.max(0, Math.min(i, vista.pasos.length - 1));
@@ -372,6 +397,7 @@
     if (p.k === "intro") {
       h += "<h2>" + esc(nombre(t)) + " · " + esc(t.titulo) + "</h2>" + '<div class="est-meta">' + fuego(t.peso) + " · unos " + (t.minutos || "?") + " min · " + t.secciones.length + " apartados</div>";
       h += md(t.intro);
+      h += textoVueltas(s);
       if (t.pesoPorQue) h += '<div class="est-caja asi"><b>🔥 Qué cae de este tema</b>' + md(t.pesoPorQue) + "</div>";
       var cc = cuentaCae(t);
       if (cc.n) h += '<div class="est-caja cae"><b>📝 Lo que más cae, en preguntas</b><p>' +
@@ -383,6 +409,7 @@
       if (s.notas && s.notas.length) h += '<details class="est-caja notas" open><summary><b>🗂️ Tus notas del tutor</b> <span class="sub">(' + s.notas.length + ")</span></summary>" + s.notas.map(function (x, i) { return '<div class="est-nota">' + pintarRespuesta(x) + '<button class="est-mini-b" data-acc="borra-nota" data-i="' + i + '">Quitar</button></div>'; }).join("") + "</details>";
       h += '<div class="est-caja clave"><b>Cómo se usa</b><ul><li>En cada apartado, primero una pregunta real <b>antes de leer</b>: respóndela aunque no la sepas (no cuenta; así lo retienes mejor).</li><li>Lee con calma y abre los 🤔 solo después de pensarlos.</li><li>Al final del apartado, la comprobación. Al final del tema, el cuadro para rellenar, el «explícalo» y la batería.</li></ul></div>';
       h += '<button class="est-sigue" data-acc="ir" data-i="1">Empezar →</button>';
+      h += botonReiniciar(s);
     } else if (p.k === "sec") {
       var sec = t.secciones[p.i], previas = sec.previa || [], pend = previas.some(function (_, j) { return s.resp["pre:" + p.i + ":" + j] === undefined; });
       h += '<div class="est-meta">Apartado ' + (p.i + 1) + " de " + t.secciones.length + ' · <span title="Peso en examen">' + fuego(sec.peso) + "</span></div><h2>" + esc(sec.titulo) + (esNueva(p.i) ? ' <span class="est-nuevo">🆕 cambiado desde tu última visita</span>' : "") + "</h2>";
@@ -448,6 +475,7 @@
       h += '<p class="est-ayuda">Repaso inteligente: primero lo que has fallado, lo que te toca por repaso espaciado y lo que acertaste dudando; después lo que no has visto. ' +
         (proximoRepaso({ tema: vista.n }) !== null ? "Próximo repaso de este tema: " + textoRepaso(proximoRepaso({ tema: vista.n })) + "." : "Repasa este tema dentro de 2–3 días con la batería (sin releer): recordar espaciado es lo que fija.") + "</p>";
       h += '<div class="est-botones"><button data-acc="ir" data-i="0">↺ Volver al inicio del tema</button><button data-acc="salir">← Salir</button></div>';
+      h += botonReiniciar(s);
       if (!s.fin) { s.fin = Date.now(); guardar(); }
     }
     h += "</div>";
@@ -578,6 +606,11 @@
     }
     var acc = b.getAttribute("data-acc");
     if (acc === "siglas") { var sg = document.getElementById("est-siglas"); if (sg) sg.classList.toggle("abierta"); return; }
+    if (acc === "reini") {
+      // Dos toques, sin ventana de confirmación: el primero pregunta, el segundo borra
+      if (!b.classList.contains("seguro")) { b.classList.add("seguro"); b.textContent = "¿Seguro? Toca otra vez: se borran tus respuestas de este tema (lo estudiado sigue contando)"; return; }
+      reiniciar(vista.n); pintar(); window.scrollTo(0, 0); return;
+    }
     if (acc === "salir") salir();
     else if (acc === "ir") irPaso(+b.getAttribute("data-i"));
     else if (acc === "velo") { s["leer" + b.getAttribute("data-i")] = 1; guardar(); pintar(); }
@@ -1026,6 +1059,7 @@
     ".tu-in{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border)} .tu-in textarea{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:16px;resize:none}",
     ".tu-in button{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:0 14px;cursor:pointer} .tu-in button[disabled]{opacity:.5} .tu-borra{background:none;border:0;color:var(--text2);font-size:.75rem;cursor:pointer;margin:0 14px 10px;text-align:left}",
     ".est-cae{color:#f87171;font-weight:700;text-transform:none;letter-spacing:0}",
+    ".est-reini{display:block;margin:14px auto 0;background:none;border:1px dashed var(--border);color:var(--text2,var(--text));border-radius:8px;padding:8px 14px;cursor:pointer} .est-reini.seguro{border-color:#f87171;color:#f87171;font-weight:700}",
     ".est-nuevo{color:#38bdf8;font-weight:700} .est-nuevo-caja{border:1px solid #38bdf8;background:rgba(56,189,248,.08);border-radius:8px;padding:10px 12px;margin:10px 0} .est-nuevo-caja.corta{padding:6px 10px;font-size:.9em}",
     ".est-nuevo-caja .est-mini-b{margin:4px 4px 0 0;white-space:normal;text-align:left} .miga.nueva{box-shadow:inset 0 -3px 0 #38bdf8}",
     ".est-caja.cae{border-left:4px solid #f87171;background:rgba(248,113,113,.07)} .est-caja.confus{border-left:4px solid #a78bfa;background:rgba(167,139,250,.08)}",
