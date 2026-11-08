@@ -129,6 +129,20 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     const ub = await E.ubicar([{ idea: (w.eval("BY_ID").get(E._datos && qsB[0].id) || qsB[0]).q }], [qsB[0].id]);
     ok(ub[0] && typeof ub[0].n === "number", "ubicar: la confusión de una pregunta de la batería cae en " + (ub[0] ? ub[0].tit : "ningún apartado"));
   }
+  // Tutor durante la batería: botón flotante en la pantalla de preguntas
+  {
+    const t0 = E.indice().temas[0].tema;
+    E.abrir(t0, 0); await espera(60);
+    E.bateria(t0); await espera(60);
+    const bq = d.getElementById("est-tutor-quiz");
+    ok(bq && !bq.classList.contains("hidden") && !d.getElementById("quiz-screen").classList.contains("hidden"), "tutor en la batería: botón visible en la pantalla de preguntas");
+    bq.click(); await espera(30);
+    const tp = d.getElementById("est-tutor");
+    ok(tp && !tp.classList.contains("hidden") && tp.textContent.includes(E.indice().temas[0].titulo), "  abre el tutor del tema");
+    tp.querySelector('[data-tu="cerrar"]').click();
+    w.eval("App.goHome()"); await espera(30);
+    ok(bq.classList.contains("hidden"), "  fuera de la batería no sale");
+  }
   // Hacer el tema otra vez desde cero: se borran sus respuestas, pero sigue contando como estudiado
   {
     const t0 = E.indice().temas[0].tema, s0 = E._datos().t[t0];

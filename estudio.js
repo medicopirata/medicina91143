@@ -250,7 +250,29 @@
     if (si) window.scrollTo(0, 0);
   }
   var show0 = App.showScreen;
-  App.showScreen = function () { var p = document.getElementById("estudio-screen"); if (p) p.classList.add("hidden"); return show0.apply(this, arguments); };
+  App.showScreen = function () { var p = document.getElementById("estudio-screen"); if (p) p.classList.add("hidden"); var r = show0.apply(this, arguments); botonTutorQuiz(); return r; };
+
+  // Botón del tutor mientras se hacen las preguntas de la batería (o el repaso) de un tema:
+  // la pantalla de preguntas es la del motor, fuera de la sala, y no tenía forma de abrirlo.
+  // Al abrirlo desde aquí, el tutor ya sabe de qué tema es y deja escrita la pregunta en curso.
+  var temaBateria = null;
+  function botonTutorQuiz() {
+    var b = document.getElementById("est-tutor-quiz"), qz = document.getElementById("quiz-screen");
+    var ses = State.session, en = temaBateria !== null && ses && ses.mode === "estudio" && qz && !qz.classList.contains("hidden");
+    if (!en) { if (b) b.classList.add("hidden"); return; }
+    if (!b) {
+      b = document.createElement("button");
+      b.id = "est-tutor-quiz"; b.className = "est-flota";
+      b.title = "Tutor con IA de este tema: pregúntale por la pregunta que estás haciendo";
+      b.textContent = "💬 Tutor";
+      b.addEventListener("click", function () {
+        var ses = State.session, q = ses && ses.questions && ses.questions[ses.currentIdx];
+        Tutor.abrir(temaBateria, q ? "Explícame esta pregunta: «" + q.q + "» (opciones: " + q.options.join(" / ") + "). " : "");
+      });
+      document.body.appendChild(b);
+    }
+    b.classList.remove("hidden");
+  }
 
   function abrir(n, paso) {
     cargarTema(n).then(function (t) {
@@ -554,7 +576,9 @@
       if (!qs.length) return alert("Este tema aún no tiene batería.");
       vista = null;
       document.getElementById("estudio-screen") && document.getElementById("estudio-screen").classList.add("hidden");
+      temaBateria = n;
       App.beginSession(porPrioridad(qs), "estudio");
+      botonTutorQuiz();
     });
   }
   // Lo que cae de un tema, contado: exámenes (y cuántas repetidas), lo que dijo el profesor y cuántas fallas
@@ -658,7 +682,9 @@
       if (!l.length) return alert("No hay nada que repasar en este tema ahora mismo.");
       vista = null;
       var p = document.getElementById("estudio-screen"); if (p) p.classList.add("hidden");
+      temaBateria = n;
       App.beginSession(shuffle(l), "estudio");
+      botonTutorQuiz();
     });
   }
   function textoRepaso(d) { return d <= 0 ? "hoy" : d === 1 ? "mañana" : "en " + d + " días"; }
@@ -855,9 +881,9 @@
       }
       return p;
     }
-    function abrir(tema) {
+    function abrir(tema, borrador) {
       n = tema === 0 ? null : tema;
-      var go = function () { pintarT(); panel().classList.remove("hidden"); var i = document.getElementById("est-tutor-in"); if (i) i.focus(); };
+      var go = function () { pintarT(); panel().classList.remove("hidden"); var i = document.getElementById("est-tutor-in"); if (i) { if (borrador && !i.disabled && !i.value) i.value = borrador; i.focus(); } };
       if (n !== null && !temas[n]) cargarTema(n).then(go); else go();
     }
     function cerrar() { panel().classList.add("hidden"); }
@@ -897,7 +923,7 @@
       if (a === "que") { añadir({ yo: "¿Qué repaso y cuándo?" }); añadir(respuestaLocalRepaso()); return pintarT(); }
       if (a.indexOf("p:") === 0) { var i = document.getElementById("est-tutor-in"); if (i && !i.disabled) { i.value = a.slice(2); i.focus(); } else alert("Conecta la IA en la portada para pedir esto."); return; }
       var m = (leerChat()[clave()] || [])[+b.getAttribute("data-i")];
-      if (a === "hacer" && m) { var qs = m.ids.map(function (id) { return BY_ID.get(id); }).filter(Boolean); if (!qs.length) return; cerrar(); vista = null; var sc = document.getElementById("estudio-screen"); if (sc) sc.classList.add("hidden"); return App.beginSession(qs, "estudio"); }
+      if (a === "hacer" && m) { var qs = m.ids.map(function (id) { return BY_ID.get(id); }).filter(Boolean); if (!qs.length) return; cerrar(); vista = null; var sc = document.getElementById("estudio-screen"); if (sc) sc.classList.add("hidden"); temaBateria = n === null ? 0 : n; App.beginSession(qs, "estudio"); return botonTutorQuiz(); }
       if (a === "nota" && m && n !== null) { var s = est(n); (s.notas = s.notas || []).push({ t: Date.now(), md: m.md || "", tablas: m.tablas || [] }); guardar(); b.textContent = "✓ Guardado"; b.disabled = true; if (vista && vista.n === n) { var y = window.scrollY; pintar(); window.scrollTo(0, y); } }
     }
     function respuestaLocalRepaso() {
@@ -1050,7 +1076,7 @@
     ".est-flota{position:fixed;right:16px;bottom:16px;z-index:20;background:#7c3aed;color:#fff;border:0;border-radius:22px;padding:10px 16px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)}",
     ".est-caja.notas{border-left:4px solid #a78bfa} .est-nota{border-top:1px solid var(--border);padding-top:6px;margin-top:6px}",
     "#est-tutor{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--bg);border-left:1px solid #a78bfa;display:flex;flex-direction:column;box-shadow:-6px 0 20px rgba(0,0,0,.35)}",
-    "#est-tutor.hidden{display:none} .tu-top{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center} .tu-top .sub{flex:1;font-size:.8rem;color:var(--text2)}",
+    "#est-tutor-quiz.hidden{display:none} #est-tutor.hidden{display:none} .tu-top{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center} .tu-top .sub{flex:1;font-size:.8rem;color:var(--text2)}",
     ".tu-x{background:none;border:0;color:var(--text2);font-size:1.1rem;cursor:pointer} .tu-chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border)}",
     ".tu-chips button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:4px 10px;font-size:.78rem;cursor:pointer} .tu-chips button:hover{border-color:#a78bfa}",
     ".tu-log{flex:1;overflow-y:auto;padding:10px 14px;font-size:.88rem;line-height:1.5} .tu-msg{margin:8px 0;padding:8px 10px;border-radius:10px} .tu-msg.yo{background:#7c3aed22;margin-left:30px}",
