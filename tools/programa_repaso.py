@@ -8,7 +8,8 @@ Un programa es un apartado de la sala hecho solo de preguntas: «las que más
 caen» (exámenes de otros años y lo que el profesor dijo que cae) de las
 baterías de unos temas, más las preguntas de examen huérfanas (no están en
 ninguna batería) que se han asignado a mano a esos temas en «huerfanas»
-({id: tema}). Se reparten en exámenes de unas «tam» preguntas, mezclando
+({id: tema}). Con "todos": true entran todos los temas de la sala y el
+programa va detrás del último (crece cuando se añaden temas). Se reparten en exámenes de unas «tam» preguntas, mezclando
 todos los temas en la misma proporción en cada examen.
 
 El reparto se conserva entre ejecuciones: las preguntas que ya estaban en un
@@ -17,7 +18,7 @@ los exámenes más cortos; si todos se pasan de tam + 10, se abre uno nuevo.
 Las preguntas repetidas (mismo enunciado y mismas opciones) entran una vez.
 Después hay que pasar tools/estudio_validar.py <clave> para el índice.
 """
-import json, os, random, re, sys, unicodedata
+import glob, json, os, random, re, sys, unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -60,11 +61,16 @@ def main():
     qs = preguntas(clave)
     CAIDAS.update(k for k in (norma(q["q"]) for q in qs.values() if examen_real(q)) if len(k) >= 25)
     tam = p.get("tam", 100)
+    # «todos»: el programa es de la asignatura entera y crece con la sala (va detrás del último tema)
+    if p.get("todos"):
+        p["temas"] = sorted(json.load(open(f, encoding="utf-8"))["tema"] for f in glob.glob(os.path.join(carpeta, "tema-*.json")))
+        p["despues"] = p["temas"][-1]
 
+    archivo = {json.load(open(f, encoding="utf-8"))["tema"]: f for f in glob.glob(os.path.join(carpeta, "tema-*.json"))}
     # Qué entra, y de qué tema es cada una (el primero que la tenga en su batería)
     tema = {}
     for n in p["temas"]:
-        t = json.load(open(os.path.join(carpeta, "tema-%02d.json" % n), encoding="utf-8"))
+        t = json.load(open(archivo[n], encoding="utf-8"))
         for x in t.get("bateria", []):
             if isinstance(x, int) and x in qs and x not in tema and (de_examen(qs[x]) or qs[x].get("cae")):
                 tema[x] = n
