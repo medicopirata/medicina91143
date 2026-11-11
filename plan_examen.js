@@ -82,6 +82,12 @@
     return d;
   }
   var _d = leer();
+  // Anatomía 3: el examen del 27 de noviembre es solo del 1.er parcial. Hasta ese día se prepara
+  // el 1.er parcial aunque antes se hubiera elegido otra cosa (una vez; luego manda lo que elija)
+  function fijarP1() {
+    if (CLAVE === "anat3" && !_d.p1Fijo && diasHasta(PARCIALES.anat3[1]) >= 0) { _d.objetivo = "p1"; _d.p1Fijo = 1; guardar(); }
+  }
+  fijarP1();
   function guardar() {
     var dias = Object.keys(_d.diario).sort();
     if (dias.length > 240) dias.slice(0, dias.length - 240).forEach(function (k) { delete _d.diario[k]; });
@@ -195,13 +201,15 @@
       var h = qs[id] && qs[id].h;
       if (Array.isArray(h) && h.length && h[0][0] >= desde && (qs[id].a || 0) <= h.length) nuevas++;
     }
-    var daily = State.data.daily || {}, resp = 0, dias = 0, d = hoy0();
+    var daily = State.data.daily || {}, resp = 0, dias = 0, diasSala = 0, soloSala = 0, d = hoy0();
     for (var i = 0; i < 14; i++) {
-      var k = claveDia(new Date(d.getFullYear(), d.getMonth(), d.getDate() - i)), n = (daily[k] || {}).n || 0;
-      resp += n; if (n) dias++;
+      var k = claveDia(new Date(d.getFullYear(), d.getMonth(), d.getDate() - i)), n = (daily[k] || {}).n || 0, sala = diaSala(k);
+      resp += n; if (n || sala) dias++; if (sala) diasSala++; if (sala && !n) soloSala++;
     }
-    return { nuevasDia: nuevas / 14, respDia: resp / 14, diasActivos: dias };
+    return { nuevasDia: nuevas / 14, respDia: resp / 14, diasActivos: dias, diasSala: diasSala, soloSala: soloSala };
   }
+  // Lo que se ha hecho en la sala de estudio ese día (leer y comprobar también es estudiar)
+  function diaSala(k) { var E = window.Estudio; return E && E.diaSala ? E.diaSala(k) : null; }
   function vencidasHoy() {
     var n = 0, qs = State.data.qs || {};
     ALL_QUESTIONS.forEach(function (q) { if (typeof isDue === "function" && isDue(qs[q.id]) && peso(q) > 0) n++; });
@@ -341,7 +349,8 @@
         (p.objetivo === "p1" && fechaParcial(2) ? " Después, el 2.º parcial el " + fmtIso(fechaParcial(2)) + "." : ""));
       out.push("Preparación ponderada " + Math.round(t.prep * 100) + " %" + (h7 ? " (hace 7 días " + Math.round(h7.p) + " %)" : "") + (h30 ? " (hace 30 días " + Math.round(h30.p) + " %)" : "") +
         " · cobertura " + Math.round(t.cob * 100) + " % · preguntas de examen dominadas " + t.exDom + " de " + t.exN + ".");
-      out.push("Ritmo: " + Math.round(p.ritmo.nuevasDia) + " nuevas/día en las dos últimas semanas (" + p.ritmo.diasActivos + " de 14 días con estudio); el plan pide " + p.objNuevas + "/día.");
+      var rt = ritmo();   // al vuelo: la sala puede haber cargado después de calcular el plan
+      out.push("Ritmo: " + Math.round(rt.nuevasDia) + " nuevas/día en las dos últimas semanas (" + rt.diasActivos + " de 14 días con estudio" + (rt.diasSala ? ", " + rt.diasSala + " de ellos en la sala de estudio" + (rt.soloSala ? " y " + rt.soloSala + " solo leyendo en la sala, sin preguntas" : "") : "") + "); el plan pide " + p.objNuevas + "/día.");
       var s = p.semanas[0];
       if (s && s.temas.length) out.push("Temas del plan para esta semana: " + s.temas.map(function (x) { return x.tema; }).join("; ") + ".");
     }
@@ -381,7 +390,7 @@
       return "· " + s.ini + " a " + s.fin + " (" + FASES[s.fase].nom + "): " + (s.temas.length ? s.temas.map(function (x) { return x.tema + " (" + x.n + ")"; }).join("; ") : (s.foco ? "repaso de flojos: " + s.foco.join("; ") : "repaso"));
     });
     var daily = State.data.daily || {}, hist = [];
-    for (var i = 20; i >= 0; i--) { var k = claveDia(new Date(hoy0().getFullYear(), hoy0().getMonth(), hoy0().getDate() - i)), x = daily[k] || {}; hist.push(k.slice(5) + ": " + (x.n || 0) + (x.n ? " (" + Math.round((x.ok || 0) * 100 / x.n) + " % bien)" : "")); }
+    for (var i = 20; i >= 0; i--) { var k = claveDia(new Date(hoy0().getFullYear(), hoy0().getMonth(), hoy0().getDate() - i)), x = daily[k] || {}, sl = diaSala(k); hist.push(k.slice(5) + ": " + (x.n || 0) + (x.n ? " (" + Math.round((x.ok || 0) * 100 / x.n) + " % bien)" : "") + (sl ? " + sala (" + sl.t.length + (sl.t.length === 1 ? " tema" : " temas") + ")" : "")); }
     return (ia.apuntes ? ia.apuntes() : Promise.resolve(null)).then(function (ap) {
       var pistas = ia.pistasGenerales ? ia.pistasGenerales(ap, 7000) : "";
       var usuario = "ASIGNATURA: " + document.title + "\nHOY: " + claveDia(hoy0()) + "\nPREPARA: el " + NOM_OBJ[p.objetivo] + " (los temas que siguen son solo los que entran en él)\n\n" + contexto() +
@@ -395,14 +404,14 @@
       var txt = r.txt, a = txt.indexOf("{"), b = txt.lastIndexOf("}");
       if (a < 0 || b <= a) throw new Error("La IA no ha devuelto una estrategia legible.");
       var e = JSON.parse(txt.slice(a, b + 1));
-      e.t = Date.now(); e.fase = p.fase; e.o = p.objetivo;
+      e.t = Date.now(); e.fase = p.fase; e.o = p.objetivo; e.sala = 1;
       _d.estrategia = e; guardar(); invalidar();
       return e;
     });
   }
   function estrategiaVieja() {
     var e = _d.estrategia, p = planCache();
-    return !e || Date.now() - e.t > 7 * DIA || (p.fase && e.fase !== p.fase) || (e.o || "final") !== objetivo();
+    return !e || !e.sala || Date.now() - e.t > 7 * DIA || (p.fase && e.fase !== p.fase) || (e.o || "final") !== objetivo();
   }
 
   // ------------------------------------------------------------- interfaz
@@ -503,7 +512,7 @@
       ' · <label>cambiar <input type="date" id="plan-fecha" value="' + (p.fecha || "") + '"></label>' +
       (obj === "final" && _d.fecha ? ' <a href="#" id="plan-fecha-x">usar la de la bitácora</a>' : "") +
       (obj !== "final" ? ' · <a href="#" id="plan-mapa">ajustar qué temas entran en cada parcial</a>' : "") + "</p>";
-    if (!p.fase) { caja.innerHTML = h + "<p>Pon la fecha " + (obj === "final" ? "del examen" : "del " + NOM_OBJ[obj]) + " para que pueda planificar.</p>"; enganchar(caja); return; }
+    if (!p.fase) { caja.innerHTML = h + "<p>Pon la fecha " + (obj === "final" ? "del examen" : "del " + NOM_OBJ[obj]) + " para que pueda planificar.</p>"; enganchar(caja); if (window.Estudio && window.Estudio.pintarPlan) try { window.Estudio.pintarPlan(); } catch (e) {} return; }
     h += '<div class="kpis">' +
       '<div class="kpi"><b>' + pct(t.prep) + flecha(f.p, h7 && h7.p) + '</b><span>preparación ponderada' + (h7 ? " (vs. hace 7 días)" : "") + "</span></div>" +
       '<div class="kpi"><b>' + t.exDom + " / " + t.exN + '</b><span>preguntas de examen dominadas</span></div>' +
@@ -666,6 +675,36 @@
     } catch (e) { console.warn("plan", e); }
   };
 
+  // «🎯 Qué hacer hoy» de las estadísticas: si se prepara un parcial, las vencidas, las nuevas,
+  // los fallos con seguridad y el tema flojo salen solo de su materia
+  var ins0 = App.renderInsights;
+  if (ins0) App.renderInsights = function () {
+    var r = ins0.apply(this, arguments);
+    try {
+      var n = nParcial(), ul = document.getElementById("stats-todo");
+      if (!n || !ul) return r;
+      var qs = State.data.qs || {}, due = 0, fresh = 0, sure = 0, por = {};
+      ALL_QUESTIONS.forEach(function (q) {
+        if (!entraEnObjetivo(q)) return;
+        var s = qs[q.id];
+        if (typeof isDue === "function" && isDue(s)) due++; else if (typeof isNew === "function" && isNew(s)) fresh++;
+        if (typeof isSureFail === "function" && isSureFail(s)) sure++;
+        if (s && s.a) { var t = por[q.topic] || (por[q.topic] = { c: 0, a: 0 }); t.c += s.c; t.a += s.a; }
+      });
+      var peor = null, pp = 101;
+      Object.keys(por).forEach(function (t) { if (por[t].a >= 10) { var x = Math.round(por[t].c * 100 / por[t].a); if (x < pp) { pp = x; peor = t; } } });
+      var f = fechaParcial(n), nom = NOM_OBJ[objetivo()];
+      var li = [
+        "📅 Preparas el <strong>" + nom + "</strong>" + (f ? " (" + fmtIso(f) + ", faltan " + diasHasta(f) + " días)" : "") + ": todo lo de aquí abajo es solo de su materia.",
+        due ? "⏰ Tienes <strong>" + due + "</strong> preguntas vencidas del " + nom + ": empieza por «Repaso vencido»." : "⏰ Nada vencido hoy del " + nom + ". Buen momento para " + (fresh ? "<strong>" + fresh.toLocaleString("es") + "</strong> preguntas nuevas" : "un simulacro") + ".",
+        sure ? "😰 <strong>" + sure + "</strong> del " + nom + " las fallaste creyendo que las sabías: son las más rentables." : "😰 Ningún fallo con seguridad pendiente en el " + nom + ".",
+        peor ? "🔻 Tu tema más flojo del " + nom + " es <strong>" + esc(peor) + "</strong> (" + pp + " % de aciertos)." : "🔻 Aún no hay datos suficientes por tema en el " + nom + " (necesitas 10 intentos en alguno)."
+      ];
+      ul.innerHTML = li.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+    } catch (e) { console.warn("plan", e); }
+    return r;
+  };
+
   var stats0 = App.updateHomeStats;
   App.updateHomeStats = function () {
     stats0.apply(this, arguments);
@@ -674,7 +713,7 @@
   try { pintar(); } catch (e) { console.warn("plan", e); }
 
   if (window.MPSync && typeof MPSync.usar === "function") {
-    try { MPSync.usar({ clave: K_PLAN, modo: "reciente", alCambiar: function () { _d = leer(); invalidar(); try { pintar(); } catch (e) {} } }); } catch (e) {}
+    try { MPSync.usar({ clave: K_PLAN, modo: "reciente", alCambiar: function () { _d = leer(); fijarP1(); invalidar(); try { pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
   // Para la sala de estudio: las confusiones con su estado, y marcar una como resuelta

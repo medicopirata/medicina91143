@@ -29,6 +29,37 @@
   var _d = leer();
   if (!_d.t) _d.t = {};
   function guardar() { try { localStorage.setItem(K, JSON.stringify(_d)); } catch (e) {} }
+  // Días con actividad en la sala (_d.dias["AAAA-MM-DD" local] = {a: acciones, t: [temas]}),
+  // para que la racha, el ritmo del plan y la IA sepan que también se estudia leyendo
+  function claveHoy(d) { d = d || new Date(); var x = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return x.toISOString().slice(0, 10); }
+  function marcarDia(n) {
+    if (!_d.dias) _d.dias = {};
+    var k = claveHoy(), x = _d.dias[k] || (_d.dias[k] = { a: 0, t: [] });
+    x.a++;
+    if (n != null && x.t.indexOf(n) < 0) x.t.push(n);
+    var ks = Object.keys(_d.dias).sort();
+    while (ks.length > 400) delete _d.dias[ks.shift()];
+  }
+  // La primera vez se reconstruye lo que se pueda de antes con las fechas que ya se guardaban
+  function sembrarDias() {
+    if (_d.diasIni) return;
+    if (!_d.dias) _d.dias = {};
+    var pon = function (t, n) {
+      if (!t) return;
+      var k = claveHoy(new Date(t)), x = _d.dias[k] || (_d.dias[k] = { a: 0, t: [] });
+      x.a++;
+      if (n != null && x.t.indexOf(n) < 0) x.t.push(n);
+    };
+    Object.keys(_d.t || {}).forEach(function (n) {
+      var s = _d.t[n]; n = +n;
+      pon(s.ini, n); pon(s.fin, n); pon(s.vis, n);
+      (s.vueltas || []).forEach(function (v) { pon(v.t, n); });
+    });
+    Object.keys(_d.p || {}).forEach(function (a) { Object.keys(_d.p[a] || {}).forEach(function (k) { (_d.p[a][k] || []).forEach(function (y) { pon(y.t, null); }); }); });
+    _d.diasIni = 1;
+  }
+  sembrarDias();
+  function diaSala(k) { var x = (_d.dias || {})[k]; return x && x.a ? x : null; }
   function est(n) { return _d.t[n] || (_d.t[n] = { paso: 0, resp: {}, huecos: {}, expl: {} }); }
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -281,7 +312,7 @@
       var s = est(n), e = (indice.temas || []).filter(function (x) { return x.tema === n; })[0] || {};
       if (!cambiosVistos[n] && cambiada(e)) { var desde = ultimaVisita(n); cambiosVistos[n] = { desde: desde, mod: e.mod, secs: novedades(e, desde) }; }
       if (!s.ini) s.ini = Date.now();
-      s.vis = Date.now(); guardar();
+      s.vis = Date.now(); marcarDia(n); guardar();
       vista = { n: n, t: t, pasos: pasos(t), cambios: cambiosVistos[n] || null };
       if (typeof paso === "number") s.paso = paso;
       if (s.paso >= vista.pasos.length) s.paso = vista.pasos.length - 1;
@@ -620,6 +651,7 @@
     if (!b || !vista) return;
     if (vista.prog) return clicPrograma(b);
     var s = est(vista.n);
+    marcarDia(vista.n);
     if (b.hasAttribute("data-o")) {
       var clave = b.getAttribute("data-q"), o = +b.getAttribute("data-o"), ref = refDe(clave);
       var q = typeof ref === "number" ? BY_ID.get(ref) : ref;
@@ -1287,10 +1319,28 @@
   // medias, lo que toca repasar, el siguiente sin empezar y cómo va el repaso de examen. Lo
   // pintan «🎯 Qué hacer hoy» de las estadísticas y el plan de examen de la portada
   // (#plan-sala), y plan_examen.js se lo pasa en texto al entrenador y a su IA.
+  // Si se prepara un parcial, solo cuentan los temas de ese parcial. El parcial de un tema es el
+  // de la mayoría de su batería, con el mismo reparto que usan el entrenador y el plan.
+  var parcialMemo = {};
+  function parcialObjetivo() { var P = window.PlanExamen, o = P && P.objetivo ? P.objetivo() : "final"; return o === "p1" ? 1 : o === "p2" ? 2 : 0; }
+  function parcialTema(e) {
+    var En = window.Entrenador, t = temas[e.tema];
+    if (!En || !En.parcialDe || !t) return 0;
+    var a = En.ambito(), firma = e.tema + JSON.stringify(a.mapa || {});
+    if (parcialMemo[firma] !== undefined) return parcialMemo[firma];
+    var c = {};
+    (t.bateria || []).forEach(function (id) { var q = BY_ID.get(id); if (q) { var p = En.parcialDe(q, a); if (p) c[p] = (c[p] || 0) + 1; } });
+    var mejor = 0;
+    Object.keys(c).forEach(function (p) { if (!mejor || c[p] > c[mejor]) mejor = +p; });
+    return (parcialMemo[firma] = mejor);
+  }
+  function entraTema(e) { var n = parcialObjetivo(); if (!n) return true; var p = parcialTema(e); return !p || p === n; }
   function resumenSala() {
     if (!indice) return null;
-    var l = indice.temas || [], d0 = new Date(); d0.setHours(0, 0, 0, 0); d0 = d0.getTime();
-    var r = { total: l.length, estudiados: 0, hoy: [], medias: [], siguiente: null, repasar: queRepasar(l).slice(0, 3), programas: [] };
+    var todos = indice.temas || [], l = todos.filter(entraTema), d0 = new Date(); d0.setHours(0, 0, 0, 0); d0 = d0.getTime();
+    var np = parcialObjetivo();
+    var r = { total: l.length, fuera: todos.length - l.length, parcial: np, estudiados: 0, hoy: [], medias: [], siguiente: null, repasar: queRepasar(l).slice(0, 3), programas: [], dias: [] };
+    for (var i = 13; i >= 0; i--) { var dd = new Date(); dd.setDate(dd.getDate() - i); var x = diaSala(claveHoy(dd)); if (x) r.dias.push({ k: claveHoy(dd), a: x.a, t: x.t }); }
     l.forEach(function (e) {
       var s = _d.t[e.tema];
       if (!s || (!s.paso && !s.fin)) { if (!r.siguiente) r.siguiente = e; return; }
@@ -1303,6 +1353,8 @@
       if (q.length) r.hoy.push(nombre(e) + " (" + q.join(", ") + ")");
     });
     (indice.programas || []).forEach(function (g) {
+      var tras = todos.filter(function (e) { return e.tema === g.despues; })[0];
+      if (tras && !entraTema(tras)) return;
       var hechos = 0, sig = -1, ult = null, hoy = 0;
       g.examenes.forEach(function (_, i) {
         var x = intentos(g.archivo, i);
@@ -1318,8 +1370,13 @@
   function salaTexto() {
     var r = resumenSala();
     if (!r || !r.total) return "";
-    var o = ["SALA DE ESTUDIO (temas escritos para leer, con comprobaciones y batería): " + r.estudiados + " de " + r.total + " temas estudiados."];
+    var porN = {};
+    (indice.temas || []).forEach(function (e) { porN[e.tema] = e; });
+    var o = ["SALA DE ESTUDIO (temas escritos para leer, con comprobaciones y batería; leer y hacer las comprobaciones también es estudiar, aunque no sume preguntas en el historial): " +
+      r.estudiados + " de " + r.total + " temas estudiados" + (r.parcial ? " del " + r.parcial + (r.parcial === 1 ? ".er" : ".º") + " parcial, que es lo único que entra en lo que prepara" + (r.fuera ? " (los " + r.fuera + " temas del otro parcial no entran y no se cuentan aquí)" : "") : "") + "."];
+    if (r.parcial) o.push("Temas de la sala que entran en el " + (r.parcial === 1 ? "1.er" : "2.º") + " parcial: " + (indice.temas || []).filter(entraTema).map(function (e) { return nombre(e) + " (" + e.titulo + ")"; }).join("; ") + ".");
     o.push(r.hoy.length ? "Hoy en la sala: " + r.hoy.join("; ") + "." : "Hoy aún no ha pasado por la sala.");
+    o.push(r.dias.length ? "Días con estudio en la sala en las dos últimas semanas: " + r.dias.map(function (x) { return x.k.slice(5) + " (" + x.t.map(function (n) { return porN[n] ? nombre(porN[n]) : "repaso de examen"; }).join(", ") + ")"; }).join("; ") + "." : "No ha usado la sala en las dos últimas semanas.");
     if (r.medias.length) o.push("A medias: " + r.medias.map(function (e) { return nombre(e) + " (" + e.titulo + ")"; }).join("; ") + ".");
     if (r.repasar.length) o.push("Le toca repasar en la sala: " + r.repasar.map(function (x) { return nombre(x.e) + " — " + x.mot.join(", "); }).join("; ") + ".");
     if (r.siguiente) o.push("Siguiente tema sin empezar: " + nombre(r.siguiente) + " (" + r.siguiente.titulo + ").");
@@ -1335,7 +1392,7 @@
     var r = resumenSala();
     if (!r || !r.total) return [];
     var f = [], b = function (acc, v, txt) { return ' <button class="est-mini-b" data-sala="' + acc + '" data-v="' + esc(String(v)) + '">' + txt + "</button>"; };
-    f.push("📖 Sala de estudio: <strong>" + r.estudiados + "/" + r.total + "</strong> temas estudiados" + (r.hoy.length ? ". Hoy: " + esc(r.hoy.slice(0, 4).join("; ")) + (r.hoy.length > 4 ? " y " + (r.hoy.length - 4) + " más" : "") : ". Hoy aún no has entrado") + ".");
+    f.push("📖 Sala de estudio: <strong>" + r.estudiados + "/" + r.total + "</strong> temas estudiados" + (r.parcial ? " del " + r.parcial + (r.parcial === 1 ? ".er" : ".º") + " parcial" : "") + (r.hoy.length ? ". Hoy: " + esc(r.hoy.slice(0, 4).join("; ")) + (r.hoy.length > 4 ? " y " + (r.hoy.length - 4) + " más" : "") : ". Hoy aún no has entrado") + ".");
     r.medias.slice(0, 2).forEach(function (e) { f.push("📖 Tienes a medias <strong>" + esc(nombre(e)) + "</strong> · " + esc(e.titulo) + b("tema", e.tema, "▶️ Seguir")); });
     r.repasar.forEach(function (x) { f.push("🔁 Repasa <strong>" + esc(nombre(x.e)) + "</strong>: " + esc(x.mot.join(", ")) + b("rep", x.e.tema, "🎯 Repaso")); });
     if (!r.medias.length && r.siguiente) f.push("🆕 Siguiente tema por estudiar: <strong>" + esc(nombre(r.siguiente)) + "</strong> · " + esc(r.siguiente.titulo) + b("tema", r.siguiente.tema, "▶️ Empezar"));
@@ -1352,10 +1409,30 @@
     var f = salaFilas();
     c.innerHTML = f.length ? '<ul class="todo-list">' + f.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>" : "";
   }
+  // La racha cuenta también los días de sala (el motor solo mira las preguntas respondidas)
+  if (typeof window.streakDays === "function") window.streakDays = function () {
+    var d = State.data.daily || {}, n = 0;
+    for (var i = 0; ; i++) {
+      var t = new Date(Date.now() - i * 864e5), k = t.toISOString().slice(0, 10);
+      if ((d[k] && d[k].n > 0) || diaSala(claveHoy(t))) n++;
+      else if (i > 0) break;
+    }
+    return n;
+  };
   var ins0 = App.renderInsights;
   if (ins0) App.renderInsights = function () {
     var r = ins0.apply(this, arguments);
-    try { var ul = document.getElementById("stats-todo"); if (ul) ul.insertAdjacentHTML("beforeend", salaFilas().map(function (x) { return "<li>" + x + "</li>"; }).join("")); } catch (e) { console.warn("estudio", e); }
+    try {
+      var ul = document.getElementById("stats-todo"); if (ul) ul.insertAdjacentHTML("beforeend", salaFilas().map(function (x) { return "<li>" + x + "</li>"; }).join(""));
+      // En «Últimos 7 días», 📖 en los días con sala
+      document.querySelectorAll("#stats-trend .bar").forEach(function (b) {
+        var k = (b.getAttribute("title") || "").slice(0, 10), x = diaSala(k);
+        if (!x) return;
+        b.setAttribute("title", b.getAttribute("title") + " · 📖 sala: " + x.t.length + (x.t.length === 1 ? " tema" : " temas"));
+        var bb = b.querySelector("b"); if (bb) bb.textContent = (bb.textContent ? bb.textContent + " " : "") + "📖";
+        if (parseFloat(b.style.height) < 12) b.style.height = "12%";
+      });
+    } catch (e) { console.warn("estudio", e); }
     return r;
   };
   document.addEventListener("click", function (ev) {
@@ -1390,14 +1467,15 @@
   }
   cargarIndice().then(function () {
     // Se cargan en segundo plano los temas empezados, para saber cómo va su batería
-    (indice.temas || []).forEach(function (e) { if (_d.t[e.tema]) cargarTema(e.tema).then(function () { pintarPortada(); pintarSalaPlan(); }).catch(function () {}); });
+    var hayParc = !!parcialObjetivo();
+    (indice.temas || []).forEach(function (e) { if (_d.t[e.tema] || hayParc) cargarTema(e.tema).then(function () { pintarPortada(); pintarSalaPlan(); }).catch(function () {}); });
     pintarPortada(); pintarSalaPlan();
     setTimeout(irPorEnlace, 300);
   }).catch(function () { /* esta plataforma aún no tiene sala de estudio */ });
 
   if (window.MPSync && typeof MPSync.usar === "function") {
-    try { MPSync.usar({ clave: K, modo: "reciente", alCambiar: function () { _d = leer(); if (!_d.t) _d.t = {}; try { pintarPortada(); if (vista) pintar(); } catch (e) {} } }); } catch (e) {}
+    try { MPSync.usar({ clave: K, modo: "reciente", alCambiar: function () { _d = leer(); if (!_d.t) _d.t = {}; sembrarDias(); try { pintarPortada(); if (vista) pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
-  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, resumen: resumenSala, texto: salaTexto, filas: salaFilas, pintarPlan: pintarSalaPlan, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
+  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, resumen: resumenSala, texto: salaTexto, diaSala: diaSala, entraTema: entraTema, filas: salaFilas, pintarPlan: pintarSalaPlan, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
 })();

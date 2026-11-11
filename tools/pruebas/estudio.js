@@ -240,6 +240,21 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const bs = d.querySelector('#stats-todo [data-sala]');
   if (bs) { bs.click(); await espera(60); const fue = bs.getAttribute("data-sala");
     ok(d.getElementById("stats-panel").classList.contains("hidden") && !d.getElementById(fue === "rep" ? "quiz-screen" : "estudio-screen").classList.contains("hidden"), "  y su botón (" + fue + ") cierra las estadísticas y lo abre"); w.eval("App.goHome()"); await espera(30); }
+  // Un día solo leyendo en la sala cuenta como día de estudio (racha, ritmo del plan y la IA)
+  const hoyK = (() => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); })();
+  ok(E.diaSala(hoyK), "la sala apunta hoy como día de estudio");
+  w.eval("State.data.daily = {}");
+  ok(w.eval("streakDays()") >= 1, "  la racha cuenta los días de sala sin preguntas");
+  if (w.PlanExamen) {
+    w.PlanExamen.plan && w.eval("PlanExamen.pintar()");
+    if (w.PlanExamen.plan().fase) ok(/en la sala de estudio/.test(w.PlanExamen.contexto()), "  y el ritmo que recibe la IA también");
+    const np = w.PlanExamen.objetivo();
+    if (np !== "final") {
+      const r = E.resumen(), fuera = E.indice().temas.filter(e => !E.entraTema(e));
+      ok(r.parcial && r.total + r.fuera === E.indice().temas.length, "  prepara el " + np + ": la sala cuenta " + r.total + " temas y deja fuera " + r.fuera + " (" + fuera.map(e => e.etiqueta).join(", ") + ")");
+      ok(/Preparas el/.test(d.getElementById("stats-todo").textContent), "  «Qué hacer hoy» dice qué parcial se prepara");
+    }
+  }
   if (w.PlanExamen) {
     ok(d.getElementById("plan-sala") && /temas estudiados/.test(d.getElementById("plan-sala").textContent), "  sale en el plan de examen, bajo «Hacer lo de hoy»");
     ok(/SALA DE ESTUDIO/.test(w.PlanExamen.contexto()), "  la IA del entrenador y del plan la recibe");
