@@ -461,6 +461,16 @@
       "<b>" + p.vencidas + " repasos</b>." + (p.fase === "cobertura" ? (p.vaBien ? " Vas al ritmo." : " Vas por detrás: llevas " + Math.round(p.ritmo.nuevasDia) + " nuevas al día.") : "") +
       (e && e.hoy && !estrategiaVieja() ? '<br><span class="sub">🧠 La IA: ' + esc(e.hoy) + "</span>" : "") + salaBreve() + "</div>";
   }
+  // «🏁 Sesión completa de hoy»: todo lo que pide el plan hoy y lo que haga falta para cerrar los fallos
+  function botonCompleta(p) {
+    var E = window.Entrenador;
+    if (!E || !E.empezarCompleta || !p.fase) return "";
+    var nv = E.nuevasHoy(), f = [];
+    if (nv.quedan) f.push(nv.quedan + " nuevas" + (nv.hechas ? " (ya llevas " + nv.hechas + " de " + nv.obj + ")" : ""));
+    f.push(p.vencidas + " repasos vencidos");
+    return '<div style="margin:6px 0 4px"><button id="plan-completa" style="font-size:1rem;padding:10px 20px;margin:0;background:#7c3aed;color:#fff">🏁 Sesión completa de hoy</button>' +
+      ' <span class="sub">' + f.join(" + ") + " + lo que falles, con preguntas de la misma idea hasta acertarlas; al final, rondas con las falladas hasta acertarlas todas. No acaba hasta terminarlo (puedes parar y seguir luego).</span></div>";
+  }
   // Una línea de la sala de estudio para el resumen del entrenador
   function salaBreve() {
     var r = window.Estudio && window.Estudio.resumen ? window.Estudio.resumen() : null;
@@ -498,7 +508,7 @@
     var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") +
       ' <span class="sub">(pulsa para ' + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")</span></summary>";
     h += '<div style="margin:10px 0 4px"><button id="plan-ir" style="font-size:1rem;padding:10px 20px;margin:0">▶️ Hacer lo de hoy</button>' +
-      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>" + '<div id="plan-sala"></div>';
+      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>" + botonCompleta(p) + '<div id="plan-sala"></div>';
     if (conParciales()) {
       var n1 = BY_PARC(1), n2 = BY_PARC(2);
       h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
@@ -607,6 +617,8 @@
     });
     var ir = document.getElementById("plan-ir");
     if (ir) ir.onclick = function () { var E = window.Entrenador; if (E) (E.empezarPlan || E.abrir)(); };
+    var comp = caja.querySelector("#plan-completa");
+    if (comp) comp.onclick = function () { var E = window.Entrenador; if (E && E.empezarCompleta) E.empezarCompleta(); };
     var pm = document.getElementById("plan-mapa");
     if (pm) pm.onclick = function (ev) {
       ev.preventDefault();
