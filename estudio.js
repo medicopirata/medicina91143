@@ -1282,11 +1282,97 @@
   ].join("\n");
   document.head.appendChild(css);
 
+  // ------------------------------------------------------------------ la sala, para «qué hacer hoy»
+  // Lo que pasa en la sala resumido para el resto de la plataforma: lo hecho hoy, el tema a
+  // medias, lo que toca repasar, el siguiente sin empezar y cómo va el repaso de examen. Lo
+  // pintan «🎯 Qué hacer hoy» de las estadísticas y el plan de examen de la portada
+  // (#plan-sala), y plan_examen.js se lo pasa en texto al entrenador y a su IA.
+  function resumenSala() {
+    if (!indice) return null;
+    var l = indice.temas || [], d0 = new Date(); d0.setHours(0, 0, 0, 0); d0 = d0.getTime();
+    var r = { total: l.length, estudiados: 0, hoy: [], medias: [], siguiente: null, repasar: queRepasar(l).slice(0, 3), programas: [] };
+    l.forEach(function (e) {
+      var s = _d.t[e.tema];
+      if (!s || (!s.paso && !s.fin)) { if (!r.siguiente) r.siguiente = e; return; }
+      if (s.fin) r.estudiados++; else r.medias.push(e);
+      var q = [];
+      if (s.fin >= d0) q.push("terminado de leer");
+      else if (!s.fin && (s.vis || 0) >= d0) q.push("leyendo, apartado " + Math.max(1, Math.min(s.paso, e.secciones)) + "/" + e.secciones);
+      else if ((s.vis || 0) >= d0) q.push("repasado");
+      if (s.bat && s.bat.ultima >= d0) q.push("batería " + s.bat.bien + "/" + s.bat.n + " bien");
+      if (q.length) r.hoy.push(nombre(e) + " (" + q.join(", ") + ")");
+    });
+    (indice.programas || []).forEach(function (g) {
+      var hechos = 0, sig = -1, ult = null, hoy = 0;
+      g.examenes.forEach(function (_, i) {
+        var x = intentos(g.archivo, i);
+        if (x.length) { hechos++; var u = x[x.length - 1]; if (!ult || u.t > ult.t) ult = { i: i, t: u.t, ok: u.ok, n: u.n }; x.forEach(function (y) { if (y.t >= d0) hoy++; }); }
+        else if (sig < 0) sig = i;
+      });
+      ["fall", "azar"].forEach(function (k) { intentos(g.archivo, k).forEach(function (y) { if (y.t >= d0) hoy++; }); });
+      r.programas.push({ g: g, hechos: hechos, sig: sig, ult: ult, hoy: hoy, fall: ((_d.pf || {})[g.archivo] || []).length });
+    });
+    return r;
+  }
+  // En texto, para el plan de examen y la IA del entrenador
+  function salaTexto() {
+    var r = resumenSala();
+    if (!r || !r.total) return "";
+    var o = ["SALA DE ESTUDIO (temas escritos para leer, con comprobaciones y batería): " + r.estudiados + " de " + r.total + " temas estudiados."];
+    o.push(r.hoy.length ? "Hoy en la sala: " + r.hoy.join("; ") + "." : "Hoy aún no ha pasado por la sala.");
+    if (r.medias.length) o.push("A medias: " + r.medias.map(function (e) { return nombre(e) + " (" + e.titulo + ")"; }).join("; ") + ".");
+    if (r.repasar.length) o.push("Le toca repasar en la sala: " + r.repasar.map(function (x) { return nombre(x.e) + " — " + x.mot.join(", "); }).join("; ") + ".");
+    if (r.siguiente) o.push("Siguiente tema sin empezar: " + nombre(r.siguiente) + " (" + r.siguiente.titulo + ").");
+    r.programas.forEach(function (x) {
+      o.push("Repaso de examen «" + x.g.titulo + "»: " + x.hechos + " de " + x.g.examenes.length + " exámenes hechos" +
+        (x.ult ? ", el último (examen " + (x.ult.i + 1) + ") " + x.ult.ok + "/" + x.ult.n : "") + (x.sig >= 0 ? ", le toca el examen " + (x.sig + 1) : "") +
+        (x.fall ? ", " + x.fall + " falladas en él para repasar" : "") + (x.hoy ? ", hoy ha hecho " + x.hoy : "") + ".");
+    });
+    return o.join("\n");
+  }
+  // Las mismas cosas como filas con botón
+  function salaFilas() {
+    var r = resumenSala();
+    if (!r || !r.total) return [];
+    var f = [], b = function (acc, v, txt) { return ' <button class="est-mini-b" data-sala="' + acc + '" data-v="' + esc(String(v)) + '">' + txt + "</button>"; };
+    f.push("📖 Sala de estudio: <strong>" + r.estudiados + "/" + r.total + "</strong> temas estudiados" + (r.hoy.length ? ". Hoy: " + esc(r.hoy.slice(0, 4).join("; ")) + (r.hoy.length > 4 ? " y " + (r.hoy.length - 4) + " más" : "") : ". Hoy aún no has entrado") + ".");
+    r.medias.slice(0, 2).forEach(function (e) { f.push("📖 Tienes a medias <strong>" + esc(nombre(e)) + "</strong> · " + esc(e.titulo) + b("tema", e.tema, "▶️ Seguir")); });
+    r.repasar.forEach(function (x) { f.push("🔁 Repasa <strong>" + esc(nombre(x.e)) + "</strong>: " + esc(x.mot.join(", ")) + b("rep", x.e.tema, "🎯 Repaso")); });
+    if (!r.medias.length && r.siguiente) f.push("🆕 Siguiente tema por estudiar: <strong>" + esc(nombre(r.siguiente)) + "</strong> · " + esc(r.siguiente.titulo) + b("tema", r.siguiente.tema, "▶️ Empezar"));
+    r.programas.forEach(function (x) {
+      var g = x.g;
+      f.push("📋 <strong>" + esc(g.titulo) + "</strong>: " + x.hechos + "/" + g.examenes.length + " exámenes" + (x.ult ? " · último " + x.ult.ok + "/" + x.ult.n : "") +
+        (x.sig >= 0 ? " · te toca el " + (x.sig + 1) : "") + (x.fall ? " · " + x.fall + " falladas para repasar" : "") + b("prog", g.archivo, "📋 Abrir"));
+    });
+    return f;
+  }
+  function pintarSalaPlan() {
+    var c = document.getElementById("plan-sala");
+    if (!c) return;
+    var f = salaFilas();
+    c.innerHTML = f.length ? '<ul class="todo-list">' + f.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>" : "";
+  }
+  var ins0 = App.renderInsights;
+  if (ins0) App.renderInsights = function () {
+    var r = ins0.apply(this, arguments);
+    try { var ul = document.getElementById("stats-todo"); if (ul) ul.insertAdjacentHTML("beforeend", salaFilas().map(function (x) { return "<li>" + x + "</li>"; }).join("")); } catch (e) { console.warn("estudio", e); }
+    return r;
+  };
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest && ev.target.closest("[data-sala]");
+    if (!b) return;
+    var acc = b.getAttribute("data-sala"), v = b.getAttribute("data-v"), st = document.getElementById("stats-panel");
+    if (st) st.classList.add("hidden");
+    if (acc === "tema") abrir(+v);
+    else if (acc === "rep") repasoInteligente(+v);
+    else if (acc === "prog") abrirPrograma(v);
+  });
+
   // ------------------------------------------------------------------ arranque
   var stats0 = App.updateHomeStats;
   App.updateHomeStats = function () {
     stats0.apply(this, arguments);
-    try { pintarPortada(); } catch (e) { console.warn("estudio", e); }
+    try { pintarPortada(); pintarSalaPlan(); } catch (e) { console.warn("estudio", e); }
   };
   // Enlaces directos desde la portada de la bitácora:
   //   #estudio=9 (tema 9) · #estudio=9.2 (tema 9, apartado 3) · #repaso=9 · #estudio (la sala) · #entrenador
@@ -1304,8 +1390,8 @@
   }
   cargarIndice().then(function () {
     // Se cargan en segundo plano los temas empezados, para saber cómo va su batería
-    (indice.temas || []).forEach(function (e) { if (_d.t[e.tema]) cargarTema(e.tema).then(pintarPortada).catch(function () {}); });
-    pintarPortada();
+    (indice.temas || []).forEach(function (e) { if (_d.t[e.tema]) cargarTema(e.tema).then(function () { pintarPortada(); pintarSalaPlan(); }).catch(function () {}); });
+    pintarPortada(); pintarSalaPlan();
     setTimeout(irPorEnlace, 300);
   }).catch(function () { /* esta plataforma aún no tiene sala de estudio */ });
 
@@ -1313,5 +1399,5 @@
     try { MPSync.usar({ clave: K, modo: "reciente", alCambiar: function () { _d = leer(); if (!_d.t) _d.t = {}; try { pintarPortada(); if (vista) pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
-  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
+  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, resumen: resumenSala, texto: salaTexto, filas: salaFilas, pintarPlan: pintarSalaPlan, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
 })();

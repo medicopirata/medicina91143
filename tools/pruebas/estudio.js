@@ -231,5 +231,19 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     w.eval("App.goHome()"); await espera(30);
     ok(/1\/\d+ hechos/.test(d.querySelector('#estudio-home [data-est="prog"]').textContent), "  la portada cuenta los exámenes hechos");
   }
+  // La sala llega a «Qué hacer hoy», al plan de la portada y a la IA del entrenador
+  w.eval("App.goHome()"); await espera(60);
+  const filasSala = E.filas();
+  ok(filasSala.length && /temas estudiados/.test(filasSala[0]), "la sala se resume para «qué hacer hoy»: " + filasSala[0].replace(/<[^>]+>/g, "").slice(0, 90));
+  w.eval("App.showStats()"); await espera(20);
+  ok(/Sala de estudio/.test(d.getElementById("stats-todo").textContent), "  sale en «🎯 Qué hacer hoy» de las estadísticas");
+  const bs = d.querySelector('#stats-todo [data-sala]');
+  if (bs) { bs.click(); await espera(60); const fue = bs.getAttribute("data-sala");
+    ok(d.getElementById("stats-panel").classList.contains("hidden") && !d.getElementById(fue === "rep" ? "quiz-screen" : "estudio-screen").classList.contains("hidden"), "  y su botón (" + fue + ") cierra las estadísticas y lo abre"); w.eval("App.goHome()"); await espera(30); }
+  if (w.PlanExamen) {
+    ok(d.getElementById("plan-sala") && /temas estudiados/.test(d.getElementById("plan-sala").textContent), "  sale en el plan de examen, bajo «Hacer lo de hoy»");
+    ok(/SALA DE ESTUDIO/.test(w.PlanExamen.contexto()), "  la IA del entrenador y del plan la recibe");
+    ok(!w.PlanExamen.brief() || /Sala:/.test(w.PlanExamen.brief()), "  y el resumen del entrenador la nombra");
+  }
   ok(!errores.length, "sin avisos" + (errores.length ? ": " + errores.slice(0, 5).join(" | ") : ""));
 })();

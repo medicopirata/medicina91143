@@ -351,6 +351,8 @@
       return "· [" + new Date(c.t).toLocaleDateString("es") + ", " + st.txt + "] " + c.idea + (c.regla ? " — regla: " + c.regla : "");
     });
     if (conf.length) out.push("CONFUSIONES QUE YA DIAGNOSTICASTE EN SESIONES ANTERIORES (con lo que ha pasado después):\n" + conf.join("\n"));
+    var sala = window.Estudio && window.Estudio.texto ? window.Estudio.texto() : "";
+    if (sala) out.push(sala);
     var e = _d.estrategia;
     if (e && e.resumen) out.push("TU ÚLTIMA ESTRATEGIA (" + new Date(e.t).toLocaleDateString("es") + "): " + e.resumen);
     return out.join("\n");
@@ -361,6 +363,7 @@
     "Eres el entrenador personal de Santiago, estudiante de 2.º de Medicina (Universidad de Cádiz). Prepara un examen tipo test y quiere la nota más alta posible. Ahora no corriges una sesión: revisas su ESTRATEGIA GLOBAL hasta el examen.",
     "RECIBES: los días que faltan y la fase; su preparación ponderada y cómo ha evolucionado; su ritmo real; la lista de TEMAS con lo que pesa cada uno (según el origen de sus preguntas y los pesos que él ha elegido), su dominio, lo que le queda por ver y sus fallos (sobre todo en preguntas que cayeron en examen); el reparto por semanas que propone la plataforma; las confusiones diagnosticadas antes y si siguen; y las pistas de examen generales de sus apuntes.",
     "QUÉ HACES. 1) Un diagnóstico de dónde está respecto al examen, con números, en dos o tres frases. 2) Un plan por semanas desde hoy hasta el examen: para cada semana, el objetivo concreto, los temas (nombres EXACTOS de la lista) y cuántas preguntas nuevas y de repaso al día. Respeta las fases: cobertura primero, consolidación en las tres últimas semanas, repaso final en la última; ajusta el reparto de la plataforma si ves algo mejor (p. ej. adelantar lo que más cae en examen, juntar temas que se confunden, dejar margen para el temario que aún no se ha dado). 3) Las prioridades: los temas donde más nota se juega y por qué. 4) Alertas: lo que pone en riesgo la nota (ritmo insuficiente, temas de mucho peso sin empezar, confusiones que no se resuelven). 5) Qué hacer hoy, en una o dos frases.",
+    "LA SALA DE ESTUDIO. Además de las preguntas, estudia en una sala con los temas escritos para leer (con comprobaciones y una batería de preguntas por tema) y unos «repasos de examen» en exámenes fijos de ~100. Recibes cuántos temas lleva estudiados, qué ha hecho hoy allí, lo que tiene a medias, lo que le toca repasar, el siguiente sin empezar y cómo va cada repaso de examen. Tenlo en cuenta en el plan y sobre todo en «hoy»: si tiene un tema a medias o que repasar en la sala, o le toca un examen del repaso, díselo con el nombre exacto; no le mandes leer lo que ya ha estudiado.",
     "REGLAS. Sé concreto y realista con su ritmo; si no llega a todo, di qué sacrificar (lo de menos peso) en vez de pedirle lo imposible. Nada de ánimos ni generalidades. Todo en español.",
     'FORMATO: responde SOLO con JSON: {"resumen":"","semanas":[{"desde":"AAAA-MM-DD","hasta":"AAAA-MM-DD","objetivo":"","temas":["nombre exacto"],"nuevas_dia":0,"repasos_dia":0}],"prioridades":[{"tema":"nombre exacto","por_que":""}],"alertas":[""],"hoy":""}'
   ].join("\n\n");
@@ -447,7 +450,17 @@
     return '<div class="plan-brief">📅 <b>Plan de examen</b> · ' + (p.objetivo !== "final" ? "<b>" + NOM_OBJ[p.objetivo] + "</b> · " : "") + 'faltan <b>' + p.dias + " días</b> · " + FASES[p.fase].nom +
       " · preparación " + pct(t.prep) + "<br>Hoy toca: " + (p.objNuevas ? "<b>" + p.objNuevas + " nuevas</b>" + (temas ? " (" + temas + ")" : "") + " y " : "") +
       "<b>" + p.vencidas + " repasos</b>." + (p.fase === "cobertura" ? (p.vaBien ? " Vas al ritmo." : " Vas por detrás: llevas " + Math.round(p.ritmo.nuevasDia) + " nuevas al día.") : "") +
-      (e && e.hoy && !estrategiaVieja() ? '<br><span class="sub">🧠 La IA: ' + esc(e.hoy) + "</span>" : "") + "</div>";
+      (e && e.hoy && !estrategiaVieja() ? '<br><span class="sub">🧠 La IA: ' + esc(e.hoy) + "</span>" : "") + salaBreve() + "</div>";
+  }
+  // Una línea de la sala de estudio para el resumen del entrenador
+  function salaBreve() {
+    var r = window.Estudio && window.Estudio.resumen ? window.Estudio.resumen() : null;
+    if (!r || !r.total) return "";
+    var o = [r.estudiados + "/" + r.total + " temas estudiados"];
+    if (r.medias.length) o.push("a medias " + r.medias.map(function (e) { return e.etiqueta || "Tema " + e.tema; }).join(", "));
+    if (r.repasar.length) o.push("repasar " + r.repasar.map(function (x) { return x.e.etiqueta || "Tema " + x.e.tema; }).join(", "));
+    r.programas.forEach(function (x) { if (x.sig >= 0 || x.fall) o.push("repaso de examen: " + (x.sig >= 0 ? "te toca el " + (x.sig + 1) : "todos hechos") + (x.fall ? ", " + x.fall + " falladas" : "")); });
+    return '<br><span class="sub">📖 Sala: ' + esc(o.join(" · ")) + (r.hoy.length ? " · hoy: " + esc(r.hoy.slice(0, 3).join("; ")) + (r.hoy.length > 3 ? " y " + (r.hoy.length - 3) + " más" : "") : "") + "</span>";
   }
 
   function pintar() {
@@ -476,7 +489,7 @@
     var h = "<summary>📅 Mi plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") +
       ' <span class="sub">(pulsa para ' + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")</span></summary>";
     h += '<div style="margin:10px 0 4px"><button id="plan-ir" style="font-size:1rem;padding:10px 20px;margin:0">▶️ Hacer lo de hoy</button>' +
-      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>";
+      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>" + '<div id="plan-sala"></div>';
     if (conParciales()) {
       var n1 = BY_PARC(1), n2 = BY_PARC(2);
       h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
@@ -557,6 +570,7 @@
       }).join("") + '<button class="sec" id="plan-pesos-def">Volver a los de serie</button></details>';
     caja.innerHTML = h;
     enganchar(caja);
+    if (window.Estudio && window.Estudio.pintarPlan) try { window.Estudio.pintarPlan(); } catch (e) {}
   }
 
   // Cuántas preguntas entran en cada parcial (con los pesos y el reparto de temas actuales)
