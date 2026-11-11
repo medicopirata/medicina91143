@@ -661,7 +661,8 @@
   // rehace tools/programa_repaso.py): las que más caen de unos temas y las preguntas de examen
   // huérfanas de esos temas, repartidas en exámenes fijos de unas 100 con los temas mezclados.
   // Los exámenes son fijos para ver cómo mejora la nota al repetirlos. Cada intento se guarda
-  // en _d.p[archivo][nº de examen] = [{t, n, ok, mal}]; «fall» son las falladas y «azar» uno
+  // en _d.p[archivo][nº de examen] = [{t, n, ok, mal}]; «fall» son todas las que ha fallado alguna vez
+  // en el programa (_d.pf[archivo]) y «azar» uno
   // al azar. Lo que se responde cuenta en el motor como cualquier otra pregunta.
   var programas = {}, progActivo = null;
   if (!_d.p) _d.p = {};
@@ -699,7 +700,31 @@
     return h ? h[1] === 1 : s.l !== 0;
   }
   function todasPrograma(p) { return [].concat.apply([], p.examenes); }
-  function falladasPrograma(p) { return todasPrograma(p).filter(function (id) { return ultimaRespuesta(id) === false; }); }
+  // Todas las que ha fallado alguna vez haciendo este programa (_d.pf[archivo]), aunque luego
+  // las acierte. La primera vez se rellena con lo que tenía fallado y con los fallos del
+  // historial desde un día antes del primer examen apuntado.
+  function falladasPrograma(a, p) {
+    if (!_d.pf) _d.pf = {};
+    if (!_d.pfIni) _d.pfIni = {};
+    var l = _d.pf[a] || (_d.pf[a] = []);
+    if (!_d.pfIni[a]) {
+      var t0 = Infinity, x = _d.p[a] || {};
+      Object.keys(x).forEach(function (k) { (x[k] || []).forEach(function (r) { t0 = Math.min(t0, r.t); }); });
+      t0 = (t0 - 864e5) / 1000;
+      todasPrograma(p).forEach(function (id) {
+        var s = State.data.qs && State.data.qs[id];
+        var mal = ultimaRespuesta(id) === false || (s && Array.isArray(s.h) && s.h.some(function (h) { return h[1] !== 1 && h[0] >= t0; }));
+        if (mal && l.indexOf(id) < 0) l.push(id);
+      });
+      _d.pfIni[a] = 1; guardar();
+    }
+    return l;
+  }
+  function apuntarFallo(a, id) {
+    if (!_d.pf) _d.pf = {};
+    var l = _d.pf[a] || (_d.pf[a] = []);
+    if (l.indexOf(id) < 0) { l.push(id); guardar(); }
+  }
   // Al azar, pero primero lo que no ha visto nunca y lo que falló
   function azarPrograma(p) {
     var l = shuffle(todasPrograma(p)).map(function (id) { var r = ultimaRespuesta(id); return [id, r === false ? 0 : r === null ? 1 : 2]; });
@@ -717,7 +742,7 @@
     (indice.temas || []).forEach(function (e) { ets[e.tema] = e; });
     var todas = todasPrograma(p), vistas = 0, bien = 0;
     todas.forEach(function (id) { var r = ultimaRespuesta(id); if (r !== null) { vistas++; if (r) bien++; } });
-    var fall = falladasPrograma(p), sig = -1;
+    var fall = falladasPrograma(a, p), sig = -1, yaBien = fall.filter(function (id) { return ultimaRespuesta(id) === true; }).length;
     p.examenes.forEach(function (_, i) { if (sig < 0 && !intentos(a, i).length) sig = i; });
     var h = '<div class="est-top"><button class="est-salir" data-acc="salir">← Salir</button><div class="est-tit">📋 ' + esc(p.titulo) + "</div></div>";
     h += '<div class="est-pag"><h2>📋 ' + esc(p.titulo) + "</h2>";
@@ -739,7 +764,7 @@
     });
     h += "</div>";
     var lf = intentos(a, "fall"), lz = intentos(a, "azar");
-    h += '<div class="est-botones">' + (fall.length ? '<button data-acc="pex" data-i="fall">❌ Repasar las que fallé (' + Math.min(fall.length, p.tam || 100) + ")</button>" : "") +
+    h += '<div class="est-botones">' + (fall.length ? '<button data-acc="pex" data-i="fall">❌ Repasar todas las que he fallado (' + fall.length + (yaBien ? " · " + yaBien + " ya acertadas después" : "") + ")</button>" : "") +
       '<button data-acc="pex" data-i="azar">🎲 Un examen al azar de ' + Math.min(todas.length, p.tam || 100) + " (primero lo no visto y lo fallado)</button></div>";
     if (lf.length || lz.length) h += '<p class="est-ayuda">' + [lf.length ? "Falladas, la última vez: " + lf[lf.length - 1].ok + "/" + lf[lf.length - 1].n : "", lz.length ? "Al azar, la última vez: " + lz[lz.length - 1].ok + "/" + lz[lz.length - 1].n : ""].filter(Boolean).join(" · ") + "</p>";
     h += '<p class="est-ayuda">Cada examen tiene siempre las mismas preguntas, en otro orden cada vez, para que veas cómo sube la nota al repetirlo. Lo que respondes aquí cuenta para el avance, los repasos y el plan como cualquier otra pregunta.</p>';
@@ -752,7 +777,7 @@
     if (acc === "salir") return salir();
     if (acc === "pmodo") { try { localStorage.setItem(K + "_prog_corr", b.getAttribute("data-v")); } catch (e) {} return pintar(); }
     if (acc !== "pex") return;
-    var i = b.getAttribute("data-i"), ids = i === "fall" ? falladasPrograma(p).slice(0, p.tam || 100) : i === "azar" ? azarPrograma(p) : p.examenes[+i];
+    var i = b.getAttribute("data-i"), ids = i === "fall" ? falladasPrograma(a, p).slice() : i === "azar" ? azarPrograma(p) : p.examenes[+i];
     var qs = (ids || []).map(function (id) { return BY_ID.get(id); }).filter(Boolean);
     if (!qs.length) return alert("No hay preguntas para este examen.");
     var ex = comoExamen(), pen = document.getElementById("exam-pen");
@@ -764,6 +789,17 @@
     App.beginSession(shuffle(qs), ex ? "exam" : "estudio", ex ? { exam: true, penaliza: !!(pen && pen.checked) } : undefined);
     botonTutorQuiz();
   }
+  // Cada fallo dentro del programa queda apuntado para «Repasar todas las que he fallado»
+  var resp0 = App.answer;
+  App.answer = function () {
+    var ses = State.session, q = ses && ses.questions && ses.questions[ses.currentIdx], ya = q && ses.answers && ses.answers[q.id];
+    var r = resp0.apply(this, arguments);
+    try {
+      var act = progActivo || _d.pAct, x = q && !ya && ses.answers[q.id];
+      if (act && x && !x.wasCorrect && act.ids.indexOf(q.id) >= 0) apuntarFallo(act.a, q.id);
+    } catch (e) { console.warn("estudio", e); }
+    return r;
+  };
   // Al acabar un examen del programa se apunta la nota (si la sesión es la que se empezó aquí)
   var fin0 = App.finishQuiz;
   App.finishQuiz = function () {
