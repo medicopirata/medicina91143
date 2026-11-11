@@ -706,7 +706,8 @@
     l.sort(function (x, y) { return x[1] - y[1]; });
     return l.slice(0, p.tam || 100).map(function (x) { return x[0]; });
   }
-  function comoExamen() { try { return localStorage.getItem(K + "_prog_corr") !== "cada"; } catch (e) { return true; } }
+  // Por defecto corrige cada pregunta; el simulacro (corrige al final) hay que elegirlo
+  function comoExamen() { try { return localStorage.getItem(K + "_prog_corr") === "examen"; } catch (e) { return false; } }
   function nota(x) { return Math.round(x.ok * 100 / (x.n || 1)); }
   function pintarPrograma() {
     var a = vista.prog, p = vista.p, ex = comoExamen();
@@ -725,8 +726,10 @@
     h += '<div class="est-prog-temas">' + p.temas.map(function (n) {
       return '<span title="' + esc(ets[n] ? ets[n].titulo : "") + '">' + esc(ets[n] ? corto(ets[n]) : "T" + n) + " · " + (porTema[n] || 0) + "</span>";
     }).join("") + "</div>";
-    h += '<div class="est-prog-modo"><button data-acc="pmodo" data-v="examen" class="' + (ex ? "act" : "") + '">📝 Como en el examen: corrige al final</button>' +
-      '<button data-acc="pmodo" data-v="cada" class="' + (ex ? "" : "act") + '">✅ Corrigiendo cada pregunta (con tutor)</button></div>';
+    h += '<div class="est-prog-modo"><button data-acc="pmodo" data-v="cada" class="' + (ex ? "" : "act") + '">✅ Corrigiendo cada pregunta (con tutor)</button>' +
+      '<button data-acc="pmodo" data-v="examen" class="' + (ex ? "act" : "") + '">📝 Como en el examen: corrige al final</button></div>';
+    h += '<p class="est-ayuda">' + (ex ? "📝 Modo examen: no verás si aciertas ni la explicación hasta terminar; al acabar, «🔍 Revisar respuestas» te las enseña todas."
+      : "✅ Cada pregunta se corrige al responderla y sale su explicación.") + "</p>";
     h += '<div class="est-pex-lista">';
     p.examenes.forEach(function (ids, i) {
       var l = intentos(a, i), u = l[l.length - 1], mejor = l.reduce(function (m, x) { return Math.max(m, nota(x)); }, 0);
