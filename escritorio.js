@@ -13,8 +13,8 @@
 (function () {
 
   var ASIGNATURAS = [
-    { clave: "fisio1_study_v1",    nombre: "Fisiología I",       archivo: "plataforma_fisio1.html",        emoji: "🫀", total: 2655  },
-    { clave: "histo21_study_v1",   nombre: "Histología Esp. I",  archivo: "plataforma_histologia2.1.html", emoji: "🔬", total: 7801 },
+    { clave: "fisio1_study_v1",    nombre: "Fisiología I",       archivo: "plataforma_fisio1.html",        emoji: "🫀", total: 2689  },
+    { clave: "histo21_study_v1",   nombre: "Histología Esp. I",  archivo: "plataforma_histologia2.1.html", emoji: "🔬", total: 7857 },
     { clave: "anat3_study_v1",     nombre: "Anatomía 3",         archivo: "plataforma_anatomia3.html",     emoji: "🧠", total: 4833 },
     { clave: "medint_study_v1",    nombre: "Medicina Interna",   archivo: "plataforma_medint.html",        emoji: "🩺", total: 8923 },
     { clave: "tecdiag_study_v1",   nombre: "Técnicas Diagnósticas", archivo: "plataforma_tecdiag.html",    emoji: "🩻", total: 62    },
