@@ -32,6 +32,9 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   let ses = w.eval("State.session");
   ok(ses && ses.mode === "coach" && ses.completa && ses.completa.nuevas === pide, "  arranca una sesión del entrenador que pide " + pide + " nuevas");
   ok(/Sesión completa de hoy/.test(d.getElementById("q-coach").textContent), "  la primera pregunta dice lo que falta");
+  const cont = d.getElementById("q-progress").textContent, venc0 = ses.completa.pend.venc;
+  ok(cont === "1 / " + (pide + venc0), "  el contador enseña el total del día (" + pide + " nuevas + " + venc0 + " repasos): «" + cont + "»");
+  ok(/vas por la 1/.test(d.getElementById("q-coach").textContent) && new RegExp(String(pide + venc0) + " preguntas").test(d.getElementById("q-coach").textContent), "  y el aviso también");
   // Responder: falla unas cuantas al principio (alguna seguida del mismo tema) y luego acierta
   let n = 0, fallos = 0, maxCola = 0, guard = 0, consolida = false;
   while (guard++ < 1500) {
@@ -71,6 +74,15 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   w.eval("App.answer(dispCorrect(State.session.questions[0]))"); w.eval("App.nextQ()"); await espera(30);
   res = d.getElementById("coach-res");
   ok(res && /Sesión de hoy concluida/.test(res.textContent), "  acertadas todas: «✅ Sesión de hoy concluida»");
+  ok(res.querySelector("[data-mas]"), "  y ofrece «➕ Un poco más»");
+  res.querySelector("[data-mas]").click(); await espera(30);
+  ses = w.eval("State.session");
+  ok(ses.completa && ses.completa.modo === "extra" && ses.completa.nuevas === 15 && /Un poco más/.test(d.getElementById("q-coach").textContent), "  «un poco más» arranca otra sesión completa de 15 nuevas");
+  // Lo atrasado al principio
+  w.eval("App.goHome()"); await espera(30);
+  const at = En.atraso(), batr = d.getElementById("plan-atrasado");
+  ok(!at.n || batr, "  si hay atraso (" + at.n + " nuevas en " + at.dias + " días), el plan ofrece «⏪ Hoy + lo atrasado»");
+  if (batr) { const hoyN = En.nuevasHoy().quedan; batr.click(); await espera(30); ses = w.eval("State.session"); ok(ses.completa.modo === "atrasado" && ses.completa.nuevas === hoyN + at.n, "  y suma lo atrasado a lo de hoy (" + ses.completa.nuevas + " nuevas)"); }
   // Parar a medias deja seguir
   w.eval("App.goHome()"); await espera(30);
   d.getElementById("plan-completa").click(); await espera(30);

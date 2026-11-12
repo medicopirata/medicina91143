@@ -465,11 +465,14 @@
   function botonCompleta(p) {
     var E = window.Entrenador;
     if (!E || !E.empezarCompleta || !p.fase) return "";
-    var nv = E.nuevasHoy(), f = [];
+    var nv = E.nuevasHoy(), at = E.atraso ? E.atraso() : { n: 0 }, f = [];
     if (nv.quedan) f.push(nv.quedan + " nuevas" + (nv.hechas ? " (ya llevas " + nv.hechas + " de " + nv.obj + ")" : ""));
     f.push(p.vencidas + " repasos vencidos");
-    return '<div style="margin:6px 0 4px"><button id="plan-completa" style="font-size:1rem;padding:10px 20px;margin:0;background:#7c3aed;color:#fff">🏁 Sesión completa de hoy</button>' +
-      ' <span class="sub">' + f.join(" + ") + " + lo que falles, con preguntas de la misma idea hasta acertarlas; al final, rondas con las falladas hasta acertarlas todas. No acaba hasta terminarlo (puedes parar y seguir luego).</span></div>";
+    var tot = nv.quedan + p.vencidas;
+    return '<div style="margin:6px 0 4px"><button id="plan-completa" style="font-size:1rem;padding:10px 20px;margin:0;background:#7c3aed;color:#fff">🏁 Sesión completa de hoy · ' + tot + " preguntas</button>" +
+      (at.n ? ' <button id="plan-atrasado" style="font-size:1rem;padding:10px 20px;margin:0">⏪ Hoy + lo atrasado · ' + (tot + at.n) + "</button>" : "") +
+      '<br><span class="sub">Hoy: ' + f.join(" + ") + (at.n ? ". Atrasado: " + at.n + " nuevas que el plan pedía en " + (at.dias === 1 ? "un día" : at.dias + " días") + " de la última semana y no hiciste (los repasos atrasados ya van en los vencidos)" : "") +
+      ". Más lo que falles, con preguntas de la misma idea hasta acertarlas; al final, rondas con las falladas hasta acertarlas todas, y si quieres, un poco más. No acaba hasta terminarlo (puedes parar y seguir luego).</span></div>";
   }
   // Una línea de la sala de estudio para el resumen del entrenador
   function salaBreve() {
@@ -619,6 +622,8 @@
     if (ir) ir.onclick = function () { var E = window.Entrenador; if (E) (E.empezarPlan || E.abrir)(); };
     var comp = caja.querySelector("#plan-completa");
     if (comp) comp.onclick = function () { var E = window.Entrenador; if (E && E.empezarCompleta) E.empezarCompleta(); };
+    var atr = caja.querySelector("#plan-atrasado");
+    if (atr) atr.onclick = function () { var E = window.Entrenador; if (E && E.empezarCompleta) E.empezarCompleta("atrasado"); };
     var pm = document.getElementById("plan-mapa");
     if (pm) pm.onclick = function (ev) {
       ev.preventDefault();

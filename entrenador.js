@@ -400,7 +400,7 @@
   // en un tema que no se controla, de su batería hasta acertar dos seguidas (como mucho
   // BLOQUE_MAX). Al acabar, rondas con las falladas de la sesión hasta acertarlas todas.
   // Va en sess.completa = {dia, nuevas, ronda, ids0}; se copia en K_COMP para seguir tras recargar.
-  var COLA = 8, BLOQUE_MAX = 8;
+  var COLA = 8, BLOQUE_MAX = 8, EXTRA = 15;
   var K_COMP = STORAGE_KEY + "_completa";
 
   function nuevoCtx(completa) {
@@ -628,7 +628,11 @@
     if (comp) {
       // Siempre unas cuantas por delante hasta que no quede nada de lo de hoy
       comp.pend = pendientesHoy(ctx);
-      total = comp.pend.fin ? fijo.length : fijo.length + COLA;
+      // El total del día que se enseña: lo ya visto + lo que falta (nuevas, repasos y consolidar)
+      var falta = comp.pend.nuevas + comp.pend.venc + comp.pend.cons;
+      comp.total = fijo.length + falta;
+      if (comp.total0 == null) comp.total0 = comp.total;
+      total = comp.pend.fin ? fijo.length : fijo.length + Math.min(COLA, Math.max(1, falta));
       guardarCompleta(sess);
     }
     for (var pos = fijo.length; pos < total; pos++) {
@@ -828,7 +832,7 @@
     sess.coachCat[primera.q.id] = primera.cat;
     sess.coachPor[primera.q.id] = primera.por;
     planInicial(sess, n);
-    if (completa) replanificarInicio(sess);
+    if (completa) replanificar(sess);
     App.saveSession();
     App.renderQuizQuestion();
     App.renderSidebar();
@@ -846,8 +850,6 @@
     }
   }
 
-  // Lo pendiente al arrancar, para el aviso de la primera pregunta
-  function replanificarInicio(sess) { var ctx = reproducir(sess, 0); sess.completa.pend = pendientesHoy(ctx); guardarCompleta(sess); }
 
   function claveHoy() { var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
   // La sesión completa de esta sesión (el motor no la guarda: se recupera de K_COMP tras recargar)
@@ -869,15 +871,35 @@
     for (var id in qs) { var h = qs[id] && qs[id].h; if (Array.isArray(h) && h.length && h[0][0] >= desde && (qs[id].a || 0) <= h.length) hechas++; }
     return { obj: obj, hechas: hechas, quedan: Math.max(0, obj - hechas) };
   }
-  // «🏁 Sesión completa de hoy» del plan de examen
-  function empezarCompleta() {
+  // Lo atrasado: las nuevas que pedía el plan en los últimos días y no se hicieron (con lo que
+  // pide hoy como referencia, como mucho tres días de cuota). Los repasos atrasados ya entran
+  // siempre: un repaso vencido hace días sigue vencido.
+  var DIAS_ATRASO = 7;
+  function atrasoNuevas() {
+    var p = window.PlanExamen && window.PlanExamen.plan ? window.PlanExamen.plan() : null, obj = p && p.objNuevas || 0;
+    if (!obj) return { n: 0, dias: 0 };
+    var qs = State.data.qs || {}, hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    var h0 = hoy.getTime() / 1000, desde = h0 - DIAS_ATRASO * 86400, porDia = {};
+    for (var id in qs) {
+      var h = qs[id] && qs[id].h;
+      if (!Array.isArray(h) || !h.length || (qs[id].a || 0) > h.length) continue;   // solo primeras veces
+      var t = h[0][0];
+      if (t >= desde && t < h0) { var k = Math.floor((t - desde) / 86400); porDia[k] = (porDia[k] || 0) + 1; }
+    }
+    var falta = 0, dias = 0;
+    for (var i = 0; i < DIAS_ATRASO; i++) { var f = Math.max(0, obj - (porDia[i] || 0)); if (f) { falta += f; dias++; } }
+    return { n: Math.min(falta, obj * 3), dias: dias };
+  }
+  // «🏁 Sesión completa de hoy» del plan de examen (con lo atrasado si se pide; «extra» = un poco más al acabar)
+  function empezarCompleta(modo) {
     var a = leerAmbito(), o = window.PlanExamen ? window.PlanExamen.objetivo() : "final";
     a.alcance = "todo";
     a.parciales = o === "p1" ? [1] : o === "p2" ? [2] : [1, 2];
     guardarAmbito(a);
     var caja = document.getElementById("coach-ambito");
     if (caja) caja.hidden = true;
-    empezar({ dia: claveHoy(), nuevas: nuevasPendientesHoy().quedan, ronda: 0 });
+    var n = modo === "extra" ? EXTRA : nuevasPendientesHoy().quedan + (modo === "atrasado" ? atrasoNuevas().n : 0);
+    empezar({ dia: claveHoy(), nuevas: n, ronda: 0, modo: modo || "hoy" });
   }
   // Ronda final: las falladas de la sesión (o de la ronda anterior), hasta acertarlas todas
   function rondaFinal(ids, n) {
@@ -902,12 +924,21 @@
     }
     var p = c.pend;
     if (!p) return "";
+    contadorCompleta(sess, c);
     if (p.fin) return '<div class="plan-brief">🏁 <b>Sesión completa de hoy</b>: ya está todo lo que pedía el plan. Esta es la última' + (sess.questions.some(function (q) { var a = sess.answers[q.id]; return a && !a.wasCorrect; }) ? "; después, la ronda final con lo que has fallado." : ".") + "</div>";
     var f = [];
     if (p.nuevas) f.push(p.nuevas + " nuevas");
     if (p.venc) f.push(p.venc + " repasos vencidos");
     if (p.cons) f.push(p.cons + (p.cons === 1 ? " idea por consolidar" : " ideas por consolidar"));
-    return '<div class="plan-brief">🏁 <b>Sesión completa de hoy</b> · te faltan ' + f.join(", ") + ". No acaba hasta terminarlo y aclarar lo que falles.</div>";
+    return '<div class="plan-brief">' + (c.modo === "extra" ? "➕ <b>Un poco más: " : c.modo === "atrasado" ? "⏪ <b>Hoy + lo atrasado: " : "🏁 <b>Sesión completa de hoy: ") + c.total + " preguntas</b>" + (c.total > c.total0 ? " (empezó en " + c.total0 + "; el resto es para consolidar lo que has fallado)" : "") +
+      " · vas por la " + (sess.currentIdx + 1) + " y te faltan " + f.join(", ") + ". No acaba hasta terminarlo y aclarar lo que falles.</div>";
+  }
+  // El contador de arriba (n / total) cuenta el total del día, no las que hay preparadas por delante
+  function contadorCompleta(sess, c) {
+    var tot = c.pend.fin ? sess.questions.length : Math.max(c.total, sess.currentIdx + 1);
+    var el = document.getElementById("q-progress"), bar = document.getElementById("q-progress-bar");
+    if (el) el.textContent = (sess.currentIdx + 1) + " / " + tot;
+    if (bar) bar.style.width = Math.min(100, (sess.currentIdx + 1) * 100 / tot) + "%";
   }
 
   // ------------------------------------------------------- engancharse al motor
@@ -973,7 +1004,8 @@
       if (!b) return;
       if (b.hasAttribute("data-esp")) especifico(b.getAttribute("data-esp"));
       else if (b.hasAttribute("data-ronda")) rondaFinal(falladas, +b.getAttribute("data-ronda"));
-      else if (b.hasAttribute("data-seguir")) empezarCompleta();
+      else if (b.hasAttribute("data-seguir")) empezarCompleta(comp && comp.modo === "atrasado" ? "atrasado" : undefined);
+      else if (b.hasAttribute("data-mas")) empezarCompleta("extra");
     };
   };
 
@@ -990,10 +1022,11 @@
       return h + "🏁 <b>Has parado la sesión completa antes de acabar</b>" + (f.length ? ": te faltan " + f.join(", ") : "") + '.<br><button data-seguir="1">▶️ Seguir con la sesión completa</button>' +
         (falladas.length ? ' <button data-ronda="1">🔁 Ronda con las ' + falladas.length + " que has fallado</button>" : "") + "</div>";
     }
+    var mas = '<button data-mas="1">➕ Un poco más: ' + EXTRA + " nuevas (adelantas lo de mañana)</button>";
     if (falladas.length) return h + (comp.ronda ? "🔁 <b>Ronda " + comp.ronda + " hecha</b>: aún fallas " + falladas.length + "." : "🏁 <b>Lo que pedía el plan para hoy, hecho.</b> Falta cerrar las " + falladas.length + " que has fallado.") +
-      '<br><button data-ronda="' + ((comp.ronda || 0) + 1) + '">🔁 Ronda final: las ' + falladas.length + " falladas, hasta acertarlas</button></div>";
+      '<br><button data-ronda="' + ((comp.ronda || 0) + 1) + '">🔁 Ronda final: las ' + falladas.length + " falladas, hasta acertarlas</button> " + mas + "</div>";
     try { localStorage.removeItem(K_COMP); } catch (e) {}
-    return h + "✅ <b>Sesión de hoy concluida</b>: hecho todo lo que pedía el plan y acertado todo lo que habías fallado.</div>";
+    return h + "✅ <b>" + (comp.modo === "extra" ? "Extra hecho" : "Sesión de hoy concluida") + "</b>: hecho todo lo que pedía el plan y acertado todo lo que habías fallado.<br>" + mas + "</div>";
   }
 
   var MOTIVOS = ["", "no lo sabías", "confundiste conceptos", "leíste mal el enunciado", "dudaste entre dos", "caíste en un «todas/ninguna»"];
@@ -1068,5 +1101,5 @@
     a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
     guardarAmbito(a);
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();
