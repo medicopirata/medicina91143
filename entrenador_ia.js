@@ -66,8 +66,10 @@
   // ------------------------------------------------------------ la llamada
   // Reglas propias de una asignatura, que se añaden a las instrucciones de la IA solo en ella
   var REGLA_ASIGNATURA = {
-    anat3: "REGLA DE ESTA ASIGNATURA: los profesores dijeron expresamente que preguntan lo que dicen en clase. No bases ninguna pregunta ni esquema en fragmentos marcados como «Nota de Claude», 🤖 o «no dicha en clase»: solo en lo que el profesor dijo."
+    anat3: "REGLA DE ESTA ASIGNATURA: los profesores dijeron expresamente que preguntan lo que dicen en clase. No bases ninguna pregunta ni esquema en fragmentos marcados como «Nota de Claude», 🤖 o «no dicha en clase»: solo en lo que el profesor dijo. PRIORIDAD EN ESTA ASIGNATURA (también en la estrategia): primero las preguntas de exámenes de otros años, lo que los profesores dieron como pista o dijeron que cae, lo de las imágenes de sus presentaciones (⭐) y lo de sus tareas y guiones de los talleres; el resto, después."
   };
+  // Lo que tiene que cumplir toda pregunta que escriba la IA (son las reglas de Santiago para los bancos)
+  var REGLA_PREGUNTAS = "TODA PREGUNTA QUE ESCRIBAS: solo de materia que entra en lo que prepara ahora (lo dice el PLAN DE EXAMEN: si es un parcial, nada de fuera de él). Se entiende sola, sin ver otra pregunta: si necesita los datos de un caso, empieza por «📋 Caso: …» con esos datos. Exactamente cuatro opciones. La explicación tiene al menos 60 caracteres, se escribe desde los apuntes con tus palabras y no copia la explicación de otra pregunta del banco.";
   function llamar(sistema, usuario) {
     var extra = REGLA_ASIGNATURA[STORAGE_KEY.replace(/_study_v\d+$/, "")];
     if (extra) sistema += "\n\n" + extra;
@@ -83,6 +85,7 @@
     }).then(function (r) {
       return r.json().then(function (j) {
         if (!r.ok) throw new Error((j && j.error && j.error.message) || ("Error " + r.status));
+        if (j.stop_reason === "max_tokens") throw new Error("La respuesta de la IA llegó cortada: vuelve a intentarlo.");
         var txt = (j.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("");
         return { txt: txt, uso: j.usage || {} };
       });
@@ -148,6 +151,7 @@
     "TU TRABAJO. 1) Diagnóstico: di qué idea concreta se le escapa, mirando qué opción eligió y con cuánta seguridad (fallar seguro = concepto equivocado; dudar entre dos = distinción que no domina; acertar adivinando = no la sabe; «leí mal» = fallo de técnica de examen, no de conocimiento). Agrupa los fallos que nacen de la misma confusión. Ordena por prioridad real para el examen: primero lo que ya cayó en examen (más aún si se repite en varias convocatorias) o el profesor dijo que cae, después lo demás. Cita lo que dicen sus apuntes sobre ese punto. 2) Preguntas nuevas: escribe preguntas tipo test que ataquen esa confusión desde otro ángulo (no la misma pregunta reformulada), con el estilo de las preguntas reales de examen que recibes, y dando preferencia a lo que el profesor marcó como importante dentro de ese tema. 3) Consejo: qué apartado concreto de sus apuntes releer y qué hacer antes de la próxima sesión.",
     "MEMORIA. Al final recibes lo que ya sabes de él: su plan de examen (días que faltan, fase, preparación y ritmo), los pesos que da a cada origen de pregunta y las CONFUSIONES QUE YA LE DIAGNOSTICASTE en sesiones anteriores, con si desde entonces las ha acertado o vuelto a fallar. Úsalo: si un fallo de hoy es una confusión que ya viste, dilo («vuelve a pasar lo del día…»), súbele la prioridad y cámbiale el enfoque, porque lo anterior no funcionó; no repitas como nuevo un diagnóstico que ya está resuelto; y orienta el consejo a la fase en que está (en cobertura, avanzar; cerca del examen, cerrar lo que más puntúa).",
     "REGLAS. Usa SOLO hechos que estén en los apuntes o en el material que recibes; si no basta para una confusión, no escribas pregunta sobre ella. Si los apuntes y otra fuente se contradicen, mandan los apuntes de clase. No escribas preguntas que necesiten ver una imagen. Cuatro opciones, una sola correcta, distractores verosímiles (a ser posible aquello con lo que él lo confunde), la correcta en posiciones variadas, sin «todas las anteriores». La explicación dice por qué es esa y por qué no la que él habría elegido. Sé directo y concreto; nada de ánimos ni generalidades. Todo en español.",
+    REGLA_PREGUNTAS,
     "FORMATO. Responde SOLO con un objeto JSON, sin texto alrededor: " +
       '{"diagnostico":[{"idea":"la confusión, en una frase","prioridad":"alta|media|baja","motivo_prioridad":"p. ej. cayó en el examen de febrero / el profesor dijo «…» / no está marcado","por_que":"qué lo delata en sus respuestas","apuntes":"lo que dicen sus apuntes, con cita breve y el apartado","regla":"cómo distinguirlo, en una frase que pueda memorizar","esquema":{"columnas":["",""],"filas":[["",""]]}}],' +
       '"preguntas":[{"tema":"nombre EXACTO del TEMA de la pregunta fallada de la que sale","q":"enunciado","opciones":["","","",""],"correcta":0,"explicacion":""}],' +
@@ -158,8 +162,25 @@
   var CONF = ["sin indicar", "seguro", "con dudas", "adivinando"];
   var MOTIVO = ["", "no lo sabía", "confundí conceptos", "leí mal", "dudé entre dos", "todas/ninguna"];
   function corta(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n) + "…" : s; }
+  // En Anatomía 3 solo vale lo que dijo el profesor: lo de «🤖» en adelante no se le pasa a la IA
+  var SIN_CLAUDE = CLAVE_APUNTES === "anat3";
+  function expDe(q) { var e = String(q.exp || ""); if (SIN_CLAUDE) { var i = e.indexOf("🤖"); if (i >= 0) e = e.slice(0, i).trim(); } return e; }
+  // Una pregunta escrita por la IA solo se guarda si cumple lo mínimo
+  function clavePregunta(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+  var _enunciados = null;
+  function valida(p, d) {
+    if (!p || !p.q || !Array.isArray(p.opciones) || p.opciones.length !== 4) return false;
+    if (!Number.isInteger(p.correcta) || p.correcta < 0 || p.correcta > 3) return false;
+    if (p.opciones.some(function (o) { return !String(o || "").trim(); })) return false;
+    if (String(p.explicacion || "").trim().length < 60) return false;
+    if (!_enunciados || _enunciados.n !== ALL_QUESTIONS.length) _enunciados = { n: ALL_QUESTIONS.length, set: new Set(ALL_QUESTIONS.map(function (q) { return clavePregunta(q.q); })) };
+    var k = clavePregunta(p.q);
+    return !_enunciados.set.has(k) && !(d && d.qs.some(function (x) { return clavePregunta(x.q) === k; }));
+  }
   function letra(i) { return String.fromCharCode(65 + i); }
 
+  // Lo que entra en lo que se prepara ahora (con el plan de examen, lo que pesa más de 0)
+  function entra(q) { return !window.PlanExamen || window.PlanExamen.factor(q) > 0; }
   function expediente(sess, ap) {
     var casos = [], consultas = [], temas = new Map(), qs = State.data.qs || {};
     sess.questions.forEach(function (q) {
@@ -177,7 +198,7 @@
         " · iba " + CONF[a.conf || 0] + (h && h[4] ? " · tardó " + h[4] + " s" : "") +
         (h && h[5] ? " · él dice: " + MOTIVO[h[5]] : "") +
         (s.a > 1 ? " · historial: " + s.c + " aciertos de " + s.a : "") + "\n" +
-        "EXPLICACIÓN: " + corta(q.exp, 700));
+        "EXPLICACIÓN: " + corta(expDe(q), 700));
       consultas.push(q.q + " " + q.displayOptions.join(" ") + " " + (q.exp || ""));
       if (!temas.has(q.topicBase)) temas.set(q.topicBase, new Set());
       temas.get(q.topicBase).add(q.id);
@@ -188,29 +209,29 @@
     var material = [];
     temas.forEach(function (ids, tema) {
       var base = tema.indexOf(PREFIJO) === 0 ? tema.slice(PREFIJO.length) : tema;
-      var otras = (BY_TOPIC.get(base) || []).filter(function (q) { return !ids.has(q.id) && !q.img && q.exp && q.exp.length > 60 && Number.isInteger(q.correct); });
+      var otras = (BY_TOPIC.get(base) || []).filter(function (q) { return !ids.has(q.id) && !q.img && expDe(q).length > 60 && Number.isInteger(q.correct) && entra(q); });
       otras = shuffle(otras).slice(0, ap ? 6 : 12);
       if (!otras.length) return;
       material.push("== " + base + " ==\n" + otras.map(function (q) {
-        return "· " + corta(q.q, 220) + " → " + corta(q.options[q.correct], 120) + ". " + corta(q.exp, 420);
+        return "· " + corta(q.q, 220) + " → " + corta(q.options[q.correct], 120) + ". " + corta(expDe(q), 420);
       }).join("\n"));
     });
 
     var estado = "";
     if (window.Entrenador) {
       var flojos = [];
-      window.Entrenador.temas().forEach(function (t) { if (t.estado === "flojo") flojos.push(t.tema + " (" + Math.round(t.dominio * 100) + " %)"); });
+      window.Entrenador.temas().forEach(function (t) { if (t.estado === "flojo" && (BY_TOPIC.get(t.tema) || []).some(entra)) flojos.push(t.tema + " (" + Math.round(t.dominio * 100) + " %)"); });
       if (flojos.length) estado = "\n\nTEMAS QUE LLEVA FLOJOS: " + flojos.slice(0, 12).join("; ");
     }
     var clase = trozosPara(ap, consultas.slice(0, 25), 18);
     var muestras = !window.Entrenador ? [] : shuffle(ALL_QUESTIONS.filter(function (q) {
-      return !q.img && !q.ia && Number.isInteger(q.correct) && q.q.length > 30 && window.Entrenador.origen(q).tipo === "examen";
+      return !q.img && !q.ia && Number.isInteger(q.correct) && q.q.length > 30 && window.Entrenador.origen(q).tipo === "examen" && entra(q);
     })).slice(0, 5).map(function (q) {
       return "· " + corta(q.q, 260) + "\n" + q.options.map(function (o, i) { return "   " + letra(i) + ") " + corta(o, 110) + (i === q.correct ? "  ✔" : ""); }).join("\n");
     });
     return {
       n: casos.length,
-      texto: "ASIGNATURA: " + document.title + "\n\nLO QUE HA FALLADO, ADIVINADO O DUDADO EN ESTA SESIÓN (" + casos.length + "):\n\n" +
+      texto: "ASIGNATURA: " + document.title + "\n\nLO QUE HA FALLADO, ADIVINADO O DUDADO EN ESTA SESIÓN (" + casos.length + (casos.length > 25 ? "; van las 25 primeras" : "") + "):\n\n" +
              casos.slice(0, 25).join("\n\n") +
              (clase.length ? "\n\nAPUNTES DE CLASE (los apartados más cercanos a cada fallo):\n\n" + clase.join("\n\n---\n\n") : "") +
              "\n\nOTRAS PREGUNTAS DE ESOS TEMAS, CON SU RESPUESTA Y EXPLICACIÓN:\n\n" + material.join("\n\n") +
@@ -239,11 +260,14 @@
     }).then(function (r) {
       if (!r) return;
       var inf = sacarJSON(r.txt), d = cargar(), base = Math.floor(Date.now() / 1000) * 20, n = 0;
+      // Sin tema reconocible, al primer tema fallado que no sea un banco de imágenes (las de la IA no llevan imagen)
+      var sinPrefijo = function (t) { return t.indexOf(PREFIJO) === 0 ? t.slice(PREFIJO.length) : t; };
+      var temaPorDefecto = sinPrefijo(exp.temas.filter(function (t) { return !/^(⭐|🖼️)/.test(sinPrefijo(t)); })[0] || exp.temas[0]);
       (inf.preguntas || []).forEach(function (p, i) {
-        if (!p || !p.q || !Array.isArray(p.opciones) || p.opciones.length < 3 || !Number.isInteger(p.correcta) || !p.opciones[p.correcta]) return;
+        if (!valida(p, d)) return;
         var de = String(p.tema || "");
         if (de.indexOf(PREFIJO) === 0) de = de.slice(PREFIJO.length);
-        if (!BY_TOPIC.has(de)) de = exp.temas[0].indexOf(PREFIJO) === 0 ? exp.temas[0].slice(PREFIJO.length) : exp.temas[0];
+        if (!BY_TOPIC.has(de)) de = temaPorDefecto;
         d.qs.push({ id: base + i, de: de, q: String(p.q), options: p.opciones.map(String), correct: p.correcta, exp: String(p.explicacion || ""), t: Date.now() });
         n++;
       });
@@ -316,6 +340,7 @@
     "RECIBES: su petición; la lista de BANCOS de la asignatura con su número de preguntas; las PREGUNTAS CANDIDATAS que más se parecen a lo pedido (id, banco, origen y enunciado); y los apartados de sus APUNTES DE CLASE más cercanos. En los apuntes, lo que el profesor considera importante está marcado (🔴, 🟠, ▶, ⭐, «Pista de examen», citas literales); ⚪ es lo que no entra.",
     "QUÉ HACES. Si pide REUNIR las preguntas de un tema, práctica o seminario: devuelve en «bancos» los nombres EXACTOS de los bancos que lo cubren y en «ids» las candidatas sueltas de otros bancos que también traten de eso. Si pide un CUESTIONARIO A LA CARTA: elige en «ids» las candidatas que mejor responden, primero las que cayeron en examen o puso el profesor, sin repetir la misma pregunta dos veces; y si lo que hay no cubre bien lo pedido, escribe en «nuevas» las que falten. Respeta el número de preguntas si lo indica; si no, entre 15 y 30. Si pide algo distinto (un plan, una duda), contéstale en «nota» y deja lo demás vacío.",
     "REGLAS PARA LAS NUEVAS: solo hechos que estén en los apuntes recibidos, con preferencia por lo que el profesor marcó; nada que necesite ver una imagen; cuatro opciones, una correcta, distractores verosímiles, sin «todas las anteriores»; explicación breve con lo que dicen los apuntes. Si los apuntes no dan para lo que pide, dilo en «nota» en vez de inventar.",
+    REGLA_PREGUNTAS,
     'FORMATO: responde SOLO con JSON: {"titulo":"nombre corto de la sesión","bancos":["nombre exacto"],"ids":[123],"nuevas":[{"tema":"nombre EXACTO de un banco de la lista","q":"","opciones":["","","",""],"correcta":0,"explicacion":""}],"nota":"qué has reunido y qué falta, dos frases; di cuántas cayeron en examen"}'
   ].join("\n\n");
 
@@ -359,7 +384,7 @@
     }).then(function (r) {
       var inf = sacarJSON(r.txt), d = cargar(), base = Math.floor(Date.now() / 1000) * 20, nuevasIds = [];
       (inf.nuevas || []).forEach(function (p, i) {
-        if (!p || !p.q || !Array.isArray(p.opciones) || p.opciones.length < 3 || !Number.isInteger(p.correcta) || !p.opciones[p.correcta]) return;
+        if (!valida(p, d)) return;
         var de = String(p.tema || "");
         if (de.indexOf(PREFIJO) === 0) de = de.slice(PREFIJO.length);
         if (!BY_TOPIC.has(de)) de = "Peticiones";
@@ -383,6 +408,7 @@
     "Eres el entrenador personal de Santiago, estudiante de 2.º de Medicina. En mitad de una sesión de test ha fallado dos veces en el mismo tema. No vas a insistir con muchas preguntas: vas a ACLARARLE el concepto con un esquema breve, para que pueda seguir avanzando.",
     "RECIBES sus fallos (qué eligió, con qué seguridad) y los apartados de sus APUNTES DE CLASE sobre ese tema, con lo que el profesor marcó como importante (🔴, 🟠, ▶, ⭐, «Pista de examen», citas literales).",
     "DEVUELVES un esquema que ordene justo lo que está mezclando: normalmente una tabla comparativa (los conceptos que confunde en filas y lo que los distingue en columnas), o una secuencia ordenada si lo que falla es un orden o un circuito. Corto: como mucho 6 filas y 4 columnas, celdas de pocas palabras. Solo hechos de sus apuntes; usa las palabras del profesor cuando las haya. Añade una regla de una frase para no volver a caer y, si procede, lo que el profesor dijo que se pregunta. Y UNA sola pregunta tipo test nueva que compruebe si lo ha entendido (cuatro opciones, una correcta, sin imagen); el resto de preguntas saldrán de su batería.",
+    REGLA_PREGUNTAS,
     'FORMATO: responde SOLO con JSON: {"titulo":"qué aclara el esquema","columnas":["",""],"filas":[["",""]],"regla":"","profesor":"lo que marcó el profesor sobre esto, o cadena vacía","pregunta":{"q":"","opciones":["","","",""],"correcta":0,"explicacion":""}}'
   ].join("\n\n");
 
@@ -391,7 +417,7 @@
       var casos = fallos.map(function (q) {
         var a = sess.answers[q.id] || {}, dc = dispCorrect(q);
         return "PREGUNTA: " + q.q + "\n" + q.displayOptions.map(function (o, i) { return letra(i) + ") " + o; }).join("\n") +
-          "\nEligió: " + letra(a.chosen) + " · Correcta: " + letra(dc) + " · iba " + CONF[a.conf || 0] + "\nEXPLICACIÓN: " + corta(q.exp, 600);
+          "\nEligió: " + letra(a.chosen) + " · Correcta: " + letra(dc) + " · iba " + CONF[a.conf || 0] + "\nEXPLICACIÓN: " + corta(expDe(q), 600);
       });
       var consultas = fallos.map(function (q) { return q.q + " " + q.displayOptions.join(" ") + " " + (q.exp || ""); });
       consultas.push(tema);
@@ -399,9 +425,8 @@
       return llamar(SISTEMA_ESQUEMA, "ASIGNATURA: " + document.title + "\nTEMA: " + tema + "\n\nFALLOS:\n\n" + casos.join("\n\n") +
         (clase.length ? "\n\nAPUNTES DE CLASE:\n\n" + clase.join("\n\n---\n\n") : "\n\n(Sin apuntes volcados: usa solo las explicaciones.)"));
     }).then(function (r) {
-      var e = sacarJSON(r.txt), p = e.pregunta;
-      if (p && p.q && Array.isArray(p.opciones) && Number.isInteger(p.correcta) && p.opciones[p.correcta]) {
-        var d = cargar();
+      var e = sacarJSON(r.txt), p = e.pregunta, d = cargar();
+      if (valida(p, d)) {
         d.qs.push({ id: Math.floor(Date.now() / 1000) * 20 + 19, de: tema, q: String(p.q), options: p.opciones.map(String), correct: p.correcta, exp: String(p.explicacion || ""), t: Date.now() });
         guardar(d); inyectar();
       }
@@ -443,17 +468,19 @@
     return caja;
   }
 
+  // Va dentro del plan de examen (#ia-sitio): el plan y el entrenador con IA son una sola cosa.
+  // Sin plan, debajo del panel del entrenador
   function pintarPortada() {
-    var ancla = document.getElementById("coach-panel") || document.querySelector(".mode-grid");
-    if (!ancla) return;
+    var sitio = document.getElementById("ia-sitio"), ancla = document.getElementById("coach-panel") || document.querySelector(".mode-grid");
+    if (!sitio && !ancla) return;
     var caja = document.getElementById("ia-caja");
     if (!caja) {
       caja = document.createElement("div"); caja.id = "ia-caja";
-      ancla.parentNode.insertBefore(caja, ancla.nextSibling);
+      if (sitio) sitio.appendChild(caja); else ancla.parentNode.insertBefore(caja, ancla.nextSibling);
     }
     var d = cargar(), ult = d.inf.length ? d.inf[d.inf.length - 1] : null;
     if (!clave()) {
-      caja.innerHTML = "<b>🧠 Entrenador con IA: sin conectar</b><br>Pega aquí tu clave de la API de Anthropic. Se guarda solo en este navegador; hay que ponerla una vez en cada dispositivo." +
+      caja.innerHTML = "<b>✍️ O plantea otra cosa · 🧠 IA sin conectar</b><br>Pega aquí tu clave de la API de Anthropic para que el entrenador analice tus sesiones, revise la estrategia y te prepare lo que le pidas. Se guarda solo en este navegador; hay que ponerla una vez en cada dispositivo." +
         '<div class="fila"><input id="ia-clave" type="password" placeholder="sk-ant-…" autocomplete="off" style="flex:1;min-width:180px"><button id="ia-guardar">Conectar</button></div>';
       document.getElementById("ia-guardar").onclick = function () {
         var v = document.getElementById("ia-clave").value.trim();
@@ -462,15 +489,15 @@
       };
       return;
     }
-    caja.innerHTML = "<b>🧠 Entrenador con IA: conectado</b> · " + d.qs.length + " preguntas escritas para ti" +
-      (ult ? " · último análisis " + new Date(ult.t).toLocaleString("es", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "") +
-      '<br><span id="ia-apuntes" style="color:var(--text2)"></span>' +
-      '<div class="fila"><select id="ia-modelo"><option value="claude-opus-5-5">Opus 5.5</option><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-fable-5-1">Fable 5.1</option></select>' +
-      '<button class="sec" id="ia-probar">Probar conexión</button><button class="sec" id="ia-quitar">Quitar la clave</button><span id="ia-estado" style="color:var(--text2)"></span></div>' +
-      '<div style="margin-top:10px"><b>Pídele algo al entrenador</b><br><span style="color:var(--text2)">Por ejemplo: «hazme 20 preguntas de las vías del tálamo, sobre todo lo que cayó en examen» o «reúne todo lo del seminario 2».</span>' +
+    caja.innerHTML = "<b>✍️ O plantea otra cosa</b> " +
+      '<span style="color:var(--text2)">en vez de lo que pide el plan. Por ejemplo: «hazme 20 preguntas de las vías del tálamo, sobre todo lo que cayó en examen» o «reúne todo lo del seminario 2». Lo prepara con el mismo plan, tus pesos y lo que recuerda de ti.</span>' +
       '<div class="fila"><textarea id="ia-peticion" rows="2" style="flex:1;min-width:220px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font:inherit;font-size:.85rem"></textarea><button id="ia-pedir">Pedir</button></div>' +
-      '<div id="ia-respuesta" style="margin-top:6px"></div></div>' +
-      (ult ? '<details style="margin-top:8px"><summary style="cursor:pointer">Último informe</summary>' + pintarInforme(ult) + "</details>" : "");
+      '<div id="ia-respuesta" style="margin-top:6px"></div>' +
+      (ult ? '<details style="margin-top:8px"><summary style="cursor:pointer">🧠 Último análisis de sesión (' + new Date(ult.t).toLocaleString("es", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + ")</summary>" + pintarInforme(ult) + "</details>" : "") +
+      '<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text2)">⚙️ IA conectada · ' + d.qs.length + ' preguntas escritas para ti</summary>' +
+      '<span id="ia-apuntes" style="color:var(--text2)"></span>' +
+      '<div class="fila"><select id="ia-modelo"><option value="claude-opus-5-5">Opus 5.5</option><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-fable-5-1">Fable 5.1</option></select>' +
+      '<button class="sec" id="ia-probar">Probar conexión</button><button class="sec" id="ia-quitar">Quitar la clave</button><span id="ia-estado" style="color:var(--text2)"></span></div></details>';
     document.getElementById("ia-pedir").onclick = function () {
       var txt = document.getElementById("ia-peticion").value.trim(), out = document.getElementById("ia-respuesta"), btn = this;
       if (!txt || btn.disabled) return;
@@ -563,6 +590,6 @@
   }
   function trozos(consultas, tope) { return apuntes().then(function (d) { return trozosPara(d, consultas, tope || 10); }); }
 
-  window.EntrenadorIA = { analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); },
+  window.EntrenadorIA = { pintarPortada: pintarPortada, analizar: analizar, expediente: expediente, pedir: pedir, aclarar: aclarar, conectada: function () { return !!clave(); },
                           llamar: llamar, apuntes: apuntes, pistasGenerales: pistasGenerales, guardarNuevas: guardarNuevas, trozos: trozos };
 })();

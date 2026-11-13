@@ -258,10 +258,12 @@
   // los apuntes de cada asignatura; sin regla, lo dado hasta hoy cuenta como 1.º y lo demás como 2.º
   var PARCIAL_TEMA = {
     // «1.er parcial: teoría hasta el Tema 12 (vascularización del SN), prácticas hasta la 6».
-    // Las vías y las funciones y recorridos de los pares craneales son del 2.º
+    // Las vías y las funciones y recorridos de los pares craneales son del 2.º, y también lo que los
+    // apuntes marcan «(2.º parcial)»: oído, VIII par, base del cráneo y los talleres 3 a 6 del SNC
     anat3: function (t) {
       if (/formaci[oó]n reticular|Tema 4 \(II\)/i.test(t)) return 1;
       if (/v[ií]as? (motoras|sensitivas|[oó]ptica|piramidal|extrapiramidal|y pares)|piramidal|par(es)? craneal|globo ocular|Tema 1[4-9] —|Pr[aá]ctica ([7-9]|1\d)\b/i.test(t)) return 2;
+      if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|base (interna|externa|del cr[aá]neo)|Taller [3-6] \(SNC\)|Taller 4 — Secciones/i.test(t)) return 2;
       return 1;
     },
     // Visto en los exámenes de parcial de otros años: el 1.º es etiología general, propedéutica,
@@ -404,7 +406,7 @@
   var K_COMP = STORAGE_KEY + "_completa";
 
   function nuevoCtx(completa) {
-    return { completa: completa || null, usadas: new Set(), deuda: new Map(), racha: new Map(), cerrados: new Set(), ult: [],
+    return { completa: completa || null, usadas: new Set(), firmas: new Set(), deuda: new Map(), racha: new Map(), cerrados: new Set(), ult: [],
              cuenta: new Map(), resp: new Map(), fallos: new Map(), flojos: [], bloque: new Map(), cat: { nuevo: 0, repaso: 0, fallo: 0 }, total: 0 };
   }
 
@@ -414,10 +416,20 @@
   }
 
   function temaReal(q) { return temaDe(q) || q.topicBase; }
+  // La misma pregunta puede estar en dos bancos (cayó en dos exámenes): en una sesión, solo una vez
+  var _firma = new Map();
+  function firma(q) {
+    var f = _firma.get(q.id);
+    if (f == null) { var c = effCorrectOrig(q); f = norma(q.q) + "|" + norma(c == null ? "" : q.options[c]); _firma.set(q.id, f); }
+    return f;
+  }
+  // Repasos (vencidos o fallos) que caben en una sesión completa; lo demás, en «⏪ Hoy + lo atrasado»
+  function topeVenc(nuevas, modo) { return modo === "atrasado" ? Infinity : modo === "extra" ? 0 : Math.max(60, 2 * (nuevas || 0)); }
 
   function avanzar(ctx, q, ans, pos, cat) {
     var t = temaReal(q);
     ctx.usadas.add(q.id);
+    ctx.firmas.add(firma(q));
     ctx.ult.push(t);
     ctx.total++;
     ctx.cuenta.set(t, (ctx.cuenta.get(t) || 0) + 1);
@@ -483,8 +495,12 @@
       if (!amb.libre && !enAmbito(q, amb)) continue;
       if (plan && plan.factor(q) <= 0) continue;
       quedan.add(temaReal(q));
-      if (isDue(qs[q.id])) venc++;
+      var bq = ctx.bloque.get(temaReal(q));
+      if (isDue(qs[q.id]) && !(bq && bq.hecho && (bq.seguidas || 0) < 2)) venc++;
     }
+    var tope = topeVenc(c.nuevas, c.modo), hechos = ctx.cat.repaso + ctx.cat.fallo;
+    c.vencFuera = Math.max(0, venc - Math.max(0, tope - hechos));
+    venc = Math.min(venc, Math.max(0, tope - hechos));
     // Solo se consolida lo que aún tiene preguntas sin usar en la sesión (si no, no acabaría nunca)
     var hay = function (t) { return familia(t).some(function (u) { return quedan.has(u); }); };
     var cons = new Set();
@@ -504,14 +520,18 @@
     var amb = ambitoCtx(ctx);
     var plan = window.PlanExamen || null, semana = plan ? (ctx.semana || (ctx.semana = plan.temasSemana())) : null;
     var cuota = (plan && plan.cuota()) || CUOTA;
+    var pl = plan && plan.plan ? plan.plan() : null, ultimosDias = !!(pl && pl.fase && pl.dias <= 2);
+    var cumplidas = !!(ctx.completa && ctx.cat.nuevo >= ctx.completa.nuevas);
+    var sinRepasos = !!(ctx.completa && ctx.cat.repaso + ctx.cat.fallo >= topeVenc(ctx.completa.nuevas, ctx.completa.modo));
     var deudaFam = new Map();
     ctx.deuda.forEach(function (d, t) { familia(t).forEach(function (u) { if (!deudaFam.has(u)) deudaFam.set(u, d); }); });
 
     for (var i = 0; i < ALL_QUESTIONS.length; i++) {
       var q = ALL_QUESTIONS[i];
-      if (ctx.usadas.has(q.id) || effCorrectOrig(q) == null) continue;
+      if (ctx.usadas.has(q.id) || effCorrectOrig(q) == null || ctx.firmas.has(firma(q))) continue;
       if (!amb.libre && !enAmbito(q, amb)) continue;
       var t = q.topicBase, tm = temas.get(t), s = qs[q.id], k = saber(s);
+      if (k == null && ultimosDias && !q.ia) continue;            // los dos últimos días antes del examen, nada nuevo
       var p, por, cat;
 
       if (k == null) {
@@ -544,8 +564,9 @@
 
       // Sesión completa: cumplidas las nuevas de hoy, ni más nuevas ni mantenimiento (salvo que no quede otra cosa)
       if (ctx.completa) {
-        if (cat === "nuevo" && ctx.cat.nuevo >= ctx.completa.nuevas) p *= 0.02;
+        if (cat === "nuevo" && cumplidas) p *= 0.02;
         else if (cat === "repaso" && !isDue(s) && k > 0.3) p *= 0.02;
+        else if (cat !== "nuevo" && sinRepasos) p *= 0.02;           // cubierto el tope de repasos de hoy
       }
 
       // Lo que ya cayó en un examen o puso el profesor va antes que el resto, a igualdad de lo demás.
@@ -555,7 +576,7 @@
         var fx = plan.factor(q);
         if (fx <= 0) continue;
         p *= fx;
-        if (cat === "nuevo" && semana.has(temaReal(q))) { p += 1.2; por = "Plan de examen: tema de esta semana · " + por; }
+        if (cat === "nuevo" && semana.has(temaReal(q)) && !cumplidas) { p += 1.2; por = "Plan de examen: tema de esta semana · " + por; }
       } else if (og === "examen") p *= 1.3; else if (og === "profesor" || og === "oficial") p *= 1.2;
 
       var tt = temaReal(q);
@@ -566,8 +587,8 @@
           p += 5 + 4 * parecido(q, b.ref) + (q.ia ? 3 : 0) + (og === "examen" || og === "profesor" ? 1 : 0);
           por = q.ia ? "Para aclarar el tema que se te resiste: una escrita por la IA" : "Para aclarar el tema que se te resiste: una de la batería";
           dirigido = true;
-        } else {
-          p *= 0.08;
+        } else if (!(ctx.completa && cat !== "nuevo" && isDue(s))) {
+          p *= 0.08;                                            // (en la completa, sus repasos vencidos siguen entrando)
         }
       } else if (d && d.ref.id !== q.id) {
         // Tras un fallo, una sola de la batería sobre la misma idea, dejando una por medio
@@ -665,7 +686,7 @@
       msg = "Segura y rápida a la primera: no la verás hasta dentro de 4 días.";
     } else if (!ans.wasCorrect && conf === 1) {
       s.ef = Math.max(1.3, (typeof s.ef === "number" ? s.ef : 2.5) - 0.15);
-      msg = "Ibas seguro y era otra: error de concepto. Una más de la batería sobre esta idea y seguimos avanzando; esta vuelve mañana.";
+      msg = "Ibas seguro y era otra: error de concepto. Una más de la batería sobre esta idea y seguimos avanzando; esta vuelve en el próximo repaso.";
     } else if (!ans.wasCorrect) {
       msg = "Anotada. Una más de la batería sobre esta idea y seguimos avanzando; esta vuelve en el próximo repaso.";
     }
@@ -931,7 +952,8 @@
     if (p.venc) f.push(p.venc + " repasos vencidos");
     if (p.cons) f.push(p.cons + (p.cons === 1 ? " idea por consolidar" : " ideas por consolidar"));
     return '<div class="plan-brief">' + (c.modo === "extra" ? "➕ <b>Un poco más: " : c.modo === "atrasado" ? "⏪ <b>Hoy + lo atrasado: " : "🏁 <b>Sesión completa de hoy: ") + c.total + " preguntas</b>" + (c.total > c.total0 ? " (empezó en " + c.total0 + "; el resto es para consolidar lo que has fallado)" : "") +
-      " · vas por la " + (sess.currentIdx + 1) + " y te faltan " + f.join(", ") + ". No acaba hasta terminarlo y aclarar lo que falles.</div>";
+      " · vas por la " + (sess.currentIdx + 1) + " y te faltan " + f.join(", ") + ". No acaba hasta terminarlo y aclarar lo que falles." +
+      (c.vencFuera ? " Otros " + c.vencFuera + " repasos vencidos no caben hoy: van primero mañana (o en «⏪ Hoy + lo atrasado»)." : "") + "</div>";
   }
   // El contador de arriba (n / total) cuenta el total del día, no las que hay preparadas por delante
   function contadorCompleta(sess, c) {
@@ -1101,5 +1123,5 @@
     a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
     guardarAmbito(a);
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, topeVenc: topeVenc, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();
