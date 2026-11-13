@@ -58,7 +58,7 @@
         {
           titulo: "Anuales",
           asignaturas: [
-            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 8923 },
+            { nombre: "Medicina Interna (IMI)", emoji: "🩺", archivo: "plataforma_medint.html",   n: 9123 },
             { nombre: "IMI · Sonidos de auscultación", emoji: "🎧", archivo: "auscultacion_imi.html",
               nota: "33 sonidos cardiacos (39 grabaciones): escúchalos y elige entre 5" },
             { nombre: "Genética Médica",        emoji: "🧬", archivo: "plataforma_genetica.html", n: 1035  },
