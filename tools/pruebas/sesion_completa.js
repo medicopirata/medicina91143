@@ -58,13 +58,15 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   // Ronda 1: falla una; ronda 2: todo bien → concluida
   res.querySelector("[data-ronda]").click(); await espera(30);
   ses = w.eval("State.session");
-  ok(ses.completa.ronda === 1 && ses.questions.length === fallos, "  la ronda 1 trae las " + ses.questions.length + " falladas");
+  // (el motor quita al empezar las casi idénticas, así que puede traer alguna menos)
+  const enRonda = ses.questions.length;
+  ok(ses.completa.ronda === 1 && enRonda > 0 && enRonda <= fallos && enRonda >= fallos - 3, "  la ronda 1 trae las " + enRonda + " falladas (de " + fallos + ")");
   for (let i = 0; i < ses.questions.length; i++) {
     const q = w.eval("State.session").questions[i], dc = w.eval("dispCorrect(State.session.questions[State.session.currentIdx])");
     w.eval("App.answer(" + (i === 0 ? (dc === 0 ? 1 : 0) : dc) + ")");
     if (i < ses.questions.length - 1) w.eval("App.nextQ()");
   }
-  ok(w.eval("State.session").questions.length === fallos, "  la ronda no se replanifica");
+  ok(w.eval("State.session").questions.length === enRonda, "  la ronda no se replanifica");
   w.eval("App.nextQ()"); await espera(30);
   res = d.getElementById("coach-res");
   ok(res && /Ronda 1 hecha/.test(res.textContent) && res.querySelector('[data-ronda="2"]'), "  sigue fallando 1: otra ronda");
