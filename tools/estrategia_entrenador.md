@@ -100,7 +100,7 @@ la sesión hasta acertarlas todas; después, opción «➕ un poco más» (15 nu
 añade las nuevas que el plan pidió en los 7 días anteriores y no se hicieron (tope 3 días de cupo) y
 todos los repasos vencidos.
 
-## 7. La IA (Claude por API, modelo elegible; por defecto claude-opus-5-5)
+## 7. La IA (Claude por API, modelo elegible; por defecto claude-fable-5-2, con Opus 5.5 para comparar)
 
 - **Al acabar cada sesión:** recibe lo fallado, adivinado o dudado (opción elegida, seguridad, tiempo,
   motivo, origen), los apartados de sus apuntes más cercanos, otras preguntas del tema, 5 preguntas reales

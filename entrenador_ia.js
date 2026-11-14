@@ -17,7 +17,7 @@
   if (typeof App === "undefined" || typeof State === "undefined" || typeof ALL_QUESTIONS === "undefined") return;
 
   var K_CLAVE = "mp_ia_clave", K_MODELO = "mp_ia_modelo";
-  var MODELO = "claude-opus-5-5";
+  var MODELO = "claude-fable-5-2";
   var ALMACEN = STORAGE_KEY + "_ia";
   var PREFIJO = "🧠 A tu medida · ";
   var MAX_GUARDADAS = 400;
@@ -496,7 +496,7 @@
       (ult ? '<details style="margin-top:8px"><summary style="cursor:pointer">🧠 Último análisis de sesión (' + new Date(ult.t).toLocaleString("es", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + ")</summary>" + pintarInforme(ult) + "</details>" : "") +
       '<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text2)">⚙️ IA conectada · ' + d.qs.length + ' preguntas escritas para ti</summary>' +
       '<span id="ia-apuntes" style="color:var(--text2)"></span>' +
-      '<div class="fila"><select id="ia-modelo"><option value="claude-opus-5-5">Opus 5.5</option><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-fable-5-1">Fable 5.1</option></select>' +
+      '<div class="fila"><select id="ia-modelo"><option value="claude-fable-5-2">Fable 5.2</option><option value="claude-opus-5-5">Opus 5.5</option><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-fable-5-1">Fable 5.1</option></select>' +
       '<button class="sec" id="ia-probar">Probar conexión</button><button class="sec" id="ia-quitar">Quitar la clave</button><span id="ia-estado" style="color:var(--text2)"></span></div></details>';
     document.getElementById("ia-pedir").onclick = function () {
       var txt = document.getElementById("ia-peticion").value.trim(), out = document.getElementById("ia-respuesta"), btn = this;
