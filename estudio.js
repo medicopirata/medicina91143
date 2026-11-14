@@ -1477,5 +1477,19 @@
     try { MPSync.usar({ clave: K, modo: "reciente", alCambiar: function () { _d = leer(); if (!_d.t) _d.t = {}; sembrarDias(); try { pintarPortada(); if (vista) pintar(); } catch (e) {} } }); } catch (e) {}
   }
 
-  window.Estudio = { abrir: abrir, bateria: bateria, repaso: repasoInteligente, queRepasar: queRepasar, resumen: resumenSala, texto: salaTexto, diaSala: diaSala, entraTema: entraTema, filas: salaFilas, pintarPlan: pintarSalaPlan, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
+  // Para el plan de examen: bancos de los temas que la sala tiene a medias (1) o como siguiente (2),
+  // sacados de las baterías ya cargadas (banco mayoritario de cada tema)
+  function bancosSala() {
+    var r = resumenSala(), m = new Map();
+    function marca(e, v) {
+      var t = e && temas[e.tema]; if (!t || !t.bateria) return;
+      var c = new Map();
+      t.bateria.forEach(function (id) { var q = BY_ID.get(id); if (q) c.set(q.topicBase, (c.get(q.topicBase) || 0) + 1); });
+      c.forEach(function (n, b) { if (n >= 3 && (m.get(b) || 0) < v) m.set(b, v); });
+    }
+    if (r.siguiente) marca(r.siguiente, 2);
+    (r.medias || []).forEach(function (e) { marca(e, 1); });
+    return m;
+  }
+  window.Estudio = { abrir: abrir, bateria: bateria, bancosSala: bancosSala, repaso: repasoInteligente, queRepasar: queRepasar, resumen: resumenSala, texto: salaTexto, diaSala: diaSala, entraTema: entraTema, filas: salaFilas, pintarPlan: pintarSalaPlan, tutor: Tutor, ubicar: ubicar, indice: function () { return indice; }, _datos: function () { return _d; } };
 })();

@@ -403,11 +403,12 @@
   // BLOQUE_MAX). Al acabar, rondas con las falladas de la sesión hasta acertarlas todas.
   // Va en sess.completa = {dia, nuevas, ronda, ids0}; se copia en K_COMP para seguir tras recargar.
   var COLA = 8, BLOQUE_MAX = 8, EXTRA = 15;
+  var IMG_MAX = 0.5;   // como mucho la mitad de la sesión con imagen
   var K_COMP = STORAGE_KEY + "_completa";
 
   function nuevoCtx(completa) {
     return { completa: completa || null, usadas: new Set(), firmas: new Set(), deuda: new Map(), racha: new Map(), cerrados: new Set(), ult: [],
-             cuenta: new Map(), resp: new Map(), fallos: new Map(), flojos: [], bloque: new Map(), cat: { nuevo: 0, repaso: 0, fallo: 0 }, total: 0 };
+             cuenta: new Map(), resp: new Map(), fallos: new Map(), flojos: [], bloque: new Map(), cat: { nuevo: 0, repaso: 0, fallo: 0 }, total: 0, imgs: 0 };
   }
 
   function categoria(q) {
@@ -423,8 +424,21 @@
     if (f == null) { var c = effCorrectOrig(q); f = norma(q.q) + "|" + norma(c == null ? "" : q.options[c]); _firma.set(q.id, f); }
     return f;
   }
-  // Repasos (vencidos o fallos) que caben en una sesión completa; lo demás, en «⏪ Hoy + lo atrasado»
+  // Repasos (vencidos o fallos) que caben en un día de sesión completa; lo demás, en «⏪ Hoy + lo atrasado».
+  // Se calcula con las nuevas que pide el plan hoy (no con las que quedan: si no, el tope bajaría al avanzar)
   function topeVenc(nuevas, modo) { return modo === "atrasado" ? Infinity : modo === "extra" ? 0 : Math.max(60, 2 * (nuevas || 0)); }
+  // Tope que queda para esta sesión: el del día menos los repasos ya hechos hoy antes de empezarla
+  function topeSesion(c) { return Math.max(0, topeVenc(c.obj != null ? c.obj : c.nuevas, c.modo) - (c.repHechos || 0)); }
+  // Repasos (no nuevas) respondidos hoy
+  function repasosHoy() { var hoy = (State.data.daily || {})[claveHoy()] || { n: 0 }; return Math.max(0, hoy.n - nuevasPendientesHoy().hechas); }
+  // Una vencida de poco peso que lleva más de una semana vencida se aparca hasta después del examen:
+  // lo que puntúa va antes y así el montón de vencidas no crece sin parar (las falladas no se aparcan)
+  var APARCAR_DIAS = 7;
+  function aparcada(q, s) {
+    if (!isDue(s) || isFailed(s)) return false;
+    var plan = window.PlanExamen;
+    return !!(plan && plan.peso(q) < 1.5 && today() - s.du > APARCAR_DIAS);
+  }
 
   function avanzar(ctx, q, ans, pos, cat) {
     var t = temaReal(q);
@@ -432,6 +446,7 @@
     ctx.firmas.add(firma(q));
     ctx.ult.push(t);
     ctx.total++;
+    if (q.img) ctx.imgs++;
     ctx.cuenta.set(t, (ctx.cuenta.get(t) || 0) + 1);
     if (cat) ctx.cat[cat]++;
     // Una pregunta de seguimiento salda la deuda del tema; las del bloque de un tema flojo se van gastando
@@ -496,9 +511,9 @@
       if (plan && plan.factor(q) <= 0) continue;
       quedan.add(temaReal(q));
       var bq = ctx.bloque.get(temaReal(q));
-      if (isDue(qs[q.id]) && !(bq && bq.hecho && (bq.seguidas || 0) < 2)) venc++;
+      if (isDue(qs[q.id]) && !aparcada(q, qs[q.id]) && !(bq && bq.hecho && (bq.seguidas || 0) < 2)) venc++;
     }
-    var tope = topeVenc(c.nuevas, c.modo), hechos = ctx.cat.repaso + ctx.cat.fallo;
+    var tope = topeSesion(c), hechos = ctx.cat.repaso + ctx.cat.fallo;
     c.vencFuera = Math.max(0, venc - Math.max(0, tope - hechos));
     venc = Math.min(venc, Math.max(0, tope - hechos));
     // Solo se consolida lo que aún tiene preguntas sin usar en la sesión (si no, no acabaría nunca)
@@ -522,7 +537,7 @@
     var cuota = (plan && plan.cuota()) || CUOTA;
     var pl = plan && plan.plan ? plan.plan() : null, ultimosDias = !!(pl && pl.fase && pl.dias <= 2);
     var cumplidas = !!(ctx.completa && ctx.cat.nuevo >= ctx.completa.nuevas);
-    var sinRepasos = !!(ctx.completa && ctx.cat.repaso + ctx.cat.fallo >= topeVenc(ctx.completa.nuevas, ctx.completa.modo));
+    var sinRepasos = !!(ctx.completa && ctx.cat.repaso + ctx.cat.fallo >= topeSesion(ctx.completa));
     var deudaFam = new Map();
     ctx.deuda.forEach(function (d, t) { familia(t).forEach(function (u) { if (!deudaFam.has(u)) deudaFam.set(u, d); }); });
 
@@ -555,6 +570,7 @@
         p = 3 + Math.min(1.5, atraso * 0.2) + (1 - k);
         por = atraso > 0 ? "Repaso programado: vencía hace " + dias(atraso) : "Repaso programado para hoy";
         if (k <= 0.3) por = "La acertaste adivinando: toca comprobarla";
+        if (aparcada(q, s)) { p = 0.4; por = "Repaso atrasado de poco peso: aparcado hasta después del examen, sale si no hay otra cosa"; }
       } else if (k <= 0.3) {
         cat = "repaso"; p = 1.2; por = "La acertaste adivinando";
       } else {
@@ -600,6 +616,7 @@
       }
 
       if (!dirigido) {
+        if (q.img && ctx.total >= 4 && ctx.imgs / ctx.total > IMG_MAX) p *= 0.3;   // que la sesión no sea solo imágenes
         if (repetido === tt) p *= 0.3;                         // alternar temas fija mejor que machacar uno
         if ((ctx.cuenta.get(tt) || 0) >= topeTema) p *= 0.2;   // ningún tema se come la sesión
         // Reparto: si una clase de pregunta va pasada de su parte, cede el sitio
@@ -651,7 +668,8 @@
       comp.pend = pendientesHoy(ctx);
       // El total del día que se enseña: lo ya visto + lo que falta (nuevas, repasos y consolidar)
       var falta = comp.pend.nuevas + comp.pend.venc + comp.pend.cons;
-      comp.total = fijo.length + falta;
+      // (no baja nunca: si al consolidar un fallo cae también una vencida, el total se queda; bajar y subir despista)
+      comp.total = Math.max(comp.total || 0, fijo.length + falta);
       if (comp.total0 == null) comp.total0 = comp.total;
       total = comp.pend.fin ? fijo.length : fijo.length + Math.min(COLA, Math.max(1, falta));
       guardarCompleta(sess);
@@ -679,11 +697,16 @@
       s.iv = 1; s.du = today() + 1;
       msg = "Acierto adivinando: no la doy por sabida y vuelve mañana.";
     } else if (ans.wasCorrect && conf === 2) {
-      if (s.iv > 3) { s.iv = 3; s.du = today() + 3; }
-      msg = "Acierto con dudas: la repaso en " + dias(Math.max(1, s.iv)) + ".";
+      // Con dudas: ni mañana (se acumulan) ni muy lejos: 2 → 3 → 5 días como mucho
+      s.iv = Math.max(2, Math.min(5, s.iv || 0)); s.du = today() + s.iv;
+      msg = "Acierto con dudas: la repaso en " + dias(s.iv) + ".";
     } else if (ans.wasCorrect && conf === 1 && s.a === 1 && secs <= lento() / 2) {
       s.iv = 4; s.du = today() + 4;
       msg = "Segura y rápida a la primera: no la verás hasta dentro de 4 días.";
+    } else if (ans.wasCorrect && conf === 1 && s.a === 1) {
+      // Segura a la primera (aunque despacio): a 3 días, no mañana; si no, cada nueva de hoy vuelve mañana y el montón de repasos no para de crecer
+      s.iv = 3; s.du = today() + 3;
+      msg = "Segura a la primera: la repaso en 3 días.";
     } else if (!ans.wasCorrect && conf === 1) {
       s.ef = Math.max(1.3, (typeof s.ef === "number" ? s.ef : 2.5) - 0.15);
       msg = "Ibas seguro y era otra: error de concepto. Una más de la batería sobre esta idea y seguimos avanzando; esta vuelve en el próximo repaso.";
@@ -807,7 +830,13 @@
       rejilla.insertBefore(btn, hoyBtn);
     }
     var temas = todosLosTemas(), c = { flojo: [], marcha: [], sabido: [], nuevo: [] }, vencidas = 0;
-    temas.forEach(function (t) { c[t.estado].push(t); vencidas += t.vencidas; });
+    temas.forEach(function (t) { c[t.estado].push(t); });
+    // Repasos pendientes de lo que se prepara (lo que el plan pesa > 0), sin los aparcados: la misma cifra que el plan
+    var plan = window.PlanExamen, amb = ambitoCtx(nuevoCtx()), qsv = State.data.qs || {};
+    for (var i = 0; i < ALL_QUESTIONS.length; i++) {
+      var qv = ALL_QUESTIONS[i], sv = qsv[qv.id];
+      if (isDue(sv) && !aparcada(qv, sv) && (plan ? plan.factor(qv) > 0 : amb.libre || enAmbito(qv, amb))) vencidas++;
+    }
     document.getElementById("coach-desc").textContent =
       "Decide cada pregunta según cómo respondes · " + TOPIC_NAMES.filter(function (t) { return t.indexOf("Apuntes:") === 0; }).length + " temas dados · " + vencidas + " repasos pendientes · " +
       c.flojo.length + " temas flojos · " + c.sabido.length + " sabidos de " + temas.size;
@@ -919,8 +948,8 @@
     guardarAmbito(a);
     var caja = document.getElementById("coach-ambito");
     if (caja) caja.hidden = true;
-    var n = modo === "extra" ? EXTRA : nuevasPendientesHoy().quedan + (modo === "atrasado" ? atrasoNuevas().n : 0);
-    empezar({ dia: claveHoy(), nuevas: n, ronda: 0, modo: modo || "hoy" });
+    var nv = nuevasPendientesHoy(), n = modo === "extra" ? EXTRA : nv.quedan + (modo === "atrasado" ? atrasoNuevas().n : 0);
+    empezar({ dia: claveHoy(), nuevas: n, obj: nv.obj, repHechos: repasosHoy(), ronda: 0, modo: modo || "hoy" });
   }
   // Ronda final: las falladas de la sesión (o de la ronda anterior), hasta acertarlas todas
   function rondaFinal(ids, n) {
@@ -1123,5 +1152,5 @@
     a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
     guardarAmbito(a);
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, topeVenc: topeVenc, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, topeVenc: topeVenc, repasosHoy: repasosHoy, aparcada: aparcada, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();

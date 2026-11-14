@@ -95,10 +95,11 @@
   // Anatomía 3: lo primero, los exámenes de otros años, lo que el profesor dio como pista o dijo que
   // cae, las imágenes de sus presentaciones (⭐, «profesor») y sus tareas; lo demás, detrás (una vez:
   // luego manda lo que se mueva en «Qué pesa más para ti»)
-  var PESOS_ASIG = { anat3: { examen: 3.5, cae: 3, pistas: 3, profesor: 3, tarea: 3, recop: 1.8, clase: 1, entreno: 0.7, refuerzo: 0.4 } };
+  // Escalonados para que el peso distinga de verdad (con todos a 3, el 57 % del parcial tenía el máximo)
+  var PESOS_ASIG = { anat3: { examen: 4, cae: 3.5, pistas: 3, tarea: 3, profesor: 2.5, recop: 1.8, clase: 1, entreno: 0.7, refuerzo: 0.4 } }, PESOS_V = 2;
   function fijarPesos() {
     var pa = PESOS_ASIG[CLAVE];
-    if (pa && _d.pesosAsig !== 1) { for (var k in pa) _d.pesos[k] = pa[k]; _d.pesosAsig = 1; guardar(); }
+    if (pa && _d.pesosAsig !== PESOS_V) { for (var k in pa) _d.pesos[k] = pa[k]; _d.pesosAsig = PESOS_V; guardar(); }
   }
   fijarPesos();
   function guardar() {
@@ -240,9 +241,12 @@
   // Lo que se ha hecho en la sala de estudio ese día (leer y comprobar también es estudiar)
   function diaSala(k) { var E = window.Estudio; return E && E.diaSala ? E.diaSala(k) : null; }
   function vencidasHoy() {
-    var n = 0, qs = State.data.qs || {};
-    ALL_QUESTIONS.forEach(function (q) { if (typeof isDue === "function" && isDue(qs[q.id]) && peso(q) > 0) n++; });
-    return n;
+    var n = 0, ap = 0, qs = State.data.qs || {}, E = window.Entrenador;
+    ALL_QUESTIONS.forEach(function (q) {
+      if (!(typeof isDue === "function" && isDue(qs[q.id]) && peso(q) > 0)) return;
+      if (E && E.aparcada && E.aparcada(q, qs[q.id])) ap++; else n++;
+    });
+    return { n: n, aparcadas: ap };
   }
 
   // ------------------------------------------------------------- el plan
@@ -270,14 +274,18 @@
     var diasTarde = Math.max(1, dias - 2), objTarde = dias > 2 ? Math.min(Math.ceil(med.tot.sinVerImp / diasTarde), TOPE_TARDE) : 0;
     out.objNuevas = out.fase === "cobertura" ? Math.min(out.necAll, Math.max(out.necImp, 60)) : objTarde;
     out.tarde = out.fase !== "cobertura" && out.objNuevas > 0;
-    out.vencidas = vencidasHoy();
+    var vh = vencidasHoy();
+    out.vencidas = vh.n; out.aparcadas = vh.aparcadas;
     out.vaBien = r.nuevasDia >= out.objNuevas * 0.9;
 
     // Reparto por semanas: los temas por lo que queda por ganar, llenando la capacidad de cada semana
     // Primero lo ya dado en clase, después el resto del temario; los bancos que mezclan temas, al final
     function grupo(m) { return m.mezcla || MEZCLA.test(m.tema) ? 2 : m.dado ? 0 : 1; }
+    // Lo que la sala de estudio tiene a medias o como siguiente tema va primero: plan y sala dicen lo mismo
+    var sala = window.Estudio && window.Estudio.bancosSala ? window.Estudio.bancosSala() : new Map();
+    function enSala(m) { var E = window.Entrenador, f = E && E.familia ? E.familia(m.tema) : [m.tema], v = 0; f.forEach(function (t) { v = Math.max(v, sala.get(t) || 0); }); return v; }
     var orden = Array.from(med.temas.values()).filter(function (m) { return m.sinVer > 0; })
-      .sort(function (a, b) { return grupo(a) - grupo(b) || b.prio - a.prio; });
+      .sort(function (a, b) { return grupo(a) - grupo(b) || enSala(b) - enSala(a) || b.prio - a.prio; });
     var pend = orden.map(function (m) { return { tema: m.tema, quedan: m.sinVer, m: m }; });
     var inicio = hoy0(), examen = new Date(iso + "T00:00:00");
     var flojos = Array.from(med.temas.values()).filter(function (m) { return m.n >= 4 && m.n - m.sinVer >= 4 && m.dominio < 0.55; })
@@ -500,8 +508,9 @@
       "<b>" + p.vencidas + " repasos</b>." + (p.fase === "cobertura" ? (p.vaBien ? " Vas al ritmo." : " Vas por detrás: llevas " + Math.round(p.ritmo.nuevasDia) + " nuevas al día.") : "") +
       (e && e.hoy && !estrategiaVieja() ? '<br><span class="sub">🧠 La IA: ' + esc(e.hoy) + "</span>" : "") + salaBreve() + "</div>";
   }
-  // Las nuevas que quedan hoy (descontadas las ya hechas)
+  // Las nuevas que quedan hoy (descontadas las ya hechas) y las ya hechas
   function nuevasQuedan(p) { var E = window.Entrenador; return E && E.nuevasHoy ? E.nuevasHoy().quedan : p.objNuevas; }
+  function nuevasHechasHoy() { var E = window.Entrenador; return E && E.nuevasHoy ? E.nuevasHoy().hechas : 0; }
   // «🏁 Sesión completa de hoy»: todo lo que pide el plan hoy y lo que haga falta para cerrar los fallos
   function botonCompleta(p) {
     var E = window.Entrenador;
@@ -509,13 +518,14 @@
     var nv = E.nuevasHoy(), at = E.atraso ? E.atraso() : { n: 0 }, f = [];
     if (nv.quedan) f.push(nv.quedan + " nuevas" + (nv.hechas ? " (ya llevas " + nv.hechas + " de " + nv.obj + ")" : ""));
     // Los repasos tienen tope por día (los más atrasados y que más pesan, primero); el resto va en lo atrasado
-    var rep = E.topeVenc ? Math.min(p.vencidas, E.topeVenc(nv.quedan, "hoy")) : p.vencidas, repFuera = p.vencidas - rep;
+    var rep = E.topeVenc ? Math.min(p.vencidas, Math.max(0, E.topeVenc(nv.obj, "hoy") - (E.repasosHoy ? E.repasosHoy() : 0))) : p.vencidas, repFuera = p.vencidas - rep;
     f.push(rep + " repasos vencidos" + (repFuera ? " (de " + p.vencidas + ": los más atrasados y que más pesan)" : ""));
     var tot = nv.quedan + rep;
     return '<div style="margin:6px 0 4px"><button id="plan-completa" style="font-size:1rem;padding:10px 20px;margin:0;background:#7c3aed;color:#fff">🏁 Sesión completa de hoy · ' + tot + " preguntas</button>" +
       (at.n || repFuera ? ' <button id="plan-atrasado" style="font-size:1rem;padding:10px 20px;margin:0">⏪ Hoy + lo atrasado · ' + (nv.quedan + p.vencidas + at.n) + "</button>" : "") +
       '<br><span class="sub">Hoy: ' + f.join(" + ") + (at.n || repFuera ? ". Atrasado: " + [at.n ? at.n + " nuevas que el plan pedía en " + (at.dias === 1 ? "un día" : at.dias + " días") + " de la última semana y no hiciste" : "", repFuera ? "los otros " + repFuera + " repasos vencidos" : ""].filter(Boolean).join(" y ") : "") +
-      ". Más lo que falles, con preguntas de la misma idea hasta acertarlas; al final, rondas con las falladas hasta acertarlas todas, y si quieres, un poco más. No acaba hasta terminarlo (puedes parar y seguir luego).</span></div>";
+      ". Más lo que falles, con preguntas de la misma idea hasta acertarlas; al final, rondas con las falladas hasta acertarlas todas, y si quieres, un poco más. No acaba hasta terminarlo (puedes parar y seguir luego)." +
+      (p.aparcadas ? " Aparcados hasta después del examen: " + p.aparcadas + " repasos de poco peso vencidos hace más de una semana." : "") + "</span></div>";
   }
   // Una línea de la sala de estudio para el resumen del entrenador
   function salaBreve() {
@@ -557,7 +567,7 @@
     var h = "<summary>🧭 Mi entrenador · plan de examen" + (obj !== "final" ? " · " + NOM_OBJ[obj] : "") + (p.fase ? " · faltan " + p.dias + " días · " + FASES[p.fase].nom : "") +
       ' <span class="sub">(pulsa para ' + (caja.open ? "plegar" : "ver el plan y «Hacer lo de hoy»") + ")</span></summary>";
     h += '<div style="margin:10px 0 4px"><button id="plan-ir" style="font-size:1rem;padding:10px 20px;margin:0">▶️ Hacer lo de hoy</button>' +
-      (p.fase ? ' <span class="sub">' + (p.objNuevas ? p.objNuevas + " nuevas y " : "") + p.vencidas + " repasos · empieza ya, con todo lo " + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + "</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>" + botonCompleta(p) + '<div id="plan-sala"></div><div id="ia-sitio"></div>';
+      (p.fase ? ' <span class="sub">una tanda de 30 siguiendo el plan, solo ' + (obj === "final" ? "del temario" : "del " + NOM_OBJ[obj]) + " (la sesión completa de abajo hace todo lo del día)</span>" : ' <span class="sub">abre el entrenador</span>') + "</div>" + botonCompleta(p) + '<div id="plan-sala"></div><div id="ia-sitio"></div>';
     if (conParciales()) {
       var n1 = BY_PARC(1), n2 = BY_PARC(2);
       h += '<div class="objs" style="margin-top:8px"><b>Qué preparo:</b> ' +
@@ -577,7 +587,7 @@
       '<div class="kpi"><b>' + t.exDom + " / " + t.exN + '</b><span>preguntas de examen dominadas</span></div>' +
       '<div class="kpi"><b>' + t.impDom + " / " + t.impN + '</b><span>importantes dominadas (examen, profesores, pistas)</span></div>' +
       '<div class="kpi"><b>' + pct(t.cob) + '</b><span>cobertura ponderada</span></div>' +
-      '<div class="kpi"><b>' + Math.round(p.ritmo.nuevasDia) + " / " + p.objNuevas + '</b><span>nuevas al día: llevas / pide el plan</span></div>' +
+      '<div class="kpi"><b>' + nuevasHechasHoy() + " / " + p.objNuevas + '</b><span>nuevas hoy: hechas / pide el plan (media de 14 días: ' + Math.round(p.ritmo.nuevasDia) + ")</span></div>" +
       "</div>" + sparkline();
     h += "<p><b>" + FASES[p.fase].nom + ".</b> " + FASES[p.fase].txt +
       (p.tarde ? ' <span class="alerta">Pero aún te falta ver lo importante</span> (' + p.med.tot.sinVerImp + " preguntas que pesan sin ver): hasta dos días antes el plan sigue pidiendo " + p.objNuevas + " nuevas al día, lo que más pesa primero." : "") + "</p>";
@@ -786,8 +796,24 @@
   var stats0 = App.updateHomeStats;
   App.updateHomeStats = function () {
     stats0.apply(this, arguments);
-    try { pintar(); } catch (e) { console.warn("plan", e); }
+    try { pintar(); contadoresPortada(); } catch (e) { console.warn("plan", e); }
   };
+  // «Sesión del día» y «Repaso vencido» del motor cuentan toda la asignatura; si se prepara un parcial,
+  // se dice cuántas son de él (y cuántas quedan aparcadas), para que todos los números cuadren con el plan
+  function contadoresPortada() {
+    var n = nParcial(), td = document.getElementById("today-desc"), dd = document.getElementById("due-desc");
+    if (!n || !td || !dd) return;
+    var qs = State.data.qs || {}, E = window.Entrenador, due = 0, fresh = 0, ap = 0;
+    ALL_QUESTIONS.forEach(function (q) {
+      if (!entraEnObjetivo(q)) return;
+      var s = qs[q.id];
+      if (isDue(s)) { if (E && E.aparcada && E.aparcada(q, s)) ap++; else due++; } else if (isNew(s)) fresh++;
+    });
+    var nom = NOM_OBJ[objetivo()], resto = (State.due || 0) - due - ap;
+    var hoy = (State.data.daily || {})[claveDia(hoy0())] || { n: 0 };
+    td.innerHTML = due + " vencidas y " + fresh.toLocaleString("es") + " nuevas del " + nom + (resto > 0 ? " (+" + resto + " vencidas del resto)" : "") + " · hoy " + hoy.n + (td.querySelector(".streak") ? " " + td.querySelector(".streak").outerHTML : "");
+    dd.textContent = due ? due + " del " + nom + " te tocan hoy" + (ap ? " (" + ap + " aparcadas)" : "") + (resto > 0 ? " · este botón mezcla también las " + resto + " del resto" : "") : "Nada vencido del " + nom;
+  }
   try { pintar(); } catch (e) { console.warn("plan", e); }
 
   if (window.MPSync && typeof MPSync.usar === "function") {

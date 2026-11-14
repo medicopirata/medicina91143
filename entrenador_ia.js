@@ -192,7 +192,7 @@
       casos.push(
         "TEMA: " + q.topicBase + "\n" +
         "ORIGEN: " + (window.Entrenador ? window.Entrenador.origen(q).txt : "sin datos") + "\n" +
-        "PREGUNTA" + (q.img ? " (lleva una imagen que no puedes ver)" : "") + ": " + q.q + "\n" +
+        "PREGUNTA" + (q.img ? " (lleva una imagen que no puedes ver" + (q.cae && q.cae.p ? "; trata de: " + corta(q.cae.p, 160) : "") + ")" : "") + ": " + q.q + "\n" +
         q.displayOptions.map(function (o, i) { return letra(i) + ") " + o; }).join("\n") + "\n" +
         "Eligió: " + letra(a.chosen) + " · Correcta: " + letra(dc) + " · " + (a.wasCorrect ? "ACERTÓ" : "FALLÓ") +
         " · iba " + CONF[a.conf || 0] + (h && h[4] ? " · tardó " + h[4] + " s" : "") +
