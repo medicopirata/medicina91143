@@ -263,7 +263,7 @@
     anat3: function (t) {
       if (/formaci[oó]n reticular|Tema 4 \(II\)/i.test(t)) return 1;
       if (/v[ií]as? (motoras|sensitivas|[oó]ptica|piramidal|extrapiramidal|y pares)|piramidal|par(es)? craneal|globo ocular|Tema 1[4-9] —|Pr[aá]ctica ([7-9]|1\d)\b/i.test(t)) return 2;
-      if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|base (interna|externa|del cr[aá]neo)|Taller [3-6] \(SNC\)|Taller 4 — Secciones|cavidad bucal|Diapositivas T6|trig[eé]mino|oculomotor/i.test(t)) return 2;
+      if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|base (interna|externa|del cr[aá]neo)|Taller [3-6] \(SNC\)|Taller 4 — Secciones|trig[eé]mino|oculomotor/i.test(t)) return 2;
       return 1;
     },
     // Visto en los exámenes de parcial de otros años: el 1.º es etiología general, propedéutica,
