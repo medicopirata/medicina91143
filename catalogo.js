@@ -49,7 +49,7 @@
           asignaturas: [
             { nombre: "Histología Especial I", emoji: "🔬", archivo: "plataforma_histologia2.1.html", n: 7857 },
             { nombre: "Fisiología Humana I",   emoji: "🫀", archivo: "plataforma_fisio1.html",        n: 2689  },
-            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 4833 },
+            { nombre: "Anatomía 3",            emoji: "🧠", archivo: "plataforma_anatomia3.html",     n: 5149 },
             { nombre: "Anatomía 3 · Rellenar", emoji: "🖼️", archivo: "rellenar_anatomia3.html",
               nota: "Las imágenes de los apuntes, con los nombres tapados" },
             { nombre: "Técnicas de Diagnóstico Anatómicas", emoji: "🩻", archivo: "plataforma_tecdiag.html", n: 62 },
