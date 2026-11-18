@@ -280,7 +280,13 @@
     var f = PARCIAL_TEMA[STORAGE_KEY.replace(/_study_v\d+$/, "")];
     return f ? f(limpio(t).replace(/^Apuntes:\s*/, "")) : (temasDados().has(t) ? 1 : 2);
   }
-  function hayParciales() { return TOPIC_NAMES.some(function (t) { return /parcial/i.test(t); }); }
+  // Asignaturas con examen único (Santiago, 18-11-2026): aunque algún banco antiguo se llame
+  // «Banco Parcial 2», ni el entrenador ni el plan preguntan por parciales.
+  var SIN_PARCIAL = { histo21: 1, fisio1: 1, fisio2: 1, histoesp2: 1, genetica: 1 };
+  function hayParciales() {
+    if (SIN_PARCIAL[STORAGE_KEY.replace(/_study_v\d+$/, "")]) return false;
+    return TOPIC_NAMES.some(function (t) { return /parcial/i.test(t); });
+  }
   function parcialDelNombre(t) {
     if (/(1er|1\.?º|primer)\s+parcial/i.test(t)) return 1;
     if (/(2\.?º|2do|segundo)\s+parcial|parcial\s+2\b/i.test(t)) return 2;
