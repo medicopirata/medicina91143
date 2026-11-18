@@ -118,10 +118,16 @@ def main():
         if not q:
             print("corrección a id inexistente", c["id"]); continue
         if "antes" not in c:
-            c["antes"] = {"options": q["options"], "correct": q["correct"], "exp": q["exp"]}
+            c["antes"] = {"q": q["q"], "options": q["options"], "correct": q["correct"], "exp": q["exp"], "cae": q.get("cae"), "also": q.get("also")}
         if c.get("options"): q["options"] = c["options"]
         if isinstance(c.get("correct"), int): q["correct"] = c["correct"]
         if c.get("exp"): q["exp"] = c["exp"]
+        if c.get("q"): q["q"] = c["q"]
+        if "also" in c:
+            if c["also"]: q["also"] = c["also"]
+            else: q.pop("also", None)
+        if c.get("cae") and c["cae"].get("p"):
+            cc = c["cae"]; q["cae"] = {"p": str(cc["p"])[:300], "c": str(cc.get("c", ""))[:200], "r": str(cc.get("r", ""))[:200], "f": 2 if cc.get("f") == 2 else 1}
         assert 0 <= q["correct"] < len(q["options"])
         ncorr += 1
     assert len({q["id"] for q in qs}) == len(qs)
