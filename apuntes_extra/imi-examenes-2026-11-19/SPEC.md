@@ -1,0 +1,30 @@
+# Carga de exámenes antiguos de IMI en la plataforma — especificación común
+
+Trabajas en `/private/tmp/claude-501/-Users-santi/413357e9-9d6f-4407-a8b5-46f0af76d970/scratchpad` (llámalo `$W`). Haz `cd $W` antes de nada y escribe solo dentro de `$W/work` y `$W/out` (y en `medint_img/` si tu encargo lo dice). No toques la plataforma.
+
+La plataforma es `/Users/santi/trabajo-claude/med91/plataforma_medint.html` (asignatura *Introducción a la Medicina Interna y Propedéutica Clínica*, 2.º de Medicina, UCA; 9123 preguntas tipo test de 5 opciones). El objetivo: que **todas** las preguntas de examen del PDF que te toca acaben en la plataforma, sin duplicar las que ya están, y con explicación.
+
+## Material
+- PDF originales en `/tmp/imi_pdfs/`.
+- Texto extraído con PyMuPDF en `$W/txt/<nombre>.txt` (negrita marcada `**…**`, color marcado `[cRRGGBB]` delante del texto; `[cff0000]` = rojo). Las cabeceras `===== PÁGINA n =====` separan páginas.
+- Páginas renderizadas en `$W/png_full/<nombre>/pNN.png` (léelas con la herramienta Read; son la fuente de verdad cuando el texto no existe o está roto). Si necesitas más resolución: `python3 -c "import fitz; d=fitz.open('/tmp/imi_pdfs/<nombre>.pdf'); d[N].get_pixmap(dpi=200, clip=fitz.Rect(x0,y0,x1,y1)).save('$W/work/recorte.png')"` (coordenadas en puntos; la página entera si omites clip).
+
+## Herramientas
+- `python3 cotejar.py <candidatas.json> > <salida.json>`: coteja una lista `[{q, options, correct|null}]` contra la plataforma. Por cada candidata devuelve `ESTÁ` (id, sim, banco, clave_igual) o `NUEVA` (sim y `parecida` = id de la más parecida). Umbral: Jaccard ≥ 0,6 sobre enunciado+opciones **y** la opción correcta de la candidata figura entre las opciones de la existente (si `correct` es null solo mira el texto). Imprime el resumen por stderr.
+- `python3 cotejar.py --ver <id> [<id> …]`: muestra preguntas de la plataforma por id (para comparar a ojo las parecidas).
+
+## Pasos
+1. **Transcribe TODAS las preguntas tipo test** del material a `work/<clave>_todas.json`: lista de `{n, q, options, correct, fuente_clave}` con `n` = número en el documento (texto), `correct` = índice 0-based o null si el documento no marca clave, `fuente_clave` = "oficial" (plantilla/corrección oficial) | "alumno" (marcas, círculos o selección del alumno; NO es corrección) | "ninguna". Enunciado literal (corrige solo erratas evidentes de OCR/tipografía, sin reescribir), opciones en el orden original y sin la letra. Cuando una pregunta dice «en el caso anterior» o depende de un caso clínico, antepón al enunciado un resumen del caso con los datos necesarios: `CASO CLÍNICO (nombre): <datos esenciales en 2-4 frases>. <pregunta>`.
+   - Preguntas que dependen de una imagen que no se puede reproducir: no las incluyas, cuéntalas en el informe (salvo que tu encargo diga cómo extraer la imagen).
+   - Preguntas de desarrollo / respuesta corta: no se transcriben; cuéntalas en el informe.
+   - Preguntas de **emparejamiento** («Empareje…», pares «concepto – respuesta»): solo si tu encargo lo pide, se convierten: una pregunta test por cada par con enunciado `«<concepto>» se corresponde con:` (o redacción natural equivalente), la respuesta correcta = la del documento, y 4 distractores tomados de las respuestas de los otros pares del mismo bloque (si no hay suficientes, inventa distractores plausibles del mismo tema). Pon `"nota": "convertida de un emparejamiento del examen"`.
+2. `python3 cotejar.py work/<clave>_todas.json > work/<clave>_cotejo.json`.
+3. Para cada `NUEVA` con `sim` entre 0,4 y 0,6: mira la `parecida` con `--ver`. Si es la misma pregunta con las mismas opciones (solo cambia la redacción), trátala como que YA ESTÁ. Si las opciones o la clave cambian de verdad, es una variante y se carga.
+4. **Escribe `out/<clave>.json`** solo con las NUEVAS: lista de objetos
+   `{"banco": "<nombre del banco que te indica el encargo>", "q": "...", "options": [...], "correct": <int>, "exp": "...", "n": "<nº en el documento>", "nota": "<opcional>"}`
+   - `correct` es obligatorio. Si la fuente es "oficial", úsala tal cual. Si es "alumno", **verifícala médicamente**: si es defendible, mantenla y termina `exp` con `\n\n✏️ Clave marcada por un alumno (sin corrección oficial), revisada.`; si está claramente mal, pon la correcta y termina con `\n\n✏️ El alumno había marcado «<texto>»; la clave se ha corregido al revisarla.` Si es "ninguna", resuélvela tú y termina con `\n\n🔎 Clave resuelta al revisar la pregunta (el documento no la traía).`
+   - `exp` (≥ 60 caracteres, normalmente 2-5 frases, en español): por qué la correcta lo es y, cuando ayude, por qué las otras no; nivel de fisiopatología/semiología de 2.º de Medicina (Sisinio de Castro, Farreras, Harrison). Si la pregunta es ambigua o la clave es discutible, dilo en la `exp` empezando ese párrafo por ⚠️.
+   - Preguntas cuya clave no puedes defender de ninguna manera (lógicamente imposibles, dos opciones igualmente correctas sin «son ciertas…», enunciado roto): no las cargues; al informe.
+5. **Escribe `out/<clave>_informe.md`** con: identificación del examen (convocatoria, año, nº de preguntas, modelo); recuento (transcritas / ya estaban / nuevas cargadas / descartadas y por qué); **tabla de discrepancias de clave**: para cada `ESTÁ` con `clave_igual: false` → id, clave del documento (texto), clave de la plataforma (texto), fuente de la clave del documento, y tu veredicto razonado en una línea (`documento` | `plataforma` | `dudosa`); y cualquier duda relevante.
+
+Reglas: no inventes preguntas ni opciones; no reordenes opciones; no cambies el sentido del enunciado; «Todas son ciertas»/«Ninguna es cierta» se quedan como están; trabaja página a página y guarda `work/<clave>_todas.json` de forma incremental para no perder nada; al terminar, comprueba que el número de preguntas transcritas coincide con las del documento y di en el informe si falta alguna y por qué. Responde al final con un resumen de 10 líneas como máximo: recuentos, discrepancias de clave que creas importantes y dudas.
