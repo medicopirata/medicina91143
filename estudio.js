@@ -240,6 +240,7 @@
     }
     h += cuadroRepasos(lista);
     h += '<p class="est-ayuda">Un tema por sesión: lee por apartados, responde antes y después de cada uno, y termina con la batería del tema. 🔥 = cuánto cae en examen · 📝 = las que más caen (exámenes de otros años y lo que el profesor dijo que cae).</p>';
+    if (window.Entrenador && window.Entrenador.fuentesHTML) h += window.Entrenador.fuentesHTML();
     bloques.forEach(function (bl) {
       h += '<div class="est-bloque"><div class="est-bloque-t">' + esc(bl) + "</div>";
       lista.filter(function (e) { return e.bloque === bl; }).forEach(function (e) {
@@ -525,7 +526,7 @@
       h += "<h2>🎯 Tema leído</h2>";
       h += '<div class="est-res"><div><b>' + comOk + "/" + com2.length + "</b><span>comprobaciones</span></div><div><b>" + huOk + "/" + hu.length + "</b><span>huecos</span></div><div><b>" + bat.bien + "/" + bat.n + "</b><span>batería bien</span></div></div>";
       h += '<p class="est-ayuda">Ahora la batería del tema: todas sus preguntas reales (exámenes, Kahoot, clase y Guyton). Lo que falles entrará en tus repasos y en el plan de examen. Mejor hoy mismo, con el tema fresco.</p>';
-      h += '<div class="est-botones grande"><button class="est-sigue" data-acc="bat">▶️ Batería del tema (' + t.bateria.length + ")</button>" + (ex.length ? '<button data-acc="bat-ex">📝 Solo las de examen (' + ex.length + ")</button>" : "") + "</div>";
+      h += '<div class="est-botones grande"><button class="est-sigue" data-acc="bat">▶️ Batería del tema (' + t.bateria.filter(function (id) { return BY_ID.has(id); }).length + ")</button>" + (ex.length ? '<button data-acc="bat-ex">📝 Solo las de examen (' + ex.length + ")</button>" : "") + "</div>";
       var rt = repasoTema(t);
       h += '<div class="est-botones"><button data-acc="rep">🎯 Repaso inteligente (' + Math.min(20, rt.lista.length) + ')</button><button data-acc="tutor">💬 Pregúntale al tutor</button></div>';
       h += '<p class="est-ayuda">Repaso inteligente: primero lo que has fallado, lo que te toca por repaso espaciado y lo que acertaste dudando; después lo que no has visto. ' +

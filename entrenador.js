@@ -27,26 +27,84 @@
   // («no dicha en clase») se retiran de todos los modos. Siguen en el archivo y conservan
   // su progreso: para recuperarlas basta quitar la línea de aquí.
   var BLOQUEAR = { anat3: /^🤖 Propuesta por Claude, no dicha en clase/ };
-  (function () {
-    var re = BLOQUEAR[STORAGE_KEY.replace(/_study_v\d+$/, "")];
-    if (!re) return;
-    var fuera = 0;
+  // Fuentes que el alumno puede dejar fuera cuando quiera (interruptor en la portada, en el
+  // entrenador y en la sala; se guarda en este navegador). En Fisiología I las del Guyton
+  // son preguntas sacadas del libro, no de clase: valen para reforzar, pero no siempre las
+  // quiere en los test. Al quitarlas desaparecen de todos los modos, del plan y de las
+  // baterías de la sala; su progreso se conserva y vuelven al marcar la casilla.
+  // Cada fuente: `test(q)` dice si la pregunta pertenece a ella. Las del Guyton van en dos grupos
+  // (teoría y casos clínicos; `cc: 1` lo pone tools/fisio1_guyton_casos.py) para poder hacer solo uno.
+  function guyton(q) { return /^📕 Guyton/.test(q.topicBase); }
+  var FUENTES_OPCIONALES = { fisio1: {
+    titulo: "📕 Preguntas del Guyton", desc: "sacadas del libro, no de clase; afectan a todos los modos, al plan y a las baterías de la sala, y su progreso se conserva",
+    grupos: [{ k: "guyton-teoria", test: function (q) { return guyton(q) && !q.cc; }, nom: "Teoría" },
+             { k: "guyton-casos", test: function (q) { return guyton(q) && !!q.cc; }, nom: "Casos clínicos" }] } };
+  var ASIG = STORAGE_KEY.replace(/_study_v\d+$/, "");
+  var FUENTES_DEF = FUENTES_OPCIONALES[ASIG], FUENTES = FUENTES_DEF ? FUENTES_DEF.grupos : [], FUENTES_K = STORAGE_KEY + "_fuentes";
+  function fuentesEstado() { try { return JSON.parse(localStorage.getItem(FUENTES_K)) || {}; } catch (e) { return {}; } }
+  function fuenteActiva(k) { return fuentesEstado()[k] !== 0; }   // por defecto, dentro
+
+  // Retira de la página (no del archivo) las preguntas que cumplen `fuera`; los bancos que se
+  // quedan vacíos desaparecen también de la rejilla de temas.
+  function retirar(fuera) {
+    var n = 0;
     for (var i = ALL_QUESTIONS.length - 1; i >= 0; i--) {
       var q = ALL_QUESTIONS[i];
-      if (!re.test(q.exp || "")) continue;
+      if (!fuera(q)) continue;
       ALL_QUESTIONS.splice(i, 1);
       BY_ID.delete(q.id);
       var l = BY_TOPIC.get(q.topicBase);
       if (l) { var k = l.indexOf(q); if (k >= 0) l.splice(k, 1); }
-      fuera++;
+      n++;
     }
-    if (!fuera) return;
+    if (!n) return 0;
+    for (var j = TOPIC_NAMES.length - 1; j >= 0; j--) {
+      var t = TOPIC_NAMES[j], lt = BY_TOPIC.get(t);
+      if (lt && lt.length) continue;
+      BY_TOPIC.delete(t); TOPIC_NAMES.splice(j, 1);
+      if (typeof TOPIC_COUNTS === "object" && TOPIC_COUNTS) delete TOPIC_COUNTS[t];
+    }
     try {
       var tot = document.getElementById("total-q-count");
       if (tot) tot.textContent = ALL_QUESTIONS.length.toLocaleString("es");
       App.renderTopicsGrid();
     } catch (e) { console.warn("entrenador", e); }
+    return n;
+  }
+  (function () {
+    var re = BLOQUEAR[ASIG];
+    if (re) retirar(function (q) { return re.test(q.exp || ""); });
+    FUENTES.forEach(function (f) { f.n = ALL_QUESTIONS.filter(f.test).length; });
+    var quitadas = FUENTES.filter(function (f) { return !fuenteActiva(f.k); });
+    if (quitadas.length) retirar(function (q) { return quitadas.some(function (f) { return f.test(q); }); });
   })();
+
+  // Las casillas del Guyton (teoría / casos clínicos), iguales en la portada, en el entrenador y en la sala
+  function fuentesHTML() {
+    if (!FUENTES.length) return "";
+    var fuera = FUENTES.filter(function (f) { return !fuenteActiva(f.k); }).length;
+    return '<div class="fuentes-opc"><b>' + esc(FUENTES_DEF.titulo) + '</b> <span class="sub">(' + esc(FUENTES_DEF.desc) + ")</span>" +
+      '<div class="fuentes-grupos">' + FUENTES.map(function (f) {
+        return '<label><input type="checkbox" data-fuente="' + f.k + '"' + (fuenteActiva(f.k) ? " checked" : "") + "> " + esc(f.nom) +
+          ' <span class="sub">(' + f.n.toLocaleString("es") + (fuenteActiva(f.k) ? "" : " · fuera") + ")</span></label>";
+      }).join("") + "</div>" +
+      (fuera === FUENTES.length ? '<div class="sub">Ahora no entra ninguna pregunta del Guyton.</div>' : "") + "</div>";
+  }
+  function pintarFuentesPortada() {
+    if (!FUENTES.length || document.getElementById("fuentes-portada")) return;
+    var chk = document.getElementById("chk-conf"), fila = chk && chk.closest ? chk.closest("label") : null;
+    if (!fila || !fila.parentNode) return;
+    var caja = document.createElement("div"); caja.id = "fuentes-portada";
+    caja.innerHTML = fuentesHTML();
+    fila.parentNode.insertBefore(caja, fila.nextSibling);
+  }
+  document.addEventListener("change", function (ev) {
+    var el = ev.target, k = el && el.getAttribute ? el.getAttribute("data-fuente") : null;
+    if (!k) return;
+    var est = fuentesEstado(); est[k] = el.checked ? 1 : 0;
+    try { localStorage.setItem(FUENTES_K, JSON.stringify(est)); } catch (e) {}
+    location.reload();
+  });
 
   var MODO = "coach";
   var TANDA = 30;        // preguntas por sesión si el selector está en «todas»
@@ -372,6 +430,7 @@
           return '<div class="tm"><span>' + esc(t) + '</span><select data-i="' + i + '"><option value="1"' + (p === 1 ? " selected" : "") + '>1.º</option><option value="2"' + (p === 2 ? " selected" : "") + '>2.º</option></select></div>';
         }).join("") + '</details>';
     }
+    h += fuentesHTML();
     h += '<div class="fila"><button id="amb-ir">Empezar</button><button id="amb-no" class="sec">Cancelar</button></div>';
     caja.innerHTML = h;
     caja.hidden = false;
@@ -734,7 +793,8 @@
     "#q-coach table{border-collapse:collapse;margin:8px 0;font-size:.8rem;width:100%}#q-coach th,#q-coach td{border:1px solid var(--border);padding:4px 6px;text-align:left;vertical-align:top}#q-coach th{background:var(--surface)}" +
     "#coach-res button{background:#7c3aed;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:.85rem;cursor:pointer;margin:4px 6px 0 0}" +
     "#coach-ambito{margin:14px 0 0;border:1px solid #a78bfa;border-radius:12px;background:var(--surface);padding:12px 16px;font-size:.88rem}" +
-    "#coach-ambito label{display:block;margin:6px 0;cursor:pointer}#coach-ambito .sub{color:var(--text2);font-size:.8rem}#coach-ambito p{margin:4px 0}" +
+    "#coach-ambito label{display:block;margin:6px 0;cursor:pointer}#coach-ambito .sub{color:var(--text2);font-size:.8rem}" +
+    ".fuentes-opc{margin:8px 0 0}.fuentes-opc{font-size:.88rem}.fuentes-grupos{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:4px}.fuentes-opc label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;margin:0}.fuentes-opc input{accent-color:var(--accent);width:15px;height:15px}.fuentes-opc .sub{color:var(--text2);font-size:.8rem}#fuentes-portada{flex-basis:100%;margin-top:4px}#coach-ambito p{margin:4px 0}" +
     "#coach-ambito details{margin-top:8px}#coach-ambito summary{cursor:pointer;color:var(--text2)}#coach-ambito .tm{display:flex;gap:8px;align-items:center;padding:3px 0;border-top:1px solid var(--border)}#coach-ambito .tm span{flex:1;min-width:0;font-size:.8rem}" +
     "#coach-ambito select{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:2px 6px}" +
     "#coach-ambito .fila{display:flex;gap:8px;margin-top:12px}#coach-ambito button{background:#7c3aed;color:#fff;border:0;border-radius:6px;padding:8px 16px;font-size:.9rem;cursor:pointer}#coach-ambito .sec{background:none;color:var(--text2);border:1px solid var(--border)}" +
@@ -1137,7 +1197,7 @@
     stats0.apply(this, arguments);
     try { pintarPortada(); } catch (e) { console.warn("entrenador", e); }
   };
-  try { pintarPortada(); } catch (e) { console.warn("entrenador", e); }
+  try { pintarPortada(); pintarFuentesPortada(); } catch (e) { console.warn("entrenador", e); }
 
   if (window.MPSync && typeof MPSync.usar === "function") {
     try { MPSync.usar({ clave: K_AMBITO, modo: "reciente" }); } catch (e) {}
@@ -1159,5 +1219,5 @@
     a.parciales = n === 1 || n === 2 ? [n] : [1, 2];
     guardarAmbito(a);
   }
-  window.Entrenador = { ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, topeVenc: topeVenc, repasosHoy: repasosHoy, aparcada: aparcada, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
+  window.Entrenador = { fuentesHTML: fuentesHTML, fuentes: function () { return FUENTES.map(function (f) { return { k: f.k, nom: f.nom, n: f.n, activa: fuenteActiva(f.k) }; }); }, ambito: leerAmbito, enAmbito: enAmbito, parcialDe: parcialDe, hayParciales: hayParciales, fijarParcial: fijarParcial, empezarPlan: empezarPlan, empezarCompleta: empezarCompleta, nuevasHoy: nuevasPendientesHoy, atraso: atrasoNuevas, topeVenc: topeVenc, repasosHoy: repasosHoy, aparcada: aparcada, temaDe: temaDe, temasDados: temasDados, abrir: abrirAmbito, origen: origen, familia: familia, especifico: especifico, estadoTema: estadoTema, temas: todosLosTemas, saber: saber, empezar: empezar };
 })();
