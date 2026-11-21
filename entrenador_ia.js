@@ -79,9 +79,9 @@
   function llamar(sistema, usuario) {
     var extra = REGLA_ASIGNATURA[STORAGE_KEY.replace(/_study_v\d+$/, "")];
     if (extra) sistema += "\n\n" + extra;
-    return pedir(sistema, usuario, MAX_TOKENS);
+    return pedirAPI(sistema, usuario, MAX_TOKENS);
   }
-  function pedir(sistema, usuario, tope) {
+  function pedirAPI(sistema, usuario, tope) {
     return fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -97,7 +97,7 @@
       return r.json().then(function (j) {
         if (!r.ok) throw new Error((j && j.error && j.error.message) || ("Error " + r.status));
         if (j.stop_reason === "max_tokens") {
-          if (tope < 2 * MAX_TOKENS) return pedir(sistema, usuario, 2 * MAX_TOKENS);
+          if (tope < 2 * MAX_TOKENS) return pedirAPI(sistema, usuario, 2 * MAX_TOKENS);
           throw new Error("La respuesta de la IA llegó cortada dos veces seguidas: vuelve a intentarlo.");
         }
         if (j.stop_reason === "refusal") throw new Error("La IA ha rechazado la petición por un filtro de seguridad: vuelve a intentarlo o cambia el modelo en los ajustes.");
