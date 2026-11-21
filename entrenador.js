@@ -258,12 +258,13 @@
   // los apuntes de cada asignatura; sin regla, lo dado hasta hoy cuenta como 1.º y lo demás como 2.º
   var PARCIAL_TEMA = {
     // «1.er parcial: teoría hasta el Tema 12 (vascularización del SN), prácticas hasta la 6».
-    // Las vías y las funciones y recorridos de los pares craneales son del 2.º, y también lo que los
-    // apuntes marcan «(2.º parcial)»: oído, VIII par, base del cráneo y los talleres 3 a 6 del SNC
+    // Santiago (21-11-2026): los talleres y seminarios hasta el 6 (incluidos los talleres 3-6 del
+    // SNC y el de la base del cráneo) son del 1.º. Las vías, los pares craneales (Ordóñez), el
+    // oído y el VIII par son del 2.º
     anat3: function (t) {
-      if (/formaci[oó]n reticular|Tema 4 \(II\)/i.test(t)) return 1;
+      if (/formaci[oó]n reticular|Tema 4 \(II\)|Taller|Seminario [1-6]\b|Pr[aá]ctica [1-6]\b/i.test(t)) return 1;
       if (/v[ií]as? (motoras|sensitivas|[oó]ptica|piramidal|extrapiramidal|y pares)|piramidal|par(es)? craneal|globo ocular|Tema 1[4-9] —|Pr[aá]ctica ([7-9]|1\d)\b/i.test(t)) return 2;
-      if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|base (interna|externa|del cr[aá]neo)|Taller [3-6] \(SNC\)|Taller 4 — Secciones|trig[eé]mino|oculomotor/i.test(t)) return 2;
+      if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|trig[eé]mino|oculomotor|facial/i.test(t)) return 2;
       return 1;
     },
     // Visto en los exámenes de parcial de otros años: el 1.º es etiología general, propedéutica,
