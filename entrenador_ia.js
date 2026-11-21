@@ -70,22 +70,37 @@
   };
   // Lo que tiene que cumplir toda pregunta que escriba la IA (son las reglas de Santiago para los bancos)
   var REGLA_PREGUNTAS = "TODA PREGUNTA QUE ESCRIBAS: solo de materia que entra en lo que prepara ahora (lo dice el PLAN DE EXAMEN: si es un parcial, nada de fuera de él). Se entiende sola, sin ver otra pregunta: si necesita los datos de un caso, empieza por «📋 Caso: …» con esos datos. Exactamente cuatro opciones. La explicación tiene al menos 60 caracteres, se escribe desde los apuntes con tus palabras y no copia la explicación de otra pregunta del banco.";
+  // En los modelos de la familia 5 el razonamiento («thinking») va siempre activado y sus tokens
+  // cuentan dentro de max_tokens: con 12000 la estrategia llegaba cortada una y otra vez. Ahora
+  // el tope es holgado, el esfuerzo de razonamiento es «medium» (sobra para corregir sesiones y
+  // planificar) y, si aun así se corta, se repite una vez con el doble de margen. Con `fallbacks`
+  // la propia API reintenta en otro modelo si un filtro de seguridad rechaza la petición.
+  var MAX_TOKENS = 32000;
   function llamar(sistema, usuario) {
     var extra = REGLA_ASIGNATURA[STORAGE_KEY.replace(/_study_v\d+$/, "")];
     if (extra) sistema += "\n\n" + extra;
+    return pedir(sistema, usuario, MAX_TOKENS);
+  }
+  function pedir(sistema, usuario, tope) {
     return fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "x-api-key": clave(),
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "server-side-fallback-2026-07-01",
         "anthropic-dangerous-direct-browser-access": "true"
       },
-      body: JSON.stringify({ model: modelo(), max_tokens: 12000, system: sistema, messages: [{ role: "user", content: usuario }] })
+      body: JSON.stringify({ model: modelo(), max_tokens: tope, output_config: { effort: "medium" }, fallbacks: "default",
+                             system: sistema, messages: [{ role: "user", content: usuario }] })
     }).then(function (r) {
       return r.json().then(function (j) {
         if (!r.ok) throw new Error((j && j.error && j.error.message) || ("Error " + r.status));
-        if (j.stop_reason === "max_tokens") throw new Error("La respuesta de la IA llegó cortada: vuelve a intentarlo.");
+        if (j.stop_reason === "max_tokens") {
+          if (tope < 2 * MAX_TOKENS) return pedir(sistema, usuario, 2 * MAX_TOKENS);
+          throw new Error("La respuesta de la IA llegó cortada dos veces seguidas: vuelve a intentarlo.");
+        }
+        if (j.stop_reason === "refusal") throw new Error("La IA ha rechazado la petición por un filtro de seguridad: vuelve a intentarlo o cambia el modelo en los ajustes.");
         var txt = (j.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("");
         return { txt: txt, uso: j.usage || {} };
       });
