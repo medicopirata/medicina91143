@@ -67,3 +67,29 @@ trozos en archivos `vueltas-NN.parte1.json`… y júntalos al final en `vueltas-
 Al terminar ejecuta `python3 tools/fisio1_vueltas_validar.py NN` y corrige lo que señale hasta
 que diga «0 errores». Responde solo con un resumen de 3 líneas: cuántas preguntas, qué dudas
 de contenido encontraste (si alguna) y el resultado del validador.
+
+---
+
+# Pasada 2 · longitudes (22-11-2026)
+
+En las vueltas ya escritas, la opción correcta es la más larga en el 76 % de las preguntas:
+eso delata la respuesta. Hay que igualar longitudes **sin cambiar el contenido**.
+
+- Trabaja sobre `apuntes_extra/fisio1-vueltas/vueltas-NN.json` en el sitio (haz copia de
+  seguridad antes en tu subcarpeta del scratchpad). NO toques `q`, `de`, `angulo` ni
+  `correct`; cambia solo el texto de las `options` (y `exp` únicamente si citaba literalmente
+  una opción que has reescrito).
+- Para cada pregunta que señale `python3 tools/fisio1_vueltas_longitudes.py NN`: acorta la
+  correcta (quita la coletilla explicativa, deja el dato) y/o alarga los distractores con un
+  matiz FALSO pero plausible del mismo estilo («…, por eso ↑ la FG» en un distractor que ya
+  era falso). Las cuatro opciones deben quedar parejas en longitud y en forma (si la
+  correcta lleva paréntesis o coletilla, que los lleven las demás; si no, ninguna).
+- Alarga o acorta también en preguntas que no estén señaladas si hace falta para que en el
+  lote la correcta sea la más larga en el 15-35 % de las preguntas y la más corta en el
+  15-35 %. Ojo: si la correcta NUNCA es la más larga, la opción más larga delata que es
+  falsa; el objetivo es que la longitud no diga nada (≈ 1 de cada 4 veces la más larga,
+  ≈ 1 de cada 4 la más corta), no acortar todas las correctas.
+- Nunca hagas verdadero un distractor ni falsa la correcta. Nada de «todas las anteriores».
+- Al acabar: `python3 tools/fisio1_vueltas_longitudes.py NN` → «OK», y
+  `python3 tools/fisio1_vueltas_validar.py NN` → «0 errores». Responde en 2 líneas:
+  preguntas retocadas y resultado de los dos comprobadores.
