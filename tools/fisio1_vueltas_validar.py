@@ -56,7 +56,7 @@ def validar(n):
 
 if __name__ == "__main__":
     args = sys.argv[1:] or ["todos"]
-    ns = sorted(int(re.search(r"(\d+)", f).group(1)) for f in glob.glob(f"{D}/vueltas-??.json")) if args == ["todos"] else [int(a) for a in args]
+    ns = sorted(int(re.search(r"vueltas-(\d+)", f).group(1)) for f in glob.glob(f"{D}/vueltas-??.json")) if args == ["todos"] else [int(a) for a in args]
     tot = 0
     for n in ns:
         err, k = validar(n)

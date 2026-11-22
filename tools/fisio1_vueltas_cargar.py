@@ -23,7 +23,7 @@ def main(prueba=False):
     base = {x["id"]: x for x in json.load(open(f"{D}/base/base.json", encoding="utf-8"))}
     nuevas, saltados = [], []
     for f in sorted(glob.glob(f"{D}/vueltas-??.json")):
-        n = int(re.search(r"(\d+)", f).group(1))
+        n = int(re.search(r"vueltas-(\d+)", f).group(1))
         err, k = V.validar(n)
         if err:
             saltados.append((n, len(err))); continue
@@ -31,6 +31,22 @@ def main(prueba=False):
             b = base[p["de"]]
             p["banco"] = "🔁 Vueltas · %s · %s" % (GRUPO[b["grupo"]], BLOQUE[b["bloque"]])
             nuevas.append(p)
+    # Enunciados repetidos entre lotes (la misma base estaba en dos bancos): se queda el primero
+    vistos, unicas = set(), []
+    for p in nuevas:
+        k = V.nn(p["q"])
+        k = " ".join(sorted(k))
+        if k in vistos: continue
+        vistos.add(k); unicas.append(p)
+    repetidas = len(nuevas) - len(unicas); nuevas = unicas
+    # La clave va repartida entre las cuatro posiciones: se rotan las opciones (la explicación
+    # habla del contenido, no de letras) hacia la posición menos usada hasta el momento
+    uso = [0, 0, 0, 0]
+    for p in nuevas:
+        dest = uso.index(min(uso))
+        giro = (dest - p["correct"]) % 4
+        p["options"] = p["options"][-giro:] + p["options"][:-giro] if giro else p["options"]
+        p["correct"] = dest; uso[dest] += 1
     s = open(HTML, encoding="utf-8").read()
     m = re.search(r"const ALL_QUESTIONS = (\[.*?\]);\n", s, re.S)
     qs = json.loads(m.group(1))
@@ -50,7 +66,7 @@ def main(prueba=False):
         qs.append({"id": idq, "topic": p["banco"], "topicBase": p["banco"], "fileId": idq, "origQ": origq[p["banco"]],
                    "q": p["q"], "options": p["options"], "correct": p["correct"], "exp": p["exp"], "de": p["de"], "n": p.get("angulo", "")})
     counts = collections.Counter(q["topic"] for q in qs)
-    print("vueltas cargadas: %d en %d bancos · lotes saltados por errores: %s · total plataforma %d" % (len(nuevas), len(origq), saltados or "ninguno", len(qs)))
+    print("vueltas cargadas: %d en %d bancos · repetidas quitadas: %d · clave por posición %s · lotes saltados por errores: %s · total plataforma %d" % (len(nuevas), len(origq), repetidas, uso, saltados or "ninguno", len(qs)))
     for b, k in sorted(origq.items()): print("  %4d  %s" % (k, b))
     if prueba: return
     s = s[:m.start()] + "const ALL_QUESTIONS = %s;\n" % json.dumps(qs, ensure_ascii=False) + s[m.end():]
