@@ -182,6 +182,7 @@
   function origenBanco(t) {
     var n = limpio(t);
     if (t.indexOf("🧠") === 0) return { tipo: "ia", txt: "🤖 Entrenamiento · escrita por la IA para una confusión tuya" };
+    if (t.indexOf("🔁") === 0) return { tipo: "vuelta", txt: "🔁 Vuelta a una pregunta que cae · " + n };
     if (/kahoot|taller|seminario/i.test(n) && t.indexOf("🎯") !== 0 && t.indexOf("🧪") !== 0 && t.indexOf("Apuntes:") !== 0) return { tipo: "profesor", txt: "🎯 De clase (Kahoot, taller o seminario) · " + n };
     if (t.indexOf("📝") === 0 && RE_EXAMEN.test(t)) return { tipo: "examen", txt: "📝 Salió en examen · " + n };
     if (t.indexOf("📝") === 0 || /^Banco (General|Parcial)|Recopilaci[oó]n/i.test(n)) return { tipo: "recop", txt: "📝 De recopilaciones de años anteriores · " + n };
@@ -225,6 +226,8 @@
     } else if (ex) {
       o = { tipo: "examen", txt: o.txt.split(" · ")[0].replace("Entrenamiento", "Banco de entrenamiento") + " · y además cayó en: " + Array.from(ex).slice(0, 3).join("; "), veces: ex.size };
     }
+    // q.de: es una vuelta a otra pregunta (de examen o de tarea); se dice cuál
+    if (q.de && BY_ID.get(q.de)) { var orig = BY_ID.get(q.de); o.txt += " · original: " + limpio(orig.topicBase) + " «" + orig.q.slice(0, 70) + (orig.q.length > 70 ? "…" : "") + "»"; }
     // q.cae: el profesor dijo en clase que esto se pregunta (lo marca tools/marcar_cae.py con la cita)
     if (q.cae) { o.cae = q.cae; o.txt += " · 🔴 El profesor dijo que cae" + (q.cae.c ? ": «" + q.cae.c + "»" : ""); }
     return o;

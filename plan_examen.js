@@ -49,6 +49,7 @@
     { k: "profesor", nom: "🎯 Las que dan los profesores",       sub: "dichas en clase, Kahoot, seminarios, campus, ⭐ imágenes que marcó", def: 2.5 },
     { k: "pistas",   nom: "📌 Sacadas de sus pistas",            sub: "construidas con lo que dijo que cae",             def: 2 },
     { k: "tarea",    nom: "🧩 Tareas y guiones de los talleres", sub: "lo que se rellena y entrega en las prácticas",    def: 2 },
+    { k: "vueltas",  nom: "🔁 Vueltas a lo que cae",            sub: "4 preguntas nuevas por cada una de examen o de tarea", def: 2 },
     { k: "recop",    nom: "📚 Recopilaciones sin convocatoria",  sub: "probablemente de examen, sin confirmar",          def: 1.8 },
     { k: "clase",    nom: "📓 Resto de los apuntes de clase",    sub: "",                                                 def: 1.3 },
     { k: "entreno",  nom: "🏋️ Bancos de entrenamiento",          sub: "baterías por temas, atlas e imágenes",             def: 1 },
@@ -62,6 +63,7 @@
   var TAREA = /gui[oó]n|guiones|\btareas?\b|^📝 Talleres? ·/i;
   function tipoDe(q) {
     if (q.ia) return "ia";
+    if (q.de) return "vueltas";   // vuelta a una pregunta de examen o de tarea (loquecae.js)
     var e = q.exp || "", E = window.Entrenador, o = E ? E.origen(q) : { tipo: "entreno" };
     if (o.tipo === "examen") return "examen";
     if (q.cae) return "cae";
