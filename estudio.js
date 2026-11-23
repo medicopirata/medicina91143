@@ -791,7 +791,7 @@
     h += '<div class="est-pex-lista">';
     p.examenes.forEach(function (ids, i) {
       var l = intentos(a, i), u = l[l.length - 1], mejor = l.reduce(function (m, x) { return Math.max(m, nota(x)); }, 0);
-      h += '<div class="est-pex' + (u ? (nota(u) >= 80 ? " bien" : nota(u) >= 50 ? " medio" : " flojo") : "") + (i === sig ? " sig" : "") + '"><div class="est-pex-t"><b>Examen ' + (i + 1) + "</b> · " + ids.length + " preguntas" +
+      h += '<div class="est-pex' + (u ? (nota(u) >= 80 ? " bien" : nota(u) >= 50 ? " medio" : " flojo") : "") + (i === sig ? " sig" : "") + '"><div class="est-pex-t"><b>Examen ' + (i + 1) + (p.nombres && p.nombres[i] ? " · " + esc(p.nombres[i]) : "") + "</b> · " + ids.length + " preguntas" +
         '<span class="meta">' + (u ? "Último (" + diaMes(u.t) + "): " + u.ok + "/" + u.n + " · " + nota(u) + "%" + (l.length > 1 ? " · mejor " + mejor + "% · " + l.length + " veces" : "") : i === sig ? "▶️ Te toca este" : "Sin hacer") + "</span></div>" +
         '<button data-acc="pex" data-i="' + i + '">' + (u ? "🔁 Repetir" : "▶️ Hacer") + "</button></div>";
     });

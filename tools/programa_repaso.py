@@ -8,7 +8,8 @@ Un programa es un apartado de la sala hecho solo de preguntas: «las que más
 caen» (exámenes de otros años y lo que el profesor dijo que cae) de las
 baterías de unos temas, más las preguntas de examen huérfanas (no están en
 ninguna batería) que se han asignado a mano a esos temas en «huerfanas»
-({id: tema}). Con "todos": true entran todos los temas de la sala y el
+({id: tema}). Con "fijos": [k] el examen k no recibe preguntas nuevas (sirve para dejar un
+parcial real entero como examen propio) y "nombres": {"k": "…"} le pone nombre en la sala. Con "todos": true entran todos los temas de la sala y el
 programa va detrás del último (crece cuando se añaden temas). Se reparten en exámenes de unas «tam» preguntas, mezclando
 todos los temas en la misma proporción en cada examen.
 
@@ -103,9 +104,12 @@ def main():
         rnd.shuffle(de_n)
         de_n.sort(key=lambda x: not de_examen(qs[x]))
         cola += de_n
+    # Los exámenes «fijos» (p. ej. un parcial real entero) no reciben preguntas nuevas
+    fijos = {int(i) for i in p.get("fijos", [])}
     for x in cola:
-        e = min(exs, key=len)
-        if len(e) >= tam + 10:
+        libres = [e for i, e in enumerate(exs) if i not in fijos]
+        e = min(libres, key=len) if libres else None
+        if e is None or len(e) >= tam + 10:
             e = []
             exs.append(e)
         e.append(x)
