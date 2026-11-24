@@ -3,9 +3,10 @@
  * dirigidas a eso. Va encima de entrenador.js y es opcional: sin clave, la
  * plataforma funciona igual que antes.
  *
- * La clave de la API la escribe el usuario en la portada y se guarda solo en
- * el navegador (localStorage, clave "mp_ia_clave"). No va al repositorio ni a
- * la nube: hay que ponerla una vez en cada dispositivo.
+ * La clave de la API la escribe el usuario en la portada y se guarda en el
+ * navegador (localStorage, clave "mp_ia_clave") y, con la sesión iniciada, en
+ * su cuenta de la nube (users/<uid>/_extras) con el modelo elegido, para que
+ * llegue a sus otros dispositivos (24-11-2026). No va al repositorio.
  *
  * Las preguntas que escribe la IA se guardan aparte (STORAGE_KEY + "_ia"), se
  * sincronizan entre dispositivos y aparecen en bancos «🧠 A tu medida · <tema>».
@@ -495,7 +496,7 @@
     }
     var d = cargar(), ult = d.inf.length ? d.inf[d.inf.length - 1] : null;
     if (!clave()) {
-      caja.innerHTML = "<b>✍️ O plantea otra cosa · 🧠 IA sin conectar</b><br>Pega aquí tu clave de la API de Anthropic para que el entrenador analice tus sesiones, revise la estrategia y te prepare lo que le pidas. Se guarda solo en este navegador; hay que ponerla una vez en cada dispositivo." +
+      caja.innerHTML = "<b>✍️ O plantea otra cosa · 🧠 IA sin conectar</b><br>Pega aquí tu clave de la API de Anthropic para que el entrenador analice tus sesiones, revise la estrategia y te prepare lo que le pidas. Se guarda en tu cuenta y llega sola a tus otros dispositivos." +
         '<div class="fila"><input id="ia-clave" type="password" placeholder="sk-ant-…" autocomplete="off" style="flex:1;min-width:180px"><button id="ia-guardar">Conectar</button></div>';
       document.getElementById("ia-guardar").onclick = function () {
         var v = document.getElementById("ia-clave").value.trim();
@@ -570,7 +571,12 @@
     try { App.updateHomeStats(); } catch (e) { console.warn("entrenador_ia", e); }
   }
   if (window.MPSync && typeof MPSync.usar === "function") {
-    try { MPSync.usar({ clave: ALMACEN, modo: "reciente", alCambiar: refrescar }); } catch (e) {}
+    try {
+      MPSync.usar({ clave: ALMACEN, modo: "reciente", alCambiar: refrescar });
+      // La clave de la API y el modelo viajan con la cuenta: al llegar, la portada pasa a «IA conectada»
+      MPSync.usar({ clave: K_CLAVE, modo: "reciente", alCambiar: function () { try { pintarPortada(); } catch (e) {} } });
+      MPSync.usar({ clave: K_MODELO, modo: "reciente" });
+    } catch (e) {}
   }
   refrescar();
 

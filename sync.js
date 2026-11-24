@@ -10,7 +10,10 @@
  *
  *   max       objeto de números (o un número): se queda el mayor de cada uno
  *   reciente  gana lo último que se escribió, en el dispositivo que sea;
- *             borrar la clave también cuenta
+ *             borrar la clave también cuenta. Si lo guardado es un objeto
+ *             (plan de examen, sala, ámbito) se funde campo a campo: cada
+ *             campo se queda como lo dejó el último que lo tocó, así abrir la
+ *             página en otro dispositivo no pisa lo que no ha cambiado allí
  *   qs        avance de una plataforma, con la misma fusión que usan ellas
  *
  * La sesión es la de index.html: si no se ha entrado allí, no se sube nada y
@@ -33,6 +36,8 @@
 
   var reglas = [], db = null, uid = null, extras = null, nubeQs = {}, oyentes = [];
   var vistaPagina = {};      // lo último que la página leyó o escribió, por clave (modo qs)
+  var VISTA_NUBE = "mp_sync_vn";   // lo último que se vio en la nube, por clave (modo reciente con objetos); sobrevive a cerrar la página
+  var vistaNube = null;
   var aplicando = false, tocado = false, cola = {}, temporizador = null;
   var ponOrig = Storage.prototype.setItem, quitaOrig = Storage.prototype.removeItem;
 
@@ -173,6 +178,11 @@
   function nombre(k) { return encodeURIComponent(k).replace(/\./g, "%2E"); }
   function marcas() { return analizar(leer(MARCAS)) || {}; }
   function marcar(k, t) { var m = marcas(); m[k] = t; try { ponOrig.call(localStorage, MARCAS, JSON.stringify(m)); } catch (e) {} }
+  function verNube(k) { if (!vistaNube) vistaNube = analizar(leer(VISTA_NUBE)) || {}; return vistaNube[k]; }
+  function fijarNube(k, v) {
+    verNube(k); if (v === null || v === undefined) delete vistaNube[k]; else vistaNube[k] = v;
+    try { ponOrig.call(localStorage, VISTA_NUBE, JSON.stringify(vistaNube)); } catch (e) {}
+  }
   function escribir(k, texto) {
     aplicando = true;
     try { if (texto === null) quitaOrig.call(localStorage, k); else ponOrig.call(localStorage, k, texto); }
@@ -189,6 +199,32 @@
     var o = {};
     Object.keys(a).concat(Object.keys(b)).forEach(function (c) {
       o[c] = (c in a && c in b) ? Math.max(+a[c] || 0, +b[c] || 0) : (c in a ? a[c] : b[c]);
+    });
+    return o;
+  }
+
+  // Modo reciente con objetos: fusión campo a campo, recursiva. `base` es lo último que este
+  // dispositivo vio en la nube (si se sabe): un campo igual a la base no lo tocó ese lado y se
+  // queda el del otro; un campo que cambiaron los dos lo decide `localGana` (la marca de tiempo).
+  // Sin base (este dispositivo nunca vio la nube) se juntan los campos de ambos y en los que chocan
+  // gana la nube: lo local recién creado suelen ser valores por defecto de la página.
+  function esObjeto(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
+  function fundir(local, nube, base, localGana) {
+    if (!esObjeto(local) || !esObjeto(nube)) {
+      if (base !== undefined) {
+        var cl = canon(local), cn = canon(nube), cb = canon(base);
+        if (cl === cb) return nube;
+        if (cn === cb) return local;
+      }
+      return localGana ? local : nube;
+    }
+    var o = {}, bo = esObjeto(base) ? base : null;
+    Object.keys(local).concat(Object.keys(nube)).forEach(function (c) {
+      if (c in o) return;
+      var enBase = bo && (c in bo);
+      if (!(c in local)) { if (!(enBase && (localGana || canon(bo[c]) === canon(nube[c])))) o[c] = nube[c]; return; }
+      if (!(c in nube)) { if (!(enBase && (!localGana || canon(bo[c]) === canon(local[c])))) o[c] = local[c]; return; }
+      o[c] = fundir(local[c], nube[c], enBase ? bo[c] : undefined, localGana);
     });
     return o;
   }
@@ -290,11 +326,21 @@
     }
     // reciente
     var tl = tLocal(k);
-    if (!rem) { if (texto !== null) sub(texto, tl || Date.now()); else if (tl) sub(null, tl); return; }
-    var rv = (rem.v === undefined) ? null : rem.v;
+    if (!rem) { if (texto !== null) { sub(texto, tl || Date.now()); fijarNube(k, analizar(texto)); } else if (tl) sub(null, tl); return; }
+    var rv = (rem.v === undefined) ? null : rem.v, lo = analizar(texto), no = analizar(rv);
+    if (esObjeto(lo) && esObjeto(no)) {
+      var tj = Math.max(tl, rem.t || 0), base = verNube(k);
+      var junto = (rv === texto) ? lo : fundir(lo, no, base, base !== undefined && tl > (rem.t || 0)), cj = canon(junto);
+      if (cj !== canon(lo)) { escribir(k, JSON.stringify(junto)); marcar(k, tj); avisar(r); }
+      else if (tj > tl) marcar(k, tj);
+      if (cj !== canon(no)) sub(JSON.stringify(junto), tj);
+      fijarNube(k, junto);
+      return;
+    }
     if ((rem.t || 0) > tl) {
       if (rv !== texto) { escribir(k, rv); marcar(k, rem.t); avisar(r); } else marcar(k, rem.t);
-    } else if (tl > (rem.t || 0) && rv !== texto) sub(texto, tl);
+      fijarNube(k, no);
+    } else if (tl > (rem.t || 0) && rv !== texto) { sub(texto, tl); fijarNube(k, lo); }
   }
 
   function escuchar() {

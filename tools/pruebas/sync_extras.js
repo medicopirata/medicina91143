@@ -83,4 +83,47 @@ const T = 1790000000000;
   assert.strictEqual(nube.escrituras, 0); assert.strictEqual(tb.almacen.mp_rellenar_a3, '{"4":90}');
   tb.conectar();
   assert.strictEqual(JSON.parse(nube.datos.users.u1._extras.mp_rellenar_a3.v)[4], 90, 'lo hecho sin sesión no sube al entrar'); }
+// --- plan de examen (reciente, objeto): la página escribe su diario antes de recibir la nube ---
+// La estrategia de la IA que hay en la nube no debe perderse por una escritura local hecha sin
+// haber visto aún lo que había; los campos se funden uno a uno y solo chocan los que cambian ambos.
+{ const nube = nubeFalsa(), K = 'anat3_study_v1_plan';
+  const nubeV = { pesos: { examen: 4, clase: 1 }, diario: { '2026-11-22': { p: 40 } }, estrategia: { t: T, resumen: 'Repasa médula', hoy: 'tálamo' }, objetivo: 'p1', confus: [{ t: 1, idea: 'a' }] };
+  nube.datos.users = { u1: { _extras: { [K]: { v: JSON.stringify(nubeV), t: T } } } };
+  const tb = dispositivo(nube, {});
+  let avisos = 0;
+  tb.MPSync.usar({ clave: K, modo: 'reciente', alCambiar: () => avisos++ });
+  tb.reloj(T + 100);
+  tb.ls.setItem(K, JSON.stringify({ pesos: { examen: 4, clase: 1 }, diario: { '2026-11-24': { p: 42 } }, objetivo: 'p1', confus: [] }));   // sin sesión aún: no sube
+  tb.conectar();
+  const local = JSON.parse(tb.almacen[K]), enNube = JSON.parse(nube.datos.users.u1._extras[K].v);
+  for (const d of [local, enNube]) {
+    assert(d.estrategia && d.estrategia.resumen === 'Repasa médula', 'la estrategia de la nube se pierde al abrir en otro dispositivo');
+    assert(d.diario['2026-11-22'] && d.diario['2026-11-24'], 'el diario no junta los días de los dos dispositivos');
+    assert.strictEqual(d.confus.length, 1, 'un dispositivo que nunca vio la nube pisa con sus valores por defecto');
+  }
+  assert(avisos >= 1, 'la página no se entera de que ha llegado la estrategia');
+  // el ordenador, que tenía la nube tal cual, recibe lo fundido y no vuelve a escribir
+  const pc = dispositivo(nube, { [K]: JSON.stringify(nubeV), mp_sync_t: JSON.stringify({ [K]: T }) });
+  pc.MPSync.usar({ clave: K, modo: 'reciente' }); pc.conectar();
+  assert(JSON.parse(pc.almacen[K]).diario['2026-11-24'], 'el día nuevo no llega al ordenador');
+  const antes = nube.escrituras; pc.soltar(); tb.soltar(); assert.strictEqual(nube.escrituras, antes, 'escrituras de más');
+  // la página revisa la estrategia en la tablet: llega al ordenador y no borra el resto
+  tb.reloj(T + 500); const d2 = JSON.parse(tb.almacen[K]); d2.estrategia = { t: T + 500, resumen: 'Nueva', hoy: 'bulbo' }; tb.ls.setItem(K, JSON.stringify(d2)); tb.soltar();
+  const fin = JSON.parse(pc.almacen[K]);
+  assert.strictEqual(fin.estrategia.resumen, 'Nueva'); assert(fin.diario['2026-11-22'] && fin.diario['2026-11-24']);
+  // la tablet cambia el objetivo otro día sin conexión (sesión nueva de la página) y el ordenador, mientras,
+  // añade un día al diario: al conectarse se quedan los dos cambios, porque la tablet recuerda qué vio en la nube
+  pc.reloj(T + 1000); const d3 = JSON.parse(pc.almacen[K]); d3.diario['2026-11-25'] = { p: 50 }; pc.ls.setItem(K, JSON.stringify(d3)); pc.soltar();
+  const tb2 = dispositivo(nube, tb.almacen);
+  tb2.MPSync.usar({ clave: K, modo: 'reciente' });
+  tb2.reloj(T + 1200); const d4 = JSON.parse(tb2.almacen[K]); d4.objetivo = 'final'; tb2.ls.setItem(K, JSON.stringify(d4));
+  tb2.conectar();
+  for (const d of [JSON.parse(tb2.almacen[K]), JSON.parse(pc.almacen[K]), JSON.parse(nube.datos.users.u1._extras[K].v)]) {
+    assert.strictEqual(d.objetivo, 'final', 'el cambio hecho sin conexión se pierde');
+    assert(d.diario['2026-11-25'] && d.diario['2026-11-22'], 'la tablet pisa el diario del ordenador');
+    assert.strictEqual(d.estrategia.resumen, 'Nueva');
+  }
+  // borrar la clave entera sigue contando como lo último
+  tb2.reloj(T + 1900); tb2.ls.removeItem(K); tb2.soltar();
+  assert(!(K in pc.almacen), 'borrar el plan en la tablet no lo quita del ordenador'); }
 console.log('OK sync_extras');
