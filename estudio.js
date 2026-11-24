@@ -784,6 +784,23 @@
     h += '<div class="est-prog-temas">' + p.temas.map(function (n) {
       return '<span title="' + esc(ets[n] ? ets[n].titulo : "") + '">' + esc(ets[n] ? corto(ets[n]) : "T" + n) + " · " + (porTema[n] || 0) + "</span>";
     }).join("") + "</div>";
+    // Avisos del profesor para este examen (programa.avisos: título, cita, texto y preguntas de cada uno)
+    if (Array.isArray(p.avisos) && p.avisos.length) {
+      h += '<div class="est-avisos"><h3>' + esc(p.avisosTitulo || "🔴 Lo que el profesor avisó en clase") + "</h3>";
+      if (p.avisosIntro) h += '<div class="est-txt">' + md(p.avisosIntro) + "</div>";
+      var todasAv = [];
+      p.avisos.forEach(function (av, k) {
+        var ids = (av.ids || []).filter(function (id) { return BY_ID.has(id); }), v = 0, b = 0;
+        ids.forEach(function (id) { var r = ultimaRespuesta(id); if (r !== null) { v++; if (r) b++; } todasAv.push(id); });
+        var l = intentos(a, "av" + k), u = l[l.length - 1];
+        h += '<div class="est-av' + (u ? (nota(u) >= 80 ? " bien" : nota(u) >= 50 ? " medio" : " flojo") : "") + '"><div class="est-pex-t"><b>' + (k + 1) + ". " + esc(av.titulo) + "</b>" +
+          (av.cita ? '<div class="est-cita">' + esc(av.cita) + "</div>" : "") + (av.md ? '<div class="est-av-txt">' + md(av.md) + "</div>" : "") +
+          '<span class="meta">' + ids.length + " preguntas · " + v + " respondidas · " + b + " bien la última vez" + (u ? " · último intento (" + diaMes(u.t) + "): " + u.ok + "/" + u.n : "") + "</span></div>" +
+          '<button data-acc="pex" data-i="av' + k + '">' + (u ? "🔁 Repetir" : "▶️ Practicar") + "</button></div>";
+      });
+      var lt = intentos(a, "avtodos");
+      h += '<div class="est-botones"><button data-acc="pex" data-i="avtodos">🔴 Todas las de los avisos (' + todasAv.length + ")" + (lt.length ? " · última vez " + lt[lt.length - 1].ok + "/" + lt[lt.length - 1].n : "") + "</button></div></div>";
+    }
     h += '<div class="est-prog-modo"><button data-acc="pmodo" data-v="cada" class="' + (ex ? "" : "act") + '">✅ Corrigiendo cada pregunta (con tutor)</button>' +
       '<button data-acc="pmodo" data-v="examen" class="' + (ex ? "act" : "") + '">📝 Como en el examen: corrige al final</button></div>';
     h += '<p class="est-ayuda">' + (ex ? "📝 Modo examen: no verás si aciertas ni la explicación hasta terminar; al acabar, «🔍 Revisar respuestas» te las enseña todas."
@@ -810,7 +827,12 @@
     if (acc === "salir") return salir();
     if (acc === "pmodo") { try { localStorage.setItem(K + "_prog_corr", b.getAttribute("data-v")); } catch (e) {} return pintar(); }
     if (acc !== "pex") return;
-    var i = b.getAttribute("data-i"), ids = i === "fall" ? falladasPrograma(a, p).slice() : i === "azar" ? azarPrograma(p) : p.examenes[+i];
+    var i = b.getAttribute("data-i"), ids;
+    if (i === "fall") ids = falladasPrograma(a, p).slice();
+    else if (i === "azar") ids = azarPrograma(p);
+    else if (i === "avtodos") ids = [].concat.apply([], (p.avisos || []).map(function (av) { return av.ids || []; }));
+    else if (/^av\d+$/.test(i)) ids = (p.avisos && p.avisos[+i.slice(2)] && p.avisos[+i.slice(2)].ids) || [];
+    else ids = p.examenes[+i];
     var qs = (ids || []).map(function (id) { return BY_ID.get(id); }).filter(Boolean);
     if (!qs.length) return alert("No hay preguntas para este examen.");
     var ex = comoExamen(), pen = document.getElementById("exam-pen");
@@ -1217,6 +1239,8 @@
     ".est-prog-modo button.act{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}",
     ".est-pex{display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:6px}",
     ".est-pex-t{flex:1;min-width:0} .est-pex-t .meta{display:block;font-size:.78rem;color:var(--text2);margin-top:2px}",
+    ".est-avisos{margin:14px 0 6px;padding:12px 14px;border:1px solid var(--danger);border-radius:10px;background:var(--surface2)} .est-avisos h3{margin:0 0 6px;font-size:1.02rem}",
+    ".est-av{display:flex;gap:8px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:8px;padding:9px 12px;margin-bottom:8px} .est-av button{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;cursor:pointer;white-space:nowrap} .est-av.bien{border-left-color:var(--success)} .est-av.medio{border-left-color:var(--warning)} .est-av.flojo{border-left-color:var(--danger)} .est-cita{font-size:.84rem;color:var(--text2);font-style:italic;margin:3px 0 4px} .est-av-txt{font-size:.86rem;line-height:1.45} .est-av-txt p{margin:4px 0} .est-av-txt ul{margin:4px 0 4px 18px;padding:0}",
     ".est-pex button{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;cursor:pointer;white-space:nowrap} .est-pex button:hover{border-color:var(--accent)}",
     ".est-pex.sig{border-left-color:var(--accent)} .est-pex.bien{border-left-color:var(--success)} .est-pex.medio{border-left-color:var(--warning)} .est-pex.flojo{border-left-color:var(--danger)}",
     ".est-sig{width:100%;text-align:left;background:var(--accent);color:#04120c;border:0;border-radius:8px;padding:12px 14px;font-weight:700;cursor:pointer;font-size:.95rem}",

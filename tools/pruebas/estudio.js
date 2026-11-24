@@ -192,6 +192,17 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
     const scr = d.getElementById("estudio-screen");
     ok(!scr.classList.contains("hidden") && scr.querySelectorAll(".est-pex").length === g.examenes.length, "  abre su pantalla con " + g.examenes.length + " exámenes (" + g.examenes.join("/") + ")");
     ok(scr.querySelector('[data-acc="pmodo"][data-v="cada"].act'), "  por defecto corrige cada pregunta");
+    // Avisos del profesor (programa.avisos): un bloque por aviso con su texto y su botón, encima de los exámenes
+    const prog = JSON.parse(fs.readFileSync(path.join(path.dirname(process.argv[2]), "estudio", w.eval("STORAGE_KEY.replace(/_study_v\\d+$/, \"\")"), g.archivo), "utf8"));
+    if (Array.isArray(prog.avisos) && prog.avisos.length) {
+      const bloques = scr.querySelectorAll(".est-avisos .est-av");
+      ok(bloques.length === prog.avisos.length && /mucosa de la mejilla|milohioidea/.test(scr.querySelector(".est-avisos").textContent), "  enseña los " + prog.avisos.length + " avisos del profesor con su texto");
+      ok(scr.querySelector(".est-avisos").compareDocumentPosition(scr.querySelector(".est-pex")) & 4, "  y van antes de los exámenes");
+      scr.querySelector('[data-acc="pex"][data-i="av0"]').click(); await espera(40);
+      const ids = w.eval("State.session.questions.map(q => q.id)");
+      ok(ids.length === prog.avisos[0].ids.length && ids.every(i => prog.avisos[0].ids.includes(i)), "  «Practicar» el aviso 1 abre una sesión con sus " + prog.avisos[0].ids.length + " preguntas");
+      w.eval("App.goHome()"); await espera(30); fila.click(); await espera(60);
+    }
     scr.querySelector('[data-acc="pex"][data-i="1"]').click(); await espera(40);
     const qmal = w.eval("State.session.questions[State.session.currentIdx].id"), dc = w.eval("dispCorrect(State.session.questions[State.session.currentIdx])");
     d.querySelectorAll("#q-options .opt-btn")[dc === 0 ? 1 : 0].click(); await espera(20);
