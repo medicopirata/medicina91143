@@ -8,7 +8,8 @@ Un programa es un apartado de la sala hecho solo de preguntas: «las que más
 caen» (exámenes de otros años y lo que el profesor dijo que cae) de las
 baterías de unos temas, más las preguntas de examen huérfanas (no están en
 ninguna batería) que se han asignado a mano a esos temas en «huerfanas»
-({id: tema}). Con "fijos": [k] el examen k no recibe preguntas nuevas (sirve para dejar un
+({id: tema}). Con "origen": "anteriores" entran también kahoots, cuestionarios de profesores (🎯), pruebas
+de clase (🧪) y figuras de examen, y no las de «cae» sin examen detrás. Con "fijos": [k] el examen k no recibe preguntas nuevas (sirve para dejar un
 parcial real entero como examen propio) y "nombres": {"k": "…"} le pone nombre en la sala. Con "todos": true entran todos los temas de la sala y el
 programa va detrás del último (crece cuando se añaden temas). Se reparten en exámenes de unas «tam» preguntas, mezclando
 todos los temas en la misma proporción en cada examen.
@@ -41,6 +42,14 @@ def examen_real(q):
     return bool(q.get("caida")) or (tb.startswith("📝") and bool(RE_EXAMEN.search(tb))) or (tb.startswith("Apuntes:") and "examen real" in tb.lower())
 
 
+def anteriores(q):
+    """Preguntas «anteriores» de la asignatura: exámenes y recopilatorios (📝), kahoots y cuestionarios de los
+    profesores (🎯), pruebas de clase (🧪), figuras de examen y las caídas en examen. Sin las de «el profesor
+    dijo que cae», que no son preguntas hechas. Se usa con "origen": "anteriores" en el programa."""
+    tb = q.get("topicBase") or ""
+    return de_examen(q) or bool(re.match(r"^(🎯|🧪|🖼️ Figuras de examen|📚 Examen)", tb))
+
+
 def de_examen(q):
     """Mismo criterio que deExamen() de estudio.js (con Entrenador.origen): también las de
     un banco de entrenamiento cuyo enunciado es el de una pregunta que cayó en examen."""
@@ -70,10 +79,11 @@ def main():
     archivo = {json.load(open(f, encoding="utf-8"))["tema"]: f for f in glob.glob(os.path.join(carpeta, "tema-*.json"))}
     # Qué entra, y de qué tema es cada una (el primero que la tenga en su batería)
     tema = {}
+    entra = anteriores if p.get("origen") == "anteriores" else (lambda q: de_examen(q) or q.get("cae"))
     for n in p["temas"]:
         t = json.load(open(archivo[n], encoding="utf-8"))
         for x in t.get("bateria", []):
-            if isinstance(x, int) and x in qs and x not in tema and (de_examen(qs[x]) or qs[x].get("cae")):
+            if isinstance(x, int) and x in qs and x not in tema and entra(qs[x]):
                 tema[x] = n
     for x, n in p.get("huerfanas", {}).items():
         x = int(x)

@@ -186,7 +186,8 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const g of E.indice().programas || []) {
     w.eval("App.goHome()"); await espera(30);
     const fila = d.querySelector('#estudio-home [data-est="prog"][data-a="' + g.archivo + '"]');
-    const filas = [...d.querySelectorAll("#estudio-home .est-fila")], tras = filas[filas.indexOf(fila && fila.parentNode) - 1];
+    // varios programas pueden ir detrás del mismo tema: se mira el último tema que hay por encima
+    const filas = [...d.querySelectorAll("#estudio-home .est-fila")], tras = filas.slice(0, filas.indexOf(fila && fila.parentNode)).reverse().find(f => !f.classList.contains("prog") && f.querySelector(".est-tema"));
     ok(fila && tras && +tras.querySelector(".est-tema").getAttribute("data-n") === g.despues, "programa: «" + g.titulo + "» sale detrás del tema " + g.despues);
     fila.click(); await espera(60);
     const scr = d.getElementById("estudio-screen");
