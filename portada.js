@@ -218,4 +218,11 @@
   };
 
   window.PORTADA_ASIGNATURAS = ASIGNATURAS;
+  // Para otras páginas (la «mesa» de Mi Oficina): el estado calculado de cada asignatura y las tareas de hoy, sin HTML.
+  window.estadosPortada = function (prog, examenes, indices) {
+    return ASIGNATURAS.map(function (a) { return estado(a, prog || {}, examenes || {}, indices || {}); });
+  };
+  window.tareasPortada = tareas;
+  window.extraPortada = extra;
+  window.rachaPortada = racha;
 })();
