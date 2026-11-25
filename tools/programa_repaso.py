@@ -10,7 +10,8 @@ baterías de unos temas, más las preguntas de examen huérfanas (no están en
 ninguna batería) que se han asignado a mano a esos temas en «huerfanas»
 ({id: tema}). Con "origen": "anteriores" entran también kahoots, cuestionarios de profesores (🎯), pruebas
 de clase (🧪) y figuras de examen, y no las de «cae» sin examen detrás. Con "fijos": [k] el examen k no recibe preguntas nuevas (sirve para dejar un
-parcial real entero como examen propio) y "nombres": {"k": "…"} le pone nombre en la sala. Con "todos": true entran todos los temas de la sala y el
+parcial real entero como examen propio), "nombres": {"k": "…"} le pone nombre en la sala y "excluir": "<regex>" deja fuera
+los bancos cuyo nombre case (p. ej. «2º Parcial»). Con "todos": true entran todos los temas de la sala y el
 programa va detrás del último (crece cuando se añaden temas). Se reparten en exámenes de unas «tam» preguntas, mezclando
 todos los temas en la misma proporción en cada examen.
 
@@ -79,7 +80,11 @@ def main():
     archivo = {json.load(open(f, encoding="utf-8"))["tema"]: f for f in glob.glob(os.path.join(carpeta, "tema-*.json"))}
     # Qué entra, y de qué tema es cada una (el primero que la tenga en su batería)
     tema = {}
-    entra = anteriores if p.get("origen") == "anteriores" else (lambda q: de_examen(q) or q.get("cae"))
+    entra0 = anteriores if p.get("origen") == "anteriores" else (lambda q: de_examen(q) or q.get("cae"))
+    # "excluir": expresión regular sobre el nombre del banco; lo que case no entra ni por batería ni por huérfana
+    # (p. ej. los bancos «2º Parcial» en el programa del 1.er parcial, aunque su pregunta esté en un tema del primero).
+    excluir = re.compile(p["excluir"], re.I) if p.get("excluir") else None
+    entra = (lambda q: entra0(q) and not excluir.search(q.get("topicBase") or q.get("topic") or "")) if excluir else entra0
     for n in p["temas"]:
         t = json.load(open(archivo[n], encoding="utf-8"))
         for x in t.get("bateria", []):
@@ -89,6 +94,7 @@ def main():
         x = int(x)
         if x not in qs: print("✗ huérfana %d no existe" % x); continue
         if n not in p["temas"]: print("✗ huérfana %d va al tema %s, fuera del programa" % (x, n)); continue
+        if excluir and excluir.search(qs[x].get("topicBase") or qs[x].get("topic") or ""): continue
         tema.setdefault(x, n)
 
     # Sin repetidas: se queda la de examen antes que la de «cae», y la de id más bajo
