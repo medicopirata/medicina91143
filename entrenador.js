@@ -326,6 +326,8 @@
       if (/formaci[oó]n reticular|Tema 4 \(II\)|Taller|Seminario [1-6]\b|Pr[aá]ctica [1-6]\b/i.test(t)) return 1;
       if (/v[ií]as? (motoras|sensitivas|[oó]ptica|piramidal|extrapiramidal|y pares)|piramidal|par(es)? craneal|globo ocular|Tema 1[4-9] —|Pr[aá]ctica ([7-9]|1\d)\b/i.test(t)) return 2;
       if (/o[ií]do (externo|medio|interno)|\bVIII par\b|vestibulococlear|trig[eé]mino|oculomotor|facial/i.test(t)) return 2;
+      // Seminarios 7 y 8 (Geribaldi: músculos masticadores y mímicos, inervación y vascularización de la cara): 2.º (el profesor, 24-11-2026)
+      if (/Seminarios? de la cara|Seminario [7-9]\b|masticador|m[ií]mic|Geribaldi|Cuestionario MIR/i.test(t)) return 2;
       return 1;
     },
     // Visto en los exámenes de parcial de otros años: el 1.º es etiología general, propedéutica,
